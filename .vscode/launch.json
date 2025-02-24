@@ -1,0 +1,25 @@
+{
+    // Utilisez IntelliSense pour en savoir plus sur les attributs possibles.
+    // Pointez pour afficher la description des attributs existants.
+    // Pour plus d'informations, visitez : https://go.microsoft.com/fwlink/?linkid=830387
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Test Integration",
+            "type": "python",
+            "request": "launch",
+            "module": "unittest",
+            "python": "/Users/adrien/Documents/workspace/annonayEscalade/climbContestServer/venv/bin/python",
+            "args": [
+                "tests.test_integration.TestIntegration.test_register_success_api"
+            ],
+            "console": "integratedTerminal",
+            "justMyCode": false,
+            "env": {
+                "FLASK_APP": "src/main.py",
+                "FLASK_ENV": "debug"
+            },
+            "cwd": "${workspaceFolder}"
+        }
+    ]
+}

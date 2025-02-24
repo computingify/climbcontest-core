@@ -2,7 +2,7 @@ from flask import Flask, request, jsonify
 from src.models import db, Climber, Bloc
 from src.google_sheets import GoogleSheet
 from src.google_sheets_reader import populate_bloc, populate_climbers
-from database_handler import DatabaseHandler
+from src.database_handler import DatabaseHandler
 import threading
 
 
@@ -16,11 +16,14 @@ def sync_data_from_google_sheet(app):
 
 def create_app(config_name=None):
     app = Flask(__name__)
+    print("config_name = ", config_name)
     if config_name == 'testing':
         app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///test.db'
-        app.config['TESTING'] = True
+        app.testing = True
+        print("====== Testing mode ========")
     else:
         app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///database.db'
+        print("====== Production mode ========")
     app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
     db.init_app(app)
     with app.app_context():
@@ -29,12 +32,17 @@ def create_app(config_name=None):
         db.drop_all()
         db.create_all()
         print("Database recreated.")
-        if not app.config['TESTING']:
+        if not app.testing:
             sync_data_from_google_sheet(app)
     return app
 
 app = create_app()
     
+@app.route('/')
+def index():
+    print('Hello, World!')
+    return 'Hello, World!'
+
 # Use to check if the climber bib is already registered in the database
 @app.route('/api/v2/contest/climber/name', methods=['POST'])
 def check_climber():
@@ -107,9 +115,12 @@ def check_bloc_tag():
 # Use by application to register a success of a climber on a bloc (the only API that write)
 @app.route('/api/v2/contest/success', methods=['POST'])
 def register_success():
+    print('###########################################################')
     data = request.get_json()
     climber_bib = data.get('bib')
     bloc_tag = data.get('bloc')
+    
+    print(f'===> Register success climber: {climber_bib} | bloc: {bloc_tag}')
     
     if not (climber_bib and bloc_tag):
         message = 'Missing data'
@@ -149,11 +160,11 @@ def update_google_sheet(climber, bloc):
     thread = threading.Thread(target=google_sheet.update_google_sheet, args=(climber.bib, int(bloc.number), climber.bib, bloc.number))
     thread.start()
 
-# Launch the application
-if __name__ == '__main__':
-    # Path to your SSL certificate and private key
-    ssl_context = ('security/cert.pem', 'security/key.pem')
-    app.config["DEBUG"] = True
-    use_reloader=False
-    app.run(host='0.0.0.0', port=5007, ssl_context=ssl_context)
+# # Launch the application
+# if __name__ == '__main__':
+#     # Path to your SSL certificate and private key
+#     ssl_context = ('security/cert.pem', 'security/key.pem')
+#     app.config["DEBUG"] = True
+#     use_reloader=False
+#     app.run(host='0.0.0.0', port=5007, ssl_context=ssl_context)
     

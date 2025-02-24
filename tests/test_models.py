@@ -8,18 +8,15 @@ class TestModels(unittest.TestCase):
     def setUp(self):
         """Test environnement configuration"""
         self.app = create_app('testing')
-        self.app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///test.db'
-        self.app.config['TESTING'] = True
         self.client = self.app.test_client()
-        self.ctx = self.app.app_context()
-        self.ctx.push()
-        db.create_all()
+        self.app_context = self.app.app_context()
+        self.app_context.push()
 
     def tearDown(self):
         """Unit test cleanup after test method is executed"""
         db.session.remove()
         db.drop_all()
-        self.ctx.pop()
+        self.app_context.pop()
         # Supprime le fichier de la base de données de test
         if os.path.exists('test.db'):
             os.remove('test.db')
