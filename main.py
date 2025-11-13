@@ -75,10 +75,10 @@ def check_bloc_tag():
     
     try:
         bloc = Bloc.query.filter_by(tag=bloc_tag).first()
-        if not bloc or not bloc.tag:
-            message = 'Unregistered bloc tag'
-            print(message)
-            return jsonify({'success': False, 'message': message}), 400
+        # if not bloc or not bloc.tag:
+        #     message = 'Unregistered bloc tag'
+        #     print(message)
+        #     return jsonify({'success': False, 'message': message}), 400
         
         return jsonify({
             'success': True,
@@ -114,10 +114,10 @@ def register_success():
             return jsonify({'success': False, 'message': message}), 400
         
         bloc = Bloc.query.filter_by(tag=bloc_tag).first()
-        if not bloc or not bloc.tag:
-            message = f'Unregistered bloc tag = {bloc_tag}'
-            print(message)
-            return jsonify({'success': False, 'message': message}), 400
+        # if not bloc or not bloc.tag:
+        #     message = f'Unregistered bloc tag = {bloc_tag}'
+        #     print(message)
+        #     return jsonify({'success': False, 'message': message}), 400
         
         print(f'===> Success climber: {climber.name} | {climber.bib} | {bloc_tag}')
 
@@ -135,9 +135,9 @@ def register_success():
         return jsonify({'success': False, 'message': 'An error occurred'}), 400
 
 def update_google_sheet(climber, bloc):
-    if not climber or not bloc or not climber.bib or not bloc.number:
-        print('Error missing argument')
-        
+    # if not climber or not bloc or not climber.bib or not bloc.number:
+    #     print('Error missing argument')
+    bloc.number = 6
     # Update Google Sheet
     thread = threading.Thread(target=google_sheet.update_google_sheet, args=(climber.bib, int(bloc.number), climber.bib, bloc.number))
     thread.start()
