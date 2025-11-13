@@ -13,8 +13,8 @@ SCOPES = ['https://www.googleapis.com/auth/spreadsheets']
 # IMPORT = 'Feuille 1'
 # Etienne's sheets
 # SPREADSHEET_ID = '1ce-Ub6gJGc2Fi_p0KA6GqePhKvEclzc51sanYShblcU'
-# SPREADSHEET_ID = '1lOWe3j-4KG62wcKCsBd7T0Yj4iduFzH5QB76wS7dc9M'
-SPREADSHEET_ID = '1jOKamYh6oqBFtwY_N_Co2Aia6Pokvum95FUBSCzlWp0'
+SPREADSHEET_ID = '1lOWe3j-4KG62wcKCsBd7T0Yj4iduFzH5QB76wS7dc9M'
+# SPREADSHEET_ID = '1jOKamYh6oqBFtwY_N_Co2Aia6Pokvum95FUBSCzlWp0'
 IMPORT = 'Import'
 
 class GoogleSheet:
