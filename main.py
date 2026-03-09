@@ -85,7 +85,7 @@ def check_climber():
             
             climber = Climber.query.filter_by(bib=climber_bib).first()
             if not climber:
-                message = 'Unregistered climber bib'
+                message = f'Unregistered climber bib = {climber_bib}'
                 print(message)
                 return jsonify({'success': False, 'message': message}), 400
             
@@ -119,7 +119,7 @@ def check_bloc_tag():
     try:
         bloc = Bloc.query.filter_by(tag=bloc_tag).first()
         if not bloc or not bloc.tag:
-            message = 'Unregistered bloc tag'
+            message = f'Unregistered bloc tag = {bloc_tag}'
             print(message)
             return jsonify({'success': False, 'message': message}), 400
         
