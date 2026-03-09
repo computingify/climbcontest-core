@@ -17,15 +17,22 @@ def sync_data_from_google_sheet():
         populate_climbers(google_sheet)
 
 def worker_thread():
-    """Worker thread that continuously reads from the buffer and updates Google Sheet."""
+    """Worker thread that continuously reads from the buffer and updates Google Sheet.
+    Processes when queue has 20+ items OR after 60 seconds of waiting."""
     print("Worker thread started, waiting for updates...")
+    last_update_time = time.time()
+    items = []
+    
     while True:
         try:
             # Wait for the first item (blocking with 5 second timeout)
             climber_bib, bloc_number = update_buffer.get(timeout=5)
             
-            # Accumulate all available items in the buffer
-            items = [(climber_bib, bloc_number)]
+            # Add first item to list
+            if climber_bib and bloc_number:
+                items.append((climber_bib, bloc_number))
+            
+            # Accumulate all available items in the buffer without blocking
             while True:
                 try:
                     climber_bib, bloc_number = update_buffer.get_nowait()
@@ -34,14 +41,34 @@ def worker_thread():
                 except queue.Empty:
                     break
             
-            print(f"Updating Google Sheet with {len(items)} items...")
-            # Update Google Sheet with all accumulated items in a single request
-            if items:
+            # Check if we should process:
+            # 1. Queue has 20+ items
+            # 2. 60 seconds have passed since last update
+            current_time = time.time()
+            time_elapsed = current_time - last_update_time
+            
+            should_process = len(items) >= 20 or time_elapsed >= 60
+            
+            if should_process and items:
+                print(f"Updating Google Sheet with {len(items)} items (threshold: {len(items) >= 20}, time: {time_elapsed:.1f}s)...")
                 google_sheet.update_google_sheet(items)
                 for _ in items:
                     update_buffer.task_done()
+                items = []
+                last_update_time = time.time()
+            
         except queue.Empty:
-            # No updates in the last 5 seconds, continue waiting
+            # Check if we should process accumulated items after timeout
+            if items:
+                current_time = time.time()
+                time_elapsed = current_time - last_update_time
+                if time_elapsed >= 60:
+                    print(f"Timeout: Updating Google Sheet with {len(items)} items after {time_elapsed:.1f}s...")
+                    google_sheet.update_google_sheet(items)
+                    for _ in items:
+                        update_buffer.task_done()
+                    items = []
+                    last_update_time = time.time()
             continue
         except Exception as e:
             print(f"Error in worker thread: {e}")
