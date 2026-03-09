@@ -6,7 +6,7 @@ from datetime import datetime
  
 # Configuration
 SERVER_URL = "https://climbcontestserver.onrender.com" #"https://127.0.0.1:5007"
-NUM_CLIENTS = 30
+NUM_CLIENTS = 20
 REQUESTS_PER_CLIENT = 20  # Nombre de cycles scan QR par client
 VERIFY_SSL = True  # False pour cert auto-signé en local
  

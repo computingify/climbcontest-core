@@ -3,14 +3,47 @@ from models import db, Climber, Bloc
 from google_sheets import GoogleSheet
 from google_sheets_reader import populate_bloc, populate_climbers
 import threading
+import queue
+import time
 
 
 google_sheet = GoogleSheet()
+# Buffer for storing climber and bloc data
+update_buffer = queue.Queue()
     
 def sync_data_from_google_sheet():
     with app.app_context():
         populate_bloc(google_sheet)
         populate_climbers(google_sheet)
+
+def worker_thread():
+    """Worker thread that continuously reads from the buffer and updates Google Sheet."""
+    while True:
+        try:
+            # Wait for the first item (blocking)
+            climber_bib, bloc_number = update_buffer.get(timeout=5)
+            
+            # Accumulate all available items in the buffer
+            items = [(climber_bib, bloc_number)]
+            while True:
+                try:
+                    climber_bib, bloc_number = update_buffer.get_nowait()
+                    if climber_bib and bloc_number:
+                        items.append((climber_bib, bloc_number))
+                except queue.Empty:
+                    break
+            
+            # Update Google Sheet with all accumulated items in a single request
+            if items:
+                google_sheet.update_google_sheet(items)
+                for _ in items:
+                    update_buffer.task_done()
+        except queue.Empty:
+            time.sleep(5)
+            continue
+        except Exception as e:
+            print(f"Error in worker thread: {e}")
+
 
 app = Flask(__name__)
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///database.db'
@@ -24,6 +57,10 @@ with app.app_context():
     db.create_all()
     print("Database recreated.")
     sync_data_from_google_sheet()
+
+# Start the worker thread as a daemon thread
+worker = threading.Thread(target=worker_thread, daemon=True)
+worker.start()
     
 @app.route('/api/v2/contest/climber/name', methods=['POST'])
 def check_climber():
@@ -137,10 +174,10 @@ def register_success():
 def update_google_sheet(climber, bloc):
     if not climber or not bloc or not climber.bib or not bloc.number:
         print('Error missing argument')
+        return
         
-    # Update Google Sheet
-    thread = threading.Thread(target=google_sheet.update_google_sheet, args=(climber.bib, int(bloc.number), climber.bib, bloc.number))
-    thread.start()
+    # Add data to buffer for processing by worker thread
+    update_buffer.put((climber.bib, int(bloc.number)))
 
 @app.route('/test')
 def test_page():

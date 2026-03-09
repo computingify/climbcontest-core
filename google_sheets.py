@@ -49,39 +49,36 @@ class GoogleSheet:
 
         return creds
 
-    def update_google_sheet(self, climber_id, bloc_id, climber_name, bloc_name):
-        """Update the Google Sheet with climber and bloc information."""
+    def update_google_sheet(self, items):
+        """Update the Google Sheet with multiple climber and bloc information in a single request.
+        
+        Args:
+            items: List of tuples (climber_id, bloc_id) to update
+        """
         try:
-            climber_row = climber_id + 3
-            bloc_row = bloc_id + 1
-
-            # bloc_range = f'{IMPORT}!A{bloc_row}'
-            # # Write the Bloc name
-            # self.sheet.values().update(
-            #     spreadsheetId=SPREADSHEET_ID,
-            #     range=bloc_range,
-            #     valueInputOption='RAW',
-            #     body={'values': [[bloc_name]]}
-            # ).execute()
-
-            # climber_name_range = f'{IMPORT}!{column_letter}1'
-            # # Write the Climber name
-            # self.sheet.values().update(
-            #     spreadsheetId=SPREADSHEET_ID,
-            #     range=climber_name_range,
-            #     valueInputOption='RAW',
-            #     body={'values': [[climber_name]]}
-            # ).execute()
-
-            # Translate the Bloc ID to a column letter (e.g., 2 = 'B', 27 = 'AA', etc.)
-            column_letter = self.number_to_excel_column(climber_row)
-            score_range = f'{IMPORT}!{column_letter}{bloc_row}'
-            # Write score (A) in the intersecting cell
-            result = self.sheet.values().update(
+            # Ensure items is a list (for backward compatibility)
+            if not isinstance(items, list):
+                items = [items]
+            
+            # Build the data to update: list of ranges and values
+            data = []
+            for climber_id, bloc_id in items:
+                climber_row = climber_id + 3
+                bloc_row = bloc_id + 1
+                
+                # Translate the Bloc ID to a column letter
+                column_letter = self.number_to_excel_column(climber_row)
+                score_range = f'{IMPORT}!{column_letter}{bloc_row}'
+                
+                data.append({
+                    'range': score_range,
+                    'values': [['A']]
+                })
+            
+            # Make a single batch update request
+            result = self.sheet.values().batchUpdate(
                 spreadsheetId=SPREADSHEET_ID,
-                range=score_range,
-                valueInputOption='RAW',
-                body={'values': [['A']]}
+                body={'data': data, 'valueInputOption': 'RAW'}
             ).execute()
 
             return result, True
