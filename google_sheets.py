@@ -80,6 +80,8 @@ class GoogleSheet:
                 spreadsheetId=SPREADSHEET_ID,
                 body={'data': data, 'valueInputOption': 'RAW'}
             ).execute()
+            
+            print(f"Updated {len(items)} items in Google Sheet.")
 
             return result, True
 

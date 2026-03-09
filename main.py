@@ -18,9 +18,10 @@ def sync_data_from_google_sheet():
 
 def worker_thread():
     """Worker thread that continuously reads from the buffer and updates Google Sheet."""
+    print("Worker thread started, waiting for updates...")
     while True:
         try:
-            # Wait for the first item (blocking)
+            # Wait for the first item (blocking with 5 second timeout)
             climber_bib, bloc_number = update_buffer.get(timeout=5)
             
             # Accumulate all available items in the buffer
@@ -33,13 +34,14 @@ def worker_thread():
                 except queue.Empty:
                     break
             
+            print(f"Updating Google Sheet with {len(items)} items...")
             # Update Google Sheet with all accumulated items in a single request
             if items:
                 google_sheet.update_google_sheet(items)
                 for _ in items:
                     update_buffer.task_done()
         except queue.Empty:
-            time.sleep(5)
+            # No updates in the last 5 seconds, continue waiting
             continue
         except Exception as e:
             print(f"Error in worker thread: {e}")
@@ -64,8 +66,10 @@ worker.start()
     
 @app.route('/api/v2/contest/climber/name', methods=['POST'])
 def check_climber():
+    # print(f"[ENDPOINT] check_climber called")
     data = request.get_json()
     climber_bib = data.get('id')
+    # print(f"[ENDPOINT] check_climber - Received bib: {climber_bib}")
     
     if not (climber_bib):
         message = 'Missing data'
@@ -100,8 +104,10 @@ def check_climber():
     
 @app.route('/api/v2/contest/bloc/name', methods=['POST'])
 def check_bloc_tag():
+    # print(f"[ENDPOINT] check_bloc_tag called")
     data = request.get_json()
     bloc_tag = data.get('id')
+    # print(f"[ENDPOINT] check_bloc_tag - Received tag: {bloc_tag}")
     
     if not (bloc_tag):
         message = 'Missing data'
@@ -131,7 +137,11 @@ def check_bloc_tag():
 
 @app.route('/api/v2/contest/success', methods=['POST'])
 def register_success():
+    # print(f"[ENDPOINT] register_success called")
     data = request.get_json()
+    climber_bib = data.get('bib')
+    bloc_tag = data.get('bloc')
+    # print(f"[ENDPOINT] register_success - Received: bib={climber_bib}, bloc={bloc_tag}")
     climber_bib = data.get('bib')
     bloc_tag = data.get('bloc')
     
@@ -175,6 +185,7 @@ def update_google_sheet(climber, bloc):
     if not climber or not bloc or not climber.bib or not bloc.number:
         print('Error missing argument')
         return
+    print(f"[QUEUE] Adding to buffer: bib={climber.bib}, bloc={bloc.number}")
         
     # Add data to buffer for processing by worker thread
     update_buffer.put((climber.bib, int(bloc.number)))
