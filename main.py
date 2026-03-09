@@ -85,7 +85,7 @@ def check_climber():
                 print(message)
                 return jsonify({'success': False, 'message': message}), 400
             
-        print(f'Check climber bib = {climber.bib}, name = {climber.name}')
+        # print(f'Check climber bib = {climber.bib}, name = {climber.name}')
             
         return jsonify({
             'success': True,
@@ -108,7 +108,7 @@ def check_bloc_tag():
         print(message)
         return jsonify({'success': False, 'message': message}), 400
     
-    print(f'Check bloc tag = {bloc_tag}')
+    # print(f'Check bloc tag = {bloc_tag}')
     
     try:
         bloc = Bloc.query.filter_by(tag=bloc_tag).first()
@@ -156,7 +156,7 @@ def register_success():
             print(message)
             return jsonify({'success': False, 'message': message}), 400
         
-        print(f'===> Success climber: {climber.name} | {climber.bib} | {bloc_tag}')
+        # print(f'===> Success climber: {climber.name} | {climber.bib} | {bloc_tag}')
 
         update_google_sheet(climber, bloc)
         
