@@ -21,9 +21,7 @@ def sync_data_from_google_sheet():
 
 def worker_thread():
     """Worker thread that continuously reads from the buffer and updates Google Sheet.
-    Processes when queue has 20+ items OR after 60 seconds of waiting."""
-    print("Worker thread started, waiting for updates...", flush=True)
-    sys.stdout.flush()
+    Processes when queue has 40+ items OR after 60 seconds of waiting."""
     last_update_time = time.time()
     items = []
     
@@ -31,8 +29,7 @@ def worker_thread():
         try:
             # Wait for the first item (blocking with 5 second timeout)
             climber_bib, bloc_number = update_buffer.get(timeout=5)
-            print(f"[WORKER] Received item from buffer: bib={climber_bib}, bloc={bloc_number}", flush=True)
-            sys.stdout.flush()
+            print(f"[WORKER] Received item from buffer: bib={climber_bib}, bloc={bloc_number}")
             
             # Add first item to list
             if climber_bib and bloc_number:
@@ -53,11 +50,10 @@ def worker_thread():
             current_time = time.time()
             time_elapsed = current_time - last_update_time
             
-            should_process = len(items) >= 20 or time_elapsed >= 60
+            should_process = len(items) >= 40 or time_elapsed >= 60
             
             if should_process and items:
-                print(f"[WORKER] Updating Google Sheet with {len(items)} items (threshold: {len(items) >= 20}, time: {time_elapsed:.1f}s)...", flush=True)
-                sys.stdout.flush()
+                print(f"[WORKER] Updating Google Sheet with {len(items)} items (threshold: {len(items) >= 40}, time: {time_elapsed:.1f}s)...")
                 google_sheet.update_google_sheet(items)
                 for _ in items:
                     update_buffer.task_done()
@@ -70,16 +66,14 @@ def worker_thread():
                 current_time = time.time()
                 time_elapsed = current_time - last_update_time
                 if time_elapsed >= 60:
-                    print(f"[WORKER] Timeout: Updating Google Sheet with {len(items)} items after {time_elapsed:.1f}s...", flush=True)
-                    sys.stdout.flush()
+                    print(f"[WORKER] Timeout: Updating Google Sheet with {len(items)} items after {time_elapsed:.1f}s...")
                     google_sheet.update_google_sheet(items)
                     for _ in items:
                         update_buffer.task_done()
                     items = []
                     last_update_time = time.time()
         except Exception as e:
-            print(f"[WORKER] Error in worker thread: {e}", flush=True)
-            sys.stdout.flush()
+            print(f"[WORKER] Error in worker thread: {e}")
             time.sleep(1)  # Éviter une boucle infinie en cas d'erreur
 
 
@@ -95,13 +89,11 @@ def ensure_worker_started():
     # Check both the flag AND if thread is actually alive
     # This handles process forking where flags are inherited but threads are not
     if worker_thread_instance is None or not worker_thread_instance.is_alive():
-        print(f"[MAIN] Creating new worker thread (instance: {worker_thread_instance}, alive: {worker_thread_instance.is_alive() if worker_thread_instance else 'None'})", flush=True)
-        sys.stdout.flush()
+        print(f"[MAIN] Creating new worker thread (instance: {worker_thread_instance}, alive: {worker_thread_instance.is_alive() if worker_thread_instance else 'None'})")
         worker_thread_instance = threading.Thread(target=worker_thread, daemon=False)
         worker_thread_instance.start()
         worker_started = True
-        print("[MAIN] Worker thread started in Gunicorn worker process", flush=True)
-        sys.stdout.flush()
+        print("[MAIN] Worker thread started in Gunicorn worker process")
 
 # Before request hook to ensure worker thread is started in the right process
 @app.before_request
@@ -110,10 +102,10 @@ def start_worker():
 
 with app.app_context():
     # Drop all tables and recreate the database
-    print("Erasing database...", flush=True)
+    print("Erasing database...")
     db.drop_all()
     db.create_all()
-    print("Database recreated.", flush=True)
+    print("Database recreated.")
     sync_data_from_google_sheet()
     
     # NOTE: Do NOT start worker thread here - it will be started by before_request hook
@@ -121,10 +113,8 @@ with app.app_context():
     
 @app.route('/api/v2/contest/climber/name', methods=['POST'])
 def check_climber():
-    # print(f"[ENDPOINT] check_climber called")
     data = request.get_json()
     climber_bib = data.get('id')
-    # print(f"[ENDPOINT] check_climber - Received bib: {climber_bib}")
     
     if not (climber_bib):
         message = 'Missing data'
@@ -159,17 +149,13 @@ def check_climber():
     
 @app.route('/api/v2/contest/bloc/name', methods=['POST'])
 def check_bloc_tag():
-    # print(f"[ENDPOINT] check_bloc_tag called")
     data = request.get_json()
     bloc_tag = data.get('id')
-    # print(f"[ENDPOINT] check_bloc_tag - Received tag: {bloc_tag}")
     
     if not (bloc_tag):
         message = 'Missing data'
         print(message)
         return jsonify({'success': False, 'message': message}), 400
-    
-    # print(f'Check bloc tag = {bloc_tag}')
     
     try:
         bloc = Bloc.query.filter_by(tag=bloc_tag).first()
@@ -192,11 +178,7 @@ def check_bloc_tag():
 
 @app.route('/api/v2/contest/success', methods=['POST'])
 def register_success():
-    # print(f"[ENDPOINT] register_success called")
     data = request.get_json()
-    climber_bib = data.get('bib')
-    bloc_tag = data.get('bloc')
-    # print(f"[ENDPOINT] register_success - Received: bib={climber_bib}, bloc={bloc_tag}")
     climber_bib = data.get('bib')
     bloc_tag = data.get('bloc')
     
