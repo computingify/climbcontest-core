@@ -23,29 +23,29 @@ def worker_thread():
     """Worker thread that continuously reads from the buffer and updates Google Sheet.
     Processes when queue has 40+ items OR after 60 seconds of waiting."""
     last_update_time = time.time()
-    items = []
+    items = set()  # Use set to prevent duplicates automatically
     
     while True:
         try:
             # Wait for the first item (blocking with 5 second timeout)
             climber_bib, bloc_number = update_buffer.get(timeout=5)
-            print(f"[WORKER] Received item from buffer: bib={climber_bib}, bloc={bloc_number}")
+            # print(f"[WORKER] Received item from buffer: bib={climber_bib}, bloc={bloc_number}")
             
-            # Add first item to list
+            # Add first item to set (duplicates ignored automatically)
             if climber_bib and bloc_number:
-                items.append((climber_bib, bloc_number))
+                items.add((climber_bib, bloc_number))
             
             # Accumulate all available items in the buffer without blocking
             while True:
                 try:
                     climber_bib, bloc_number = update_buffer.get_nowait()
                     if climber_bib and bloc_number:
-                        items.append((climber_bib, bloc_number))
+                        items.add((climber_bib, bloc_number))
                 except queue.Empty:
                     break
             
             # Check if we should process:
-            # 1. Queue has 20+ items
+            # 1. Set has 40+ items
             # 2. 60 seconds have passed since last update
             current_time = time.time()
             time_elapsed = current_time - last_update_time
@@ -54,10 +54,10 @@ def worker_thread():
             
             if should_process and items:
                 print(f"[WORKER] Updating Google Sheet with {len(items)} items (threshold: {len(items) >= 40}, time: {time_elapsed:.1f}s)...")
-                google_sheet.update_google_sheet(items)
+                google_sheet.update_google_sheet(list(items))
                 for _ in items:
                     update_buffer.task_done()
-                items = []
+                items = set()  # Reset as empty set
                 last_update_time = time.time()
             
         except queue.Empty:
@@ -67,10 +67,10 @@ def worker_thread():
                 time_elapsed = current_time - last_update_time
                 if time_elapsed >= 60:
                     print(f"[WORKER] Timeout: Updating Google Sheet with {len(items)} items after {time_elapsed:.1f}s...")
-                    google_sheet.update_google_sheet(items)
+                    google_sheet.update_google_sheet(list(items))
                     for _ in items:
                         update_buffer.task_done()
-                    items = []
+                    items = set()  # Reset as empty set
                     last_update_time = time.time()
         except Exception as e:
             print(f"[WORKER] Error in worker thread: {e}")
@@ -265,6 +265,6 @@ if __name__ == '__main__':
     
     # Path to your SSL certificate and private key
     ssl_context = ('security/cert.pem', 'security/key.pem')
-    app.config["DEBUG"] = True
+    app.config["DEBUG"] = False
     use_reloader=False
     app.run(host='0.0.0.0', port=5007, ssl_context=ssl_context)
