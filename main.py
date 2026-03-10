@@ -5,7 +5,6 @@ from google_sheets_reader import populate_bloc, populate_climbers
 import threading
 import queue
 import time
-import sys
 
 
 google_sheet = GoogleSheet()
@@ -13,6 +12,8 @@ google_sheet = GoogleSheet()
 update_buffer = queue.Queue()
 worker_thread_instance = None
 worker_started = False
+BUFFER_SIZE_THRESHOLD = 50
+BUFFER_TIME_THRESHOLD = 40  # seconds
     
 def sync_data_from_google_sheet():
     with app.app_context():
@@ -21,7 +22,7 @@ def sync_data_from_google_sheet():
 
 def worker_thread():
     """Worker thread that continuously reads from the buffer and updates Google Sheet.
-    Processes when queue has 40+ items OR after 60 seconds of waiting."""
+    Processes when queue has BUFFER_SIZE_THRESHOLD+ items OR after BUFFER_TIME_THRESHOLD seconds of waiting."""
     last_update_time = time.time()
     items = set()  # Use set to prevent duplicates automatically
     
@@ -45,15 +46,15 @@ def worker_thread():
                     break
             
             # Check if we should process:
-            # 1. Set has 40+ items
-            # 2. 60 seconds have passed since last update
+            # 1. Set has BUFFER_SIZE_THRESHOLD+ items
+            # 2. BUFFER_TIME_THRESHOLD seconds have passed since last update
             current_time = time.time()
             time_elapsed = current_time - last_update_time
             
-            should_process = len(items) >= 40 or time_elapsed >= 60
+            should_process = len(items) >= BUFFER_SIZE_THRESHOLD or time_elapsed >= BUFFER_TIME_THRESHOLD
             
             if should_process and items:
-                print(f"[WORKER] Updating Google Sheet with {len(items)} items (threshold: {len(items) >= 40}, time: {time_elapsed:.1f}s)...")
+                print(f"[WORKER] Updating Google Sheet with {len(items)} items (threshold: {len(items) >= BUFFER_SIZE_THRESHOLD}, time: {time_elapsed:.1f}s)...")
                 google_sheet.update_google_sheet(list(items))
                 for _ in items:
                     update_buffer.task_done()
@@ -65,7 +66,7 @@ def worker_thread():
             if items:
                 current_time = time.time()
                 time_elapsed = current_time - last_update_time
-                if time_elapsed >= 60:
+                if time_elapsed >= BUFFER_TIME_THRESHOLD:
                     print(f"[WORKER] Timeout: Updating Google Sheet with {len(items)} items after {time_elapsed:.1f}s...")
                     google_sheet.update_google_sheet(list(items))
                     for _ in items:

@@ -3,21 +3,14 @@ import threading
 import time
 import random
 from datetime import datetime
- 
-# Configuration
-SERVER_URL = "https://climbcontestserver.onrender.com" #"https://127.0.0.1:5007"
-NUM_CLIENTS = 20
+from test_utils import BaseClient, SERVER_URL, NUM_CLIENTS, VERIFY_SSL, CLIMBER_BIBS, BLOC_TAGS, print_stats_header, print_stats_summary
+
 REQUESTS_PER_CLIENT = 20  # Nombre de cycles scan QR par client
-VERIFY_SSL = True  # False pour cert auto-signé en local
  
-# Données de test
-CLIMBER_BIBS = [f"{i:03d}" for i in range(1, 100)]
-BLOC_TAGS = ["ZJ6", "ZJ24", "ZJ25", "ZJ26", "ZJ9", "DJ10", "DV21", "DJ8", "DV7", "CM13", "CB11", "CV14", "CR3", "CJ23", "AB15", "AJ1", "AM12", "AJ11", "AV1", "EB1", "EB8", "EJ18", "EM5", "EJ17", "FN2", "FV15", "GV12", "GR16", "GB4", "GV6", "IJ7", "IM8", "IB12", "IJ22", "IV16", "JB7", "JJ15", "JB6", "JJ19", "KM9", "KM4", "KV20", "KJ4", "LV4", "LJ5", "LJ16", "MV11", "MJ14", "MM7", "NB2"]
  
-class AndroidClient:
+class AndroidClient(BaseClient):
     def __init__(self, client_id):
-        self.client_id = client_id
-        self.session = requests.Session()
+        super().__init__(client_id)
         self.stats = {
             'climber_success': 0,
             'climber_fail': 0,
@@ -28,84 +21,38 @@ class AndroidClient:
             'total_time': 0
         }
    
-    def log(self, message):
-        timestamp = datetime.now().strftime("%H:%M:%S.%f")[:-3]
-        print(f"[{timestamp}] Client {self.client_id:02d}: {message}")
-   
-    def check_climber(self, bib):
-        """Simule le scan du QR code grimpeur"""
-        try:
-            start = time.time()
-            response = self.session.post(
-                f"{SERVER_URL}/api/v2/contest/climber/name",
-                json={"id": bib},
-                timeout=5,
-                verify=VERIFY_SSL
-            )
-            duration = time.time() - start
-           
-            if response.status_code == 201:
-                self.stats['climber_success'] += 1
-                self.log(f"✓ Climber {bib} OK ({duration:.2f}s)")
-                return True
-            else:
-                self.stats['climber_fail'] += 1
-                self.log(f"✗ Climber {bib} FAILED: {response.status_code} ({duration:.2f}s)")
-                return False
-        except Exception as e:
+    def check_climber_with_log(self, bib):
+        """Verify climber exists with logging"""
+        success, duration = super().check_climber(bib)
+        if success:
+            self.stats['climber_success'] += 1
+            self.log(f"✓ Climber {bib} OK ({duration:.2f}s)")
+        else:
             self.stats['climber_fail'] += 1
-            self.log(f"✗ Climber {bib} ERROR: {e}")
-            return False
+            self.log(f"✗ Climber {bib} FAILED")
+        return success
    
-    def check_bloc(self, tag):
-        """Simule le scan du QR code bloc"""
-        try:
-            start = time.time()
-            response = self.session.post(
-                f"{SERVER_URL}/api/v2/contest/bloc/name",
-                json={"id": tag},
-                timeout=5,
-                verify=VERIFY_SSL
-            )
-            duration = time.time() - start
-           
-            if response.status_code == 201:
-                self.stats['bloc_success'] += 1
-                self.log(f"✓ Bloc {tag} OK ({duration:.2f}s)")
-                return True
-            else:
-                self.stats['bloc_fail'] += 1
-                self.log(f"✗ Bloc {tag} FAILED: {response.status_code} ({duration:.2f}s)")
-                return False
-        except Exception as e:
+    def check_bloc_with_log(self, tag):
+        """Verify bloc exists with logging"""
+        success, duration = super().check_bloc(tag)
+        if success:
+            self.stats['bloc_success'] += 1
+            self.log(f"✓ Bloc {tag} OK ({duration:.2f}s)")
+        else:
             self.stats['bloc_fail'] += 1
-            self.log(f"✗ Bloc {tag} ERROR: {e}")
-            return False
+            self.log(f"✗ Bloc {tag} FAILED")
+        return success
    
-    def register_success(self, bib, tag):
-        """Simule la validation"""
-        try:
-            start = time.time()
-            response = self.session.post(
-                f"{SERVER_URL}/api/v2/contest/success",
-                json={"bib": bib, "bloc": tag},
-                timeout=10,
-                verify=VERIFY_SSL
-            )
-            duration = time.time() - start
-           
-            if response.status_code == 201:
-                self.stats['validation_success'] += 1
-                self.log(f"✓ SUCCESS {bib} → {tag} OK ({duration:.2f}s)")
-                return True
-            else:
-                self.stats['validation_fail'] += 1
-                self.log(f"✗ SUCCESS {bib} → {tag} FAILED: {response.status_code} ({duration:.2f}s)")
-                return False
-        except Exception as e:
+    def register_success_with_log(self, bib, tag):
+        """Register success with logging"""
+        success, duration = super().register_success(bib, tag)
+        if success:
+            self.stats['validation_success'] += 1
+            self.log(f"✓ SUCCESS {bib} → {tag} OK ({duration:.2f}s)")
+        else:
             self.stats['validation_fail'] += 1
-            self.log(f"✗ SUCCESS {bib} → {tag} ERROR: {e}")
-            return False
+            self.log(f"✗ SUCCESS {bib} → {tag} FAILED")
+        return success
    
     def simulate_user_flow(self):
         """Simule le flux complet d'un utilisateur"""
@@ -115,7 +62,7 @@ class AndroidClient:
            
             # 1. Scan QR grimpeur
             climber_bib = random.choice(CLIMBER_BIBS)
-            if not self.check_climber(climber_bib):
+            if not self.check_climber_with_log(climber_bib):
                 continue
            
             # Délai avant scan du bloc
@@ -123,14 +70,14 @@ class AndroidClient:
            
             # 2. Scan QR bloc
             bloc_tag = random.choice(BLOC_TAGS)
-            if not self.check_bloc(bloc_tag):
+            if not self.check_bloc_with_log(bloc_tag):
                 continue
            
             # Délai avant validation
             time.sleep(random.uniform(0.001, 0.1))
            
             # 3. Validation
-            self.register_success(climber_bib, bloc_tag)
+            self.register_success_with_log(climber_bib, bloc_tag)
            
             # Pause entre deux cycles complets
             time.sleep(random.uniform(0.1, 0.5))
@@ -184,11 +131,6 @@ def run_load_test():
     total_time = time.time() - start_time
    
     # Afficher les statistiques globales
-    print()
-    print("="*80)
-    print("📈 GLOBAL STATISTICS")
-    print("="*80)
-   
     total_stats = {
         'climber_success': 0,
         'climber_fail': 0,
@@ -202,6 +144,7 @@ def run_load_test():
         for key in total_stats.keys():
             total_stats[key] += client.stats[key]
    
+    print_stats_header("GLOBAL STATISTICS")
     print(f"Total time: {total_time:.2f}s")
     print(f"\nClimber checks:")
     print(f"  ✓ Success: {total_stats['climber_success']}")
@@ -214,17 +157,8 @@ def run_load_test():
     print(f"\nValidations:")
     print(f"  ✓ Success: {total_stats['validation_success']}")
     print(f"  ✗ Failed:  {total_stats['validation_fail']}")
-   
-    total_requests = sum(total_stats.values())
-    failed_requests = total_stats['climber_fail'] + total_stats['bloc_fail'] + total_stats['validation_fail']
-    success_rate = ((total_requests - failed_requests) / total_requests * 100) if total_requests > 0 else 0
-   
-    print(f"\n{'='*80}")
-    print(f"Success rate: {success_rate:.2f}%")
-    print(f"Total requests: {total_requests}")
-    print(f"Failed requests: {failed_requests}")
-    print(f"Requests/second: {total_requests/total_time:.2f}")
-    print("="*80)
- 
+    
+    print_stats_summary(total_stats, total_time)
+
 if __name__ == "__main__":
     run_load_test()
