@@ -5,11 +5,13 @@ from google_sheets_reader import populate_bloc, populate_climbers
 import threading
 import queue
 import time
+import sys
 
 
 google_sheet = GoogleSheet()
 # Buffer for storing climber and bloc data
 update_buffer = queue.Queue()
+worker_thread_instance = None
     
 def sync_data_from_google_sheet():
     with app.app_context():
@@ -19,7 +21,8 @@ def sync_data_from_google_sheet():
 def worker_thread():
     """Worker thread that continuously reads from the buffer and updates Google Sheet.
     Processes when queue has 20+ items OR after 60 seconds of waiting."""
-    print("Worker thread started, waiting for updates...")
+    print("Worker thread started, waiting for updates...", flush=True)
+    sys.stdout.flush()
     last_update_time = time.time()
     items = []
     
@@ -27,6 +30,8 @@ def worker_thread():
         try:
             # Wait for the first item (blocking with 5 second timeout)
             climber_bib, bloc_number = update_buffer.get(timeout=5)
+            print(f"[WORKER] Received item from buffer: bib={climber_bib}, bloc={bloc_number}", flush=True)
+            sys.stdout.flush()
             
             # Add first item to list
             if climber_bib and bloc_number:
@@ -50,7 +55,8 @@ def worker_thread():
             should_process = len(items) >= 20 or time_elapsed >= 60
             
             if should_process and items:
-                print(f"Updating Google Sheet with {len(items)} items (threshold: {len(items) >= 20}, time: {time_elapsed:.1f}s)...")
+                print(f"[WORKER] Updating Google Sheet with {len(items)} items (threshold: {len(items) >= 20}, time: {time_elapsed:.1f}s)...", flush=True)
+                sys.stdout.flush()
                 google_sheet.update_google_sheet(items)
                 for _ in items:
                     update_buffer.task_done()
@@ -63,15 +69,17 @@ def worker_thread():
                 current_time = time.time()
                 time_elapsed = current_time - last_update_time
                 if time_elapsed >= 60:
-                    print(f"Timeout: Updating Google Sheet with {len(items)} items after {time_elapsed:.1f}s...")
+                    print(f"[WORKER] Timeout: Updating Google Sheet with {len(items)} items after {time_elapsed:.1f}s...", flush=True)
+                    sys.stdout.flush()
                     google_sheet.update_google_sheet(items)
                     for _ in items:
                         update_buffer.task_done()
                     items = []
                     last_update_time = time.time()
-            continue
         except Exception as e:
-            print(f"Error in worker thread: {e}")
+            print(f"[WORKER] Error in worker thread: {e}", flush=True)
+            sys.stdout.flush()
+            time.sleep(1)  # Éviter une boucle infinie en cas d'erreur
 
 
 app = Flask(__name__)
@@ -81,15 +89,16 @@ app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 db.init_app(app)
 with app.app_context():
     # Drop all tables and recreate the database
-    print("Erasing database...")
+    print("Erasing database...", flush=True)
     db.drop_all()
     db.create_all()
-    print("Database recreated.")
+    print("Database recreated.", flush=True)
     sync_data_from_google_sheet()
 
-# Start the worker thread as a daemon thread
-worker = threading.Thread(target=worker_thread, daemon=True)
-worker.start()
+# Start the worker thread as a non-daemon thread for better Gunicorn support
+worker_thread_instance = threading.Thread(target=worker_thread, daemon=False)
+worker_thread_instance.start()
+print("Worker thread daemon configured and started", flush=True)
     
 @app.route('/api/v2/contest/climber/name', methods=['POST'])
 def check_climber():
@@ -221,6 +230,17 @@ def update_google_sheet(climber, bloc):
 def test_page():
     """Page web pour tester les 3 endpoints."""
     return render_template('test_api.html')
+
+@app.route('/api/v2/contest/worker-status', methods=['GET'])
+def worker_status():
+    """Diagnostic endpoint pour vérifier l'état du worker thread."""
+    is_alive = worker_thread_instance.is_alive()
+    queue_size = update_buffer.qsize()
+    return jsonify({
+        'worker_alive': is_alive,
+        'queue_size': queue_size,
+        'queue_empty': update_buffer.empty()
+    }), 200
 
 @app.route('/api/v2/contest/options', methods=['GET'])
 def get_options():
