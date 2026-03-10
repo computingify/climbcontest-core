@@ -12,6 +12,7 @@ google_sheet = GoogleSheet()
 # Buffer for storing climber and bloc data
 update_buffer = queue.Queue()
 worker_thread_instance = None
+worker_started = False
     
 def sync_data_from_google_sheet():
     with app.app_context():
@@ -87,6 +88,22 @@ app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///database.db'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
 db.init_app(app)
+
+# Fonction pour démarrer le worker thread une seule fois
+def ensure_worker_started():
+    global worker_thread_instance, worker_started
+    if not worker_started:
+        worker_thread_instance = threading.Thread(target=worker_thread, daemon=False)
+        worker_thread_instance.start()
+        worker_started = True
+        print("[MAIN] Worker thread started in Gunicorn worker process", flush=True)
+        sys.stdout.flush()
+
+# Before request hook to ensure worker thread is started in the right process
+@app.before_request
+def start_worker():
+    ensure_worker_started()
+
 with app.app_context():
     # Drop all tables and recreate the database
     print("Erasing database...", flush=True)
@@ -94,11 +111,9 @@ with app.app_context():
     db.create_all()
     print("Database recreated.", flush=True)
     sync_data_from_google_sheet()
-
-# Start the worker thread as a non-daemon thread for better Gunicorn support
-worker_thread_instance = threading.Thread(target=worker_thread, daemon=False)
-worker_thread_instance.start()
-print("Worker thread daemon configured and started", flush=True)
+    
+    # Start worker thread here as well for initialization
+    ensure_worker_started()
     
 @app.route('/api/v2/contest/climber/name', methods=['POST'])
 def check_climber():
