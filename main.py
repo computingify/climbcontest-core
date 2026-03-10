@@ -89,10 +89,14 @@ app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
 db.init_app(app)
 
-# Fonction pour démarrer le worker thread une seule fois
+# Fonction pour démarrer le worker thread une seule fois par process
 def ensure_worker_started():
     global worker_thread_instance, worker_started
-    if not worker_started:
+    # Check both the flag AND if thread is actually alive
+    # This handles process forking where flags are inherited but threads are not
+    if worker_thread_instance is None or not worker_thread_instance.is_alive():
+        print(f"[MAIN] Creating new worker thread (instance: {worker_thread_instance}, alive: {worker_thread_instance.is_alive() if worker_thread_instance else 'None'})", flush=True)
+        sys.stdout.flush()
         worker_thread_instance = threading.Thread(target=worker_thread, daemon=False)
         worker_thread_instance.start()
         worker_started = True
@@ -112,8 +116,8 @@ with app.app_context():
     print("Database recreated.", flush=True)
     sync_data_from_google_sheet()
     
-    # Start worker thread here as well for initialization
-    ensure_worker_started()
+    # NOTE: Do NOT start worker thread here - it will be started by before_request hook
+    # in the correct Gunicorn worker process after fork()
     
 @app.route('/api/v2/contest/climber/name', methods=['POST'])
 def check_climber():
