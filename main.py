@@ -5,6 +5,8 @@ from google_sheets_reader import populate_bloc, populate_climbers
 import threading
 import queue
 import time
+import os
+import sys
 
 
 google_sheet = GoogleSheet()
@@ -263,9 +265,18 @@ def index():
     
 # Launch the application
 if __name__ == '__main__':
+    # Detect if running on Render or locally
+    port = int(os.environ.get('PORT', 5007))
+    is_production = 'PORT' in os.environ
     
-    # Path to your SSL certificate and private key
-    ssl_context = ('security/cert.pem', 'security/key.pem')
-    app.config["DEBUG"] = False
-    use_reloader=False
-    app.run(host='0.0.0.0', port=5007, ssl_context=ssl_context)
+    # Only use SSL in development (local mode)
+    ssl_context = None if is_production else ('security/cert.pem', 'security/key.pem')
+    
+    app.config["DEBUG"] = not is_production
+    
+    print(f"[STARTUP] Running on port {port}", flush=True)
+    print(f"[STARTUP] Production mode: {is_production}", flush=True)
+    print(f"[STARTUP] SSL enabled: {ssl_context is not None}", flush=True)
+    sys.stdout.flush()
+    
+    app.run(host='0.0.0.0', port=port, ssl_context=ssl_context, use_reloader=False)
