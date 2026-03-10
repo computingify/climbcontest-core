@@ -5,6 +5,31 @@ let savedBlocTag = null;
 let qrScanner = null;
 let currentScanTarget = null;
 
+// Worker thread status monitoring
+function updateWorkerStatus() {
+    fetch('/api/v2/contest/worker-status', {
+        method: 'GET',
+        headers: {'Content-Type': 'application/json'}
+    })
+    .then(res => res.json())
+    .then(data => {
+        const statusEl = document.getElementById('workerStatus');
+        if (statusEl) {
+            const aliveText = data.worker_alive ? '🟢 Online' : '🔴 Offline';
+            const queueText = `Queue: ${data.queue_size} items`;
+            statusEl.textContent = `Worker: ${aliveText} | ${queueText}`;
+            statusEl.style.color = data.worker_alive ? 'green' : 'red';
+        }
+    })
+    .catch(err => {
+        const statusEl = document.getElementById('workerStatus');
+        if (statusEl) {
+            statusEl.textContent = 'Worker: 🔴 Offline (unable to check)';
+            statusEl.style.color = 'red';
+        }
+    });
+}
+
 function checkClimber() {
     document.getElementById('climberError').textContent = '';
     document.getElementById('climberError').style.color = '';
@@ -232,6 +257,18 @@ function stopQrScan() {
 
 // Ajoute les boutons de scan au chargement de la page
 window.addEventListener('DOMContentLoaded', () => {
+    // Ajoute le statut du worker
+    const statusElement = document.createElement('div');
+    statusElement.id = 'workerStatus';
+    statusElement.style.cssText = 'position: fixed; top: 10px; right: 10px; padding: 10px 15px; background-color: #f0f0f0; border: 2px solid #ccc; border-radius: 5px; font-weight: bold; font-size: 12px; z-index: 9999;';
+    document.body.insertBefore(statusElement, document.body.firstChild);
+    
+    // Initial status check
+    updateWorkerStatus();
+    
+    // Update worker status every 2 seconds
+    setInterval(updateWorkerStatus, 2000);
+    
     // Ajoute le bouton scan grimpeur
     const climberScanBtn = document.createElement('button');
     climberScanBtn.textContent = 'Scanner QR Grimpeur';
