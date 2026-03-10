@@ -83,6 +83,9 @@ Shall do for the production:
 Use gunicorn with HTTPS:
 gunicorn --certfile cert.pem --keyfile key.pem -w 4 -b 0.0.0.0:5007 main:app
 
+# Render start command
+gunicorn main:app --capture-output --enable-stdio-inheritance --access-logfile - --error-logfile -
+
 # DEBUG
 
 sudo systemctl restart climb_contest_server_app.service

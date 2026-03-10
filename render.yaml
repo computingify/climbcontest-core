@@ -1,0 +1,6 @@
+services:
+  - type: web
+    name: climbContestServer
+    runtime: python
+    buildCommand: pip install --upgrade pip && pip install -r deployement/requirements.txt
+    startCommand: gunicorn main:app --capture-output --enable-stdio-inheritance --access-logfile - --error-logfile -
