@@ -35,6 +35,25 @@ class TestRouteClassement:
         assert ligne["club"] == "Les Lezards"
         assert ligne["score"] == 1000        # seule sur ce bloc dans sa categorie
 
+    def test_la_reponse_ne_divulgue_rien_d_autre(self, client, jeu):
+        """Les noms sont publics — ils sont sur les dossards et annonces au micro.
+
+        Le reste ne l'est pas. Ces pages sont ouvertes a tout Internet et
+        portent des donnees de MINEURS : chaque champ qui sort doit avoir une
+        raison d'etre affiche.
+        """
+        enregistrer_reussite(jeu["participants"][0], jeu["blocs"][0])
+        d = client.get("/api/public/classement").get_json()
+
+        # « blocs » est un COMPTE de blocs reussis, pas la liste des blocs.
+        autorises = {"participant_id", "dossard", "nom", "club", "categorie",
+                     "score", "rang", "blocs"}
+        for classement in d["classements"]:
+            for ligne in classement["lignes"]:
+                surplus = set(ligne) - autorises
+                assert not surplus, f"champ non prevu dans la reponse publique : {surplus}"
+                assert isinstance(ligne["blocs"], int), "un compte, pas une liste"
+
     def test_un_seul_groupe(self, client, jeu):
         d = client.get("/api/public/classement?groupe=U11 F").get_json()
         assert len(d["classements"]) == 1
@@ -72,6 +91,53 @@ class TestCache:
         for _ in range(5):
             classement_service.classements(jeu["competition"])
         assert appels["n"] == 1, "le calcul doit etre mutualise"
+
+    def test_le_cache_expire_au_bout_de_la_fraicheur(self, app, jeu, monkeypatch):
+        """Sans expiration, un spectateur verrait le classement de 9 h a 17 h.
+
+        On raccourcit la duree plutot que d'attendre cinq secondes : le test
+        doit rester rapide, mais c'est bien le MECANISME d'expiration qu'il
+        exerce, pas un appel force.
+        """
+        monkeypatch.setattr(classement_service, "FRAICHEUR_S", 0.05)
+        appels = {"n": 0}
+        vrai = classement_service.calculer_tout
+
+        def compter(*a, **k):
+            appels["n"] += 1
+            return vrai(*a, **k)
+
+        monkeypatch.setattr(classement_service, "calculer_tout", compter)
+
+        classement_service.classements(jeu["competition"])
+        classement_service.classements(jeu["competition"])
+        assert appels["n"] == 1, "deux appels rapproches : un seul calcul"
+
+        time.sleep(0.08)
+        classement_service.classements(jeu["competition"])
+        assert appels["n"] == 2, "passe la fraicheur, il faut recalculer"
+
+    def test_une_reussite_arrivee_pendant_la_fraicheur_apparait_ensuite(self, app, jeu, monkeypatch):
+        """Jamais un classement a moitie a jour : soit l'ancien, soit le nouveau.
+
+        Le calcul repart toujours de la base — il n'y a pas d'etat incremental a
+        desynchroniser. La reussite arrivee entre-temps est donc simplement
+        prise au calcul suivant, entiere.
+        """
+        monkeypatch.setattr(classement_service, "FRAICHEUR_S", 0.05)
+
+        def score(dossard=1):
+            tous, _ = classement_service.classements(jeu["competition"])
+            ligne = next(l for l in tous["U11 F"].lignes if l.dossard == dossard)
+            return ligne.score
+
+        assert score() == 0, "aucune reussite au depart"
+
+        enregistrer_reussite(jeu["participants"][0], jeu["blocs"][0])
+        assert score() == 0, "pendant la fraicheur, l'ancien resultat tient"
+
+        time.sleep(0.08)
+        assert score() == 1000, "au calcul suivant, la reussite est prise"
 
     def test_forcer_recalcule(self, app, jeu, monkeypatch):
         appels = {"n": 0}

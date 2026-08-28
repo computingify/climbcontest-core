@@ -167,6 +167,18 @@ class TestValeurDesBlocs:
 
 
 class TestFiltreCircuit:
+    def test_bloc_dans_aucun_circuit_ne_compte_nulle_part(self):
+        """Il reste au catalogue — un juge peut le scanner — mais il ne rapporte rien.
+
+        Le cas arrive vraiment : un bloc pose puis retire du format, ou une
+        ligne d'import a laquelle personne n'a affecte de circuit. Il ne doit ni
+        planter le calcul, ni gonfler un score.
+        """
+        blocs = {1: b(1, circuits=("U11",)), 2: b(2, circuits=())}
+        c = calculer_groupe("U11 F", "categorie", "U11", [p(1)], blocs, {1: {1, 2}})
+        assert c.lignes[0].score == 1000
+        assert c.lignes[0].blocs_reussis == 1, "le bloc sans circuit ne doit pas compter"
+
     def test_bloc_hors_circuit_ne_compte_pas(self):
         """La réussite est réelle et stockée, mais elle ne rapporte rien.
 
@@ -230,6 +242,35 @@ class TestScratchParCircuit:
         assert [l.dossard for l in tous["U13"].lignes] == [3]
 
 
+class TestParticipantsIncomplets:
+    """Des lignes incompletes arrivent du classeur et de la saisie manuelle.
+
+    Aucune ne doit faire disparaitre un grimpeur ni lever une exception : la
+    page resultats est publique, elle ne peut pas afficher une erreur 500 devant
+    cent spectateurs.
+    """
+
+    def test_participant_sans_categorie_absent_des_classements_par_categorie(self):
+        sans = ParticipantCalcul(id=9, dossard=99, categorie=None)
+        tous = calculer_tout([p(1), sans], BLOCS, {1: {1}, 9: {1}})
+        classes = {l.participant_id for c in tous.values() for l in c.lignes}
+        assert 9 not in classes, "sans categorie, on ne sait pas dans quel groupe le mettre"
+        assert 1 in classes, "les autres restent classes"
+
+    def test_participant_sans_categorie_ne_fait_pas_planter(self):
+        sans = ParticipantCalcul(id=9, dossard=99, categorie="")
+        calculer_tout([p(1), sans], BLOCS, {1: {1}})      # ne doit rien lever
+
+    def test_participant_sans_dossard_est_compte_s_il_a_des_reussites(self):
+        """Le cas de la saisie manuelle : quelqu'un qui grimpe sans dossard imprime."""
+        anonyme = ParticipantCalcul(id=9, dossard=None, categorie="U11 F")
+        c = calculer_groupe("U11 F", "categorie", "U11", [p(1), anonyme], BLOCS,
+                            {9: {1}})
+        ligne = next(l for l in c.lignes if l.participant_id == 9)
+        assert ligne.score == 1000, "une reussite compte, dossard ou pas"
+        assert ligne.rang == 1
+
+
 class TestValidationParCouleur:
     """Option par compétition. Désactivée par défaut."""
 
@@ -245,6 +286,42 @@ class TestValidationParCouleur:
         blocs = self._jeu()
         c = calculer_groupe("U11 F", "categorie", "U11", [p(1)], blocs, {1: {3, 4, 5}})
         assert c.lignes[0].blocs_reussis == 3      # pas d'extension
+
+    def test_presque_toute_une_couleur_ne_valide_rien(self):
+        """La regle dit 100 %, pas « presque ».
+
+        Un grimpeur a 3 des 4 blocs verts et bleus. S'il suffisait d'etre pres du
+        compte, tous les jaunes lui seraient offerts et le podium changerait.
+        """
+        blocs = self._jeu()
+        c = calculer_groupe("U11 F", "categorie", "U11", [p(1)], blocs,
+                            {1: {3, 5}}, couleurs_requises=2)   # il manque le 4
+        assert c.lignes[0].blocs_reussis == 2, "aucune extension attendue"
+
+    def test_une_couleur_hors_du_circuit_ne_compte_pas_comme_pleine(self):
+        """Le decompte des couleurs pleines se fait DANS le circuit, pas dans tout le mur.
+
+        Sinon un grimpeur U11 qui a fait, par curiosite, le seul bloc Noir du
+        circuit U13 se verrait crediter une couleur pleine — et les Jaunes lui
+        seraient offerts. Le cas est realiste : rien n'empeche de scanner un
+        bloc d'un autre circuit, et le classeur enregistre bien la reussite.
+        """
+        blocs = {
+            1: b(1, circuits=("U11",), couleur="Jaune"),
+            2: b(2, circuits=("U11",), couleur="Vert"),
+            3: b(3, circuits=("U13",), couleur="Noir"),   # hors du circuit U11
+        }
+        # Il tient le Vert (plein dans U11) ET le Noir (plein, mais hors circuit).
+        c = calculer_groupe("U11 F", "categorie", "U11", [p(1)], blocs,
+                            {1: {2, 3}}, couleurs_requises=2)
+        assert c.lignes[0].blocs_reussis == 1, \
+            "seul le Vert est plein dans le circuit : deux couleurs ne sont pas atteintes"
+
+    def test_bloc_sans_couleur_ne_fait_pas_planter(self):
+        """Une ligne d'import sans couleur ne doit pas casser la page publique."""
+        blocs = {1: b(1, couleur=""), 2: b(2, couleur="Vert")}
+        calculer_groupe("U11 F", "categorie", "U11", [p(1)], blocs,
+                        {1: {2}}, couleurs_requises=1)
 
     def test_deux_couleurs_pleines_validentles_plus_faciles(self):
         """Vert et Bleu entièrement réussis → les Jaunes sont validés."""
