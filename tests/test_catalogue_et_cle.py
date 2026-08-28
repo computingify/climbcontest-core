@@ -229,3 +229,54 @@ class TestEtagCatalogue:
         for valeur in ("abc", "-1", "999999"):
             r = client.get(f"/api/v2/catalog?depuis={valeur}")
             assert r.status_code in (200, 304), f"depuis={valeur} -> {r.status_code}"
+
+
+class TestAdministrationProtegee:
+    """La console d'administration ne doit JAMAIS profiter du mode tolere.
+
+    Constate sur la VM le 28/08, en production et expose sur Internet :
+    `GET /admin/import/rapport` repondait 200 sans aucune authentification, et
+    un POST sur `/admin/import/sheet` aurait declenche un reimport complet du
+    classeur — reecriture de la base et rafale d'appels Google — a la demande
+    de n'importe qui.
+
+    Le mode tolere existe pour UNE raison : l'application v3.1.4 du Play Store
+    n'envoie pas de cle. Elle n'appelle pas ces routes-la.
+    """
+
+    def setup_method(self):
+        for k in compteurs:
+            compteurs[k] = 0
+
+    @pytest.mark.parametrize("methode,chemin", [
+        ("post", "/admin/import/sheet"),
+        ("get", "/admin/import/rapport"),
+    ])
+    def test_sans_cle_refuse_meme_en_mode_tolere(self, client, jeu, methode, chemin):
+        r = getattr(client, methode)(chemin)
+        assert r.status_code == 401, "le mode tolere ne doit pas s'appliquer ici"
+        assert "authentification" in r.get_json()["message"].lower()
+
+    @pytest.mark.parametrize("methode,chemin", [
+        ("post", "/admin/import/sheet"),
+        ("get", "/admin/import/rapport"),
+    ])
+    def test_avec_une_mauvaise_cle_refuse(self, client, jeu, methode, chemin):
+        r = getattr(client, methode)(chemin, headers={"X-Api-Key": "pas-la-bonne"})
+        assert r.status_code == 401
+
+    def test_avec_la_bonne_cle_la_route_repond(self, client, jeu):
+        r = client.get("/admin/import/rapport", headers={"X-Api-Key": "cle-de-test"})
+        assert r.status_code == 200
+
+    def test_le_refus_est_journalise(self, client, jeu, caplog):
+        """Une tentative d'acces a l'administration doit laisser une trace."""
+        import logging
+        with caplog.at_level(logging.WARNING, logger="climbcontest.auth"):
+            client.get("/admin/import/rapport")
+        assert any("administration" in m for m in caplog.messages)
+
+    def test_les_routes_du_juge_restent_tolerantes(self, client, jeu):
+        """Le durcissement ne doit surtout pas deborder sur la v3.1.4."""
+        assert client.post("/api/v2/contest/climber/name",
+                           json={"id": "1"}).status_code == 201

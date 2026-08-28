@@ -14,7 +14,7 @@ import logging
 
 from flask import Blueprint, jsonify
 
-from ..auth import exige_cle_api
+from ..auth import exige_cle_api_stricte
 from ..contest import ErreurMetier, competition_active
 from ..sheets.client import ErreurClasseur
 from ..sheets.importer import importer
@@ -28,7 +28,7 @@ _dernier_rapport: dict | None = None
 
 
 @bp.post("/import/sheet")
-@exige_cle_api
+@exige_cle_api_stricte
 def importer_classeur():
     """Relit le classeur et met la base a jour.
 
@@ -54,7 +54,7 @@ def importer_classeur():
 
 
 @bp.get("/import/rapport")
-@exige_cle_api
+@exige_cle_api_stricte
 def dernier_rapport():
     if _dernier_rapport is None:
         return jsonify({"success": True, "rapport": None,
