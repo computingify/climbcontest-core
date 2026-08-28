@@ -1,5 +1,9 @@
 """Réglages SQLite appliqués à chaque connexion.
 
+Pourquoi SQLite et pas PostgreSQL : docs/technical/banc-base-de-donnees.md.
+En deux lignes — mesuré sur la VM 110, SQLite est 43 % plus rapide en débit et
+coûte 120 Mo de RAM en moins. PostgreSQL a été purgé le 28/08.
+
 Mesuré le 2026-08-28 sur ce code, 800 écritures distinctes, 40 en parallèle,
 4 workers gunicorn × 4 threads, base neuve à chaque essai :
 

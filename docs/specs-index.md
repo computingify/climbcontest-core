@@ -38,6 +38,7 @@ est décrit dans :
 - [etat-des-lieux.md](etat-des-lieux.md) — audit complet de l'existant
 - [technical/architecture-actuelle.md](technical/architecture-actuelle.md) — l'architecture telle qu'elle tourne
 - [technical/classeur-google.md](technical/classeur-google.md) — la mécanique du classeur et l'algorithme de classement, validé sur données réelles
+- [technical/banc-base-de-donnees.md](technical/banc-base-de-donnees.md) — SQLite ou PostgreSQL : les mesures, et à quelle condition les refaire
 - [plan-de-repli.md](plan-de-repli.md) — comment revenir à la version 2025-2026
 - [contraintes-metier.md](contraintes-metier.md) — ce que le terrain impose
 - [preparation-depots.md](preparation-depots.md) — organisation des dépôts, décision D3
