@@ -19,6 +19,20 @@ qu'on ne met pas à jour le matin d'une compétition :
 
 ## [Non publié]
 
+## [0.3.3] — 2026-08-28
+
+### Corrigé
+
+- **Une compétition sans classeur relié remplissait le journal.** Entre la
+  création d'une compétition et son paramétrage, il n'y a pas encore de
+  `spreadsheet_id` — c'est normal. Le miroir tentait pourtant l'écriture toutes
+  les 40 secondes et journalisait une erreur Google à chaque fois, sur chacun
+  des quatre workers : **six erreurs par minute** pour une situation
+  parfaitement normale.
+
+  C'est ainsi qu'un journal devient illisible, et qu'on rate la vraie panne
+  quand elle arrive. Le miroir passe désormais son tour, et le dit une fois.
+
 ## [0.3.2] — 2026-08-28
 
 ### Corrigé
@@ -309,7 +323,8 @@ livrer — spec 001, itération 3.
 - Les données et les secrets vivent dans `shared/`, hors des releases : un
   déploiement ou un retour arrière ne peut pas les toucher.
 
-[Non publié]: https://github.com/computingify/climbcontest-core/compare/v0.3.2...HEAD
+[Non publié]: https://github.com/computingify/climbcontest-core/compare/v0.3.3...HEAD
+[0.3.3]: https://github.com/computingify/climbcontest-core/releases/tag/v0.3.3
 [0.3.2]: https://github.com/computingify/climbcontest-core/releases/tag/v0.3.2
 [0.3.1]: https://github.com/computingify/climbcontest-core/releases/tag/v0.3.1
 [0.3.0]: https://github.com/computingify/climbcontest-core/releases/tag/v0.3.0
