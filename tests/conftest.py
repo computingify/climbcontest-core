@@ -14,6 +14,16 @@ from climbcontest.models import (                        # noqa: E402
 )
 
 
+@pytest.fixture(autouse=True)
+def _cache_propre():
+    """Le cache de classement est un global de module : sans ce nettoyage, un
+    test verrait le classement calcule par le precedent."""
+    from climbcontest import classement_service
+    classement_service.invalider()
+    yield
+    classement_service.invalider()
+
+
 @pytest.fixture()
 def app():
     app = creer_app(ConfigTest)
