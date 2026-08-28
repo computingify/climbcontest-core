@@ -1,0 +1,68 @@
+# Garde-fou anti-secret — dépôt PUBLIC.
+#
+# Motivation : le README de climbBackEnd a exposé un identifiant, un secret
+# client et des jetons HelloAsso dans un dépôt public (risque R13 de
+# docs/etat-des-lieux.md). Ce dépôt-ci contiendra la connexion au classeur
+# Google, une clé d'API et des identifiants HelloAsso : le même accident doit
+# devenir impossible.
+#
+# Usage :
+#   gitleaks detect --source . --config .gitleaks.toml     # tout l'historique
+#   gitleaks protect --staged --config .gitleaks.toml      # avant un commit
+#
+# Le hook scripts/hooks/pre-commit l'appelle automatiquement s'il est installé.
+
+title = "ClimbContest"
+
+[extend]
+# Reprend les ~150 règles par défaut de gitleaks (clés AWS, GCP, GitHub, Slack…)
+useDefault = true
+
+# --- Règles propres au projet -------------------------------------------------
+
+[[rules]]
+id = "climbcontest-google-oauth-client"
+description = "Identifiants client OAuth Google (credentials.json)"
+regex = '''"client_secret"\s*:\s*"[A-Za-z0-9_\-]{20,}"'''
+tags = ["google", "oauth"]
+
+[[rules]]
+id = "climbcontest-helloasso-secret"
+description = "Secret client HelloAsso"
+regex = '''(?i)client[_-]?secret["'\s:=]+[A-Za-z0-9+/=]{30,}'''
+tags = ["helloasso"]
+
+[[rules]]
+id = "climbcontest-api-key"
+description = "Clé d'API des juges, écrite en dur au lieu d'être lue de l'environnement"
+regex = '''(?i)(api[_-]?key|CLIMBCONTEST_API_KEY)["'\s:=]+["'][A-Za-z0-9_\-]{16,}["']'''
+tags = ["api-key"]
+
+[[rules]]
+id = "climbcontest-session-secret"
+description = "Secret de session écrit en dur"
+regex = '''(?i)(secret[_-]?key|session[_-]?secret)["'\s:=]+["'][A-Za-z0-9_\-!@#$%^&*]{12,}["']'''
+tags = ["session"]
+
+[allowlist]
+description = "Faux positifs connus"
+
+paths = [
+  # Jeu de test anonymisé : que des dossards et des catégories.
+  '''fixtures/.*\.json''',
+  # La documentation cite des noms de variables et des extraits de formules.
+  '''docs/.*\.md''',
+  '''specs/.*\.md''',
+  # Ce fichier contient les motifs eux-mêmes.
+  '''\.gitleaks\.toml''',
+]
+
+regexes = [
+  # Identifiants de classeurs Google : publics par nature, déjà dans le code.
+  '''1h3e8QUSXnCJLSYSFyB8X92cppDubeDx0yi8mn3NSh5s''',
+  '''1ilQ2-ogmTfpgYa_oz4ogO9SN_jJvSTL9BogcmHxHtEo''',
+  '''1lOWe3j-4KG62wcKCsBd7T0Yj4iduFzH5QB76wS7dc9M''',
+  # Valeurs d'exemple explicites.
+  '''<PAT-lecture-seule>''',
+  '''REMPLACER''',
+]

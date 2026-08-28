@@ -165,3 +165,26 @@ token.pickle
 credentials.json
 security/cert.pem
 security/key.pem
+
+# --- ClimbContest — ajouts du 2026-08-28 ---
+# Gel de repli : secrets, bundles, APK, dumps du classeur (donnees personnelles)
+archive/
+*.bundle
+*.apk
+*.aab
+
+# Exports bruts du classeur Google : contiennent des noms de mineurs.
+# Seuls les jeux de test anonymises de fixtures/ sont versionnes.
+dump_*.json
+
+# Bases locales
+*.db
+*.sqlite
+*.sqlite3
+
+# Secrets
+token.base64
+token.pickle
+credentials.json
+*.pem
+.env

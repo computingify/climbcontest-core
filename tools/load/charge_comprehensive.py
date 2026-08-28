@@ -3,7 +3,7 @@ import threading
 import time
 import random
 from datetime import datetime
-from test_utils import BaseClient, SERVER_URL, VERIFY_SSL, CLIMBER_BIBS, BLOC_TAGS, print_stats_header, print_stats_summary
+from charge_utils import BaseClient, SERVER_URL, VERIFY_SSL, CLIMBER_BIBS, BLOC_TAGS, print_stats_header, print_stats_summary
 
 NUM_CLIENTS = 99  # Number of climbers to test (each will try all blocs)
 class ComprehensiveClient(BaseClient):

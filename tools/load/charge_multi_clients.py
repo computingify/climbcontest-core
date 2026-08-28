@@ -3,7 +3,7 @@ import threading
 import time
 import random
 from datetime import datetime
-from test_utils import BaseClient, SERVER_URL, NUM_CLIENTS, VERIFY_SSL, CLIMBER_BIBS, BLOC_TAGS, print_stats_header, print_stats_summary
+from charge_utils import BaseClient, SERVER_URL, NUM_CLIENTS, VERIFY_SSL, CLIMBER_BIBS, BLOC_TAGS, print_stats_header, print_stats_summary
 
 REQUESTS_PER_CLIENT = 20  # Nombre de cycles scan QR par client
  

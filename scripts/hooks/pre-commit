@@ -1,0 +1,34 @@
+#!/bin/bash
+# Refuse un commit contenant un secret. Depot PUBLIC : c'est la derniere barriere.
+# Installation : scripts/hooks/install.sh
+set -uo pipefail
+
+RACINE="$(git rev-parse --show-toplevel)"
+
+if ! command -v gitleaks >/dev/null 2>&1; then
+  echo "gitleaks absent — verification anti-secret IGNOREE."
+  echo "  Installer avec : brew install gitleaks"
+  exit 0
+fi
+
+if ! gitleaks protect --staged --redact --no-banner \
+        --config "$RACINE/.gitleaks.toml" --source "$RACINE"; then
+  cat <<'MSG'
+
+COMMIT REFUSE — un secret a ete detecte dans les fichiers indexes.
+
+Ce depot est PUBLIC : un secret pousse ici est compromis, meme supprime
+au commit suivant. Il faut le REVOQUER, pas seulement l'effacer.
+
+Que faire :
+  1. Retirer le secret du fichier ; le lire depuis l'environnement ou
+     depuis /opt/climbcontest/shared/secrets/.
+  2. Si le secret est reel, le revoquer chez le fournisseur.
+  3. S'il s'agit d'un faux positif, l'ajouter a [allowlist] dans .gitleaks.toml
+     avec un commentaire expliquant pourquoi.
+
+Contournement (a n'utiliser qu'en connaissance de cause) :
+  git commit --no-verify
+MSG
+  exit 1
+fi

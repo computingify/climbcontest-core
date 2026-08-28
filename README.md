@@ -1,9 +1,32 @@
-# climb
+# climbcontest-core
+
+Dépôt **pivot** du projet ClimbContest — l'outil de gestion des compétitions de
+bloc du club d'escalade d'Annonay.
+
+Il porte le backend **et** la documentation et les specs de tout le projet, y
+compris celles qui concernent l'application juge Android (dépôt
+[`computingify/ClimbContest`](https://github.com/computingify/ClimbContest)).
+Même modèle que `sowel-core`.
+
+| Pour savoir… | Lire |
+| --- | --- |
+| Par où commencer (agents IA compris) | [`CLAUDE.md`](CLAUDE.md) |
+| Ce qui existe et ce qui est cassé | [`docs/etat-des-lieux.md`](docs/etat-des-lieux.md) |
+| La mécanique du classeur et l'algorithme de classement | [`docs/technical/classeur-google.md`](docs/technical/classeur-google.md) |
+| Ce que le terrain impose | [`docs/contraintes-metier.md`](docs/contraintes-metier.md) |
+| Les specs | [`docs/specs-index.md`](docs/specs-index.md) |
+| Revenir à la version 2025-2026 | [`docs/plan-de-repli.md`](docs/plan-de-repli.md) |
+
+> ⚠️ Ce dépôt est **public**. Aucun secret ne doit y être committé : un garde-fou
+> `gitleaks` refuse les commits qui en contiennent (`scripts/hooks/install.sh`).
+
+---
+
 
 ## Installation
 clone the deploy file:
 <code>
-wget https://raw.githubusercontent.com/computingify/climbContestServer/master/deployement/deploy_app.sh
+wget https://raw.githubusercontent.com/computingify/climbcontest-core/master/deployement/deploy_app.sh
 </code>
 
 enable executable

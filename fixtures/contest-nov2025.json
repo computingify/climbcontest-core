@@ -1,0 +1,6038 @@
+{
+ "source": "U11 U17 Nov 2025",
+ "spreadsheetId": "1ilQ2-ogmTfpgYa_oz4ogO9SN_jJvSTL9BogcmHxHtEo",
+ "climbers": [
+  {
+   "bib": 1,
+   "category": "U13 H"
+  },
+  {
+   "bib": 2,
+   "category": "U11 H"
+  },
+  {
+   "bib": 3,
+   "category": "U13 H"
+  },
+  {
+   "bib": 4,
+   "category": "U13 F"
+  },
+  {
+   "bib": 5,
+   "category": "U17 H"
+  },
+  {
+   "bib": 6,
+   "category": "U15 F"
+  },
+  {
+   "bib": 7,
+   "category": "U13 H"
+  },
+  {
+   "bib": 8,
+   "category": "U11 H"
+  },
+  {
+   "bib": 9,
+   "category": "U11 H"
+  },
+  {
+   "bib": 10,
+   "category": "U13 F"
+  },
+  {
+   "bib": 11,
+   "category": "U13 F"
+  },
+  {
+   "bib": 12,
+   "category": "U13 F"
+  },
+  {
+   "bib": 13,
+   "category": "U15 F"
+  },
+  {
+   "bib": 14,
+   "category": "U11 F"
+  },
+  {
+   "bib": 15,
+   "category": "U11 F"
+  },
+  {
+   "bib": 16,
+   "category": "U15 H"
+  },
+  {
+   "bib": 17,
+   "category": "U15 H"
+  },
+  {
+   "bib": 18,
+   "category": "U11 F"
+  },
+  {
+   "bib": 19,
+   "category": "U17 H"
+  },
+  {
+   "bib": 20,
+   "category": "U17 H"
+  },
+  {
+   "bib": 21,
+   "category": "U11 F"
+  },
+  {
+   "bib": 22,
+   "category": "U15 F"
+  },
+  {
+   "bib": 23,
+   "category": "U11 H"
+  },
+  {
+   "bib": 24,
+   "category": "U17 F"
+  },
+  {
+   "bib": 25,
+   "category": "U15 H"
+  },
+  {
+   "bib": 26,
+   "category": "U13 H"
+  },
+  {
+   "bib": 27,
+   "category": "U15 F"
+  },
+  {
+   "bib": 28,
+   "category": "U13 F"
+  },
+  {
+   "bib": 29,
+   "category": "U11 F"
+  },
+  {
+   "bib": 30,
+   "category": "U13 F"
+  },
+  {
+   "bib": 31,
+   "category": "U11 H"
+  },
+  {
+   "bib": 32,
+   "category": "U13 F"
+  },
+  {
+   "bib": 33,
+   "category": "U15 F"
+  },
+  {
+   "bib": 34,
+   "category": "U17 F"
+  },
+  {
+   "bib": 35,
+   "category": "U13 F"
+  },
+  {
+   "bib": 36,
+   "category": "U15 H"
+  },
+  {
+   "bib": 37,
+   "category": "U13 F"
+  },
+  {
+   "bib": 38,
+   "category": "U13 F"
+  },
+  {
+   "bib": 39,
+   "category": "U15 F"
+  },
+  {
+   "bib": 40,
+   "category": "U15 F"
+  },
+  {
+   "bib": 41,
+   "category": "U13 H"
+  },
+  {
+   "bib": 42,
+   "category": "U15 F"
+  },
+  {
+   "bib": 43,
+   "category": "U11 F"
+  },
+  {
+   "bib": 44,
+   "category": "U15 H"
+  },
+  {
+   "bib": 45,
+   "category": "U13 F"
+  },
+  {
+   "bib": 46,
+   "category": "U15 H"
+  },
+  {
+   "bib": 47,
+   "category": "U13 F"
+  },
+  {
+   "bib": 48,
+   "category": "U15 F"
+  },
+  {
+   "bib": 49,
+   "category": "U13 H"
+  },
+  {
+   "bib": 50,
+   "category": "U15 H"
+  },
+  {
+   "bib": 51,
+   "category": "U13 F"
+  },
+  {
+   "bib": 52,
+   "category": "U13 H"
+  },
+  {
+   "bib": 53,
+   "category": "U13 H"
+  },
+  {
+   "bib": 54,
+   "category": "U11 F"
+  },
+  {
+   "bib": 55,
+   "category": "U15 H"
+  },
+  {
+   "bib": 56,
+   "category": "U15 F"
+  },
+  {
+   "bib": 57,
+   "category": "U15 F"
+  },
+  {
+   "bib": 58,
+   "category": "U13 H"
+  },
+  {
+   "bib": 59,
+   "category": "U15 F"
+  },
+  {
+   "bib": 60,
+   "category": "U11 H"
+  },
+  {
+   "bib": 61,
+   "category": "U11 H"
+  },
+  {
+   "bib": 62,
+   "category": "U15 F"
+  },
+  {
+   "bib": 63,
+   "category": "U15 F"
+  },
+  {
+   "bib": 64,
+   "category": "U13 F"
+  },
+  {
+   "bib": 65,
+   "category": "U13 H"
+  },
+  {
+   "bib": 66,
+   "category": "U15 H"
+  },
+  {
+   "bib": 67,
+   "category": "U15 H"
+  },
+  {
+   "bib": 68,
+   "category": "U13 H"
+  },
+  {
+   "bib": 69,
+   "category": "U17 F"
+  },
+  {
+   "bib": 70,
+   "category": "U11 F"
+  },
+  {
+   "bib": 71,
+   "category": "U13 F"
+  },
+  {
+   "bib": 72,
+   "category": "U11 F"
+  },
+  {
+   "bib": 73,
+   "category": "U11 F"
+  },
+  {
+   "bib": 74,
+   "category": "U17 F"
+  },
+  {
+   "bib": 75,
+   "category": "U17 H"
+  },
+  {
+   "bib": 76,
+   "category": "U15 F"
+  },
+  {
+   "bib": 77,
+   "category": "U13 F"
+  },
+  {
+   "bib": 78,
+   "category": "U13 F"
+  },
+  {
+   "bib": 79,
+   "category": "U15 H"
+  },
+  {
+   "bib": 80,
+   "category": "U15 F"
+  },
+  {
+   "bib": 81,
+   "category": "U13 H"
+  },
+  {
+   "bib": 82,
+   "category": "U13 H"
+  },
+  {
+   "bib": 83,
+   "category": "U13 F"
+  },
+  {
+   "bib": 84,
+   "category": "U13 F"
+  },
+  {
+   "bib": 85,
+   "category": "U15 F"
+  },
+  {
+   "bib": 86,
+   "category": "U11 H"
+  },
+  {
+   "bib": 87,
+   "category": "U11 F"
+  },
+  {
+   "bib": 88,
+   "category": "U13 F"
+  },
+  {
+   "bib": 89,
+   "category": "U17 F"
+  },
+  {
+   "bib": 90,
+   "category": "U11 H"
+  },
+  {
+   "bib": 91,
+   "category": "U15 F"
+  },
+  {
+   "bib": 92,
+   "category": "U13 F"
+  },
+  {
+   "bib": 93,
+   "category": "U13 H"
+  },
+  {
+   "bib": 94,
+   "category": "U15 F"
+  },
+  {
+   "bib": 95,
+   "category": "U15 H"
+  },
+  {
+   "bib": 96,
+   "category": "U17 F"
+  },
+  {
+   "bib": 97,
+   "category": "U17 H"
+  },
+  {
+   "bib": 98,
+   "category": "U13 H"
+  }
+ ],
+ "blocs": [
+  {
+   "number": 1,
+   "tag": "z J4",
+   "color": null,
+   "circuits": [
+    "U11",
+    "U13"
+   ]
+  },
+  {
+   "number": 2,
+   "tag": "z J23",
+   "color": "Jaune",
+   "circuits": [
+    "U11",
+    "U13"
+   ]
+  },
+  {
+   "number": 3,
+   "tag": "z J21",
+   "color": "Jaune",
+   "circuits": [
+    "U11"
+   ]
+  },
+  {
+   "number": 4,
+   "tag": "z J22",
+   "color": "Jaune",
+   "circuits": [
+    "U11",
+    "U13"
+   ]
+  },
+  {
+   "number": 5,
+   "tag": "z J20",
+   "color": "Jaune",
+   "circuits": [
+    "U11"
+   ]
+  },
+  {
+   "number": 6,
+   "tag": "d V13",
+   "color": "Jaune",
+   "circuits": [
+    "U13",
+    "U15",
+    "U17"
+   ]
+  },
+  {
+   "number": 7,
+   "tag": "d V12",
+   "color": "Vert",
+   "circuits": [
+    "U11",
+    "U13",
+    "U17"
+   ]
+  },
+  {
+   "number": 8,
+   "tag": "d B11",
+   "color": "Vert",
+   "circuits": [
+    "U15",
+    "U17"
+   ]
+  },
+  {
+   "number": 9,
+   "tag": "d M14",
+   "color": "Bleu",
+   "circuits": [
+    "U15",
+    "U17"
+   ]
+  },
+  {
+   "number": 10,
+   "tag": "c J18",
+   "color": "Mauve",
+   "circuits": [
+    "U11",
+    "U13",
+    "U15"
+   ]
+  },
+  {
+   "number": 11,
+   "tag": "c V17",
+   "color": "Jaune",
+   "circuits": [
+    "U13",
+    "U15"
+   ]
+  },
+  {
+   "number": 12,
+   "tag": "c B12",
+   "color": "Vert",
+   "circuits": [
+    "U13",
+    "U17"
+   ]
+  },
+  {
+   "number": 13,
+   "tag": "c M13",
+   "color": "Bleu",
+   "circuits": [
+    "U17"
+   ]
+  },
+  {
+   "number": 14,
+   "tag": "b B2",
+   "color": "Mauve",
+   "circuits": [
+    "U13",
+    "U15",
+    "U17"
+   ]
+  },
+  {
+   "number": 15,
+   "tag": "b B9",
+   "color": "Bleu",
+   "circuits": [
+    "U13",
+    "U17"
+   ]
+  },
+  {
+   "number": 16,
+   "tag": "b M12",
+   "color": "Bleu",
+   "circuits": [
+    "U17"
+   ]
+  },
+  {
+   "number": 17,
+   "tag": "b M10",
+   "color": "Mauve",
+   "circuits": [
+    "U13",
+    "U15",
+    "U17"
+   ]
+  },
+  {
+   "number": 18,
+   "tag": "b R8",
+   "color": "Mauve",
+   "circuits": [
+    "U17"
+   ]
+  },
+  {
+   "number": 19,
+   "tag": "a J16",
+   "color": "Rouge",
+   "circuits": [
+    "U11",
+    "U13",
+    "U17"
+   ]
+  },
+  {
+   "number": 20,
+   "tag": "a J17",
+   "color": "Jaune",
+   "circuits": [
+    "U11",
+    "U15"
+   ]
+  },
+  {
+   "number": 21,
+   "tag": "a B10",
+   "color": "Jaune",
+   "circuits": [
+    "U15",
+    "U17"
+   ]
+  },
+  {
+   "number": 22,
+   "tag": "a M11",
+   "color": "Bleu",
+   "circuits": [
+    "U15",
+    "U17"
+   ]
+  },
+  {
+   "number": 23,
+   "tag": "a V11",
+   "color": "Mauve",
+   "circuits": [
+    "U11",
+    "U15"
+   ]
+  },
+  {
+   "number": 24,
+   "tag": "e J12",
+   "color": "Vert",
+   "circuits": [
+    "U11"
+   ]
+  },
+  {
+   "number": 25,
+   "tag": "e J13",
+   "color": "Jaune",
+   "circuits": [
+    "U11",
+    "U13"
+   ]
+  },
+  {
+   "number": 26,
+   "tag": "e V10",
+   "color": "Jaune",
+   "circuits": [
+    "U11",
+    "U13",
+    "U15"
+   ]
+  },
+  {
+   "number": 27,
+   "tag": "e V19",
+   "color": "Vert",
+   "circuits": []
+  },
+  {
+   "number": 28,
+   "tag": "e B8",
+   "color": "Vert",
+   "circuits": [
+    "U11",
+    "U15",
+    "U17"
+   ]
+  },
+  {
+   "number": 29,
+   "tag": "f V9",
+   "color": "Bleu",
+   "circuits": [
+    "U11",
+    "U15"
+   ]
+  },
+  {
+   "number": 30,
+   "tag": "f V8",
+   "color": "Vert",
+   "circuits": [
+    "U11",
+    "U13",
+    "U15"
+   ]
+  },
+  {
+   "number": 31,
+   "tag": "f B6",
+   "color": "Vert",
+   "circuits": [
+    "U11",
+    "U13",
+    "U15",
+    "U17"
+   ]
+  },
+  {
+   "number": 32,
+   "tag": "f B7",
+   "color": "Bleu",
+   "circuits": [
+    "U15",
+    "U17"
+   ]
+  },
+  {
+   "number": 33,
+   "tag": "f R6",
+   "color": "Bleu",
+   "circuits": [
+    "U17"
+   ]
+  },
+  {
+   "number": 34,
+   "tag": "g J11",
+   "color": "Rouge",
+   "circuits": [
+    "U11",
+    "U13",
+    "U15",
+    "U17"
+   ]
+  },
+  {
+   "number": 35,
+   "tag": "g J9",
+   "color": "Jaune",
+   "circuits": [
+    "U11",
+    "U13",
+    "U15"
+   ]
+  },
+  {
+   "number": 36,
+   "tag": "g J10",
+   "color": "Jaune",
+   "circuits": [
+    "U11"
+   ]
+  },
+  {
+   "number": 37,
+   "tag": "g M8",
+   "color": "Jaune",
+   "circuits": [
+    "U15",
+    "U17"
+   ]
+  },
+  {
+   "number": 38,
+   "tag": "g R5",
+   "color": "Mauve",
+   "circuits": [
+    "U17"
+   ]
+  },
+  {
+   "number": 39,
+   "tag": "h V6",
+   "color": "Rouge",
+   "circuits": [
+    "U11",
+    "U13"
+   ]
+  },
+  {
+   "number": 40,
+   "tag": "h V7",
+   "color": "Vert",
+   "circuits": [
+    "U13",
+    "U15",
+    "U17"
+   ]
+  },
+  {
+   "number": 41,
+   "tag": "h B4",
+   "color": "Vert",
+   "circuits": [
+    "U17"
+   ]
+  },
+  {
+   "number": 42,
+   "tag": "h B5",
+   "color": "Bleu",
+   "circuits": [
+    "U13",
+    "U15",
+    "U17"
+   ]
+  },
+  {
+   "number": 43,
+   "tag": "i J7",
+   "color": "Bleu",
+   "circuits": [
+    "U11",
+    "U15"
+   ]
+  },
+  {
+   "number": 44,
+   "tag": "i J8",
+   "color": "Jaune",
+   "circuits": [
+    "U11",
+    "U13",
+    "U17"
+   ]
+  },
+  {
+   "number": 45,
+   "tag": "i V5",
+   "color": "Jaune",
+   "circuits": [
+    "U11",
+    "U13",
+    "U17"
+   ]
+  },
+  {
+   "number": 46,
+   "tag": "i M7",
+   "color": "Vert",
+   "circuits": [
+    "U13",
+    "U15",
+    "U17"
+   ]
+  },
+  {
+   "number": 47,
+   "tag": "i R3",
+   "color": "Mauve",
+   "circuits": [
+    "U15",
+    "U17"
+   ]
+  },
+  {
+   "number": 48,
+   "tag": "j J6",
+   "color": "Rouge",
+   "circuits": [
+    "U11",
+    "U13",
+    "U15",
+    "U17"
+   ]
+  },
+  {
+   "number": 49,
+   "tag": "j V18",
+   "color": "Jaune",
+   "circuits": [
+    "U13",
+    "U15",
+    "U17"
+   ]
+  },
+  {
+   "number": 50,
+   "tag": "j V3",
+   "color": "Vert",
+   "circuits": [
+    "U11"
+   ]
+  },
+  {
+   "number": 51,
+   "tag": "j V4",
+   "color": "Vert",
+   "circuits": [
+    "U11",
+    "U15"
+   ]
+  },
+  {
+   "number": 52,
+   "tag": "j B1",
+   "color": "Vert",
+   "circuits": [
+    "U13",
+    "U15",
+    "U17"
+   ]
+  },
+  {
+   "number": 53,
+   "tag": "k J5",
+   "color": "Bleu",
+   "circuits": [
+    "U11",
+    "U13",
+    "U15",
+    "U17"
+   ]
+  },
+  {
+   "number": 54,
+   "tag": "k B14",
+   "color": "Jaune",
+   "circuits": [
+    "U13",
+    "U15",
+    "U17"
+   ]
+  },
+  {
+   "number": 55,
+   "tag": "k M5",
+   "color": "Bleu",
+   "circuits": [
+    "U13",
+    "U15",
+    "U17"
+   ]
+  },
+  {
+   "number": 56,
+   "tag": "l J3",
+   "color": "Mauve",
+   "circuits": [
+    "U11",
+    "U13"
+   ]
+  },
+  {
+   "number": 57,
+   "tag": "l V15",
+   "color": "Jaune",
+   "circuits": [
+    "U11",
+    "U13"
+   ]
+  },
+  {
+   "number": 58,
+   "tag": "l V14",
+   "color": "Vert",
+   "circuits": [
+    "U13"
+   ]
+  },
+  {
+   "number": 59,
+   "tag": "m J19",
+   "color": "Vert",
+   "circuits": [
+    "U11"
+   ]
+  },
+  {
+   "number": 60,
+   "tag": "m J14",
+   "color": "Jaune",
+   "circuits": [
+    "U11",
+    "U13"
+   ]
+  },
+  {
+   "number": 61,
+   "tag": "m B15",
+   "color": "Jaune",
+   "circuits": [
+    "U15",
+    "U17"
+   ]
+  },
+  {
+   "number": 62,
+   "tag": "m R10",
+   "color": "Bleu",
+   "circuits": [
+    "U15",
+    "U17"
+   ]
+  },
+  {
+   "number": 63,
+   "tag": "m V16",
+   "color": "Rouge",
+   "circuits": [
+    "U11",
+    "U13"
+   ]
+  },
+  {
+   "number": 64,
+   "tag": "n J15",
+   "color": "Vert",
+   "circuits": [
+    "U11"
+   ]
+  },
+  {
+   "number": 65,
+   "tag": "n J1",
+   "color": "Jaune",
+   "circuits": [
+    "U11"
+   ]
+  },
+  {
+   "number": 66,
+   "tag": "n V1",
+   "color": "Jaune",
+   "circuits": [
+    "U11",
+    "U13",
+    "U15"
+   ]
+  },
+  {
+   "number": 67,
+   "tag": "n M2",
+   "color": "Vert",
+   "circuits": [
+    "U15",
+    "U17"
+   ]
+  }
+ ],
+ "tops": [
+  {
+   "bib": 1,
+   "bloc": 2
+  },
+  {
+   "bib": 1,
+   "bloc": 4
+  },
+  {
+   "bib": 1,
+   "bloc": 10
+  },
+  {
+   "bib": 1,
+   "bloc": 25
+  },
+  {
+   "bib": 1,
+   "bloc": 26
+  },
+  {
+   "bib": 1,
+   "bloc": 33
+  },
+  {
+   "bib": 1,
+   "bloc": 35
+  },
+  {
+   "bib": 1,
+   "bloc": 44
+  },
+  {
+   "bib": 1,
+   "bloc": 48
+  },
+  {
+   "bib": 2,
+   "bloc": 1
+  },
+  {
+   "bib": 2,
+   "bloc": 24
+  },
+  {
+   "bib": 2,
+   "bloc": 25
+  },
+  {
+   "bib": 2,
+   "bloc": 36
+  },
+  {
+   "bib": 2,
+   "bloc": 60
+  },
+  {
+   "bib": 3,
+   "bloc": 1
+  },
+  {
+   "bib": 3,
+   "bloc": 2
+  },
+  {
+   "bib": 3,
+   "bloc": 10
+  },
+  {
+   "bib": 3,
+   "bloc": 19
+  },
+  {
+   "bib": 3,
+   "bloc": 35
+  },
+  {
+   "bib": 3,
+   "bloc": 56
+  },
+  {
+   "bib": 4,
+   "bloc": 1
+  },
+  {
+   "bib": 4,
+   "bloc": 2
+  },
+  {
+   "bib": 4,
+   "bloc": 19
+  },
+  {
+   "bib": 4,
+   "bloc": 35
+  },
+  {
+   "bib": 4,
+   "bloc": 44
+  },
+  {
+   "bib": 4,
+   "bloc": 53
+  },
+  {
+   "bib": 4,
+   "bloc": 56
+  },
+  {
+   "bib": 4,
+   "bloc": 57
+  },
+  {
+   "bib": 4,
+   "bloc": 58
+  },
+  {
+   "bib": 4,
+   "bloc": 63
+  },
+  {
+   "bib": 6,
+   "bloc": 10
+  },
+  {
+   "bib": 6,
+   "bloc": 20
+  },
+  {
+   "bib": 6,
+   "bloc": 26
+  },
+  {
+   "bib": 6,
+   "bloc": 43
+  },
+  {
+   "bib": 6,
+   "bloc": 48
+  },
+  {
+   "bib": 6,
+   "bloc": 53
+  },
+  {
+   "bib": 6,
+   "bloc": 66
+  },
+  {
+   "bib": 7,
+   "bloc": 1
+  },
+  {
+   "bib": 7,
+   "bloc": 2
+  },
+  {
+   "bib": 7,
+   "bloc": 4
+  },
+  {
+   "bib": 7,
+   "bloc": 10
+  },
+  {
+   "bib": 7,
+   "bloc": 11
+  },
+  {
+   "bib": 7,
+   "bloc": 19
+  },
+  {
+   "bib": 7,
+   "bloc": 25
+  },
+  {
+   "bib": 7,
+   "bloc": 26
+  },
+  {
+   "bib": 7,
+   "bloc": 39
+  },
+  {
+   "bib": 7,
+   "bloc": 44
+  },
+  {
+   "bib": 7,
+   "bloc": 48
+  },
+  {
+   "bib": 7,
+   "bloc": 53
+  },
+  {
+   "bib": 7,
+   "bloc": 56
+  },
+  {
+   "bib": 7,
+   "bloc": 57
+  },
+  {
+   "bib": 7,
+   "bloc": 58
+  },
+  {
+   "bib": 7,
+   "bloc": 60
+  },
+  {
+   "bib": 7,
+   "bloc": 63
+  },
+  {
+   "bib": 8,
+   "bloc": 1
+  },
+  {
+   "bib": 8,
+   "bloc": 24
+  },
+  {
+   "bib": 8,
+   "bloc": 25
+  },
+  {
+   "bib": 8,
+   "bloc": 26
+  },
+  {
+   "bib": 8,
+   "bloc": 36
+  },
+  {
+   "bib": 8,
+   "bloc": 43
+  },
+  {
+   "bib": 8,
+   "bloc": 44
+  },
+  {
+   "bib": 8,
+   "bloc": 60
+  },
+  {
+   "bib": 9,
+   "bloc": 1
+  },
+  {
+   "bib": 9,
+   "bloc": 2
+  },
+  {
+   "bib": 9,
+   "bloc": 4
+  },
+  {
+   "bib": 9,
+   "bloc": 5
+  },
+  {
+   "bib": 9,
+   "bloc": 7
+  },
+  {
+   "bib": 9,
+   "bloc": 10
+  },
+  {
+   "bib": 9,
+   "bloc": 23
+  },
+  {
+   "bib": 9,
+   "bloc": 31
+  },
+  {
+   "bib": 9,
+   "bloc": 39
+  },
+  {
+   "bib": 9,
+   "bloc": 43
+  },
+  {
+   "bib": 9,
+   "bloc": 45
+  },
+  {
+   "bib": 9,
+   "bloc": 50
+  },
+  {
+   "bib": 9,
+   "bloc": 53
+  },
+  {
+   "bib": 9,
+   "bloc": 56
+  },
+  {
+   "bib": 9,
+   "bloc": 57
+  },
+  {
+   "bib": 9,
+   "bloc": 58
+  },
+  {
+   "bib": 9,
+   "bloc": 63
+  },
+  {
+   "bib": 9,
+   "bloc": 66
+  },
+  {
+   "bib": 10,
+   "bloc": 1
+  },
+  {
+   "bib": 10,
+   "bloc": 2
+  },
+  {
+   "bib": 10,
+   "bloc": 4
+  },
+  {
+   "bib": 10,
+   "bloc": 19
+  },
+  {
+   "bib": 10,
+   "bloc": 25
+  },
+  {
+   "bib": 10,
+   "bloc": 56
+  },
+  {
+   "bib": 10,
+   "bloc": 57
+  },
+  {
+   "bib": 10,
+   "bloc": 58
+  },
+  {
+   "bib": 10,
+   "bloc": 60
+  },
+  {
+   "bib": 11,
+   "bloc": 2
+  },
+  {
+   "bib": 11,
+   "bloc": 4
+  },
+  {
+   "bib": 11,
+   "bloc": 19
+  },
+  {
+   "bib": 11,
+   "bloc": 25
+  },
+  {
+   "bib": 11,
+   "bloc": 56
+  },
+  {
+   "bib": 11,
+   "bloc": 57
+  },
+  {
+   "bib": 11,
+   "bloc": 58
+  },
+  {
+   "bib": 11,
+   "bloc": 63
+  },
+  {
+   "bib": 12,
+   "bloc": 1
+  },
+  {
+   "bib": 12,
+   "bloc": 2
+  },
+  {
+   "bib": 12,
+   "bloc": 4
+  },
+  {
+   "bib": 12,
+   "bloc": 10
+  },
+  {
+   "bib": 12,
+   "bloc": 11
+  },
+  {
+   "bib": 12,
+   "bloc": 19
+  },
+  {
+   "bib": 12,
+   "bloc": 34
+  },
+  {
+   "bib": 12,
+   "bloc": 39
+  },
+  {
+   "bib": 12,
+   "bloc": 44
+  },
+  {
+   "bib": 12,
+   "bloc": 48
+  },
+  {
+   "bib": 12,
+   "bloc": 53
+  },
+  {
+   "bib": 12,
+   "bloc": 56
+  },
+  {
+   "bib": 12,
+   "bloc": 57
+  },
+  {
+   "bib": 12,
+   "bloc": 58
+  },
+  {
+   "bib": 12,
+   "bloc": 63
+  },
+  {
+   "bib": 13,
+   "bloc": 6
+  },
+  {
+   "bib": 13,
+   "bloc": 11
+  },
+  {
+   "bib": 13,
+   "bloc": 20
+  },
+  {
+   "bib": 13,
+   "bloc": 23
+  },
+  {
+   "bib": 13,
+   "bloc": 26
+  },
+  {
+   "bib": 13,
+   "bloc": 34
+  },
+  {
+   "bib": 13,
+   "bloc": 35
+  },
+  {
+   "bib": 13,
+   "bloc": 40
+  },
+  {
+   "bib": 13,
+   "bloc": 43
+  },
+  {
+   "bib": 13,
+   "bloc": 48
+  },
+  {
+   "bib": 13,
+   "bloc": 49
+  },
+  {
+   "bib": 13,
+   "bloc": 53
+  },
+  {
+   "bib": 13,
+   "bloc": 66
+  },
+  {
+   "bib": 14,
+   "bloc": 1
+  },
+  {
+   "bib": 14,
+   "bloc": 2
+  },
+  {
+   "bib": 14,
+   "bloc": 3
+  },
+  {
+   "bib": 14,
+   "bloc": 5
+  },
+  {
+   "bib": 14,
+   "bloc": 19
+  },
+  {
+   "bib": 14,
+   "bloc": 24
+  },
+  {
+   "bib": 14,
+   "bloc": 25
+  },
+  {
+   "bib": 14,
+   "bloc": 39
+  },
+  {
+   "bib": 14,
+   "bloc": 43
+  },
+  {
+   "bib": 14,
+   "bloc": 44
+  },
+  {
+   "bib": 14,
+   "bloc": 56
+  },
+  {
+   "bib": 14,
+   "bloc": 57
+  },
+  {
+   "bib": 14,
+   "bloc": 59
+  },
+  {
+   "bib": 14,
+   "bloc": 63
+  },
+  {
+   "bib": 14,
+   "bloc": 64
+  },
+  {
+   "bib": 14,
+   "bloc": 65
+  },
+  {
+   "bib": 15,
+   "bloc": 2
+  },
+  {
+   "bib": 15,
+   "bloc": 24
+  },
+  {
+   "bib": 15,
+   "bloc": 43
+  },
+  {
+   "bib": 15,
+   "bloc": 44
+  },
+  {
+   "bib": 15,
+   "bloc": 50
+  },
+  {
+   "bib": 15,
+   "bloc": 56
+  },
+  {
+   "bib": 15,
+   "bloc": 63
+  },
+  {
+   "bib": 15,
+   "bloc": 66
+  },
+  {
+   "bib": 16,
+   "bloc": 6
+  },
+  {
+   "bib": 16,
+   "bloc": 10
+  },
+  {
+   "bib": 16,
+   "bloc": 11
+  },
+  {
+   "bib": 16,
+   "bloc": 20
+  },
+  {
+   "bib": 16,
+   "bloc": 23
+  },
+  {
+   "bib": 16,
+   "bloc": 26
+  },
+  {
+   "bib": 16,
+   "bloc": 31
+  },
+  {
+   "bib": 16,
+   "bloc": 32
+  },
+  {
+   "bib": 16,
+   "bloc": 33
+  },
+  {
+   "bib": 16,
+   "bloc": 34
+  },
+  {
+   "bib": 16,
+   "bloc": 35
+  },
+  {
+   "bib": 16,
+   "bloc": 43
+  },
+  {
+   "bib": 16,
+   "bloc": 48
+  },
+  {
+   "bib": 16,
+   "bloc": 53
+  },
+  {
+   "bib": 17,
+   "bloc": 6
+  },
+  {
+   "bib": 17,
+   "bloc": 10
+  },
+  {
+   "bib": 17,
+   "bloc": 11
+  },
+  {
+   "bib": 17,
+   "bloc": 20
+  },
+  {
+   "bib": 17,
+   "bloc": 23
+  },
+  {
+   "bib": 17,
+   "bloc": 26
+  },
+  {
+   "bib": 17,
+   "bloc": 31
+  },
+  {
+   "bib": 17,
+   "bloc": 32
+  },
+  {
+   "bib": 17,
+   "bloc": 34
+  },
+  {
+   "bib": 17,
+   "bloc": 35
+  },
+  {
+   "bib": 17,
+   "bloc": 43
+  },
+  {
+   "bib": 17,
+   "bloc": 48
+  },
+  {
+   "bib": 17,
+   "bloc": 53
+  },
+  {
+   "bib": 17,
+   "bloc": 61
+  },
+  {
+   "bib": 18,
+   "bloc": 3
+  },
+  {
+   "bib": 18,
+   "bloc": 35
+  },
+  {
+   "bib": 18,
+   "bloc": 39
+  },
+  {
+   "bib": 18,
+   "bloc": 43
+  },
+  {
+   "bib": 18,
+   "bloc": 48
+  },
+  {
+   "bib": 18,
+   "bloc": 53
+  },
+  {
+   "bib": 18,
+   "bloc": 56
+  },
+  {
+   "bib": 18,
+   "bloc": 57
+  },
+  {
+   "bib": 18,
+   "bloc": 60
+  },
+  {
+   "bib": 18,
+   "bloc": 63
+  },
+  {
+   "bib": 18,
+   "bloc": 66
+  },
+  {
+   "bib": 19,
+   "bloc": 6
+  },
+  {
+   "bib": 19,
+   "bloc": 44
+  },
+  {
+   "bib": 19,
+   "bloc": 45
+  },
+  {
+   "bib": 19,
+   "bloc": 48
+  },
+  {
+   "bib": 19,
+   "bloc": 53
+  },
+  {
+   "bib": 20,
+   "bloc": 6
+  },
+  {
+   "bib": 20,
+   "bloc": 7
+  },
+  {
+   "bib": 20,
+   "bloc": 34
+  },
+  {
+   "bib": 20,
+   "bloc": 40
+  },
+  {
+   "bib": 20,
+   "bloc": 44
+  },
+  {
+   "bib": 20,
+   "bloc": 45
+  },
+  {
+   "bib": 20,
+   "bloc": 48
+  },
+  {
+   "bib": 20,
+   "bloc": 49
+  },
+  {
+   "bib": 20,
+   "bloc": 53
+  },
+  {
+   "bib": 21,
+   "bloc": 1
+  },
+  {
+   "bib": 21,
+   "bloc": 2
+  },
+  {
+   "bib": 21,
+   "bloc": 3
+  },
+  {
+   "bib": 21,
+   "bloc": 10
+  },
+  {
+   "bib": 21,
+   "bloc": 19
+  },
+  {
+   "bib": 21,
+   "bloc": 20
+  },
+  {
+   "bib": 21,
+   "bloc": 24
+  },
+  {
+   "bib": 21,
+   "bloc": 25
+  },
+  {
+   "bib": 21,
+   "bloc": 43
+  },
+  {
+   "bib": 21,
+   "bloc": 48
+  },
+  {
+   "bib": 21,
+   "bloc": 63
+  },
+  {
+   "bib": 21,
+   "bloc": 64
+  },
+  {
+   "bib": 21,
+   "bloc": 65
+  },
+  {
+   "bib": 21,
+   "bloc": 66
+  },
+  {
+   "bib": 22,
+   "bloc": 6
+  },
+  {
+   "bib": 22,
+   "bloc": 14
+  },
+  {
+   "bib": 22,
+   "bloc": 23
+  },
+  {
+   "bib": 22,
+   "bloc": 28
+  },
+  {
+   "bib": 22,
+   "bloc": 32
+  },
+  {
+   "bib": 22,
+   "bloc": 48
+  },
+  {
+   "bib": 22,
+   "bloc": 49
+  },
+  {
+   "bib": 22,
+   "bloc": 52
+  },
+  {
+   "bib": 22,
+   "bloc": 54
+  },
+  {
+   "bib": 23,
+   "bloc": 1
+  },
+  {
+   "bib": 23,
+   "bloc": 19
+  },
+  {
+   "bib": 23,
+   "bloc": 20
+  },
+  {
+   "bib": 23,
+   "bloc": 26
+  },
+  {
+   "bib": 23,
+   "bloc": 33
+  },
+  {
+   "bib": 23,
+   "bloc": 35
+  },
+  {
+   "bib": 23,
+   "bloc": 39
+  },
+  {
+   "bib": 23,
+   "bloc": 43
+  },
+  {
+   "bib": 23,
+   "bloc": 48
+  },
+  {
+   "bib": 23,
+   "bloc": 50
+  },
+  {
+   "bib": 23,
+   "bloc": 53
+  },
+  {
+   "bib": 23,
+   "bloc": 57
+  },
+  {
+   "bib": 23,
+   "bloc": 63
+  },
+  {
+   "bib": 23,
+   "bloc": 66
+  },
+  {
+   "bib": 24,
+   "bloc": 6
+  },
+  {
+   "bib": 24,
+   "bloc": 12
+  },
+  {
+   "bib": 24,
+   "bloc": 19
+  },
+  {
+   "bib": 24,
+   "bloc": 35
+  },
+  {
+   "bib": 24,
+   "bloc": 37
+  },
+  {
+   "bib": 24,
+   "bloc": 40
+  },
+  {
+   "bib": 24,
+   "bloc": 44
+  },
+  {
+   "bib": 24,
+   "bloc": 48
+  },
+  {
+   "bib": 24,
+   "bloc": 49
+  },
+  {
+   "bib": 24,
+   "bloc": 53
+  },
+  {
+   "bib": 25,
+   "bloc": 10
+  },
+  {
+   "bib": 25,
+   "bloc": 14
+  },
+  {
+   "bib": 25,
+   "bloc": 23
+  },
+  {
+   "bib": 25,
+   "bloc": 28
+  },
+  {
+   "bib": 25,
+   "bloc": 40
+  },
+  {
+   "bib": 25,
+   "bloc": 43
+  },
+  {
+   "bib": 25,
+   "bloc": 48
+  },
+  {
+   "bib": 25,
+   "bloc": 53
+  },
+  {
+   "bib": 25,
+   "bloc": 54
+  },
+  {
+   "bib": 26,
+   "bloc": 56
+  },
+  {
+   "bib": 27,
+   "bloc": 11
+  },
+  {
+   "bib": 27,
+   "bloc": 14
+  },
+  {
+   "bib": 27,
+   "bloc": 23
+  },
+  {
+   "bib": 27,
+   "bloc": 26
+  },
+  {
+   "bib": 27,
+   "bloc": 34
+  },
+  {
+   "bib": 27,
+   "bloc": 43
+  },
+  {
+   "bib": 27,
+   "bloc": 49
+  },
+  {
+   "bib": 28,
+   "bloc": 1
+  },
+  {
+   "bib": 28,
+   "bloc": 4
+  },
+  {
+   "bib": 28,
+   "bloc": 6
+  },
+  {
+   "bib": 28,
+   "bloc": 10
+  },
+  {
+   "bib": 28,
+   "bloc": 11
+  },
+  {
+   "bib": 28,
+   "bloc": 19
+  },
+  {
+   "bib": 28,
+   "bloc": 25
+  },
+  {
+   "bib": 28,
+   "bloc": 44
+  },
+  {
+   "bib": 28,
+   "bloc": 45
+  },
+  {
+   "bib": 28,
+   "bloc": 48
+  },
+  {
+   "bib": 28,
+   "bloc": 56
+  },
+  {
+   "bib": 28,
+   "bloc": 57
+  },
+  {
+   "bib": 28,
+   "bloc": 58
+  },
+  {
+   "bib": 29,
+   "bloc": 20
+  },
+  {
+   "bib": 29,
+   "bloc": 24
+  },
+  {
+   "bib": 29,
+   "bloc": 25
+  },
+  {
+   "bib": 29,
+   "bloc": 35
+  },
+  {
+   "bib": 29,
+   "bloc": 36
+  },
+  {
+   "bib": 29,
+   "bloc": 43
+  },
+  {
+   "bib": 29,
+   "bloc": 44
+  },
+  {
+   "bib": 29,
+   "bloc": 56
+  },
+  {
+   "bib": 29,
+   "bloc": 63
+  },
+  {
+   "bib": 30,
+   "bloc": 1
+  },
+  {
+   "bib": 30,
+   "bloc": 2
+  },
+  {
+   "bib": 30,
+   "bloc": 4
+  },
+  {
+   "bib": 30,
+   "bloc": 26
+  },
+  {
+   "bib": 30,
+   "bloc": 34
+  },
+  {
+   "bib": 30,
+   "bloc": 39
+  },
+  {
+   "bib": 30,
+   "bloc": 44
+  },
+  {
+   "bib": 30,
+   "bloc": 45
+  },
+  {
+   "bib": 30,
+   "bloc": 48
+  },
+  {
+   "bib": 30,
+   "bloc": 53
+  },
+  {
+   "bib": 30,
+   "bloc": 56
+  },
+  {
+   "bib": 30,
+   "bloc": 57
+  },
+  {
+   "bib": 30,
+   "bloc": 58
+  },
+  {
+   "bib": 30,
+   "bloc": 60
+  },
+  {
+   "bib": 31,
+   "bloc": 2
+  },
+  {
+   "bib": 31,
+   "bloc": 4
+  },
+  {
+   "bib": 31,
+   "bloc": 25
+  },
+  {
+   "bib": 31,
+   "bloc": 26
+  },
+  {
+   "bib": 31,
+   "bloc": 56
+  },
+  {
+   "bib": 31,
+   "bloc": 65
+  },
+  {
+   "bib": 32,
+   "bloc": 1
+  },
+  {
+   "bib": 32,
+   "bloc": 2
+  },
+  {
+   "bib": 32,
+   "bloc": 10
+  },
+  {
+   "bib": 32,
+   "bloc": 14
+  },
+  {
+   "bib": 32,
+   "bloc": 19
+  },
+  {
+   "bib": 32,
+   "bloc": 32
+  },
+  {
+   "bib": 32,
+   "bloc": 34
+  },
+  {
+   "bib": 32,
+   "bloc": 39
+  },
+  {
+   "bib": 32,
+   "bloc": 40
+  },
+  {
+   "bib": 32,
+   "bloc": 45
+  },
+  {
+   "bib": 32,
+   "bloc": 53
+  },
+  {
+   "bib": 32,
+   "bloc": 56
+  },
+  {
+   "bib": 32,
+   "bloc": 57
+  },
+  {
+   "bib": 32,
+   "bloc": 58
+  },
+  {
+   "bib": 33,
+   "bloc": 10
+  },
+  {
+   "bib": 33,
+   "bloc": 26
+  },
+  {
+   "bib": 33,
+   "bloc": 34
+  },
+  {
+   "bib": 33,
+   "bloc": 35
+  },
+  {
+   "bib": 33,
+   "bloc": 43
+  },
+  {
+   "bib": 33,
+   "bloc": 48
+  },
+  {
+   "bib": 33,
+   "bloc": 53
+  },
+  {
+   "bib": 33,
+   "bloc": 66
+  },
+  {
+   "bib": 34,
+   "bloc": 6
+  },
+  {
+   "bib": 34,
+   "bloc": 7
+  },
+  {
+   "bib": 34,
+   "bloc": 12
+  },
+  {
+   "bib": 34,
+   "bloc": 14
+  },
+  {
+   "bib": 34,
+   "bloc": 19
+  },
+  {
+   "bib": 34,
+   "bloc": 21
+  },
+  {
+   "bib": 34,
+   "bloc": 32
+  },
+  {
+   "bib": 34,
+   "bloc": 34
+  },
+  {
+   "bib": 34,
+   "bloc": 37
+  },
+  {
+   "bib": 34,
+   "bloc": 40
+  },
+  {
+   "bib": 34,
+   "bloc": 41
+  },
+  {
+   "bib": 34,
+   "bloc": 42
+  },
+  {
+   "bib": 34,
+   "bloc": 44
+  },
+  {
+   "bib": 34,
+   "bloc": 45
+  },
+  {
+   "bib": 34,
+   "bloc": 48
+  },
+  {
+   "bib": 34,
+   "bloc": 53
+  },
+  {
+   "bib": 34,
+   "bloc": 54
+  },
+  {
+   "bib": 35,
+   "bloc": 1
+  },
+  {
+   "bib": 35,
+   "bloc": 2
+  },
+  {
+   "bib": 35,
+   "bloc": 10
+  },
+  {
+   "bib": 35,
+   "bloc": 19
+  },
+  {
+   "bib": 35,
+   "bloc": 25
+  },
+  {
+   "bib": 35,
+   "bloc": 44
+  },
+  {
+   "bib": 35,
+   "bloc": 48
+  },
+  {
+   "bib": 35,
+   "bloc": 56
+  },
+  {
+   "bib": 35,
+   "bloc": 57
+  },
+  {
+   "bib": 35,
+   "bloc": 58
+  },
+  {
+   "bib": 36,
+   "bloc": 6
+  },
+  {
+   "bib": 36,
+   "bloc": 20
+  },
+  {
+   "bib": 36,
+   "bloc": 26
+  },
+  {
+   "bib": 36,
+   "bloc": 34
+  },
+  {
+   "bib": 36,
+   "bloc": 35
+  },
+  {
+   "bib": 36,
+   "bloc": 43
+  },
+  {
+   "bib": 36,
+   "bloc": 48
+  },
+  {
+   "bib": 36,
+   "bloc": 53
+  },
+  {
+   "bib": 36,
+   "bloc": 66
+  },
+  {
+   "bib": 37,
+   "bloc": 2
+  },
+  {
+   "bib": 37,
+   "bloc": 4
+  },
+  {
+   "bib": 37,
+   "bloc": 10
+  },
+  {
+   "bib": 37,
+   "bloc": 11
+  },
+  {
+   "bib": 37,
+   "bloc": 19
+  },
+  {
+   "bib": 37,
+   "bloc": 25
+  },
+  {
+   "bib": 37,
+   "bloc": 26
+  },
+  {
+   "bib": 37,
+   "bloc": 35
+  },
+  {
+   "bib": 37,
+   "bloc": 44
+  },
+  {
+   "bib": 37,
+   "bloc": 48
+  },
+  {
+   "bib": 37,
+   "bloc": 53
+  },
+  {
+   "bib": 37,
+   "bloc": 56
+  },
+  {
+   "bib": 37,
+   "bloc": 57
+  },
+  {
+   "bib": 37,
+   "bloc": 58
+  },
+  {
+   "bib": 37,
+   "bloc": 60
+  },
+  {
+   "bib": 37,
+   "bloc": 63
+  },
+  {
+   "bib": 38,
+   "bloc": 1
+  },
+  {
+   "bib": 38,
+   "bloc": 2
+  },
+  {
+   "bib": 38,
+   "bloc": 4
+  },
+  {
+   "bib": 38,
+   "bloc": 10
+  },
+  {
+   "bib": 38,
+   "bloc": 19
+  },
+  {
+   "bib": 38,
+   "bloc": 25
+  },
+  {
+   "bib": 38,
+   "bloc": 44
+  },
+  {
+   "bib": 38,
+   "bloc": 48
+  },
+  {
+   "bib": 38,
+   "bloc": 56
+  },
+  {
+   "bib": 38,
+   "bloc": 57
+  },
+  {
+   "bib": 38,
+   "bloc": 58
+  },
+  {
+   "bib": 39,
+   "bloc": 6
+  },
+  {
+   "bib": 39,
+   "bloc": 10
+  },
+  {
+   "bib": 39,
+   "bloc": 11
+  },
+  {
+   "bib": 39,
+   "bloc": 14
+  },
+  {
+   "bib": 39,
+   "bloc": 23
+  },
+  {
+   "bib": 39,
+   "bloc": 26
+  },
+  {
+   "bib": 39,
+   "bloc": 28
+  },
+  {
+   "bib": 39,
+   "bloc": 37
+  },
+  {
+   "bib": 39,
+   "bloc": 40
+  },
+  {
+   "bib": 39,
+   "bloc": 48
+  },
+  {
+   "bib": 39,
+   "bloc": 49
+  },
+  {
+   "bib": 39,
+   "bloc": 51
+  },
+  {
+   "bib": 39,
+   "bloc": 53
+  },
+  {
+   "bib": 39,
+   "bloc": 61
+  },
+  {
+   "bib": 39,
+   "bloc": 66
+  },
+  {
+   "bib": 40,
+   "bloc": 10
+  },
+  {
+   "bib": 40,
+   "bloc": 20
+  },
+  {
+   "bib": 40,
+   "bloc": 26
+  },
+  {
+   "bib": 40,
+   "bloc": 28
+  },
+  {
+   "bib": 40,
+   "bloc": 35
+  },
+  {
+   "bib": 40,
+   "bloc": 48
+  },
+  {
+   "bib": 41,
+   "bloc": 2
+  },
+  {
+   "bib": 41,
+   "bloc": 6
+  },
+  {
+   "bib": 41,
+   "bloc": 7
+  },
+  {
+   "bib": 41,
+   "bloc": 10
+  },
+  {
+   "bib": 41,
+   "bloc": 11
+  },
+  {
+   "bib": 41,
+   "bloc": 12
+  },
+  {
+   "bib": 41,
+   "bloc": 14
+  },
+  {
+   "bib": 41,
+   "bloc": 17
+  },
+  {
+   "bib": 41,
+   "bloc": 42
+  },
+  {
+   "bib": 41,
+   "bloc": 46
+  },
+  {
+   "bib": 41,
+   "bloc": 49
+  },
+  {
+   "bib": 41,
+   "bloc": 52
+  },
+  {
+   "bib": 41,
+   "bloc": 53
+  },
+  {
+   "bib": 41,
+   "bloc": 54
+  },
+  {
+   "bib": 41,
+   "bloc": 55
+  },
+  {
+   "bib": 41,
+   "bloc": 56
+  },
+  {
+   "bib": 41,
+   "bloc": 57
+  },
+  {
+   "bib": 41,
+   "bloc": 58
+  },
+  {
+   "bib": 42,
+   "bloc": 6
+  },
+  {
+   "bib": 42,
+   "bloc": 10
+  },
+  {
+   "bib": 42,
+   "bloc": 11
+  },
+  {
+   "bib": 42,
+   "bloc": 20
+  },
+  {
+   "bib": 42,
+   "bloc": 26
+  },
+  {
+   "bib": 42,
+   "bloc": 34
+  },
+  {
+   "bib": 42,
+   "bloc": 35
+  },
+  {
+   "bib": 42,
+   "bloc": 43
+  },
+  {
+   "bib": 42,
+   "bloc": 53
+  },
+  {
+   "bib": 44,
+   "bloc": 20
+  },
+  {
+   "bib": 44,
+   "bloc": 43
+  },
+  {
+   "bib": 45,
+   "bloc": 1
+  },
+  {
+   "bib": 45,
+   "bloc": 2
+  },
+  {
+   "bib": 45,
+   "bloc": 4
+  },
+  {
+   "bib": 45,
+   "bloc": 10
+  },
+  {
+   "bib": 45,
+   "bloc": 11
+  },
+  {
+   "bib": 45,
+   "bloc": 19
+  },
+  {
+   "bib": 45,
+   "bloc": 34
+  },
+  {
+   "bib": 45,
+   "bloc": 35
+  },
+  {
+   "bib": 45,
+   "bloc": 39
+  },
+  {
+   "bib": 45,
+   "bloc": 44
+  },
+  {
+   "bib": 45,
+   "bloc": 48
+  },
+  {
+   "bib": 45,
+   "bloc": 53
+  },
+  {
+   "bib": 45,
+   "bloc": 56
+  },
+  {
+   "bib": 45,
+   "bloc": 57
+  },
+  {
+   "bib": 45,
+   "bloc": 58
+  },
+  {
+   "bib": 45,
+   "bloc": 63
+  },
+  {
+   "bib": 46,
+   "bloc": 6
+  },
+  {
+   "bib": 46,
+   "bloc": 10
+  },
+  {
+   "bib": 46,
+   "bloc": 11
+  },
+  {
+   "bib": 46,
+   "bloc": 20
+  },
+  {
+   "bib": 46,
+   "bloc": 26
+  },
+  {
+   "bib": 46,
+   "bloc": 34
+  },
+  {
+   "bib": 46,
+   "bloc": 43
+  },
+  {
+   "bib": 46,
+   "bloc": 48
+  },
+  {
+   "bib": 46,
+   "bloc": 53
+  },
+  {
+   "bib": 47,
+   "bloc": 1
+  },
+  {
+   "bib": 47,
+   "bloc": 2
+  },
+  {
+   "bib": 47,
+   "bloc": 4
+  },
+  {
+   "bib": 47,
+   "bloc": 25
+  },
+  {
+   "bib": 47,
+   "bloc": 35
+  },
+  {
+   "bib": 48,
+   "bloc": 6
+  },
+  {
+   "bib": 48,
+   "bloc": 10
+  },
+  {
+   "bib": 48,
+   "bloc": 11
+  },
+  {
+   "bib": 48,
+   "bloc": 20
+  },
+  {
+   "bib": 48,
+   "bloc": 23
+  },
+  {
+   "bib": 48,
+   "bloc": 26
+  },
+  {
+   "bib": 48,
+   "bloc": 35
+  },
+  {
+   "bib": 48,
+   "bloc": 43
+  },
+  {
+   "bib": 48,
+   "bloc": 48
+  },
+  {
+   "bib": 48,
+   "bloc": 49
+  },
+  {
+   "bib": 48,
+   "bloc": 53
+  },
+  {
+   "bib": 48,
+   "bloc": 66
+  },
+  {
+   "bib": 49,
+   "bloc": 2
+  },
+  {
+   "bib": 49,
+   "bloc": 19
+  },
+  {
+   "bib": 49,
+   "bloc": 25
+  },
+  {
+   "bib": 49,
+   "bloc": 26
+  },
+  {
+   "bib": 49,
+   "bloc": 35
+  },
+  {
+   "bib": 49,
+   "bloc": 36
+  },
+  {
+   "bib": 49,
+   "bloc": 44
+  },
+  {
+   "bib": 49,
+   "bloc": 56
+  },
+  {
+   "bib": 49,
+   "bloc": 57
+  },
+  {
+   "bib": 49,
+   "bloc": 58
+  },
+  {
+   "bib": 49,
+   "bloc": 60
+  },
+  {
+   "bib": 50,
+   "bloc": 9
+  },
+  {
+   "bib": 50,
+   "bloc": 14
+  },
+  {
+   "bib": 50,
+   "bloc": 17
+  },
+  {
+   "bib": 50,
+   "bloc": 21
+  },
+  {
+   "bib": 50,
+   "bloc": 22
+  },
+  {
+   "bib": 50,
+   "bloc": 37
+  },
+  {
+   "bib": 50,
+   "bloc": 40
+  },
+  {
+   "bib": 50,
+   "bloc": 42
+  },
+  {
+   "bib": 50,
+   "bloc": 47
+  },
+  {
+   "bib": 50,
+   "bloc": 52
+  },
+  {
+   "bib": 50,
+   "bloc": 54
+  },
+  {
+   "bib": 50,
+   "bloc": 55
+  },
+  {
+   "bib": 50,
+   "bloc": 61
+  },
+  {
+   "bib": 50,
+   "bloc": 62
+  },
+  {
+   "bib": 50,
+   "bloc": 67
+  },
+  {
+   "bib": 51,
+   "bloc": 1
+  },
+  {
+   "bib": 51,
+   "bloc": 19
+  },
+  {
+   "bib": 51,
+   "bloc": 25
+  },
+  {
+   "bib": 51,
+   "bloc": 26
+  },
+  {
+   "bib": 51,
+   "bloc": 35
+  },
+  {
+   "bib": 51,
+   "bloc": 44
+  },
+  {
+   "bib": 51,
+   "bloc": 48
+  },
+  {
+   "bib": 51,
+   "bloc": 53
+  },
+  {
+   "bib": 51,
+   "bloc": 63
+  },
+  {
+   "bib": 52,
+   "bloc": 6
+  },
+  {
+   "bib": 52,
+   "bloc": 7
+  },
+  {
+   "bib": 52,
+   "bloc": 11
+  },
+  {
+   "bib": 52,
+   "bloc": 12
+  },
+  {
+   "bib": 52,
+   "bloc": 14
+  },
+  {
+   "bib": 52,
+   "bloc": 15
+  },
+  {
+   "bib": 52,
+   "bloc": 17
+  },
+  {
+   "bib": 52,
+   "bloc": 31
+  },
+  {
+   "bib": 52,
+   "bloc": 39
+  },
+  {
+   "bib": 52,
+   "bloc": 40
+  },
+  {
+   "bib": 52,
+   "bloc": 42
+  },
+  {
+   "bib": 52,
+   "bloc": 46
+  },
+  {
+   "bib": 52,
+   "bloc": 52
+  },
+  {
+   "bib": 52,
+   "bloc": 54
+  },
+  {
+   "bib": 52,
+   "bloc": 63
+  },
+  {
+   "bib": 52,
+   "bloc": 66
+  },
+  {
+   "bib": 53,
+   "bloc": 1
+  },
+  {
+   "bib": 53,
+   "bloc": 2
+  },
+  {
+   "bib": 53,
+   "bloc": 4
+  },
+  {
+   "bib": 53,
+   "bloc": 19
+  },
+  {
+   "bib": 53,
+   "bloc": 25
+  },
+  {
+   "bib": 53,
+   "bloc": 35
+  },
+  {
+   "bib": 53,
+   "bloc": 56
+  },
+  {
+   "bib": 53,
+   "bloc": 60
+  },
+  {
+   "bib": 54,
+   "bloc": 25
+  },
+  {
+   "bib": 54,
+   "bloc": 26
+  },
+  {
+   "bib": 54,
+   "bloc": 36
+  },
+  {
+   "bib": 54,
+   "bloc": 43
+  },
+  {
+   "bib": 54,
+   "bloc": 44
+  },
+  {
+   "bib": 54,
+   "bloc": 45
+  },
+  {
+   "bib": 54,
+   "bloc": 56
+  },
+  {
+   "bib": 54,
+   "bloc": 60
+  },
+  {
+   "bib": 54,
+   "bloc": 64
+  },
+  {
+   "bib": 55,
+   "bloc": 10
+  },
+  {
+   "bib": 55,
+   "bloc": 35
+  },
+  {
+   "bib": 55,
+   "bloc": 43
+  },
+  {
+   "bib": 55,
+   "bloc": 48
+  },
+  {
+   "bib": 55,
+   "bloc": 53
+  },
+  {
+   "bib": 56,
+   "bloc": 6
+  },
+  {
+   "bib": 56,
+   "bloc": 11
+  },
+  {
+   "bib": 56,
+   "bloc": 20
+  },
+  {
+   "bib": 56,
+   "bloc": 23
+  },
+  {
+   "bib": 56,
+   "bloc": 34
+  },
+  {
+   "bib": 56,
+   "bloc": 35
+  },
+  {
+   "bib": 56,
+   "bloc": 40
+  },
+  {
+   "bib": 56,
+   "bloc": 43
+  },
+  {
+   "bib": 56,
+   "bloc": 48
+  },
+  {
+   "bib": 56,
+   "bloc": 49
+  },
+  {
+   "bib": 56,
+   "bloc": 53
+  },
+  {
+   "bib": 56,
+   "bloc": 66
+  },
+  {
+   "bib": 57,
+   "bloc": 10
+  },
+  {
+   "bib": 57,
+   "bloc": 20
+  },
+  {
+   "bib": 57,
+   "bloc": 35
+  },
+  {
+   "bib": 57,
+   "bloc": 43
+  },
+  {
+   "bib": 57,
+   "bloc": 48
+  },
+  {
+   "bib": 57,
+   "bloc": 53
+  },
+  {
+   "bib": 58,
+   "bloc": 1
+  },
+  {
+   "bib": 58,
+   "bloc": 2
+  },
+  {
+   "bib": 58,
+   "bloc": 4
+  },
+  {
+   "bib": 58,
+   "bloc": 10
+  },
+  {
+   "bib": 58,
+   "bloc": 11
+  },
+  {
+   "bib": 58,
+   "bloc": 25
+  },
+  {
+   "bib": 58,
+   "bloc": 34
+  },
+  {
+   "bib": 58,
+   "bloc": 35
+  },
+  {
+   "bib": 58,
+   "bloc": 44
+  },
+  {
+   "bib": 58,
+   "bloc": 48
+  },
+  {
+   "bib": 58,
+   "bloc": 53
+  },
+  {
+   "bib": 58,
+   "bloc": 56
+  },
+  {
+   "bib": 58,
+   "bloc": 57
+  },
+  {
+   "bib": 58,
+   "bloc": 58
+  },
+  {
+   "bib": 58,
+   "bloc": 60
+  },
+  {
+   "bib": 58,
+   "bloc": 63
+  },
+  {
+   "bib": 59,
+   "bloc": 10
+  },
+  {
+   "bib": 59,
+   "bloc": 26
+  },
+  {
+   "bib": 59,
+   "bloc": 34
+  },
+  {
+   "bib": 59,
+   "bloc": 35
+  },
+  {
+   "bib": 59,
+   "bloc": 43
+  },
+  {
+   "bib": 59,
+   "bloc": 48
+  },
+  {
+   "bib": 59,
+   "bloc": 53
+  },
+  {
+   "bib": 60,
+   "bloc": 1
+  },
+  {
+   "bib": 60,
+   "bloc": 2
+  },
+  {
+   "bib": 60,
+   "bloc": 3
+  },
+  {
+   "bib": 60,
+   "bloc": 4
+  },
+  {
+   "bib": 60,
+   "bloc": 5
+  },
+  {
+   "bib": 60,
+   "bloc": 10
+  },
+  {
+   "bib": 60,
+   "bloc": 19
+  },
+  {
+   "bib": 60,
+   "bloc": 20
+  },
+  {
+   "bib": 60,
+   "bloc": 24
+  },
+  {
+   "bib": 60,
+   "bloc": 25
+  },
+  {
+   "bib": 60,
+   "bloc": 36
+  },
+  {
+   "bib": 60,
+   "bloc": 43
+  },
+  {
+   "bib": 60,
+   "bloc": 44
+  },
+  {
+   "bib": 60,
+   "bloc": 48
+  },
+  {
+   "bib": 60,
+   "bloc": 63
+  },
+  {
+   "bib": 61,
+   "bloc": 1
+  },
+  {
+   "bib": 61,
+   "bloc": 2
+  },
+  {
+   "bib": 61,
+   "bloc": 35
+  },
+  {
+   "bib": 61,
+   "bloc": 39
+  },
+  {
+   "bib": 61,
+   "bloc": 43
+  },
+  {
+   "bib": 61,
+   "bloc": 44
+  },
+  {
+   "bib": 61,
+   "bloc": 50
+  },
+  {
+   "bib": 61,
+   "bloc": 53
+  },
+  {
+   "bib": 61,
+   "bloc": 56
+  },
+  {
+   "bib": 61,
+   "bloc": 60
+  },
+  {
+   "bib": 61,
+   "bloc": 63
+  },
+  {
+   "bib": 61,
+   "bloc": 65
+  },
+  {
+   "bib": 61,
+   "bloc": 66
+  },
+  {
+   "bib": 62,
+   "bloc": 10
+  },
+  {
+   "bib": 62,
+   "bloc": 20
+  },
+  {
+   "bib": 62,
+   "bloc": 35
+  },
+  {
+   "bib": 62,
+   "bloc": 48
+  },
+  {
+   "bib": 63,
+   "bloc": 10
+  },
+  {
+   "bib": 63,
+   "bloc": 19
+  },
+  {
+   "bib": 63,
+   "bloc": 26
+  },
+  {
+   "bib": 63,
+   "bloc": 34
+  },
+  {
+   "bib": 63,
+   "bloc": 35
+  },
+  {
+   "bib": 63,
+   "bloc": 43
+  },
+  {
+   "bib": 63,
+   "bloc": 48
+  },
+  {
+   "bib": 63,
+   "bloc": 53
+  },
+  {
+   "bib": 64,
+   "bloc": 6
+  },
+  {
+   "bib": 64,
+   "bloc": 10
+  },
+  {
+   "bib": 64,
+   "bloc": 11
+  },
+  {
+   "bib": 64,
+   "bloc": 19
+  },
+  {
+   "bib": 64,
+   "bloc": 34
+  },
+  {
+   "bib": 64,
+   "bloc": 35
+  },
+  {
+   "bib": 64,
+   "bloc": 39
+  },
+  {
+   "bib": 64,
+   "bloc": 44
+  },
+  {
+   "bib": 64,
+   "bloc": 45
+  },
+  {
+   "bib": 64,
+   "bloc": 48
+  },
+  {
+   "bib": 64,
+   "bloc": 53
+  },
+  {
+   "bib": 64,
+   "bloc": 56
+  },
+  {
+   "bib": 64,
+   "bloc": 57
+  },
+  {
+   "bib": 64,
+   "bloc": 58
+  },
+  {
+   "bib": 64,
+   "bloc": 60
+  },
+  {
+   "bib": 64,
+   "bloc": 63
+  },
+  {
+   "bib": 65,
+   "bloc": 6
+  },
+  {
+   "bib": 65,
+   "bloc": 11
+  },
+  {
+   "bib": 65,
+   "bloc": 23
+  },
+  {
+   "bib": 65,
+   "bloc": 25
+  },
+  {
+   "bib": 65,
+   "bloc": 28
+  },
+  {
+   "bib": 65,
+   "bloc": 34
+  },
+  {
+   "bib": 65,
+   "bloc": 35
+  },
+  {
+   "bib": 65,
+   "bloc": 39
+  },
+  {
+   "bib": 65,
+   "bloc": 44
+  },
+  {
+   "bib": 65,
+   "bloc": 53
+  },
+  {
+   "bib": 65,
+   "bloc": 60
+  },
+  {
+   "bib": 66,
+   "bloc": 6
+  },
+  {
+   "bib": 66,
+   "bloc": 10
+  },
+  {
+   "bib": 66,
+   "bloc": 11
+  },
+  {
+   "bib": 66,
+   "bloc": 20
+  },
+  {
+   "bib": 66,
+   "bloc": 23
+  },
+  {
+   "bib": 66,
+   "bloc": 34
+  },
+  {
+   "bib": 66,
+   "bloc": 40
+  },
+  {
+   "bib": 66,
+   "bloc": 43
+  },
+  {
+   "bib": 66,
+   "bloc": 48
+  },
+  {
+   "bib": 66,
+   "bloc": 49
+  },
+  {
+   "bib": 66,
+   "bloc": 53
+  },
+  {
+   "bib": 66,
+   "bloc": 66
+  },
+  {
+   "bib": 67,
+   "bloc": 8
+  },
+  {
+   "bib": 67,
+   "bloc": 9
+  },
+  {
+   "bib": 67,
+   "bloc": 10
+  },
+  {
+   "bib": 67,
+   "bloc": 11
+  },
+  {
+   "bib": 67,
+   "bloc": 14
+  },
+  {
+   "bib": 67,
+   "bloc": 17
+  },
+  {
+   "bib": 67,
+   "bloc": 20
+  },
+  {
+   "bib": 67,
+   "bloc": 22
+  },
+  {
+   "bib": 67,
+   "bloc": 23
+  },
+  {
+   "bib": 67,
+   "bloc": 28
+  },
+  {
+   "bib": 67,
+   "bloc": 32
+  },
+  {
+   "bib": 67,
+   "bloc": 37
+  },
+  {
+   "bib": 67,
+   "bloc": 42
+  },
+  {
+   "bib": 67,
+   "bloc": 43
+  },
+  {
+   "bib": 67,
+   "bloc": 46
+  },
+  {
+   "bib": 67,
+   "bloc": 47
+  },
+  {
+   "bib": 67,
+   "bloc": 52
+  },
+  {
+   "bib": 67,
+   "bloc": 54
+  },
+  {
+   "bib": 67,
+   "bloc": 55
+  },
+  {
+   "bib": 67,
+   "bloc": 61
+  },
+  {
+   "bib": 67,
+   "bloc": 62
+  },
+  {
+   "bib": 67,
+   "bloc": 67
+  },
+  {
+   "bib": 68,
+   "bloc": 1
+  },
+  {
+   "bib": 68,
+   "bloc": 6
+  },
+  {
+   "bib": 68,
+   "bloc": 7
+  },
+  {
+   "bib": 68,
+   "bloc": 11
+  },
+  {
+   "bib": 68,
+   "bloc": 19
+  },
+  {
+   "bib": 68,
+   "bloc": 34
+  },
+  {
+   "bib": 68,
+   "bloc": 39
+  },
+  {
+   "bib": 68,
+   "bloc": 43
+  },
+  {
+   "bib": 68,
+   "bloc": 45
+  },
+  {
+   "bib": 68,
+   "bloc": 48
+  },
+  {
+   "bib": 68,
+   "bloc": 53
+  },
+  {
+   "bib": 68,
+   "bloc": 56
+  },
+  {
+   "bib": 68,
+   "bloc": 57
+  },
+  {
+   "bib": 68,
+   "bloc": 58
+  },
+  {
+   "bib": 68,
+   "bloc": 60
+  },
+  {
+   "bib": 70,
+   "bloc": 2
+  },
+  {
+   "bib": 70,
+   "bloc": 3
+  },
+  {
+   "bib": 70,
+   "bloc": 4
+  },
+  {
+   "bib": 70,
+   "bloc": 5
+  },
+  {
+   "bib": 70,
+   "bloc": 20
+  },
+  {
+   "bib": 70,
+   "bloc": 24
+  },
+  {
+   "bib": 70,
+   "bloc": 25
+  },
+  {
+   "bib": 70,
+   "bloc": 43
+  },
+  {
+   "bib": 70,
+   "bloc": 48
+  },
+  {
+   "bib": 70,
+   "bloc": 50
+  },
+  {
+   "bib": 70,
+   "bloc": 60
+  },
+  {
+   "bib": 70,
+   "bloc": 63
+  },
+  {
+   "bib": 70,
+   "bloc": 64
+  },
+  {
+   "bib": 70,
+   "bloc": 65
+  },
+  {
+   "bib": 71,
+   "bloc": 4
+  },
+  {
+   "bib": 71,
+   "bloc": 11
+  },
+  {
+   "bib": 71,
+   "bloc": 19
+  },
+  {
+   "bib": 71,
+   "bloc": 26
+  },
+  {
+   "bib": 71,
+   "bloc": 34
+  },
+  {
+   "bib": 71,
+   "bloc": 39
+  },
+  {
+   "bib": 71,
+   "bloc": 48
+  },
+  {
+   "bib": 71,
+   "bloc": 56
+  },
+  {
+   "bib": 71,
+   "bloc": 57
+  },
+  {
+   "bib": 71,
+   "bloc": 58
+  },
+  {
+   "bib": 71,
+   "bloc": 60
+  },
+  {
+   "bib": 73,
+   "bloc": 19
+  },
+  {
+   "bib": 73,
+   "bloc": 20
+  },
+  {
+   "bib": 73,
+   "bloc": 24
+  },
+  {
+   "bib": 73,
+   "bloc": 25
+  },
+  {
+   "bib": 73,
+   "bloc": 36
+  },
+  {
+   "bib": 73,
+   "bloc": 39
+  },
+  {
+   "bib": 73,
+   "bloc": 44
+  },
+  {
+   "bib": 73,
+   "bloc": 56
+  },
+  {
+   "bib": 73,
+   "bloc": 57
+  },
+  {
+   "bib": 73,
+   "bloc": 58
+  },
+  {
+   "bib": 74,
+   "bloc": 6
+  },
+  {
+   "bib": 74,
+   "bloc": 7
+  },
+  {
+   "bib": 74,
+   "bloc": 8
+  },
+  {
+   "bib": 74,
+   "bloc": 12
+  },
+  {
+   "bib": 74,
+   "bloc": 14
+  },
+  {
+   "bib": 74,
+   "bloc": 15
+  },
+  {
+   "bib": 74,
+   "bloc": 17
+  },
+  {
+   "bib": 74,
+   "bloc": 21
+  },
+  {
+   "bib": 74,
+   "bloc": 31
+  },
+  {
+   "bib": 74,
+   "bloc": 37
+  },
+  {
+   "bib": 74,
+   "bloc": 40
+  },
+  {
+   "bib": 74,
+   "bloc": 42
+  },
+  {
+   "bib": 74,
+   "bloc": 44
+  },
+  {
+   "bib": 74,
+   "bloc": 45
+  },
+  {
+   "bib": 74,
+   "bloc": 48
+  },
+  {
+   "bib": 74,
+   "bloc": 49
+  },
+  {
+   "bib": 74,
+   "bloc": 52
+  },
+  {
+   "bib": 74,
+   "bloc": 53
+  },
+  {
+   "bib": 76,
+   "bloc": 6
+  },
+  {
+   "bib": 76,
+   "bloc": 11
+  },
+  {
+   "bib": 76,
+   "bloc": 14
+  },
+  {
+   "bib": 76,
+   "bloc": 20
+  },
+  {
+   "bib": 76,
+   "bloc": 21
+  },
+  {
+   "bib": 76,
+   "bloc": 33
+  },
+  {
+   "bib": 76,
+   "bloc": 35
+  },
+  {
+   "bib": 76,
+   "bloc": 37
+  },
+  {
+   "bib": 76,
+   "bloc": 40
+  },
+  {
+   "bib": 76,
+   "bloc": 49
+  },
+  {
+   "bib": 76,
+   "bloc": 51
+  },
+  {
+   "bib": 76,
+   "bloc": 53
+  },
+  {
+   "bib": 76,
+   "bloc": 66
+  },
+  {
+   "bib": 77,
+   "bloc": 1
+  },
+  {
+   "bib": 77,
+   "bloc": 2
+  },
+  {
+   "bib": 77,
+   "bloc": 4
+  },
+  {
+   "bib": 77,
+   "bloc": 6
+  },
+  {
+   "bib": 77,
+   "bloc": 7
+  },
+  {
+   "bib": 77,
+   "bloc": 10
+  },
+  {
+   "bib": 77,
+   "bloc": 11
+  },
+  {
+   "bib": 77,
+   "bloc": 12
+  },
+  {
+   "bib": 77,
+   "bloc": 19
+  },
+  {
+   "bib": 77,
+   "bloc": 25
+  },
+  {
+   "bib": 77,
+   "bloc": 32
+  },
+  {
+   "bib": 77,
+   "bloc": 33
+  },
+  {
+   "bib": 77,
+   "bloc": 35
+  },
+  {
+   "bib": 77,
+   "bloc": 39
+  },
+  {
+   "bib": 77,
+   "bloc": 40
+  },
+  {
+   "bib": 77,
+   "bloc": 45
+  },
+  {
+   "bib": 77,
+   "bloc": 48
+  },
+  {
+   "bib": 77,
+   "bloc": 49
+  },
+  {
+   "bib": 77,
+   "bloc": 56
+  },
+  {
+   "bib": 77,
+   "bloc": 57
+  },
+  {
+   "bib": 77,
+   "bloc": 58
+  },
+  {
+   "bib": 77,
+   "bloc": 60
+  },
+  {
+   "bib": 77,
+   "bloc": 63
+  },
+  {
+   "bib": 78,
+   "bloc": 2
+  },
+  {
+   "bib": 78,
+   "bloc": 6
+  },
+  {
+   "bib": 78,
+   "bloc": 10
+  },
+  {
+   "bib": 78,
+   "bloc": 19
+  },
+  {
+   "bib": 78,
+   "bloc": 33
+  },
+  {
+   "bib": 78,
+   "bloc": 35
+  },
+  {
+   "bib": 78,
+   "bloc": 39
+  },
+  {
+   "bib": 78,
+   "bloc": 45
+  },
+  {
+   "bib": 78,
+   "bloc": 48
+  },
+  {
+   "bib": 78,
+   "bloc": 49
+  },
+  {
+   "bib": 78,
+   "bloc": 53
+  },
+  {
+   "bib": 78,
+   "bloc": 56
+  },
+  {
+   "bib": 78,
+   "bloc": 57
+  },
+  {
+   "bib": 78,
+   "bloc": 58
+  },
+  {
+   "bib": 78,
+   "bloc": 60
+  },
+  {
+   "bib": 79,
+   "bloc": 10
+  },
+  {
+   "bib": 79,
+   "bloc": 11
+  },
+  {
+   "bib": 79,
+   "bloc": 23
+  },
+  {
+   "bib": 79,
+   "bloc": 34
+  },
+  {
+   "bib": 79,
+   "bloc": 35
+  },
+  {
+   "bib": 79,
+   "bloc": 40
+  },
+  {
+   "bib": 79,
+   "bloc": 43
+  },
+  {
+   "bib": 79,
+   "bloc": 48
+  },
+  {
+   "bib": 79,
+   "bloc": 49
+  },
+  {
+   "bib": 79,
+   "bloc": 53
+  },
+  {
+   "bib": 80,
+   "bloc": 10
+  },
+  {
+   "bib": 80,
+   "bloc": 11
+  },
+  {
+   "bib": 80,
+   "bloc": 20
+  },
+  {
+   "bib": 80,
+   "bloc": 23
+  },
+  {
+   "bib": 80,
+   "bloc": 26
+  },
+  {
+   "bib": 80,
+   "bloc": 34
+  },
+  {
+   "bib": 80,
+   "bloc": 35
+  },
+  {
+   "bib": 80,
+   "bloc": 43
+  },
+  {
+   "bib": 80,
+   "bloc": 48
+  },
+  {
+   "bib": 80,
+   "bloc": 66
+  },
+  {
+   "bib": 81,
+   "bloc": 1
+  },
+  {
+   "bib": 81,
+   "bloc": 4
+  },
+  {
+   "bib": 81,
+   "bloc": 10
+  },
+  {
+   "bib": 81,
+   "bloc": 11
+  },
+  {
+   "bib": 81,
+   "bloc": 19
+  },
+  {
+   "bib": 81,
+   "bloc": 26
+  },
+  {
+   "bib": 81,
+   "bloc": 39
+  },
+  {
+   "bib": 81,
+   "bloc": 44
+  },
+  {
+   "bib": 81,
+   "bloc": 45
+  },
+  {
+   "bib": 82,
+   "bloc": 60
+  },
+  {
+   "bib": 82,
+   "bloc": 63
+  },
+  {
+   "bib": 83,
+   "bloc": 2
+  },
+  {
+   "bib": 83,
+   "bloc": 7
+  },
+  {
+   "bib": 83,
+   "bloc": 9
+  },
+  {
+   "bib": 83,
+   "bloc": 10
+  },
+  {
+   "bib": 83,
+   "bloc": 11
+  },
+  {
+   "bib": 83,
+   "bloc": 14
+  },
+  {
+   "bib": 83,
+   "bloc": 19
+  },
+  {
+   "bib": 83,
+   "bloc": 32
+  },
+  {
+   "bib": 83,
+   "bloc": 35
+  },
+  {
+   "bib": 83,
+   "bloc": 40
+  },
+  {
+   "bib": 83,
+   "bloc": 45
+  },
+  {
+   "bib": 83,
+   "bloc": 48
+  },
+  {
+   "bib": 83,
+   "bloc": 49
+  },
+  {
+   "bib": 83,
+   "bloc": 53
+  },
+  {
+   "bib": 83,
+   "bloc": 56
+  },
+  {
+   "bib": 83,
+   "bloc": 57
+  },
+  {
+   "bib": 83,
+   "bloc": 58
+  },
+  {
+   "bib": 83,
+   "bloc": 63
+  },
+  {
+   "bib": 84,
+   "bloc": 2
+  },
+  {
+   "bib": 84,
+   "bloc": 4
+  },
+  {
+   "bib": 84,
+   "bloc": 10
+  },
+  {
+   "bib": 84,
+   "bloc": 19
+  },
+  {
+   "bib": 84,
+   "bloc": 25
+  },
+  {
+   "bib": 84,
+   "bloc": 35
+  },
+  {
+   "bib": 84,
+   "bloc": 44
+  },
+  {
+   "bib": 84,
+   "bloc": 48
+  },
+  {
+   "bib": 84,
+   "bloc": 53
+  },
+  {
+   "bib": 84,
+   "bloc": 56
+  },
+  {
+   "bib": 85,
+   "bloc": 35
+  },
+  {
+   "bib": 86,
+   "bloc": 1
+  },
+  {
+   "bib": 86,
+   "bloc": 2
+  },
+  {
+   "bib": 86,
+   "bloc": 3
+  },
+  {
+   "bib": 86,
+   "bloc": 19
+  },
+  {
+   "bib": 86,
+   "bloc": 20
+  },
+  {
+   "bib": 86,
+   "bloc": 60
+  },
+  {
+   "bib": 86,
+   "bloc": 63
+  },
+  {
+   "bib": 86,
+   "bloc": 64
+  },
+  {
+   "bib": 86,
+   "bloc": 66
+  },
+  {
+   "bib": 87,
+   "bloc": 1
+  },
+  {
+   "bib": 87,
+   "bloc": 2
+  },
+  {
+   "bib": 87,
+   "bloc": 3
+  },
+  {
+   "bib": 87,
+   "bloc": 4
+  },
+  {
+   "bib": 87,
+   "bloc": 25
+  },
+  {
+   "bib": 87,
+   "bloc": 60
+  },
+  {
+   "bib": 87,
+   "bloc": 64
+  },
+  {
+   "bib": 87,
+   "bloc": 65
+  },
+  {
+   "bib": 88,
+   "bloc": 1
+  },
+  {
+   "bib": 88,
+   "bloc": 2
+  },
+  {
+   "bib": 88,
+   "bloc": 4
+  },
+  {
+   "bib": 88,
+   "bloc": 10
+  },
+  {
+   "bib": 88,
+   "bloc": 19
+  },
+  {
+   "bib": 88,
+   "bloc": 25
+  },
+  {
+   "bib": 88,
+   "bloc": 35
+  },
+  {
+   "bib": 88,
+   "bloc": 56
+  },
+  {
+   "bib": 88,
+   "bloc": 57
+  },
+  {
+   "bib": 88,
+   "bloc": 58
+  },
+  {
+   "bib": 89,
+   "bloc": 6
+  },
+  {
+   "bib": 89,
+   "bloc": 12
+  },
+  {
+   "bib": 89,
+   "bloc": 19
+  },
+  {
+   "bib": 89,
+   "bloc": 34
+  },
+  {
+   "bib": 89,
+   "bloc": 44
+  },
+  {
+   "bib": 89,
+   "bloc": 48
+  },
+  {
+   "bib": 89,
+   "bloc": 49
+  },
+  {
+   "bib": 89,
+   "bloc": 53
+  },
+  {
+   "bib": 90,
+   "bloc": 24
+  },
+  {
+   "bib": 90,
+   "bloc": 25
+  },
+  {
+   "bib": 90,
+   "bloc": 35
+  },
+  {
+   "bib": 90,
+   "bloc": 56
+  },
+  {
+   "bib": 90,
+   "bloc": 57
+  },
+  {
+   "bib": 90,
+   "bloc": 58
+  },
+  {
+   "bib": 91,
+   "bloc": 6
+  },
+  {
+   "bib": 91,
+   "bloc": 8
+  },
+  {
+   "bib": 91,
+   "bloc": 10
+  },
+  {
+   "bib": 91,
+   "bloc": 14
+  },
+  {
+   "bib": 91,
+   "bloc": 20
+  },
+  {
+   "bib": 91,
+   "bloc": 21
+  },
+  {
+   "bib": 91,
+   "bloc": 31
+  },
+  {
+   "bib": 91,
+   "bloc": 40
+  },
+  {
+   "bib": 91,
+   "bloc": 43
+  },
+  {
+   "bib": 91,
+   "bloc": 48
+  },
+  {
+   "bib": 91,
+   "bloc": 53
+  },
+  {
+   "bib": 92,
+   "bloc": 1
+  },
+  {
+   "bib": 92,
+   "bloc": 2
+  },
+  {
+   "bib": 92,
+   "bloc": 4
+  },
+  {
+   "bib": 92,
+   "bloc": 10
+  },
+  {
+   "bib": 92,
+   "bloc": 11
+  },
+  {
+   "bib": 92,
+   "bloc": 19
+  },
+  {
+   "bib": 92,
+   "bloc": 34
+  },
+  {
+   "bib": 92,
+   "bloc": 35
+  },
+  {
+   "bib": 92,
+   "bloc": 39
+  },
+  {
+   "bib": 92,
+   "bloc": 44
+  },
+  {
+   "bib": 92,
+   "bloc": 48
+  },
+  {
+   "bib": 92,
+   "bloc": 49
+  },
+  {
+   "bib": 92,
+   "bloc": 53
+  },
+  {
+   "bib": 92,
+   "bloc": 56
+  },
+  {
+   "bib": 92,
+   "bloc": 57
+  },
+  {
+   "bib": 92,
+   "bloc": 63
+  },
+  {
+   "bib": 93,
+   "bloc": 1
+  },
+  {
+   "bib": 93,
+   "bloc": 2
+  },
+  {
+   "bib": 93,
+   "bloc": 19
+  },
+  {
+   "bib": 93,
+   "bloc": 25
+  },
+  {
+   "bib": 93,
+   "bloc": 35
+  },
+  {
+   "bib": 94,
+   "bloc": 6
+  },
+  {
+   "bib": 94,
+   "bloc": 10
+  },
+  {
+   "bib": 94,
+   "bloc": 11
+  },
+  {
+   "bib": 94,
+   "bloc": 20
+  },
+  {
+   "bib": 94,
+   "bloc": 26
+  },
+  {
+   "bib": 94,
+   "bloc": 34
+  },
+  {
+   "bib": 94,
+   "bloc": 35
+  },
+  {
+   "bib": 94,
+   "bloc": 48
+  },
+  {
+   "bib": 94,
+   "bloc": 53
+  },
+  {
+   "bib": 96,
+   "bloc": 6
+  },
+  {
+   "bib": 96,
+   "bloc": 7
+  },
+  {
+   "bib": 96,
+   "bloc": 12
+  },
+  {
+   "bib": 96,
+   "bloc": 14
+  },
+  {
+   "bib": 96,
+   "bloc": 19
+  },
+  {
+   "bib": 96,
+   "bloc": 21
+  },
+  {
+   "bib": 96,
+   "bloc": 31
+  },
+  {
+   "bib": 96,
+   "bloc": 34
+  },
+  {
+   "bib": 96,
+   "bloc": 40
+  },
+  {
+   "bib": 96,
+   "bloc": 44
+  },
+  {
+   "bib": 96,
+   "bloc": 48
+  },
+  {
+   "bib": 96,
+   "bloc": 49
+  },
+  {
+   "bib": 96,
+   "bloc": 53
+  },
+  {
+   "bib": 96,
+   "bloc": 61
+  },
+  {
+   "bib": 97,
+   "bloc": 7
+  },
+  {
+   "bib": 97,
+   "bloc": 8
+  },
+  {
+   "bib": 97,
+   "bloc": 10
+  },
+  {
+   "bib": 97,
+   "bloc": 12
+  },
+  {
+   "bib": 97,
+   "bloc": 13
+  },
+  {
+   "bib": 97,
+   "bloc": 14
+  },
+  {
+   "bib": 97,
+   "bloc": 15
+  },
+  {
+   "bib": 97,
+   "bloc": 16
+  },
+  {
+   "bib": 97,
+   "bloc": 17
+  },
+  {
+   "bib": 97,
+   "bloc": 19
+  },
+  {
+   "bib": 97,
+   "bloc": 31
+  },
+  {
+   "bib": 97,
+   "bloc": 32
+  },
+  {
+   "bib": 97,
+   "bloc": 40
+  },
+  {
+   "bib": 97,
+   "bloc": 41
+  },
+  {
+   "bib": 97,
+   "bloc": 42
+  },
+  {
+   "bib": 97,
+   "bloc": 44
+  },
+  {
+   "bib": 97,
+   "bloc": 45
+  },
+  {
+   "bib": 97,
+   "bloc": 48
+  },
+  {
+   "bib": 97,
+   "bloc": 49
+  },
+  {
+   "bib": 97,
+   "bloc": 52
+  },
+  {
+   "bib": 98,
+   "bloc": 1
+  },
+  {
+   "bib": 98,
+   "bloc": 2
+  },
+  {
+   "bib": 98,
+   "bloc": 4
+  },
+  {
+   "bib": 98,
+   "bloc": 19
+  },
+  {
+   "bib": 98,
+   "bloc": 25
+  },
+  {
+   "bib": 98,
+   "bloc": 34
+  },
+  {
+   "bib": 98,
+   "bloc": 39
+  },
+  {
+   "bib": 98,
+   "bloc": 48
+  }
+ ],
+ "expected": {
+  "by_category": {
+   "U11 F": [
+    {
+     "bib": 14,
+     "score": 4669,
+     "rank": 1
+    },
+    {
+     "bib": 21,
+     "score": 4052,
+     "rank": 2
+    },
+    {
+     "bib": 70,
+     "score": 3802,
+     "rank": 3
+    },
+    {
+     "bib": 18,
+     "score": 3760,
+     "rank": 4
+    },
+    {
+     "bib": 54,
+     "score": 3436,
+     "rank": 5
+    },
+    {
+     "bib": 73,
+     "score": 2260,
+     "rank": 6
+    },
+    {
+     "bib": 87,
+     "score": 2076,
+     "rank": 7
+    },
+    {
+     "bib": 29,
+     "score": 2069,
+     "rank": 8
+    },
+    {
+     "bib": 15,
+     "score": 1876,
+     "rank": 9
+    },
+    {
+     "bib": 43,
+     "score": 0,
+     "rank": 10
+    },
+    {
+     "bib": 72,
+     "score": 0,
+     "rank": 10
+    }
+   ],
+   "U11 H": [
+    {
+     "bib": 9,
+     "score": 7910,
+     "rank": 1
+    },
+    {
+     "bib": 60,
+     "score": 4860,
+     "rank": 2
+    },
+    {
+     "bib": 23,
+     "score": 3960,
+     "rank": 3
+    },
+    {
+     "bib": 61,
+     "score": 3660,
+     "rank": 4
+    },
+    {
+     "bib": 86,
+     "score": 3210,
+     "rank": 5
+    },
+    {
+     "bib": 8,
+     "score": 2043,
+     "rank": 6
+    },
+    {
+     "bib": 31,
+     "score": 1817,
+     "rank": 7
+    },
+    {
+     "bib": 90,
+     "score": 1367,
+     "rank": 8
+    },
+    {
+     "bib": 2,
+     "score": 1176,
+     "rank": 9
+    }
+   ],
+   "U13 F": [
+    {
+     "bib": 77,
+     "score": 3675,
+     "rank": 1
+    },
+    {
+     "bib": 83,
+     "score": 2521,
+     "rank": 2
+    },
+    {
+     "bib": 32,
+     "score": 1735,
+     "rank": 3
+    },
+    {
+     "bib": 64,
+     "score": 1609,
+     "rank": 4
+    },
+    {
+     "bib": 78,
+     "score": 1480,
+     "rank": 5
+    },
+    {
+     "bib": 92,
+     "score": 1466,
+     "rank": 6
+    },
+    {
+     "bib": 37,
+     "score": 1433,
+     "rank": 7
+    },
+    {
+     "bib": 30,
+     "score": 1392,
+     "rank": 8
+    },
+    {
+     "bib": 45,
+     "score": 1274,
+     "rank": 9
+    },
+    {
+     "bib": 12,
+     "score": 1191,
+     "rank": 10
+    },
+    {
+     "bib": 28,
+     "score": 1179,
+     "rank": 11
+    },
+    {
+     "bib": 71,
+     "score": 1116,
+     "rank": 12
+    },
+    {
+     "bib": 51,
+     "score": 882,
+     "rank": 13
+    },
+    {
+     "bib": 38,
+     "score": 734,
+     "rank": 14
+    },
+    {
+     "bib": 84,
+     "score": 715,
+     "rank": 15
+    },
+    {
+     "bib": 4,
+     "score": 700,
+     "rank": 16
+    },
+    {
+     "bib": 88,
+     "score": 667,
+     "rank": 17
+    },
+    {
+     "bib": 35,
+     "score": 662,
+     "rank": 18
+    },
+    {
+     "bib": 10,
+     "score": 655,
+     "rank": 19
+    },
+    {
+     "bib": 11,
+     "score": 541,
+     "rank": 20
+    },
+    {
+     "bib": 47,
+     "score": 376,
+     "rank": 21
+    }
+   ],
+   "U13 H": [
+    {
+     "bib": 52,
+     "score": 8643,
+     "rank": 1
+    },
+    {
+     "bib": 41,
+     "score": 7229,
+     "rank": 2
+    },
+    {
+     "bib": 68,
+     "score": 2961,
+     "rank": 3
+    },
+    {
+     "bib": 7,
+     "score": 2863,
+     "rank": 4
+    },
+    {
+     "bib": 58,
+     "score": 2715,
+     "rank": 5
+    },
+    {
+     "bib": 81,
+     "score": 1810,
+     "rank": 6
+    },
+    {
+     "bib": 49,
+     "score": 1588,
+     "rank": 7
+    },
+    {
+     "bib": 65,
+     "score": 1587,
+     "rank": 8
+    },
+    {
+     "bib": 1,
+     "score": 1329,
+     "rank": 9
+    },
+    {
+     "bib": 98,
+     "score": 1269,
+     "rank": 10
+    },
+    {
+     "bib": 53,
+     "score": 1063,
+     "rank": 11
+    },
+    {
+     "bib": 3,
+     "score": 796,
+     "rank": 12
+    },
+    {
+     "bib": 93,
+     "score": 629,
+     "rank": 13
+    },
+    {
+     "bib": 82,
+     "score": 393,
+     "rank": 14
+    },
+    {
+     "bib": 26,
+     "score": 125,
+     "rank": 15
+    }
+   ],
+   "U15 F": [
+    {
+     "bib": 22,
+     "score": 3997,
+     "rank": 1
+    },
+    {
+     "bib": 39,
+     "score": 3670,
+     "rank": 2
+    },
+    {
+     "bib": 91,
+     "score": 3398,
+     "rank": 3
+    },
+    {
+     "bib": 76,
+     "score": 2622,
+     "rank": 4
+    },
+    {
+     "bib": 13,
+     "score": 1409,
+     "rank": 5
+    },
+    {
+     "bib": 56,
+     "score": 1326,
+     "rank": 6
+    },
+    {
+     "bib": 48,
+     "score": 1175,
+     "rank": 7
+    },
+    {
+     "bib": 80,
+     "score": 955,
+     "rank": 8
+    },
+    {
+     "bib": 27,
+     "score": 875,
+     "rank": 9
+    },
+    {
+     "bib": 42,
+     "score": 809,
+     "rank": 10
+    },
+    {
+     "bib": 94,
+     "score": 792,
+     "rank": 11
+    },
+    {
+     "bib": 40,
+     "score": 715,
+     "rank": 12
+    },
+    {
+     "bib": 33,
+     "score": 695,
+     "rank": 13
+    },
+    {
+     "bib": 6,
+     "score": 596,
+     "rank": 14
+    },
+    {
+     "bib": 59,
+     "score": 570,
+     "rank": 15
+    },
+    {
+     "bib": 63,
+     "score": 570,
+     "rank": 15
+    },
+    {
+     "bib": 57,
+     "score": 459,
+     "rank": 17
+    },
+    {
+     "bib": 62,
+     "score": 298,
+     "rank": 18
+    },
+    {
+     "bib": 85,
+     "score": 71,
+     "rank": 19
+    }
+   ],
+   "U15 H": [
+    {
+     "bib": 67,
+     "score": 9535,
+     "rank": 1
+    },
+    {
+     "bib": 50,
+     "score": 7250,
+     "rank": 2
+    },
+    {
+     "bib": 17,
+     "score": 2935,
+     "rank": 3
+    },
+    {
+     "bib": 16,
+     "score": 2601,
+     "rank": 4
+    },
+    {
+     "bib": 66,
+     "score": 2568,
+     "rank": 5
+    },
+    {
+     "bib": 25,
+     "score": 2058,
+     "rank": 6
+    },
+    {
+     "bib": 79,
+     "score": 1925,
+     "rank": 7
+    },
+    {
+     "bib": 36,
+     "score": 1810,
+     "rank": 8
+    },
+    {
+     "bib": 46,
+     "score": 1401,
+     "rank": 9
+    },
+    {
+     "bib": 55,
+     "score": 675,
+     "rank": 10
+    },
+    {
+     "bib": 44,
+     "score": 243,
+     "rank": 11
+    },
+    {
+     "bib": 95,
+     "score": 0,
+     "rank": 12
+    }
+   ],
+   "U17 F": [
+    {
+     "bib": 74,
+     "score": 8333,
+     "rank": 1
+    },
+    {
+     "bib": 34,
+     "score": 7167,
+     "rank": 2
+    },
+    {
+     "bib": 96,
+     "score": 4583,
+     "rank": 3
+    },
+    {
+     "bib": 24,
+     "score": 2083,
+     "rank": 4
+    },
+    {
+     "bib": 89,
+     "score": 1833,
+     "rank": 5
+    },
+    {
+     "bib": 69,
+     "score": 0,
+     "rank": 6
+    }
+   ],
+   "U17 H": [
+    {
+     "bib": 97,
+     "score": 15500,
+     "rank": 1
+    },
+    {
+     "bib": 20,
+     "score": 4500,
+     "rank": 2
+    },
+    {
+     "bib": 19,
+     "score": 2000,
+     "rank": 3
+    },
+    {
+     "bib": 5,
+     "score": 0,
+     "rank": 4
+    },
+    {
+     "bib": 75,
+     "score": 0,
+     "rank": 4
+    }
+   ]
+  },
+  "by_circuit": {
+   "U11": [
+    {
+     "bib": 9,
+     "score": 5684,
+     "rank": 1
+    },
+    {
+     "bib": 14,
+     "score": 3009,
+     "rank": 2
+    },
+    {
+     "bib": 60,
+     "score": 2285,
+     "rank": 3
+    },
+    {
+     "bib": 23,
+     "score": 2160,
+     "rank": 4
+    },
+    {
+     "bib": 70,
+     "score": 2052,
+     "rank": 5
+    },
+    {
+     "bib": 21,
+     "score": 2019,
+     "rank": 6
+    },
+    {
+     "bib": 61,
+     "score": 1850,
+     "rank": 7
+    },
+    {
+     "bib": 18,
+     "score": 1668,
+     "rank": 8
+    },
+    {
+     "bib": 54,
+     "score": 1600,
+     "rank": 9
+    },
+    {
+     "bib": 73,
+     "score": 1218,
+     "rank": 10
+    },
+    {
+     "bib": 86,
+     "score": 1178,
+     "rank": 11
+    },
+    {
+     "bib": 29,
+     "score": 1092,
+     "rank": 12
+    },
+    {
+     "bib": 87,
+     "score": 1085,
+     "rank": 13
+    },
+    {
+     "bib": 8,
+     "score": 1033,
+     "rank": 14
+    },
+    {
+     "bib": 15,
+     "score": 942,
+     "rank": 15
+    },
+    {
+     "bib": 31,
+     "score": 900,
+     "rank": 16
+    },
+    {
+     "bib": 90,
+     "score": 650,
+     "rank": 17
+    },
+    {
+     "bib": 2,
+     "score": 575,
+     "rank": 18
+    },
+    {
+     "bib": 43,
+     "score": 0,
+     "rank": 19
+    },
+    {
+     "bib": 72,
+     "score": 0,
+     "rank": 19
+    }
+   ],
+   "U13": [
+    {
+     "bib": 52,
+     "score": 6859,
+     "rank": 1
+    },
+    {
+     "bib": 41,
+     "score": 4944,
+     "rank": 2
+    },
+    {
+     "bib": 77,
+     "score": 1994,
+     "rank": 3
+    },
+    {
+     "bib": 83,
+     "score": 1558,
+     "rank": 4
+    },
+    {
+     "bib": 32,
+     "score": 1124,
+     "rank": 5
+    },
+    {
+     "bib": 68,
+     "score": 1045,
+     "rank": 6
+    },
+    {
+     "bib": 64,
+     "score": 1029,
+     "rank": 7
+    },
+    {
+     "bib": 92,
+     "score": 1010,
+     "rank": 8
+    },
+    {
+     "bib": 78,
+     "score": 987,
+     "rank": 9
+    },
+    {
+     "bib": 7,
+     "score": 961,
+     "rank": 10
+    },
+    {
+     "bib": 37,
+     "score": 901,
+     "rank": 11
+    },
+    {
+     "bib": 30,
+     "score": 889,
+     "rank": 12
+    },
+    {
+     "bib": 58,
+     "score": 876,
+     "rank": 13
+    },
+    {
+     "bib": 45,
+     "score": 855,
+     "rank": 14
+    },
+    {
+     "bib": 12,
+     "score": 803,
+     "rank": 15
+    },
+    {
+     "bib": 28,
+     "score": 765,
+     "rank": 16
+    },
+    {
+     "bib": 71,
+     "score": 680,
+     "rank": 17
+    },
+    {
+     "bib": 65,
+     "score": 636,
+     "rank": 18
+    },
+    {
+     "bib": 81,
+     "score": 603,
+     "rank": 19
+    },
+    {
+     "bib": 49,
+     "score": 559,
+     "rank": 20
+    },
+    {
+     "bib": 51,
+     "score": 549,
+     "rank": 21
+    },
+    {
+     "bib": 38,
+     "score": 505,
+     "rank": 22
+    },
+    {
+     "bib": 4,
+     "score": 485,
+     "rank": 23
+    },
+    {
+     "bib": 84,
+     "score": 482,
+     "rank": 24
+    },
+    {
+     "bib": 1,
+     "score": 474,
+     "rank": 25
+    },
+    {
+     "bib": 35,
+     "score": 455,
+     "rank": 26
+    },
+    {
+     "bib": 88,
+     "score": 452,
+     "rank": 27
+    },
+    {
+     "bib": 98,
+     "score": 431,
+     "rank": 28
+    },
+    {
+     "bib": 10,
+     "score": 421,
+     "rank": 29
+    },
+    {
+     "bib": 53,
+     "score": 385,
+     "rank": 30
+    },
+    {
+     "bib": 11,
+     "score": 376,
+     "rank": 31
+    },
+    {
+     "bib": 3,
+     "score": 261,
+     "rank": 32
+    },
+    {
+     "bib": 47,
+     "score": 239,
+     "rank": 33
+    },
+    {
+     "bib": 93,
+     "score": 226,
+     "rank": 34
+    },
+    {
+     "bib": 82,
+     "score": 143,
+     "rank": 35
+    },
+    {
+     "bib": 26,
+     "score": 37,
+     "rank": 36
+    }
+   ],
+   "U15": [
+    {
+     "bib": 67,
+     "score": 7448,
+     "rank": 1
+    },
+    {
+     "bib": 50,
+     "score": 5653,
+     "rank": 2
+    },
+    {
+     "bib": 39,
+     "score": 2063,
+     "rank": 3
+    },
+    {
+     "bib": 76,
+     "score": 1822,
+     "rank": 4
+    },
+    {
+     "bib": 91,
+     "score": 1711,
+     "rank": 5
+    },
+    {
+     "bib": 17,
+     "score": 1467,
+     "rank": 6
+    },
+    {
+     "bib": 22,
+     "score": 1461,
+     "rank": 7
+    },
+    {
+     "bib": 16,
+     "score": 1217,
+     "rank": 8
+    },
+    {
+     "bib": 25,
+     "score": 947,
+     "rank": 9
+    },
+    {
+     "bib": 13,
+     "score": 908,
+     "rank": 10
+    },
+    {
+     "bib": 56,
+     "score": 846,
+     "rank": 11
+    },
+    {
+     "bib": 66,
+     "score": 841,
+     "rank": 12
+    },
+    {
+     "bib": 48,
+     "score": 778,
+     "rank": 13
+    },
+    {
+     "bib": 79,
+     "score": 669,
+     "rank": 14
+    },
+    {
+     "bib": 80,
+     "score": 615,
+     "rank": 15
+    },
+    {
+     "bib": 27,
+     "score": 554,
+     "rank": 16
+    },
+    {
+     "bib": 36,
+     "score": 542,
+     "rank": 17
+    },
+    {
+     "bib": 42,
+     "score": 513,
+     "rank": 18
+    },
+    {
+     "bib": 94,
+     "score": 511,
+     "rank": 19
+    },
+    {
+     "bib": 46,
+     "score": 504,
+     "rank": 20
+    },
+    {
+     "bib": 33,
+     "score": 466,
+     "rank": 21
+    },
+    {
+     "bib": 40,
+     "score": 459,
+     "rank": 22
+    },
+    {
+     "bib": 6,
+     "score": 399,
+     "rank": 23
+    },
+    {
+     "bib": 59,
+     "score": 366,
+     "rank": 24
+    },
+    {
+     "bib": 63,
+     "score": 366,
+     "rank": 24
+    },
+    {
+     "bib": 57,
+     "score": 289,
+     "rank": 26
+    },
+    {
+     "bib": 55,
+     "score": 237,
+     "rank": 27
+    },
+    {
+     "bib": 62,
+     "score": 196,
+     "rank": 28
+    },
+    {
+     "bib": 44,
+     "score": 98,
+     "rank": 29
+    },
+    {
+     "bib": 85,
+     "score": 53,
+     "rank": 30
+    },
+    {
+     "bib": 95,
+     "score": 0,
+     "rank": 31
+    }
+   ],
+   "U17": [
+    {
+     "bib": 97,
+     "score": 7267,
+     "rank": 1
+    },
+    {
+     "bib": 74,
+     "score": 5019,
+     "rank": 2
+    },
+    {
+     "bib": 34,
+     "score": 4969,
+     "rank": 3
+    },
+    {
+     "bib": 96,
+     "score": 3602,
+     "rank": 4
+    },
+    {
+     "bib": 24,
+     "score": 1569,
+     "rank": 5
+    },
+    {
+     "bib": 20,
+     "score": 1519,
+     "rank": 6
+    },
+    {
+     "bib": 89,
+     "score": 1319,
+     "rank": 7
+    },
+    {
+     "bib": 19,
+     "score": 736,
+     "rank": 8
+    },
+    {
+     "bib": 5,
+     "score": 0,
+     "rank": 9
+    },
+    {
+     "bib": 69,
+     "score": 0,
+     "rank": 9
+    },
+    {
+     "bib": 75,
+     "score": 0,
+     "rank": 9
+    }
+   ]
+  }
+ },
+ "note": "Jeu de référence extrait du classeur Google « U11 U17 Nov 2025 ». Noms et clubs retirés volontairement : le calcul de classement n'en a pas besoin. expected.by_category et expected.by_circuit sont les scores et rangs produits par les formules du classeur — le moteur backend doit les reproduire à l'identique."
+}

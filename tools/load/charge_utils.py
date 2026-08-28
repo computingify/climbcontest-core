@@ -1,12 +1,28 @@
 """
-Shared utilities for climbing contest test suites
+Outils communs aux scripts de charge ClimbContest.
+
+ATTENTION — ces scripts ECRIVENT REELLEMENT des reussites : chaque appel a
+register_success() finit dans le classeur Google de la competition visee.
+
+Ne JAMAIS les lancer sur la production. SERVER_URL doit pointer sur un
+environnement de recette, avec un classeur de test.
+Voir docs/etat-des-lieux.md, risque R11.
 """
+import os
 import requests
 import time
 from datetime import datetime
 
 # Configuration
-SERVER_URL = "https://climbcontestserver.onrender.com"  # or "https://127.0.0.1:5007" for local
+# Cible de recette UNIQUEMENT. Renseigner explicitement avant usage :
+#   export CLIMBCONTEST_LOAD_URL="https://recette.example/"
+SERVER_URL = os.environ.get("CLIMBCONTEST_LOAD_URL")
+if not SERVER_URL:
+    raise SystemExit(
+        "CLIMBCONTEST_LOAD_URL n'est pas defini.\n"
+        "Ces scripts ecrivent reellement dans le classeur : refus de demarrer "
+        "sans cible explicite. Ne jamais viser la production."
+    )
 NUM_CLIENTS = 20
 VERIFY_SSL = True  # False for self-signed cert locally
 
