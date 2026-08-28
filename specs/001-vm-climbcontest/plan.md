@@ -41,19 +41,34 @@ déclencher des alertes.
 
 ## IT3 — La chaîne de livraison, à vide
 
-- [ ] 16. `CHANGELOG.md` initial (Keep a Changelog, français)
-- [ ] 17. `wsgi.py` + une route `/health` minimale (application factice)
-- [ ] 18. `climbcontest.service` : gunicorn, 4 workers × 4 threads
-- [ ] 19. `deployment/install.sh` : utilisateur, arborescence, venv, systemd
-- [ ] 20. `.github/workflows/release.yml` : tests → **vérification du CHANGELOG** → archive + `.sha256` → Release
-- [ ] 21. `scripts/release.sh` : bump, contrôle du changelog, tag, push
+- [x] 16. `CHANGELOG.md` initial (Keep a Changelog, français)
+- [x] 17. `wsgi.py` + une route `/health` minimale (application factice)
+- [x] 18. `climbcontest.service` : gunicorn, 4 workers × 4 threads
+- [x] 19. `deployment/install.sh` : utilisateur, arborescence, venv, systemd
+- [x] 20. `.github/workflows/release.yml` : tests → **vérification du CHANGELOG** → archive + `.sha256` → Release
+- [x] 21. `scripts/release.sh` : bump, contrôle du changelog, tag, push
 - [ ] 22. ~~PAT lecture seule~~ — **inutile** : le dépôt est public, les assets se tirent en anonyme. Le script gère quand même le cas « jeton présent » si le dépôt devenait privé
-- [ ] 23. `climbcontest-deploy` + service + timer, **avec les deux bugs de solio-map déjà corrigés**
-- [ ] 23 bis. `climbcontest-rollback` : retour arrière manuel instantané (décision Q2)
-- [ ] 24. **Vérification** : `v0.1.0` publiée → installée seule en moins de 3 min
-- [ ] 25. **Vérification** : `v0.1.1` volontairement cassée → retour arrière automatique vers `v0.1.0`
-- [ ] 26. **Vérification** : archive à l'empreinte falsifiée → refusée, rien d'installé
-- [ ] 27. **Vérification** : tag sans section de changelog → le workflow échoue
+- [x] 23. `climbcontest-deploy` + service + timer, **avec les deux bugs de solio-map déjà corrigés**
+- [x] 23 bis. `climbcontest-rollback` : retour arrière manuel instantané (décision Q2)
+- [x] 24. **Vérification** : `v0.1.0` publiée → installée seule en moins de 3 min
+- [x] 25. **Vérification** : `v0.1.1` volontairement cassée → retour arrière automatique vers `v0.1.0`
+- [x] 26. **Vérification** : archive à l'empreinte falsifiée → refusée, rien d'installé
+- [x] 27. **Vérification** : tag sans section de changelog → le workflow échoue
+
+### Ce que les tests d'IT3 ont révélé
+
+Jouer réellement les scénarios d'échec, plutôt que les supposer, a fait sortir
+**trois défauts** de l'agent de déploiement — tous corrigés en v0.1.2 :
+
+| Défaut | Conséquence si non corrigé |
+| --- | --- |
+| Release cassée retentée à chaque tick | boucle de redémarrages du service, toutes les 2 min |
+| Retour arrière annoncé sans être vérifié | le journal dit « revenu sur vX » pendant que le service est à terre |
+| Exécutions concurrentes (timer + manuel) | la seconde prend la version cassée pour « la précédente » et y revient |
+
+Le troisième est celui qui aurait mordu le jour J : le déploiement manuel est
+précisément la commande d'urgence de la décision Q2, et le timer continue de
+tourner pendant qu'on l'utilise.
 
 ## IT4 — L'exposition
 
