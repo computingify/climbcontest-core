@@ -18,26 +18,26 @@ ouvre un terminal ou indique l'écran, **Adrien saisit lui-même**.
 ## IT1 — La machine nue
 
 - [x] 1. ~~Vérifier que `192.168.0.32` est hors plage DHCP~~ — **validé** : DHCP de `.40` à `.200`
-- [ ] 2. Créer la VM 110 `climbcontest` : Debian 13, cloud-init, 4 vCPU / 4 Go / 24 Go, `onboot: 0`, tags `climbcontest` + `intermittent`
-- [ ] 3. Installer `qemu-guest-agent` **dans** la VM, vérifier `qm agent 110 ping`
-- [ ] 4. Installer `node_exporter`, vérifier `:9100`
-- [ ] 5. Poser `110.fw`, vérifier `grep '^|'` vide et tester chaque règle
-- [ ] 6. Versionner `110.conf` et `110.fw` dans `homelab`
-- [ ] 7. **Vérification** : redémarrer `pve01`, la VM doit rester **éteinte**
+- [x] 2. Créer la VM 110 `climbcontest` : Debian 13, cloud-init, 4 vCPU / 4 Go / 24 Go, `onboot: 0`, tags `climbcontest` + `intermittent`
+- [x] 3. Installer `qemu-guest-agent` **dans** la VM, vérifier `qm agent 110 ping`
+- [x] 4. Installer `node_exporter`, vérifier `:9100`
+- [x] 5. Poser `110.fw`, vérifier `grep '^|'` vide et tester chaque règle
+- [x] 6. Versionner `110.conf` et `110.fw` dans `homelab`
+- [~] 7. **Vérification** : `onboot: 0` posé et relu dans la config. Le test par redémarrage réel de `pve01` est **reporté au prochain redémarrage planifié** — couper la domotique (230 V), les cinq sites publics et la supervision pour cocher une case n'est pas raisonnable
 
 ## IT2 — Les contrôles adaptés
 
 À faire **avant** d'exposer quoi que ce soit : sinon la VM passe une semaine à
 déclencher des alertes.
 
-- [ ] 8. Collecteur `adn-guest-state` sur `pve01` + timer, écrivant `pve_guest_running`
-- [ ] 9. Ajouter la cible `.32` dans `prometheus.yml` avec `intermittent: 'oui'`
-- [ ] 10. Filtrer `MachineInjoignable` sur `intermittent!="oui"`
-- [ ] 11. Créer l'alerte `ClimbcontestInjoignableEnService`
-- [ ] 12. `promtool check config` + `check rules`, recharger Prometheus
-- [ ] 13. Vérifier que la 110 **n'est pas** dans `ADN_GUESTS`
-- [ ] 14. **Vérification** : VM éteinte 24 h → aucun mail, aucune alerte
-- [ ] 15. **Vérification** : VM allumée, gunicorn arrêté → alerte en moins de 10 min
+- [x] 8. Collecteur `adn-guest-state` sur `pve01` + timer, écrivant `pve_guest_running`
+- [x] 9. Ajouter la cible `.32` dans `prometheus.yml` avec `intermittent: 'oui'`
+- [x] 10. Filtrer `MachineInjoignable` sur `intermittent!="oui"`
+- [x] 11. Créer l'alerte `ClimbcontestInjoignableEnService`
+- [x] 12. `promtool check config` + `check rules`, recharger Prometheus
+- [x] 13. Vérifier que la 110 **n'est pas** dans `ADN_GUESTS`
+- [~] 14. **Vérification** : expression vérifiée vide VM éteinte. La confirmation « aucun mail sur 24 h » demande d'attendre une nuit complète
+- [x] 15. **Vérification** : les trois états testés — allumée+répond → silence, allumée+muette → alerte, éteinte → silence
 
 ## IT3 — La chaîne de livraison, à vide
 
@@ -73,7 +73,7 @@ déclencher des alertes.
 - [ ] 38. `homelab/scripts/climbcontest` : `start` / `stop` / `status` avec sonde
 - [ ] 39. Sonde `probes/110.sh`
 - [ ] 40. Procédure en quatre temps — préparer / jour J (avec bascule `onboot`) / corriger en cours / clôturer — jouée **une fois** de bout en bout
-- [ ] 41. Exclure la 110 du job `backup-nightly`
+- [x] 41. Exclure la 110 du job `backup-nightly` — fait en IT2, le job était en `all 1`
 - [ ] 42. Vérifier que `adn-watchdog` ne réclame pas sa sauvegarde
 - [ ] 43. ~~Copie de base toutes les 10 min~~ — **abandonné le 28/08** (jugé inutile). Remplacé par : instantané `avant-compet` + archive de fin de journée, décrits dans la procédure
 - [ ] 44. `README.md` du dossier `vm110-climbcontest` dans `homelab`
