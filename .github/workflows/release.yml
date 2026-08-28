@@ -72,11 +72,29 @@ jobs:
           mkdir -p "build/$NOM"
 
           # Ce qui part en production, et rien d'autre. Ni .git, ni docs, ni
-          # specs, ni fixtures, ni les scripts de charge.
+          # specs, ni fixtures, ni rapports, ni les scripts de charge.
           cp wsgi.py requirements.txt VERSION "build/$NOM/"
-          [ -d climb_contest ] && cp -r climb_contest "build/$NOM/" || true
-          [ -d static ]        && cp -r static        "build/$NOM/" || true
-          [ -d templates ]     && cp -r templates     "build/$NOM/" || true
+
+          # Le paquet s'appelle « climbcontest ». La version precedente copiait
+          # « climb_contest », qui n'a jamais existe -- et le `|| true` avalait
+          # l'echec : l'archive partait SANS l'application, et gunicorn serait
+          # mort sur ModuleNotFoundError au premier deploiement. Pas de garde
+          # tolerante ici : si le paquet manque, la release doit echouer.
+          cp -r climbcontest "build/$NOM/"
+          cp -r migrations   "build/$NOM/"
+          for facultatif in static templates; do
+            [ -d "$facultatif" ] && cp -r "$facultatif" "build/$NOM/"
+          done
+
+          # Rien de superflu : les caches et les .pyc n'ont pas a voyager.
+          find "build/$NOM" -name __pycache__ -type d -exec rm -rf {} + 2>/dev/null || true
+
+          # La verification qui aurait attrape le defaut : l'archive doit
+          # pouvoir demarrer TOUTE SEULE, sans le depot autour.
+          ( cd "build/$NOM" \
+            && python -c "import ast, pathlib; ast.parse(pathlib.Path('wsgi.py').read_text())" \
+            && test -f climbcontest/__init__.py ) \
+            || { echo "ECHEC : l'archive ne contient pas l'application"; exit 1; }
 
           tar -czf "$NOM.tar.gz" -C build "$NOM"
           sha256sum "$NOM.tar.gz" | awk '{print $1}' > "$NOM.tar.gz.sha256"
