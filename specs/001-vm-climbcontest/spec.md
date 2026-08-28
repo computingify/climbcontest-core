@@ -102,31 +102,56 @@ Trois de tes précisions changent des choix faits ici :
 
 ### La livraison
 
-- [ ] `git tag v0.1.0 && git push origin v0.1.0` produit une release GitHub avec
+- [x] `git tag v0.1.0 && git push origin v0.1.0` produit une release GitHub avec
       une archive et son `.sha256`.
 - [ ] Le workflow **échoue** si `CHANGELOG.md` ne contient pas de section pour la
       version taguée.
-- [ ] La VM installe la release seule, en moins de 3 minutes, sans intervention.
+- [x] La VM installe la release seule, en moins de 3 minutes, sans intervention.
+      → **13 secondes** pour la `v0.2.0` (17:24:55 → 17:25:08), le déclencheur
+      passant toutes les 2 minutes. Vérifié deux fois le 28/08
 - [ ] Une archive dont l'empreinte ne correspond pas est **refusée**, et rien
       n'est installé.
 - [ ] Une release qui ne répond pas à la sonde déclenche un **retour arrière
       automatique** vers la précédente, vérifié en conditions réelles.
-- [ ] Les trois dernières releases restent disponibles pour un retour arrière
+- [x] Les trois dernières releases restent disponibles pour un retour arrière
+      → `v0.1.2`, `v0.2.0`, `v0.2.1` présentes après trois déploiements
       manuel instantané.
 
 ### L'exposition
 
-- [ ] `https://climbcontest.adn-dev.fr/` répond en 200 avec un certificat valide.
+- [x] `https://climbcontest.adn-dev.fr/` répond en 200 avec un certificat valide.
+      → vérifié le 28/08, `ssl_verify_result=0`
 - [ ] `https://climbcontest.maison.adn-dev.fr` redirige vers l'adresse publique,
       et les alias (`escalade.`, `resultats.`, `saisie.`, `parametres.`) mènent
       chacun au bon chemin.
 - [ ] Les cinq surfaces prévues répondent à leur chemin, chacune avec son régime
       de protection — même si leur contenu est encore vide.
-- [ ] Les en-têtes de sécurité communs sont présents (`import commun`).
-- [ ] `/.git/config` et `/.env` répondent **404** (`import sondes`).
-- [ ] L'API des juges refuse une requête sans clé (401), l'accepte avec.
-- [ ] La console d'administration exige une authentification.
+- [x] Les en-têtes de sécurité communs sont présents (`import commun`).
+      → `strict-transport-security`, `x-content-type-options`, `x-frame-options`,
+      `referrer-policy` vérifiés en réponse réelle
+- [x] `/.git/config` et `/.env` répondent **404** (`import sondes`). → vérifié
+- [ ] ~~L'API des juges refuse une requête sans clé (401), l'accepte avec.~~
+      **Critère corrigé le 28/08 : c'est délibérément faux aujourd'hui.**
+
+      L'application `v3.1.4` du Play Store **n'envoie aucune clé**. Rendre la clé
+      obligatoire la casserait le jour de la compétition. Le régime est donc
+      *toléré* : clé absente → acceptée et **comptée** ; clé fausse → `401`.
+      Vérifié en production : `201` sans clé, `401` avec une fausse.
+
+      Le passage en mode strict se décidera sur le journal, quand il restera à
+      zéro pendant toute une compétition. La case reste ouverte à dessein :
+      c'est un état transitoire, pas un critère satisfait.
+- [x] La console d'administration exige une authentification.
+      → **Était faux jusqu'au 28/08.** `GET /admin/import/rapport` répondait `200`
+      depuis Internet : les routes portaient le garde-fou de clé en mode *toléré*,
+      qui accepte une requête sans clé. Corrigé aux deux niveaux — clé stricte
+      côté application (`v0.2.1`), et `/admin/*` hors du LAN côté Caddy.
+      Vérifié : `401` sans clé, `200` avec
 - [ ] `/health` n'est **pas** joignable depuis Internet.
+      Règle vérifiée dans la configuration **chargée** par Caddy (filtre
+      `remote_ip` sur `192.168.0.0/24` et l'IP publique, `404` sinon). La
+      vérification de bout en bout demande une IP **non listée** — c'est le test
+      en 5G qu'Adrien veut faire. Non cochée tant qu'il n'a pas eu lieu.
 
 ### La charge
 
