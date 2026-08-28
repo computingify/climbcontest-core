@@ -48,9 +48,15 @@ Branche : `feat/002-reliable-success-storage`. PR à la fin, merge par Adrien.
 - [x] 24. `GET /api/v2/catalog` complet et delta
 - [x] 25. Clé d'API en **mode toléré**, avec compteur d'appels sans clé
 - [x] 26. Réaffectation de dossard : refusée si le dossard porte une réussite
-- [ ] 27. `CHANGELOG.md`, release `v0.2.0`
-- [ ] 28. **Vérification** : déploiement sur la VM 110, sonde verte
-- [ ] 29. **Vérification** : l'application `v3.1.4` fonctionne contre le nouveau backend
+- [x] 27. `CHANGELOG.md`, release `v0.2.0` — publiée le 28/08, puis `v0.2.1`
+- [x] 28. **Vérification** : déploiement sur la VM 110, sonde verte
+      → tirée et installée en **13 secondes**, `/health` répond
+      `{"status":"ok","version":"v0.2.1"}` avec `reussites_en_attente` — donc
+      la base est bien interrogeable, ce que l'ancienne sonde ne prouvait pas
+- [x] 29. **Vérification** : l'application `v3.1.4` fonctionne contre le nouveau backend
+      → les trois routes rejouées contre la VM le 28/08, réponses identiques au
+      caractère près : `201` + nom du grimpeur, `400` + message sur dossard
+      inconnu, `201` sur double envoi. Et `[1,2]` donne `400`, plus `500`.
 
 ---
 

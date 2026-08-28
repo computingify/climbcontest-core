@@ -23,11 +23,21 @@ EnvironmentFile=-/opt/climbcontest/shared/secrets/env
 # 250-350 req/min dominee par les spectateurs (docs/contraintes-metier.md 3 bis).
 # keep-alive 65 : les telephones reutilisent leur connexion, ce qui supprime la
 # poignee de main TLS a chaque scan.
+# --log-level info : sans lui, gunicorn demarre a « info » mais rien ne le
+#   garantit, et c'est le journal applicatif qui decide du passage en mode
+#   strict de la cle d'API. On le rend explicite plutot que subi.
+# --no-control-socket : gunicorn 26 ouvre un socket de controle dans
+#   $HOME/.gunicorn, que le durcissement ci-dessous rend inaccessible en
+#   ecriture. Resultat : un « Control server error: Read-only file system » a
+#   CHAQUE demarrage. On ne s'en sert pas -- et une erreur qui apparait toujours
+#   est une erreur que plus personne ne lit, y compris le jour ou elle compte.
 ExecStart=/opt/climbcontest/current/.venv/bin/gunicorn \
     --workers 4 --threads 4 --worker-class gthread \
     --timeout 30 --graceful-timeout 30 --keep-alive 65 \
     --bind 0.0.0.0:5007 \
     --access-logfile - --error-logfile - \
+    --log-level info \
+    --no-control-socket \
     wsgi:app
 ExecReload=/bin/kill -s HUP $MAINPID
 
