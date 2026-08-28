@@ -10,7 +10,8 @@ from sqlalchemy.exc import IntegrityError
 
 from .extensions import db
 from .models import (
-    Bloc, Competition, EN_COURS, Participant, SOURCE_SCAN, Success,
+    Bloc, Competition, EN_COURS, Participant, ReaffectationDossard, SOURCE_SCAN,
+    Success,
 )
 
 logger = logging.getLogger(__name__)
@@ -67,7 +68,9 @@ def bloc_par_tag(tag) -> Bloc:
 
 
 def enregistrer_reussite(participant: Participant, bloc: Bloc,
-                         source: str = SOURCE_SCAN) -> tuple[Success, bool]:
+                         source: str = SOURCE_SCAN,
+                         dossard_scanne: int | None = None,
+                         scanne_le: datetime | None = None) -> tuple[Success, bool]:
     """Enregistre une réussite. Renvoie (réussite, était_nouvelle).
 
     **Idempotent.** Un double appui sur « Envoyer », ou deux juges qui valident
@@ -92,6 +95,10 @@ def enregistrer_reussite(participant: Participant, bloc: Bloc,
         bloc_id=bloc.id,
         horodatage=datetime.now(),
         source=source,
+        # Trace du geste reel du juge, pour retrouver apres coup une reussite
+        # arrivee sur un dossard qui avait change de main entre-temps.
+        dossard_scanne=dossard_scanne if dossard_scanne is not None else participant.dossard,
+        scanne_le=scanne_le,
     )
     db.session.add(reussite)
     try:
@@ -137,6 +144,17 @@ def reaffecter_dossard(participant: Participant, dossard: int) -> None:
 
     participant.dossard = dossard
     db.session.add(participant)
+
+    # Journalise, meme quand le dossard etait libre : c'est la comparaison entre
+    # cette heure et celle du scan qui permettra de reperer une reussite arrivee
+    # apres coup (voir ReaffectationDossard et reussites_suspectes).
+    db.session.add(ReaffectationDossard(
+        competition_id=comp.id,
+        dossard=dossard,
+        ancien_participant_id=ancien.id if ancien and ancien.id != participant.id else None,
+        nouveau_participant_id=participant.id,
+        effectuee_le=datetime.now(),
+    ))
     incrementer_catalogue(comp)
     db.session.commit()
 
@@ -150,6 +168,103 @@ def incrementer_catalogue(comp: Competition) -> None:
     """
     comp.catalogue_version = (comp.catalogue_version or 0) + 1
     db.session.add(comp)
+
+
+def enregistrer_lot(elements: list[dict]) -> list[dict]:
+    """Enregistre un lot de réussites. Un élément qui échoue n'entraîne pas les autres.
+
+    C'est la règle centrale de la route de lot : **un lot n'échoue jamais en
+    bloc**. Si un dossard sur cinq est inconnu — un QR mal imprimé, un
+    participant retiré — les quatre autres sont enregistrés. Sinon un seul mauvais
+    code bloquerait la file d'un juge pour toute la compétition.
+
+    Chaque élément est traité dans sa propre transaction, pour la même raison :
+    une erreur d'intégrité sur l'un ne doit pas emporter le commit des autres.
+
+    Renvoie un verdict par élément, dans l'ordre reçu.
+    """
+    resultats = []
+    for element in elements:
+        ref = element.get("ref")
+        try:
+            participant = participant_par_dossard(element.get("bib"))
+            bloc = bloc_par_tag(element.get("bloc"))
+        except ErreurMetier as e:
+            resultats.append({"ref": ref, "etat": "refusee", "message": e.message})
+            continue
+
+        try:
+            _, nouvelle = enregistrer_reussite(
+                participant, bloc,
+                dossard_scanne=participant.dossard,
+                scanne_le=_horodatage_client(element.get("at")),
+            )
+        except Exception as e:
+            # On NE marque PAS l'element comme traite : l'application le garde
+            # en file et reessaiera. Perdre une reussite est le seul resultat
+            # inacceptable ici.
+            db.session.rollback()
+            logger.warning("lot : echec sur ref=%s : %s", ref, e)
+            continue
+
+        resultats.append({"ref": ref,
+                          "etat": "enregistree" if nouvelle else "deja_connue"})
+    return resultats
+
+
+def _horodatage_client(valeur) -> datetime | None:
+    """L'heure du scan telle que le telephone la donne. Indicative, jamais triante.
+
+    Une horloge de telephone peut etre fausse de plusieurs heures. On la garde
+    pour le diagnostic, on ne s'en sert jamais pour ordonner quoi que ce soit —
+    `horodatage`, pose par le serveur, fait foi.
+    """
+    if not valeur:
+        return None
+    try:
+        return datetime.fromisoformat(str(valeur).replace("Z", "+00:00")).replace(tzinfo=None)
+    except (ValueError, TypeError):
+        return None
+
+
+def reussites_suspectes(comp: Competition | None = None) -> list[dict]:
+    """Les réussites arrivées APRÈS que leur dossard ait changé de main.
+
+    Adrien a tranché le 28/08 : une réussite en file d'attente qui arrive après
+    une réaffectation est **acceptée**, et suit le nouveau porteur du dossard.
+    Cette fonction ne remet pas ce choix en cause — elle le rend consultable.
+
+    Sans elle, la réussite serait attribuée au mauvais grimpeur en silence. Avec
+    elle, un organisateur peut voir la liste et trancher lui-même. C'est la
+    différence entre un compromis assumé et une erreur invisible.
+    """
+    comp = comp or competition_active()
+    reaffectations = ReaffectationDossard.query.filter_by(competition_id=comp.id).all()
+    if not reaffectations:
+        return []
+
+    suspectes = []
+    for r in reaffectations:
+        candidates = (Success.query
+                      .join(Participant, Success.participant_id == Participant.id)
+                      .filter(Participant.competition_id == comp.id,
+                              Success.dossard_scanne == r.dossard,
+                              Success.scanne_le.isnot(None),
+                              Success.scanne_le < r.effectuee_le,
+                              Success.horodatage > r.effectuee_le)
+                      .all())
+        for s in candidates:
+            suspectes.append({
+                "reussite_id": s.id,
+                "dossard": r.dossard,
+                "bloc": s.bloc.tag if s.bloc else None,
+                "attribuee_a": s.participant.nom_complet if s.participant else None,
+                "scannee_le": s.scanne_le.isoformat() if s.scanne_le else None,
+                "reaffectation_le": r.effectuee_le.isoformat(),
+                "message": (f"Scannee avant la reaffectation du dossard {r.dossard}, "
+                            f"arrivee apres : elle a ete attribuee au nouveau porteur."),
+            })
+    return suspectes
 
 
 def reussites_en_attente() -> int:

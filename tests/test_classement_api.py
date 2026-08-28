@@ -193,6 +193,34 @@ class TestOptionCouleur:
         assert classement_service.couleurs_requises(jeu["competition"]) == 0
 
 
+class TestSourceDesReussites:
+    def test_une_reussite_saisie_a_la_main_compte_comme_un_scan(self, app, jeu):
+        """La saisie manuelle existe parce qu'un QR peut etre illisible.
+
+        Si le classement ignorait ces reussites, le grimpeur serait penalise
+        pour un probleme d'impression — et personne ne le verrait, puisque la
+        reussite EST bien en base.
+        """
+        from climbcontest.models import SOURCE_MANUEL, SOURCE_SCAN
+
+        enregistrer_reussite(jeu["participants"][0], jeu["blocs"][0],
+                             source=SOURCE_MANUEL)
+        enregistrer_reussite(jeu["participants"][1], jeu["blocs"][0],
+                             source=SOURCE_SCAN)
+
+        tous, _ = classement_service.classements(jeu["competition"])
+
+        manuel = next(l for l in tous["U11 F"].lignes
+                      if l.participant_id == jeu["participants"][0].id)
+        scan = next(l for l in tous["U13 H"].lignes
+                    if l.participant_id == jeu["participants"][1].id)
+        assert manuel.score > 0, "une reussite manuelle doit rapporter"
+        assert manuel.blocs_reussis == 1
+        # Chacun est seul sur ce bloc DANS SON GROUPE : meme valeur des deux
+        # cotes, ce qui isole exactement la variable « source ».
+        assert manuel.score == scan.score
+
+
 class TestIsolationDesCompetitions:
     def test_les_classements_ne_se_melangent_pas(self, app, jeu):
         """La base est multi-compétition : une archive ne doit jamais polluer

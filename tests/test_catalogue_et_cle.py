@@ -157,3 +157,75 @@ class TestSanteComplete:
         api = client.get("/health").get_json()["api"]
         assert api["portee"] == "ce worker seulement"
         assert isinstance(api["pid"], int)
+
+
+class TestEtagCatalogue:
+    """Le catalogue doit pouvoir dire « rien n'a change » pour 150 octets.
+
+    Deux mecanismes, parce qu'ils ne servent pas au meme public : `?depuis=`
+    pour l'application juge qui garde sa version, `If-None-Match` pour tout ce
+    qui parle HTTP standard — Caddy, un cache, un navigateur.
+
+    Les specs 002 et 003 annoncaient une reponse DIFFERENTIELLE. C'est
+    volontairement abandonne : a 6-8 ko compresses, un delta couterait un suivi
+    des suppressions pour economiser quelques kilo-octets. Les specs ont ete
+    corrigees plutot que le code.
+    """
+
+    def test_l_etiquette_est_presente(self, client, jeu):
+        r = client.get("/api/v2/catalog")
+        assert r.status_code == 200
+        assert r.headers.get("ETag"), "sans ETag, aucun cache ne peut revalider"
+
+    def test_la_meme_etiquette_donne_304(self, client, jeu):
+        etiquette = client.get("/api/v2/catalog").headers["ETag"]
+        r = client.get("/api/v2/catalog", headers={"If-None-Match": etiquette})
+        assert r.status_code == 304
+        assert r.get_data() == b"", "un 304 ne porte pas de corps"
+
+    def test_une_etiquette_faible_est_acceptee(self, client, jeu):
+        """Certains caches prefixent l'etiquette par W/."""
+        etiquette = client.get("/api/v2/catalog").headers["ETag"]
+        r = client.get("/api/v2/catalog", headers={"If-None-Match": f"W/{etiquette}"})
+        assert r.status_code == 304
+
+    def test_plusieurs_etiquettes_dont_la_bonne(self, client, jeu):
+        etiquette = client.get("/api/v2/catalog").headers["ETag"]
+        r = client.get("/api/v2/catalog",
+                       headers={"If-None-Match": f'"1234", {etiquette}'})
+        assert r.status_code == 304
+
+    def test_une_etiquette_perimee_renvoie_le_catalogue(self, client, jeu):
+        r = client.get("/api/v2/catalog", headers={"If-None-Match": '"0"'})
+        assert r.status_code == 200
+        assert r.get_json()["participants"]
+
+    def test_l_etiquette_change_quand_le_catalogue_change(self, client, jeu):
+        from climbcontest.contest import reaffecter_dossard
+        avant = client.get("/api/v2/catalog").headers["ETag"]
+
+        reaffecter_dossard(jeu["participants"][2], 42)
+
+        apres = client.get("/api/v2/catalog").headers["ETag"]
+        assert apres != avant, "un participant a change : l'etiquette doit bouger"
+        r = client.get("/api/v2/catalog", headers={"If-None-Match": avant})
+        assert r.status_code == 200, "l'ancienne etiquette ne doit plus valoir"
+
+    def test_le_304_porte_l_etiquette_courante(self, client, jeu):
+        """Sinon un cache ne saurait pas quoi conserver."""
+        etiquette = client.get("/api/v2/catalog").headers["ETag"]
+        r = client.get("/api/v2/catalog", headers={"If-None-Match": etiquette})
+        assert r.headers.get("ETag") == etiquette
+
+    def test_depuis_marche_toujours(self, client, jeu):
+        """L'application juge s'en sert : il ne doit pas casser."""
+        version = client.get("/api/v2/catalog").get_json()["version"]
+        assert client.get(f"/api/v2/catalog?depuis={version}").status_code == 304
+        assert client.get(f"/api/v2/catalog?depuis={version - 1}").status_code == 200
+
+    def test_depuis_absurde_renvoie_le_catalogue_complet(self, client, jeu):
+        """Jamais une erreur : une application avec une version corrompue doit
+        pouvoir repartir."""
+        for valeur in ("abc", "-1", "999999"):
+            r = client.get(f"/api/v2/catalog?depuis={valeur}")
+            assert r.status_code in (200, 304), f"depuis={valeur} -> {r.status_code}"

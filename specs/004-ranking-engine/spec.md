@@ -68,39 +68,47 @@ la raison d'être de cette spec :
 
 ### Justesse
 
-- [ ] `tools/verify_ranking.py` sort **0 écart** en utilisant le moteur backend.
-- [ ] Les 8 catégories et les 4 circuits de novembre 2025 sont reproduits.
-- [ ] Une réussite sur un bloc hors circuit est **stockée mais non comptée**.
-- [ ] Les ex æquo partagent le même rang, et le suivant saute les places
+- [x] `tools/verify_ranking.py` sort **0 écart** en utilisant le moteur backend.
+      → `196 conformes, 0 ecart`, rejoué à chaque exécution de la suite
+- [x] Les 8 catégories et les 4 circuits de novembre 2025 sont reproduits.
+      → `test_reproduit_novembre_2025` (196 lignes vérifiées)
+- [x] Une réussite sur un bloc hors circuit est **stockée mais non comptée**.
+      → `test_bloc_hors_circuit_ne_compte_pas` + `test_bloc_hors_circuit_est_accepte`
+- [x] Les ex æquo partagent le même rang, et le suivant saute les places
       occupées (deux 1ers → pas de 2ᵉ, le suivant est 3ᵉ).
-- [ ] Un bloc que personne n'a réussi ne vaut rien et ne fait pas diviser par
+- [x] Un bloc que personne n'a réussi ne vaut rien et ne fait pas diviser par
       zéro.
-- [ ] Un participant sans réussite apparaît avec un score de 0, pas absent.
-- [ ] Une réussite `source=manuel` compte comme un scan.
+- [x] Un participant sans réussite apparaît avec un score de 0, pas absent.
+      → `test_participant_sans_reussite_figure_au_classement`
+- [x] Une réussite `source=manuel` compte comme un scan.
+      → `test_une_reussite_saisie_a_la_main_compte_comme_un_scan`
 
 ### La validation par couleur
 
-- [ ] Désactivée par défaut : le classement est identique à sans l'option.
-- [ ] Activée : réussir 100 % de deux couleurs plus dures valide les couleurs
+- [x] Désactivée par défaut : le classement est identique à sans l'option.
+      → `test_desactivee_par_defaut` (moteur et service)
+- [x] Activée : réussir 100 % de deux couleurs plus dures valide les couleurs
       plus faciles du même circuit.
-- [ ] L'option est **par compétition**, pas globale.
-- [ ] Les blocs validés par couleur comptent dans le dénominateur comme les
+- [x] L'option est **par compétition**, pas globale.
+      → `test_lue_depuis_les_options_de_la_competition`
+- [x] Les blocs validés par couleur comptent dans le dénominateur comme les
       autres.
 
 ### Performance et fraîcheur
 
-- [ ] Le classement complet de novembre 2025 (98 participants, 67 blocs,
+- [x] Le classement complet de novembre 2025 (98 participants, 67 blocs,
       1003 réussites, 12 groupes) se calcule en **moins d'une seconde**.
-- [ ] Il n'est jamais recalculé plus d'une fois toutes les 5 secondes, quel que
+- [x] Il n'est jamais recalculé plus d'une fois toutes les 5 secondes, quel que
       soit le nombre de réussites qui arrivent.
-- [ ] Le calcul ne bloque pas l'enregistrement d'une réussite.
+- [x] Le calcul ne bloque pas l'enregistrement d'une réussite.
+      → chemins séparés : `enregistrer_reussite` ne touche jamais au classement
 
 ### API
 
-- [ ] `GET /api/public/classement` renvoie tous les groupes, sans
+- [x] `GET /api/public/classement` renvoie tous les groupes, sans
       authentification.
-- [ ] `?groupe=U13 F` renvoie un seul classement.
-- [ ] La réponse porte l'heure du calcul, pour que la page puisse afficher
+- [x] `?groupe=U13 F` renvoie un seul classement. → `test_un_seul_groupe`
+- [x] La réponse porte l'heure du calcul, pour que la page puisse afficher
       « il y a 3 s ».
 
 ## Cas limites
@@ -116,10 +124,17 @@ la raison d'être de cette spec :
 | Réussite arrivée pendant le calcul | prise au calcul suivant, jamais un classement à moitié à jour |
 | Deux compétitions en base | les classements ne se mélangent jamais |
 
-## Décisions ouvertes
+## Décisions — closes le 28/08
 
 | # | Question | Pourquoi ça compte |
 | --- | --- | --- |
-| **Q1** | La validation par couleur : quelle variante par défaut ? Le classeur en documente plusieurs (« deux couleurs pleines », « une seule »). Novembre 2025 n'en utilisait aucune | Change les scores, donc le podium |
-| **Q2** | Les tours de finale existent-ils ? L'onglet `Finales` du classeur est vide | Hors périmètre tant que la réponse est non |
-| **Q3** | Un classement **club** est-il attendu ? Le classeur n'en a pas | Facile à ajouter, mais on n'invente pas |
+| # | Question | Réponse d'Adrien, 28/08 |
+| --- | --- | --- |
+| **Q1** | Variante de validation par couleur par défaut | ✅ **Deux couleurs pleines.** Réussir 100 % des blocs de deux couleurs plus difficiles valide toutes les couleurs plus faciles. L'option reste **désactivée** par défaut ; c'est la valeur proposée le jour où elle est activée. Codée, testée, `couleurs_requises = 2` |
+| **Q2** | Les tours de finale existent-ils ? | ✅ **Oui, attendus.** Hors périmètre de cette spec — ils changent le modèle de données. → spec **009** |
+| **Q3** | Un classement **club** est-il attendu ? | ✅ **Oui, attendu.** Le moteur actuel s'y prête, mais c'est une règle d'agrégation qu'il faut définir (somme ? moyenne ? *n* meilleurs ?) → spec **010** |
+
+Les trois questions sont closes. Les deux fonctionnalités demandées deviennent
+des specs à part entière plutôt que des ajouts discrets ici : les finales
+touchent au modèle de données, et le classement club demande une règle
+d'agrégation qui n'existe nulle part aujourd'hui — le classeur n'en a pas.

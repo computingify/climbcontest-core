@@ -11,12 +11,15 @@ serveur peut être livré sans que rien ne change pour les juges.
 
 ## IT1 — La route de lot, côté serveur
 
-- [ ] `enregistrer_lot()` dans `contest.py`, au-dessus de `enregistrer_reussite()`
-- [ ] `POST /api/v3/successes`, protégée par la clé d'API
-- [ ] Résultat **par élément**, jamais d'échec en bloc
-- [ ] `catalogue_version` dans chaque réponse
-- [ ] Tests unitaires + E2E sur vrai gunicorn
-- [ ] Les tests de contrat `v2` passent toujours, **inchangés**
+- [x] `enregistrer_lot()` dans `contest.py`, au-dessus de `enregistrer_reussite()`
+- [x] `POST /api/v3/successes`, protégée par la clé d'API
+- [x] Résultat **par élément**, jamais d'échec en bloc — vérifié en cassant la
+      tolérance : trois tests tombent
+- [x] `catalogue_version` dans chaque réponse
+- [x] Tests unitaires (38, `tests/test_lot.py`) + E2E sur vrai gunicorn à
+      4 workers (`TestLotSousGunicorn`), dont le même lot envoyé dix fois en
+      parallèle → trois réussites, pas trente
+- [x] Les tests de contrat `v2` passent toujours, **inchangés**
 
 Livrable : le serveur accepte les lots. Aucun client ne les envoie encore, et
 rien n'a changé pour les juges. C'est délibéré — cette itération est
@@ -24,10 +27,17 @@ déployable seule et sans risque.
 
 ## IT2 — Le catalogue différentiel
 
-- [ ] `ETag` sur `/api/v2/catalog`, et `304` sur `If-None-Match`
-- [ ] `?depuis=<version>` → réponse différentielle
-- [ ] `catalogue_version` incrémentée à chaque écriture sur participant ou bloc
-- [ ] Mesure : combien pèse un rafraîchissement à vide, et un différentiel d'un participant
+- [x] `ETag` sur `/api/v2/catalog`, et `304` sur `If-None-Match` — y compris les
+      étiquettes faibles (`W/`) et les listes, que les caches envoient
+- [x] ~~`?depuis=<version>` → réponse différentielle~~ **Abandonné, et la spec
+      corrigée plutôt que le code contourné.** La réponse est *complète ou 304*.
+      À 6–8 ko compressés, un vrai delta coûterait un suivi des suppressions et
+      des conflits pour économiser quelques kilo-octets, alors que le `304` — le
+      cas de loin le plus fréquent — ne fait déjà passer que ~150 octets.
+- [x] `catalogue_version` incrémentée à chaque écriture sur participant ou bloc
+- [ ] Mesure : combien pèse un rafraîchissement à vide, et un catalogue complet.
+      **À faire sur la VM**, une fois la `v0.2.0` déployée — mesurer en local
+      donnerait un chiffre sans compression ni TLS, donc faux.
 
 ## IT3 — La file persistante, côté application
 

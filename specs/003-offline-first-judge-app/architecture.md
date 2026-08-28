@@ -35,7 +35,18 @@ non-retour, et il est bien plus fiable qu'un wifi de salle.
 | Ajout | Pourquoi |
 | --- | --- |
 | En-tête `ETag: "<version>"` | Un rafraîchissement qui n'a rien à dire coûte **304 Not Modified**, ~150 octets, au lieu de 8 ko |
-| Paramètre `?depuis=<version>` | Réponse **différentielle** : seulement les participants et blocs modifiés depuis. Un participant ajouté en cours de compétition coûte ~80 octets à tous les téléphones, pas 8 ko |
+| Paramètre `?depuis=<version>` | Même effet que l'`ETag`, sous une forme que l'application juge lit plus facilement (elle garde sa version en mémoire) et qui se voit dans un journal d'accès |
+
+> **Corrigé le 28/08 : il n'y a pas de réponse différentielle.** Cette section
+> en promettait une ; à l'implémentation, elle s'est révélée être de la
+> complexité pour rien. Un delta demande de suivre les **suppressions** — un
+> participant retiré doit disparaître des téléphones — et de gérer les conflits
+> de version, pour économiser quelques kilo-octets sur un catalogue de 6 à 8 ko
+> compressés. Le `304` couvre le cas fréquent (rien n'a bougé) pour ~150 octets,
+> et le cas rare (quelque chose a bougé) coûte un catalogue complet, une fois.
+>
+> La spec a été corrigée plutôt que le code aligné en douce : c'est la règle du
+> projet.
 
 La version du catalogue est déjà portée par `Competition.catalogue_version`,
 posée par la spec 002. Elle est incrémentée à chaque écriture qui touche un

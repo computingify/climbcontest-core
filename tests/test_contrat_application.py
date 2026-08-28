@@ -38,6 +38,37 @@ class TestVerificationGrimpeur:
         assert r.status_code == 400
         assert r.get_json()["success"] is False
 
+    def test_un_dossard_inconnu_ne_declenche_aucun_appel_a_google(self, client, jeu,
+                                                                 monkeypatch):
+        """Risque R7 : l'ancienne version allait interroger le classeur.
+
+        Un QR mal imprime, ou le badge d'un accompagnant scanne par erreur,
+        faisait donc attendre le juge le temps d'un aller-retour vers Google —
+        pour lui repondre « inconnu ». C'est le pire moment pour dependre d'un
+        service tiers : la salle est pleine et le reseau est charge.
+
+        On surveille la CLASSE cliente elle-meme : n'importe quel appel, quel
+        qu'il soit, fait tomber le test.
+        """
+        from climbcontest.sheets import client as mod_client
+
+        appels = []
+
+        class ClasseurEspion(mod_client.ClasseurGoogle):
+            def __init__(self, *a, **k):
+                appels.append("construction")
+
+            def __getattr__(self, nom):
+                appels.append(nom)
+                raise AssertionError(f"appel Google interdit ici : {nom}")
+
+        monkeypatch.setattr(mod_client, "ClasseurGoogle", ClasseurEspion)
+
+        r = client.post("/api/v2/contest/climber/name", json={"id": "999"})
+
+        assert r.status_code == 400
+        assert appels == [], f"aucun appel Google attendu, obtenu {appels}"
+
 
 class TestVerificationBloc:
     def test_tag_connu_renvoie_201_et_le_tag(self, client, jeu):

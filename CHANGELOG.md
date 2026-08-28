@@ -19,6 +19,8 @@ qu'on ne met pas à jour le matin d'une compétition :
 
 ## [Non publié]
 
+Rien pour l'instant.
+
 ## [0.2.0] — 2026-08-28
 
 La base devient la source de vérité, le classeur en devient un miroir. C'est le
@@ -46,6 +48,24 @@ tests dédiée le vérifie à chaque build.
 - `/health` expose le nombre de réussites en attente de synchronisation.
 - Comptes et rôles, posés vides pour éviter une migration en spec 005.
 
+- **Moteur de classement** (spec 004), pur et sans dépendance à Flask ou SQL.
+  Reproduit **196 scores et rangs sur 196** du classeur de novembre 2025, sur
+  1003 réussites et 12 groupes. Validation par couleur en option par
+  compétition, désactivée par défaut ; variante retenue quand elle sera activée :
+  **deux couleurs pleines** (décision du 28/08).
+- `GET /api/public/classement` et `/api/public/groupes` — sans authentification,
+  avec cache de 5 s. Ce sont les routes de la future page spectateurs.
+- **Envoi par lots** : `POST /api/v3/successes` (spec 003, IT1). Un lot n'échoue
+  jamais en bloc — un dossard inconnu sur cinq n'empêche pas les quatre autres
+  d'être enregistrés. Verdict par élément, et la version du catalogue voyage
+  dans la réponse. Les trois routes `v2` restent en service, **inchangées**.
+- `ETag` / `If-None-Match` sur le catalogue : quand rien n'a bougé, la réponse
+  fait ~150 octets au lieu de 6–8 ko.
+- Traçabilité des réaffectations de dossard. Avec la file d'attente à venir, une
+  réussite peut arriver après que son dossard ait changé de main ; la décision du
+  28/08 est de **l'accepter** — elle suit le nouveau porteur. `reussites_suspectes()`
+  permet de retrouver ces cas au lieu de les laisser passer en silence.
+
 ### Corrigé
 
 - **R1** — La base n'est plus effacée au démarrage. `drop_all()` s'exécutait au
@@ -63,6 +83,28 @@ tests dédiée le vérifie à chaque build.
 - **R7** — Un dossard inconnu ne déclenche plus de lecture du classeur.
 - **R12** — Les doublons ne sont plus possibles.
 
+- **La sonde `/health` interroge la base.** Elle répondait `"ok"` sans jamais
+  l'ouvrir : quatre workers démarrés sur une base sans tables passaient pour un
+  déploiement réussi, alors que chaque scan renvoyait 500. Elle répond
+  désormais **503 `degraded`**, ce qui déclenche le retour arrière.
+- **Verrou de schéma : un orphelin ne bloque plus les démarrages.** Un processus
+  tué entre la prise et la libération laissait la ligne en base. Le délai
+  d'expiration de 60 s ne suffisait pas — `RestartSec=5s` fait toujours
+  redémarrer le service à l'intérieur de ce délai. La question posée n'est plus
+  « le verrou est-il vieux » mais « le schéma est-il prêt ».
+- `_rendre_verrou()` supprimait le verrou de n'importe qui, y compris celui,
+  tout frais, du processus qui venait de le lui voler.
+- **L'archive de release ne contenait pas l'application.** Le script copiait
+  `climb_contest` — un nom qui n'a jamais existé — et un `|| true` avalait
+  l'échec. Le premier tag portant le vrai backend aurait produit une archive
+  sans une ligne de code, et gunicorn serait mort au démarrage. Une vérification
+  refuse désormais de publier une archive sans application.
+- Un corps JSON qui n'est pas un objet (`[1,2]`, `"x"`, `42`) donnait **500** sur
+  les routes de juge. Il donne 400.
+- La journalisation applicative n'écrivait nulle part : le logger racine est à
+  `WARNING` sans destination, et le service ne passe aucun niveau. La ligne qui
+  doit décider du passage en mode strict de la clé d'API était donc muette.
+
 ### Modifié
 
 - Point d'entrée : `wsgi:app` via une fabrique d'application. `main.py`,
@@ -74,6 +116,24 @@ tests dédiée le vérifie à chaque build.
 
 Trois défauts de l'agent de déploiement, trouvés en jouant réellement les
 scénarios d'échec de la spec 001 plutôt qu'en les supposant.
+
+- **Moteur de classement** (spec 004), pur et sans dépendance à Flask ou SQL.
+  Reproduit **196 scores et rangs sur 196** du classeur de novembre 2025, sur
+  1003 réussites et 12 groupes. Validation par couleur en option par
+  compétition, désactivée par défaut ; variante retenue quand elle sera activée :
+  **deux couleurs pleines** (décision du 28/08).
+- `GET /api/public/classement` et `/api/public/groupes` — sans authentification,
+  avec cache de 5 s. Ce sont les routes de la future page spectateurs.
+- **Envoi par lots** : `POST /api/v3/successes` (spec 003, IT1). Un lot n'échoue
+  jamais en bloc — un dossard inconnu sur cinq n'empêche pas les quatre autres
+  d'être enregistrés. Verdict par élément, et la version du catalogue voyage
+  dans la réponse. Les trois routes `v2` restent en service, **inchangées**.
+- `ETag` / `If-None-Match` sur le catalogue : quand rien n'a bougé, la réponse
+  fait ~150 octets au lieu de 6–8 ko.
+- Traçabilité des réaffectations de dossard. Avec la file d'attente à venir, une
+  réussite peut arriver après que son dossard ait changé de main ; la décision du
+  28/08 est de **l'accepter** — elle suit le nouveau porteur. `reussites_suspectes()`
+  permet de retrouver ces cas au lieu de les laisser passer en silence.
 
 ### Corrigé
 
@@ -92,6 +152,28 @@ scénarios d'échec de la spec 001 plutôt qu'en les supposant.
   garantit une seule opération à la fois, déploiement et retour arrière
   compris — c'est indispensable puisque le déploiement manuel est la commande
   du jour J.
+
+- **La sonde `/health` interroge la base.** Elle répondait `"ok"` sans jamais
+  l'ouvrir : quatre workers démarrés sur une base sans tables passaient pour un
+  déploiement réussi, alors que chaque scan renvoyait 500. Elle répond
+  désormais **503 `degraded`**, ce qui déclenche le retour arrière.
+- **Verrou de schéma : un orphelin ne bloque plus les démarrages.** Un processus
+  tué entre la prise et la libération laissait la ligne en base. Le délai
+  d'expiration de 60 s ne suffisait pas — `RestartSec=5s` fait toujours
+  redémarrer le service à l'intérieur de ce délai. La question posée n'est plus
+  « le verrou est-il vieux » mais « le schéma est-il prêt ».
+- `_rendre_verrou()` supprimait le verrou de n'importe qui, y compris celui,
+  tout frais, du processus qui venait de le lui voler.
+- **L'archive de release ne contenait pas l'application.** Le script copiait
+  `climb_contest` — un nom qui n'a jamais existé — et un `|| true` avalait
+  l'échec. Le premier tag portant le vrai backend aurait produit une archive
+  sans une ligne de code, et gunicorn serait mort au démarrage. Une vérification
+  refuse désormais de publier une archive sans application.
+- Un corps JSON qui n'est pas un objet (`[1,2]`, `"x"`, `42`) donnait **500** sur
+  les routes de juge. Il donne 400.
+- La journalisation applicative n'écrivait nulle part : le logger racine est à
+  `WARNING` sans destination, et le service ne passe aucun niveau. La ligne qui
+  doit décider du passage en mode strict de la clé d'API était donc muette.
 
 ### Modifié
 

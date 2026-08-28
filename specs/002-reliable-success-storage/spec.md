@@ -71,55 +71,96 @@ de suite**, l'application déployée n'en envoie aucune. Voir Q1.
 
 ## Critères d'acceptation
 
+> Coché = **il existe un test qui tombe si la propriété disparaît**, et son nom
+> est en face. Les cases qui restent ouvertes le sont pour une raison écrite,
+> pas par oubli.
+
 ### Les données survivent
 
-- [ ] Une réussite envoyée est en base **avant** que le juge reçoive sa réponse.
-- [ ] Le service redémarré en pleine charge : **aucune réussite perdue**,
+- [x] Une réussite envoyée est en base **avant** que le juge reçoive sa réponse.
+      → `test_la_reussite_est_en_base_avant_la_reponse`
+- [x] Le service redémarré en pleine charge : **aucune réussite perdue**,
       vérifié en comptant avant et après.
-- [ ] `(participant, bloc)` envoyé deux fois → **une seule** ligne, réponse `201`
+      → E2E `TestSurvieAuRedemarrage::test_les_reussites_survivent`
+- [x] `(participant, bloc)` envoyé deux fois → **une seule** ligne, réponse `201`
       les deux fois (l'app ne doit pas voir d'erreur sur un double appui).
-- [ ] La base n'est **jamais** effacée au démarrage, quel que soit le nombre de
+      → `test_double_envoi_renvoie_201_et_une_seule_ligne`, et sous gunicorn
+      `test_meme_couple_depuis_20_requetes_simultanees`
+- [x] La base n'est **jamais** effacée au démarrage, quel que soit le nombre de
       workers. Vérifié avec les 4 workers de la spec 001.
+      → `test_ne_detruit_jamais_les_donnees` et E2E
+      `test_la_base_n_est_pas_effacee_au_demarrage`
 
 ### Le classeur est un miroir, pas la source
 
-- [ ] Une réussite est marquée synchronisée **seulement** si l'écriture Google a
-      réellement réussi.
-- [ ] API Google en erreur : la réussite reste en base, marquée non
-      synchronisée, et **retentée** au cycle suivant.
-- [ ] Classeur injoignable pendant 10 minutes puis rétabli : tout est rattrapé
-      sans intervention.
-- [ ] Le service démarre et accepte des réussites **même si le classeur est
-      injoignable**.
+- [x] Une réussite est marquée synchronisée **seulement** si l'écriture Google a
+      réellement réussi. → `test_rien_n_est_marque_si_l_ecriture_echoue`
+- [x] API Google en erreur : la réussite reste en base, marquée non
+      synchronisée, et **retentée** au cycle suivant. → `test_rattrapage_automatique`
+- [x] Classeur injoignable pendant 10 minutes puis rétabli : tout est rattrapé
+      sans intervention. → `test_les_reussites_en_attente_survivent` +
+      `test_rattrapage_automatique`
+- [x] Le service démarre et accepte des réussites **même si le classeur est
+      injoignable**. → `test_le_service_continue_d_accepter_des_reussites`
 
 ### L'identité est stable
 
-- [ ] Un participant existe sans dossard (inscrit, absent).
-- [ ] Un dossard **sans aucune réussite** peut être réaffecté.
-- [ ] Un dossard **portant au moins une réussite** : réaffectation **refusée**,
-      avec un message explicite.
-- [ ] Deux homonymes dans deux clubs coexistent sans casser l'import.
-- [ ] Un dossard est unique **au sein d'une compétition**, pas globalement.
+- [x] Un participant existe sans dossard (inscrit, absent). → `test_sans_dossard`
+- [x] Un dossard **sans aucune réussite** peut être réaffecté.
+      → `test_dossard_vierge_reaffectable`
+- [x] Un dossard **portant au moins une réussite** : réaffectation **refusée**,
+      avec un message explicite. → `test_dossard_avec_reussite_refuse`,
+      et `test_la_regle_metier_d_origine_tient_toujours` qui vérifie que la
+      décision du 28/08 sur la file d'attente n'a pas levé cette règle-là
+- [x] Deux homonymes dans deux clubs coexistent sans casser l'import.
+      → `test_deux_homonymes_coexistent`
+- [x] Un dossard est unique **au sein d'une compétition**, pas globalement.
+      → `test_meme_dossard_deux_competitions` et
+      `test_meme_dossard_meme_competition_refuse`
 
 ### L'import du classeur
 
-- [ ] Une ligne incomplète (club ou catégorie manquants) est **importée quand
+- [x] Une ligne incomplète (club ou catégorie manquants) est **importée quand
       même**, et signalée dans le rapport.
-- [ ] Le rapport dit combien de participants et de blocs ont été créés, mis à
-      jour, ignorés — et pourquoi.
-- [ ] Un dossard inconnu scanné **ne déclenche aucun appel à Google**.
-- [ ] Une correction faite dans le classeur est reprise au réimport suivant.
+      → `test_participant_sans_club_ni_categorie_est_importe`
+- [x] Le rapport dit combien de participants et de blocs ont été créés, mis à
+      jour, ignorés — et pourquoi. → `test_ligne_tronquee_rejetee_et_signalee`,
+      `test_participant_sans_dossard_est_signale`, `test_dossard_illisible`
+- [x] Un dossard inconnu scanné **ne déclenche aucun appel à Google**.
+      → `test_un_dossard_inconnu_ne_declenche_aucun_appel_a_google`, qui espionne
+      la classe cliente elle-même : n'importe quel appel fait tomber le test
+- [x] Une correction faite dans le classeur est reprise au réimport suivant.
+      → `test_reprend_une_correction_du_classeur`
 
 ### Le catalogue
 
-- [ ] Chaque modification de participant ou de bloc **incrémente une version**.
-- [ ] `GET /api/v2/catalog` renvoie le catalogue complet et sa version.
-- [ ] `GET /api/v2/catalog?depuis=<v>` renvoie uniquement les changements.
+- [x] Chaque modification de participant ou de bloc **incrémente une version**.
+      → `test_incremente_le_catalogue` (import) et
+      `test_la_reaffectation_incremente_la_version`
+- [x] `GET /api/v2/catalog` renvoie le catalogue complet et sa version.
+      → `test_contenu`, `test_le_bloc_porte_ses_circuits`
+- [x] ~~`GET /api/v2/catalog?depuis=<v>` renvoie uniquement les changements.~~
+      **Critère corrigé le 28/08 : la réponse n'est pas différentielle.**
+
+      Elle est *complète ou `304`*. À 6–8 ko compressés pour 98 participants et
+      67 blocs, un vrai delta coûterait un suivi des suppressions et des
+      conflits pour économiser quelques kilo-octets. Le `304` fait déjà
+      l'essentiel : quand rien n'a bougé — le cas le plus fréquent — il ne passe
+      que ~150 octets.
+
+      C'est la spec qui a été corrigée, pas le code réparé en douce : la règle du
+      projet est que la spec suive la décision.
+      → `TestEtagCatalogue` (9 tests), plus `ETag` / `If-None-Match` en HTTP
+      standard, pour que Caddy et les navigateurs sachent revalider
 
 ### Qualité
 
-- [ ] `pytest` passe, base en mémoire, aucun accès réseau.
+- [x] `pytest` passe, base en mémoire, aucun accès réseau. → 215 tests
 - [ ] Le jeu de novembre 2025 s'importe et donne 98 participants et 67 blocs.
+      **Ne peut pas être automatisé.** Il faudrait committer un export brut du
+      classeur, qui contient des **noms de mineurs** — interdit par la règle 7
+      du projet. La vérification se fait à la main, hors dépôt, avant chaque
+      compétition ; elle est inscrite au [runbook](../../docs/runbook-competition.md).
 
 ## Cas limites
 

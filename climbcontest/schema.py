@@ -226,6 +226,44 @@ def _rendre_verrou() -> None:
         db.session.rollback()
 
 
+# Colonnes ajoutees apres coup a des tables qui existent deja. `create_all` ne
+# touche pas a une table existante, et SQLite n'a pas `ADD COLUMN IF NOT
+# EXISTS` : sans ce tableau, une base d'avant la modification garderait
+# l'ancienne forme et chaque requete echouerait sur la colonne manquante.
+#
+# Un fichier .sql ne conviendrait pas ici : le lanceur de migrations joue
+# chaque fichier une fois, mais sur une base NEUVE `create_all` a deja cree la
+# colonne, et l'ALTER echouerait sur « duplicate column ». On regarde donc
+# l'etat reel de la table plutot que de tenir un compteur.
+COLONNES_AJOUTEES = {
+    "success": {
+        "dossard_scanne": "INTEGER",
+        "scanne_le": "TIMESTAMP",
+    },
+}
+
+
+def _completer_colonnes() -> None:
+    """Ajoute les colonnes manquantes des tables deja existantes. Idempotent."""
+    for table, colonnes in COLONNES_AJOUTEES.items():
+        try:
+            presentes = {
+                ligne[1] for ligne in
+                db.session.execute(text(f"PRAGMA table_info({table})")).fetchall()
+            }
+        except Exception:
+            db.session.rollback()
+            continue
+        if not presentes:
+            continue                      # table absente : create_all s'en charge
+        for nom, type_sql in colonnes.items():
+            if nom in presentes:
+                continue
+            logger.info("schema : ajout de %s.%s", table, nom)
+            db.session.execute(text(f"ALTER TABLE {table} ADD COLUMN {nom} {type_sql}"))
+            db.session.commit()
+
+
 def preparer_schema() -> None:
     """Crée le schéma si besoin et joue les migrations. Idempotent."""
     if not _prendre_verrou():
@@ -243,6 +281,7 @@ def preparer_schema() -> None:
     try:
         # create_all ne touche pas aux tables existantes : sûr à relancer.
         db.create_all()
+        _completer_colonnes()
         _table_migrations()
 
         jouees = _deja_jouees()
