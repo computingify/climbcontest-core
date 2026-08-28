@@ -313,3 +313,54 @@ class TestCompetitionSansClasseur:
 
         assert appels, "le miroir doit repartir des qu'un classeur est relie"
         assert r["envoyees"] == 1
+
+
+class TestLeJournalNeSeRepetePas:
+    """Une plainte qui se repete toutes les 40 secondes n'informe personne.
+
+    Constate sur la VM : une competition sans classeur relie produisait un
+    avertissement par worker et par cycle. Sur une journee, des milliers de
+    lignes identiques -- et c'est ainsi qu'on rate la vraie panne quand elle
+    arrive. On dit ce qui CHANGE, pas ce qui dure.
+    """
+
+    def test_le_garde_fou_annonce_le_vrai_nombre_en_attente(self, app, jeu):
+        """« 0 en attente » etait faux, et c'est le chiffre qui compte : il dit
+        combien de reussites seront reportees le jour ou un classeur sera relie."""
+        jeu["competition"].spreadsheet_id = None
+        db.session.commit()
+        for bloc in jeu["blocs"]:
+            enregistrer_reussite(jeu["participants"][0], bloc)
+
+        r = synchroniser()
+
+        assert r["restantes"] == len(jeu["blocs"]), "le compte doit etre reel"
+
+    def test_la_meme_plainte_n_est_journalisee_qu_une_fois(self, app, jeu, caplog):
+        import logging
+        from climbcontest.sheets import planificateur
+
+        jeu["competition"].spreadsheet_id = None
+        db.session.commit()
+        enregistrer_reussite(jeu["participants"][0], jeu["blocs"][0])
+
+        # On rejoue ce que fait la boucle, sans le fil ni l'attente.
+        derniere = None
+        journalisees = 0
+        for _ in range(5):
+            r = synchroniser()
+            if r["erreur"] and r["erreur"] != derniere:
+                journalisees += 1
+                derniere = r["erreur"]
+
+        assert journalisees == 1, "cinq cycles, une seule ligne"
+
+    def test_le_retour_a_la_normale_est_dit(self, app, jeu):
+        """Le silence qui suit une plainte est ambigu : on annonce la reprise."""
+        from climbcontest.sheets import planificateur
+        import inspect
+
+        source = inspect.getsource(planificateur._boucle)
+        assert "ca repart" in source, \
+            "sans ce message, on ne saurait pas si le miroir est reparti ou mort"
+        assert "derniere_plainte = None" in source

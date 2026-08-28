@@ -19,6 +19,22 @@ qu'on ne met pas à jour le matin d'une compétition :
 
 ## [Non publié]
 
+## [0.3.4] — 2026-08-28
+
+### Corrigé
+
+- **Le miroir répétait la même plainte toutes les 40 secondes.** Le garde-fou de
+  la `0.3.3` évitait bien l'appel Google inutile, mais l'avertissement partait
+  encore à chaque cycle et sur chacun des quatre workers. Sur une journée, des
+  milliers de lignes identiques — et c'est ainsi qu'on rate la vraie panne
+  quand elle arrive.
+
+  Une cause n'est journalisée **qu'une fois**. Le retour à la normale, lui, est
+  annoncé : le silence qui suit une plainte serait autrement ambigu — on ne
+  saurait pas si le miroir est reparti ou s'il est mort.
+- Le garde-fou annonçait « 0 en attente ». C'est le chiffre qui compte : il dit
+  combien de réussites seront reportées le jour où un classeur sera relié.
+
 ## [0.3.3] — 2026-08-28
 
 ### Corrigé
@@ -323,7 +339,8 @@ livrer — spec 001, itération 3.
 - Les données et les secrets vivent dans `shared/`, hors des releases : un
   déploiement ou un retour arrière ne peut pas les toucher.
 
-[Non publié]: https://github.com/computingify/climbcontest-core/compare/v0.3.3...HEAD
+[Non publié]: https://github.com/computingify/climbcontest-core/compare/v0.3.4...HEAD
+[0.3.4]: https://github.com/computingify/climbcontest-core/releases/tag/v0.3.4
 [0.3.3]: https://github.com/computingify/climbcontest-core/releases/tag/v0.3.3
 [0.3.2]: https://github.com/computingify/climbcontest-core/releases/tag/v0.3.2
 [0.3.1]: https://github.com/computingify/climbcontest-core/releases/tag/v0.3.1

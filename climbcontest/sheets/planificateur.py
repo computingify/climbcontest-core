@@ -25,18 +25,37 @@ def _boucle(app, periode: int, taille_lot: int) -> None:
     arret = app.extensions.setdefault("climbcontest_arret", threading.Event())
     logger.info("miroir : fil demarre (lot=%d, periode=%ds)", taille_lot, periode)
 
+    # La derniere plainte, pour ne pas la repeter a l'identique toutes les 40
+    # secondes. Une competition pas encore reliee a un classeur, ou un reseau
+    # coupe une demi-heure, produiraient sinon des centaines de lignes
+    # identiques -- et c'est ainsi qu'un journal devient illisible, puis qu'on
+    # rate la vraie panne. On dit ce qui CHANGE, pas ce qui dure.
+    derniere_plainte = None
+
     while not arret.wait(periode):
         try:
             with app.app_context():
                 r = synchroniser(taille_lot=taille_lot)
             if r["envoyees"]:
+                if derniere_plainte:
+                    logger.info("miroir : ca repart")
+                derniere_plainte = None
                 logger.info("miroir : %d envoyee(s), %d restante(s)",
                             r["envoyees"], r["restantes"])
             elif r["erreur"]:
                 # Volontairement en warning, pas en error : rien n'est perdu,
                 # ce sera retente. Une alerte ici crierait pour une coupure
                 # reseau de trente secondes.
-                logger.warning("miroir : %s (%d en attente)", r["erreur"], r["restantes"])
+                #
+                # Et une seule fois par cause : la repetition n'apporte aucune
+                # information, alors que le retour a la normale, lui, en est
+                # une -- c'est le « ca repart » ci-dessus.
+                if r["erreur"] != derniere_plainte:
+                    logger.warning("miroir : %s (%d en attente)",
+                                   r["erreur"], r["restantes"])
+                    derniere_plainte = r["erreur"]
+            else:
+                derniere_plainte = None
         except Exception:
             # Le fil ne doit JAMAIS mourir : s'il s'arrete, les reussites
             # s'accumulent en base sans que personne ne le voie -- sauf le
