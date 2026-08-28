@@ -38,11 +38,13 @@ def creer_app(config=None) -> Flask:
     from .routes.admin import bp as bp_admin
     from .routes.catalogue import bp as bp_catalogue
     from .routes.contest import bp as bp_contest
+    from .routes.public import bp as bp_public
     from .routes.sante import bp as bp_sante
 
     app.register_blueprint(bp_contest)
     app.register_blueprint(bp_catalogue)
     app.register_blueprint(bp_admin)
+    app.register_blueprint(bp_public)
     app.register_blueprint(bp_sante)
 
     with app.app_context():
