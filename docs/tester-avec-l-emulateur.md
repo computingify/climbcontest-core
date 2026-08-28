@@ -1,7 +1,29 @@
-# Tester l'application juge avec l'émulateur
+# Tester
 
-Boucle de test rapide : un backend sur le Mac, l'application dans l'émulateur
-Android Studio. Deux commandes, rien à configurer.
+> ⚠️ **L'émulateur n'est pas le socle de test.** Il s'est révélé instable sur la
+> machine de développement — crash QEMU au démarrage, `GPU: UNKNOWN`, avec ou
+> sans fenêtre. Les garanties reposent donc sur des tests qui **n'en ont pas
+> besoin** :
+>
+> | Quoi | Où | Combien | Durée |
+> | --- | --- | --- | --- |
+> | Couche réseau de l'application | `climbcontest-android`, JVM + serveur factice | 17 | ~5 s |
+> | Backend, unitaire | `tests/test_*.py`, base en mémoire | 69 | ~1 s |
+> | Backend, **bout en bout** | `tests/test_e2e.py`, vrai gunicorn, vraie base | 16 | ~17 s |
+>
+> ```bash
+> cd climbcontest-core    && python -m pytest tests/
+> cd climbcontest-android && ./gradlew testDebugUnitTest
+> ```
+>
+> L'émulateur reste utile pour ce que ces tests ne couvrent pas : **l'interface**
+> — la caméra, les gros boutons, ce que voit le juge. Le reste de cette page
+> décrit cette boucle-là, quand l'émulateur veut bien démarrer.
+
+## La boucle avec l'émulateur
+
+Un backend sur le Mac, l'application dans l'émulateur Android Studio. Deux
+commandes, rien à configurer.
 
 ---
 
