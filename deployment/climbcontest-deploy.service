@@ -1,0 +1,14 @@
+[Unit]
+Description=Tire et installe la derniere release ClimbContest
+Documentation=https://github.com/computingify/climbcontest-core/blob/master/specs/001-vm-climbcontest/architecture.md
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=climbcontest
+Group=climbcontest
+ExecStart=/usr/local/bin/climbcontest-deploy
+# Le script gere lui-meme ses erreurs et le retour arriere : un echec ici ne
+# doit pas empecher le tick suivant de retenter.
+SuccessExitStatus=0 1

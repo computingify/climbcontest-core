@@ -1,0 +1,75 @@
+#!/bin/bash
+# =============================================================================
+# Retour arriere MANUEL, instantane.
+#
+# Decision Q2 de la spec 001 : les deploiements ne sont pas geles pendant une
+# competition, parce qu'Adrien doit pouvoir corriger le jour J. La contrepartie
+# est qu'il faut pouvoir revenir en arriere en quelques secondes, sous pression,
+# sans reflechir.
+#
+# Les trois dernieres releases sont sur le disque avec leur venv : revenir
+# consiste a refaire pointer un lien symbolique et a redemarrer. Aucune
+# reinstallation, aucun reseau.
+#
+#   climbcontest-rollback            -> revient a la release precedente
+#   climbcontest-rollback v1.2.0     -> revient a cette release precise
+#   climbcontest-rollback --list     -> montre ce qui est disponible
+# =============================================================================
+set -uo pipefail
+
+BASE="/opt/climbcontest"
+RELEASES="$BASE/releases"
+ETAT="$BASE/.deployed-tag"
+SANTE="http://127.0.0.1:5007/health"
+TAG_LOG="climbcontest-rollback"
+
+log() { echo "$*"; logger -t "$TAG_LOG" -- "$*"; }
+mourir() { log "ERREUR: $*"; exit 1; }
+
+ACTUELLE="$(readlink -f "$BASE/current" 2>/dev/null || echo "")"
+
+disponibles() {
+  ls -1dt "$RELEASES"/*/ 2>/dev/null | while read -r d; do
+    nom="$(basename "$d")"
+    marque=" "
+    [ "$(readlink -f "$d")" = "$ACTUELLE" ] && marque="*"
+    printf "%s %s\n" "$marque" "$nom"
+  done
+}
+
+if [ "${1:-}" = "--list" ]; then
+  echo "Releases installees (* = en service) :"
+  disponibles
+  exit 0
+fi
+
+if [ -n "${1:-}" ]; then
+  CIBLE="$RELEASES/$1"
+else
+  # La premiere entree qui n'est pas celle en service.
+  CIBLE=""
+  while read -r d; do
+    [ "$(readlink -f "$d")" = "$ACTUELLE" ] && continue
+    CIBLE="${d%/}"; break
+  done < <(ls -1dt "$RELEASES"/*/ 2>/dev/null)
+fi
+
+[ -n "$CIBLE" ] || mourir "aucune release precedente disponible. « climbcontest-rollback --list » pour voir."
+[ -d "$CIBLE" ] || mourir "release introuvable : $CIBLE"
+[ -x "$CIBLE/.venv/bin/gunicorn" ] || mourir "la release $(basename "$CIBLE") n'a pas d'environnement Python utilisable"
+
+log "retour arriere : $(basename "${ACTUELLE:-aucune}") -> $(basename "$CIBLE")"
+ln -sfn "$CIBLE" "$BASE/current.new" && mv -Tf "$BASE/current.new" "$BASE/current"
+sudo -n /bin/systemctl restart climbcontest || mourir "redemarrage refuse"
+
+for _ in $(seq 1 15); do
+  sleep 2
+  if [ "$(curl -s -o /dev/null -w '%{http_code}' --max-time 5 "$SANTE")" = "200" ]; then
+    VUE="$(curl -s --max-time 5 "$SANTE" | python3 -c 'import sys,json; print(json.load(sys.stdin).get("version",""))' 2>/dev/null)"
+    echo "$VUE" > "$ETAT"
+    log "operationnel sur $VUE"
+    exit 0
+  fi
+done
+
+mourir "la release $(basename "$CIBLE") ne repond pas non plus. Verifier : journalctl -u climbcontest -n 50"

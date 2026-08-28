@@ -1,0 +1,12 @@
+[Unit]
+Description=Verifie toutes les 2 minutes s'il y a une nouvelle release
+
+[Timer]
+# Au demarrage : la VM est intermittente, on veut la derniere version des
+# qu'elle s'allume pour une competition.
+OnBootSec=1min
+OnUnitActiveSec=2min
+AccuracySec=15s
+
+[Install]
+WantedBy=timers.target

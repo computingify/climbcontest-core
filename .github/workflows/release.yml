@@ -1,0 +1,101 @@
+name: release
+
+# Declenche par une etiquette vX.Y.Z. Construit, teste, et publie une archive
+# signee par son empreinte SHA-256. La VM la tire ensuite elle-meme : aucun
+# runner ne touche a la production (decision 16 du dossier de migration).
+on:
+  push:
+    tags:
+      - "v[0-9]+.[0-9]+.[0-9]+"
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Version depuis l'etiquette
+        id: version
+        run: |
+          TAG="${GITHUB_REF_NAME}"
+          echo "tag=$TAG"            >> "$GITHUB_OUTPUT"
+          echo "version=${TAG#v}"    >> "$GITHUB_OUTPUT"
+
+      # --- LA PORTE : pas de section de changelog, pas de release. ----------
+      # Volontairement AVANT toute construction : echouer en 5 secondes plutot
+      # qu'apres avoir installe les dependances.
+      - name: Le changelog documente-t-il cette version ?
+        run: |
+          python3 scripts/extract_changelog.py "${{ steps.version.outputs.version }}" \
+            > /tmp/notes.md
+          echo "--- corps de la release ---"
+          cat /tmp/notes.md
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      - name: Dependances
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install pytest
+
+      - name: Tests
+        run: |
+          if [ -d tests ] && compgen -G "tests/test_*.py" > /dev/null; then
+            pytest -q
+          else
+            echo "aucun test unitaire a ce stade (spec 001 IT3) — les tests"
+            echo "arrivent avec la spec 002. La porte est en place."
+          fi
+
+      - name: L'application demarre-t-elle ?
+        run: |
+          echo "${{ steps.version.outputs.tag }}" > VERSION
+          python -c "
+          import wsgi
+          c = wsgi.app.test_client()
+          r = c.get('/health')
+          assert r.status_code == 200, r.status_code
+          v = r.get_json()['version']
+          attendu = '${{ steps.version.outputs.tag }}'
+          assert v == attendu, f'/health annonce {v!r} au lieu de {attendu!r}'
+          print('/health repond', r.get_json())
+          "
+
+      - name: Construire l'archive
+        id: archive
+        run: |
+          TAG="${{ steps.version.outputs.tag }}"
+          NOM="climbcontest-$TAG"
+          mkdir -p "build/$NOM"
+
+          # Ce qui part en production, et rien d'autre. Ni .git, ni docs, ni
+          # specs, ni fixtures, ni les scripts de charge.
+          cp wsgi.py requirements.txt VERSION "build/$NOM/"
+          [ -d climb_contest ] && cp -r climb_contest "build/$NOM/" || true
+          [ -d static ]        && cp -r static        "build/$NOM/" || true
+          [ -d templates ]     && cp -r templates     "build/$NOM/" || true
+
+          tar -czf "$NOM.tar.gz" -C build "$NOM"
+          sha256sum "$NOM.tar.gz" | awk '{print $1}' > "$NOM.tar.gz.sha256"
+
+          echo "nom=$NOM" >> "$GITHUB_OUTPUT"
+          echo "--- contenu ---"; tar -tzf "$NOM.tar.gz"
+          echo "--- empreinte ---"; cat "$NOM.tar.gz.sha256"
+
+      # Publie avec `gh`, deja present sur le runner : pas d'action tierce,
+      # donc rien a epingler ni a auditer dans la chaine d'approvisionnement.
+      - name: Publier la release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "${{ steps.version.outputs.tag }}" \
+            --title "${{ steps.version.outputs.tag }}" \
+            --notes-file /tmp/notes.md \
+            "${{ steps.archive.outputs.nom }}.tar.gz" \
+            "${{ steps.archive.outputs.nom }}.tar.gz.sha256"

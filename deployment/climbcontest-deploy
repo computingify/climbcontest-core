@@ -1,0 +1,151 @@
+#!/bin/bash
+# =============================================================================
+# Deploiement TIRE de ClimbContest.
+#
+# Ce script appartient a la machine : c'est le SEUL code qui s'execute ici au
+# deploiement. Ni runner GitHub, ni action tierce, ni agent. L'archive publiee
+# par la CI est verifiee par son empreinte SHA-256 avant d'etre installee.
+#
+# Modele : decision 16 du dossier de migration Proxmox (solio-map), adaptee a
+# Python. Les DEUX bugs de la premiere version de solio-map-deploy sont corriges
+# ici et ne doivent pas etre reintroduits :
+#   1. extraction des URL d'assets ancree sur le NOM (awk '$1 ~ /.../'), pas sur
+#      la fin de ligne : chaque ligne est "nom URL", un motif ancre en fin de
+#      ligne ne matche jamais ;
+#   2. telechargement avec UN SEUL en-tete Accept: application/octet-stream. Avec
+#      deux en-tetes Accept, GitHub renvoie le JSON de metadonnees au lieu du
+#      binaire, et l'empreinte est invalide.
+#
+# Le depot est PUBLIC : aucun jeton n'est necessaire. Si un jour il devenait
+# prive, deposer un PAT lecture seule dans TOKEN_FILE ; le script le detecte.
+#
+# Bascule par lien symbolique : `current` pointe vers releases/<tag>. Un retour
+# arriere consiste a refaire pointer le lien, donc il est instantane.
+# =============================================================================
+set -uo pipefail
+
+DEPOT="computingify/climbcontest-core"
+BASE="/opt/climbcontest"
+RELEASES="$BASE/releases"
+ETAT="$BASE/.deployed-tag"
+TOKEN_FILE="$BASE/shared/secrets/github-token"
+SANTE="http://127.0.0.1:5007/health"
+GARDE="$BASE/shared/no-deploy"
+CONSERVEES=3
+TAG_LOG="climbcontest-deploy"
+
+log() { echo "$*"; logger -t "$TAG_LOG" -- "$*"; }
+mourir() { log "ERREUR: $*"; exit 1; }
+
+# --- Garde-fou optionnel -----------------------------------------------------
+# Decision Q2 de la spec 001 : PAS de gel automatique pendant les competitions,
+# Adrien doit pouvoir corriger le jour J. Ce fichier reste un frein manuel,
+# a poser volontairement (touch shared/no-deploy) si besoin.
+if [ -e "$GARDE" ]; then
+  log "deploiement gele par $GARDE — rien n'est fait"
+  exit 0
+fi
+
+# --- Authentification (facultative sur un depot public) ----------------------
+AUTH=()
+if [ -r "$TOKEN_FILE" ]; then
+  JETON="$(cat "$TOKEN_FILE")"
+  [ -n "$JETON" ] && AUTH=(-H "Authorization: Bearer $JETON")
+fi
+
+api() {
+  curl -sS --max-time 30 "${AUTH[@]+"${AUTH[@]}"}" \
+       -H "Accept: application/vnd.github+json" \
+       -H "X-GitHub-Api-Version: 2022-11-28" "$@"
+}
+
+# --- 1. Quelle est la derniere release ? -------------------------------------
+REL="$(api "https://api.github.com/repos/$DEPOT/releases/latest")" \
+  || mourir "API GitHub injoignable"
+
+TAG="$(printf '%s' "$REL" | python3 -c 'import sys,json; print(json.load(sys.stdin).get("tag_name",""))' 2>/dev/null)"
+[ -n "$TAG" ] || mourir "aucune release publiee (reponse: $(printf '%s' "$REL" | head -c 200))"
+
+ACTUELLE="$( [ -f "$ETAT" ] && cat "$ETAT" || echo "" )"
+[ "$TAG" = "$ACTUELLE" ] && exit 0        # rien de neuf : sortie silencieuse
+log "nouvelle release $TAG (deployee: ${ACTUELLE:-aucune})"
+
+# --- 2. Recuperer l'archive et son empreinte ---------------------------------
+ASSETS="$(printf '%s' "$REL" | python3 -c '
+import sys, json
+for a in json.load(sys.stdin).get("assets", []):
+    print(a["name"], a["url"])
+')"
+# BUG 1 CORRIGE : ancrage sur $1 (le nom), pas sur la fin de ligne.
+URL_TGZ="$(printf '%s' "$ASSETS" | awk '$1 ~ /\.tar\.gz$/ {print $2}' | head -1)"
+URL_SHA="$(printf '%s' "$ASSETS" | awk '$1 ~ /\.sha256$/ {print $2}' | head -1)"
+[ -n "$URL_TGZ" ] && [ -n "$URL_SHA" ] || mourir "archive ou empreinte absente de la release $TAG"
+
+TMP="$(mktemp -d)"; trap 'rm -rf "$TMP"' EXIT
+
+# BUG 2 CORRIGE : un SEUL en-tete Accept, et pas via api().
+recuperer() {
+  curl -sSL --max-time 120 "${AUTH[@]+"${AUTH[@]}"}" \
+       -H "Accept: application/octet-stream" \
+       -H "X-GitHub-Api-Version: 2022-11-28" -o "$2" "$1"
+}
+recuperer "$URL_TGZ" "$TMP/app.tar.gz" || mourir "telechargement de l'archive"
+recuperer "$URL_SHA" "$TMP/app.sha256" || mourir "telechargement de l'empreinte"
+
+# --- 3. VERIFICATION — c'est ce qui rend le tirage sur ------------------------
+ATTENDU="$(awk '{print $1}' < "$TMP/app.sha256" | tr -d ' \n')"
+OBTENU="$(sha256sum "$TMP/app.tar.gz" | cut -d' ' -f1)"
+[ -n "$ATTENDU" ] || mourir "empreinte publiee vide"
+[ "$ATTENDU" = "$OBTENU" ] || mourir "EMPREINTE INVALIDE — attendu $ATTENDU, obtenu $OBTENU. Rien n'est installe."
+log "empreinte verifiee ($OBTENU)"
+
+# --- 4. Installer A COTE, sans toucher a la version en service ---------------
+mkdir -p "$RELEASES"
+DEST="$RELEASES/$TAG"
+rm -rf "$DEST"; mkdir -p "$DEST"
+tar -xzf "$TMP/app.tar.gz" -C "$DEST" --strip-components=1 || mourir "extraction"
+[ -f "$DEST/wsgi.py" ] || mourir "archive incoherente : wsgi.py absent"
+
+# Environnement Python DANS la release : si pip echoue, la version en service
+# n'a pas bouge d'un octet, et un retour arriere retrouve son venv intact.
+python3 -m venv "$DEST/.venv" || mourir "creation du venv"
+"$DEST/.venv/bin/pip" install --quiet --upgrade pip || mourir "mise a jour de pip"
+"$DEST/.venv/bin/pip" install --quiet -r "$DEST/requirements.txt" || mourir "installation des dependances"
+log "release $TAG preparee (venv construit), la version en service n'a pas bouge"
+
+# --- 5. Bascule + redemarrage ------------------------------------------------
+ANCIEN="$(readlink -f "$BASE/current" 2>/dev/null || echo "")"
+ln -sfn "$DEST" "$BASE/current.new" && mv -Tf "$BASE/current.new" "$BASE/current"
+sudo -n /bin/systemctl restart climbcontest || mourir "redemarrage refuse"
+
+# --- 6. Sonde, et RETOUR ARRIERE si la version attendue ne repond pas ---------
+# On ne verifie pas seulement que ca repond : on verifie que ca repond AVEC LA
+# BONNE VERSION. Un service qui n'aurait pas redemarre passerait sinon pour un
+# deploiement reussi.
+OK=0
+for _ in $(seq 1 20); do
+  sleep 2
+  VUE="$(curl -s --max-time 5 "$SANTE" | python3 -c 'import sys,json; print(json.load(sys.stdin).get("version",""))' 2>/dev/null)"
+  [ "$VUE" = "$TAG" ] && { OK=1; break; }
+done
+
+if [ "$OK" != "1" ]; then
+  log "$TAG ne repond pas correctement (version vue: '${VUE:-neant}') — RETOUR ARRIERE"
+  if [ -n "$ANCIEN" ] && [ -d "$ANCIEN" ]; then
+    ln -sfn "$ANCIEN" "$BASE/current.new" && mv -Tf "$BASE/current.new" "$BASE/current"
+    sudo -n /bin/systemctl restart climbcontest
+    log "revenu sur $(basename "$ANCIEN")"
+  else
+    log "aucune version precedente : le service reste en echec, intervention requise"
+  fi
+  exit 1
+fi
+
+# --- 7. Acter et faire le menage ---------------------------------------------
+echo "$TAG" > "$ETAT"
+# shellcheck disable=SC2012
+ls -1dt "$RELEASES"/*/ 2>/dev/null | tail -n +$((CONSERVEES + 1)) | while read -r vieux; do
+  [ "$(readlink -f "$vieux")" = "$(readlink -f "$BASE/current")" ] && continue
+  rm -rf "$vieux"
+done
+log "$TAG deployee et operationnelle"
