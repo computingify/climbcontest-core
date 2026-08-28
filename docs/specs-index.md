@@ -21,8 +21,8 @@ attendent la validation du cadrage et les réponses aux décisions D1→D6.
 | 006 | `live-results-page` | page résultats spectateurs | 004 |
 | 007 | `judge-pwa` | app juge iPhone sans store | 003 |
 | 008 | `helloasso-import` | import des inscriptions en ligne, rapprochement avec les inscriptions sur place | 005 |
-| 009 | `finales` | **tours de finale** — demandés par Adrien le 28/08. L'onglet `Finales` du classeur est vide : le format reste à décrire. Touche au modèle de données | 004 |
-| 010 | `classement-club` | **classement par club** — demandé par Adrien le 28/08. Le classeur n'en a pas : la règle d'agrégation reste à définir (somme, moyenne, *n* meilleurs ?) | 004 |
+| 009 | `finales` | **tours de finale.** Format tranché le 28/08 : les **N meilleurs de chaque catégorie regrimpent des blocs dédiés**, et le classement final ne tient compte **que du second tour** — le score de qualification ne se reporte pas. Reste à fixer : la valeur de N, et si elle varie selon la catégorie | 004 |
+| 010 | `classement-club` | **classement par club.** Règle tranchée le 28/08 : **somme des scores de tous les grimpeurs du club**. Conséquence assumée — un club nombreux est avantagé ; c'est le choix d'Adrien, à redire au micro le jour J pour que personne ne s'en étonne | 004 |
 
 L'ordre a été fixé par Adrien le 28/08 : **l'hébergement d'abord**.
 
