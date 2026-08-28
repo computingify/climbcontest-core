@@ -127,6 +127,14 @@ def synchroniser(taille_lot: int = 50, classeur=None) -> dict:
         # devient illisible, et qu'on rate la vraie panne quand elle arrive.
         resultat["ignoree"] = True
         resultat["erreur"] = "aucun classeur relie a cette competition"
+        # Le vrai compte, pas zero : c'est le chiffre qui dit combien de
+        # reussites attendent d'etre reportees le jour ou un classeur sera relie.
+        resultat["restantes"] = Success.query.join(
+            Participant, Success.participant_id == Participant.id
+        ).filter(
+            Participant.competition_id == comp.id,
+            Success.sheet_synced_at.is_(None),
+        ).count()
         return resultat
 
     if not _prendre_verrou():
