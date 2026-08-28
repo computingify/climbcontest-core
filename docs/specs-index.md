@@ -5,7 +5,8 @@ méthode.
 
 | # | Spec | Statut | Résumé |
 | --- | --- | --- | --- |
-| [001](../specs/001-vm-climbcontest/) | `vm-climbcontest` | **rédigée — en attente de validation (porte 2)** | VM Proxmox 110, livraison par tirage avec changelog, exposition `climbcontest.adn-dev.fr`, contrôles adaptés à une VM intermittente |
+| [001](../specs/001-vm-climbcontest/) | `vm-climbcontest` | ✅ **livrée** (28/08) | VM Proxmox 110, livraison par tirage avec changelog, exposition `climbcontest.adn-dev.fr`, contrôles adaptés à une VM intermittente |
+| [002](../specs/002-reliable-success-storage/) | `reliable-success-storage` | 🔨 **en cours** | La base devient la source de vérité, le classeur un miroir. Identité stable ≠ dossard, multi-compétition |
 
 ## Specs pressenties
 
@@ -14,7 +15,6 @@ attendent la validation du cadrage et les réponses aux décisions D1→D6.
 
 | # prévu | Nom pressenti | Chantier | Bloqué par |
 | --- | --- | --- | --- |
-| 002 | `reliable-success-storage` | la base devient la source de vérité ; **identité stable ≠ dossard** | 001 |
 | 003 | `offline-first-judge-app` | catalogue local **versionné + rafraîchissable en cours de compétition** | 002 |
 | 004 | `ranking-engine` | moteur de classement, **validation par couleur en option par compétition** | 002 |
 | 005 | `admin-console` | participants à chaud, saisie manuelle, paramétrage, classeur — **vocation à remplacer le Google Sheet** | 002 |
@@ -38,6 +38,7 @@ est décrit dans :
 - [etat-des-lieux.md](etat-des-lieux.md) — audit complet de l'existant
 - [technical/architecture-actuelle.md](technical/architecture-actuelle.md) — l'architecture telle qu'elle tourne
 - [technical/classeur-google.md](technical/classeur-google.md) — la mécanique du classeur et l'algorithme de classement, validé sur données réelles
+- [technical/banc-base-de-donnees.md](technical/banc-base-de-donnees.md) — SQLite ou PostgreSQL : les mesures, et à quelle condition les refaire
 - [plan-de-repli.md](plan-de-repli.md) — comment revenir à la version 2025-2026
 - [contraintes-metier.md](contraintes-metier.md) — ce que le terrain impose
 - [preparation-depots.md](preparation-depots.md) — organisation des dépôts, décision D3

@@ -11,6 +11,7 @@ fichier à lire.** Il est volontairement court : le détail est dans `docs/` et
 | Ce qui existe, ce qui marche, ce qui est cassé | [docs/etat-des-lieux.md](docs/etat-des-lieux.md) |
 | Comment le système est construit aujourd'hui | [docs/technical/architecture-actuelle.md](docs/technical/architecture-actuelle.md) |
 | **La mécanique du classeur Google et l'algorithme de classement** | [docs/technical/classeur-google.md](docs/technical/classeur-google.md) |
+| Pourquoi SQLite et pas PostgreSQL (mesuré) | [docs/technical/banc-base-de-donnees.md](docs/technical/banc-base-de-donnees.md) |
 | Revenir à la version 2025-2026 en cas de pépin | [docs/plan-de-repli.md](docs/plan-de-repli.md) |
 | **Ce que le terrain impose** (participants à chaud, HelloAsso, format) | [docs/contraintes-metier.md](docs/contraintes-metier.md) |
 | Ce qu'on veut construire et dans quel ordre | [docs/roadmap.md](docs/roadmap.md) |
@@ -75,8 +76,10 @@ peut jamais y être committé**.
 
 - **Langue** : specs et documentation en français ; code, identifiants, commits
   et branches en anglais.
-- **Backend** : Python 3.13 sur la VM, Flask, SQLAlchemy. Dépendances dans
-  `requirements.txt` à la racine.
+- **Backend** : Python 3.13 sur la VM, Flask, SQLAlchemy, **SQLite**. Le choix de
+  SQLite est mesuré, pas subi — voir
+  [banc-base-de-donnees.md](docs/technical/banc-base-de-donnees.md). PostgreSQL a
+  été purgé de la VM le 28/08. Dépendances dans `requirements.txt`.
 - **Android** : Kotlin, Jetpack Compose, Material 3, OkHttp, ML Kit.
 - **Branches** : `feat/`, `fix/`, `refactor/`, `docs/`.
 - **Commits** : conventionnels. Portées : `api`, `sheets`, `db`, `ranking`,

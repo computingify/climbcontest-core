@@ -19,6 +19,57 @@ qu'on ne met pas à jour le matin d'une compétition :
 
 ## [Non publié]
 
+## [0.2.0] — 2026-08-28
+
+La base devient la source de vérité, le classeur en devient un miroir. C'est le
+préalable de tout le reste : ni classement live, ni page résultats, ni saisie
+manuelle tant que les données ne sont pas fiables. Spec 002.
+
+**L'application juge `v3.1.4` du Play Store continue de fonctionner sans mise à
+jour** : ses trois routes gardent leur contrat au caractère près, et une suite de
+tests dédiée le vérifie à chaque build.
+
+### Ajouté
+
+- Modèle multi-compétition. L'identité d'un participant est son identifiant, pas
+  son dossard : un dossard est un attribut, nullable, unique par compétition, qui
+  peut changer de main tant qu'aucune réussite n'y est attachée.
+- Table `Success` avec contrainte d'unicité `(participant, bloc)` : un double
+  appui sur « Envoyer » renvoie `201` et ne crée qu'une seule réussite.
+- Colonne `sheet_synced_at` : ce qui reste à écrire dans le classeur est
+  désormais une requête SQL, pas une file en mémoire vive.
+- `GET /api/v2/catalog` versionné, avec `304` quand rien n'a changé — de quoi
+  faire valider les scans hors ligne par la future application juge.
+- Clé d'API en **mode toléré** : absente elle est acceptée mais comptée, fausse
+  elle est refusée. Le compteur, exposé par `/health`, dira quand on pourra la
+  rendre obligatoire sans casser l'application déployée.
+- `/health` expose le nombre de réussites en attente de synchronisation.
+- Comptes et rôles, posés vides pour éviter une migration en spec 005.
+
+### Corrigé
+
+- **R1** — La base n'est plus effacée au démarrage. `drop_all()` s'exécutait au
+  niveau module, donc dans chacun des quatre workers gunicorn. Vérifié : quatre
+  processus démarrés simultanément laissent la base intacte.
+- **R2** — Les réussites survivent à un redémarrage.
+- **R3** — Un échec d'écriture Google ne détruit plus rien : rien n'est marqué
+  comme synchronisé, et le cycle suivant réessaie.
+- **R4** — Toute réussite est tracée, horodatée, rejouable.
+- **R5** — Un grimpeur sans club ni catégorie est importé et signalé, au lieu
+  d'être ignoré en silence.
+- **R6** — Le numéro de bloc est lu à une position explicite. Il était deviné par
+  `line[-1]`, ce qui donnait le numéro de zone sur une ligne tronquée, et
+  envoyait les réussites sur la mauvaise ligne du classeur.
+- **R7** — Un dossard inconnu ne déclenche plus de lecture du classeur.
+- **R12** — Les doublons ne sont plus possibles.
+
+### Modifié
+
+- Point d'entrée : `wsgi:app` via une fabrique d'application. `main.py`,
+  `models.py` et `google_sheets*.py` sont remplacés.
+- L'identifiant du classeur vit en base, par compétition — plus jamais en dur
+  dans le code. C'était le geste le plus souvent oublié d'une édition à l'autre.
+
 ## [0.1.2] — 2026-08-28
 
 Trois défauts de l'agent de déploiement, trouvés en jouant réellement les
@@ -74,6 +125,7 @@ livrer — spec 001, itération 3.
 - Les données et les secrets vivent dans `shared/`, hors des releases : un
   déploiement ou un retour arrière ne peut pas les toucher.
 
-[Non publié]: https://github.com/computingify/climbcontest-core/compare/v0.1.2...HEAD
+[Non publié]: https://github.com/computingify/climbcontest-core/compare/v0.2.0...HEAD
+[0.2.0]: https://github.com/computingify/climbcontest-core/releases/tag/v0.2.0
 [0.1.2]: https://github.com/computingify/climbcontest-core/releases/tag/v0.1.2
 [0.1.0]: https://github.com/computingify/climbcontest-core/releases/tag/v0.1.0
