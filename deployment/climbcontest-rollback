@@ -17,6 +17,27 @@
 # =============================================================================
 set -uo pipefail
 
+# --- UNE SEULE INSTANCE A LA FOIS --------------------------------------------
+# Le timer tourne toutes les 2 minutes ET le deploiement manuel est LA commande
+# du jour J (decision Q2 : pas de gel pendant une competition). Sans verrou, les
+# deux se croisent.
+#
+# Constate le 2026-08-28 en recette : deux executions a 14 s d'intervalle. La
+# seconde a lu le lien `current` APRES que la premiere l'eut bascule, a donc
+# pris la version CASSEE pour « la precedente », et y est « revenue ». Le
+# service est reste sur la version defectueuse.
+#
+# Le verrou couvre aussi deploy <-> rollback : les deux manipulent le meme lien.
+# Dans shared/ : c'est le seul repertoire que le compte de service possede,
+# et le seul que systemd autorise en ecriture (ReadWritePaths).
+VERROU="/opt/climbcontest/shared/.deploy.lock"
+exec {FD}>"$VERROU" || { echo "verrou inaccessible: $VERROU"; exit 1; }
+if ! flock -n "$FD"; then
+  logger -t "deploy" -- "une autre operation est en cours — abandon"
+  [ -n "${INVOCATION_ID:-}" ] || echo "une autre operation de deploiement est en cours."
+  exit 0
+fi
+
 BASE="/opt/climbcontest"
 RELEASES="$BASE/releases"
 ETAT="$BASE/.deployed-tag"

@@ -19,6 +19,33 @@ qu'on ne met pas à jour le matin d'une compétition :
 
 ## [Non publié]
 
+## [0.1.2] — 2026-08-28
+
+Trois défauts de l'agent de déploiement, trouvés en jouant réellement les
+scénarios d'échec de la spec 001 plutôt qu'en les supposant.
+
+### Corrigé
+
+- **Boucle de redémarrages.** Une release défectueuse était retentée à chaque
+  tick de 2 minutes, et chaque tentative redémarrait le service deux fois. Un
+  tag qui a échoué est désormais mémorisé et n'est plus réessayé ; publier une
+  version suivante suffit à débloquer.
+- **Retour arrière non vérifié.** Le script annonçait « revenu sur vX » sans
+  sonder. Si la version précédente était cassée elle aussi, le journal disait
+  que tout allait bien alors que le service était à terre. Le retour arrière se
+  vérifie maintenant, et dit clairement quand il échoue.
+- **Exécutions concurrentes.** Le timer et un déploiement manuel pouvaient se
+  croiser : constaté en recette, deux exécutions à 14 secondes d'intervalle. La
+  seconde a lu le lien `current` après la bascule de la première, a pris la
+  version cassée pour « la précédente », et y est « revenue ». Un verrou
+  garantit une seule opération à la fois, déploiement et retour arrière
+  compris — c'est indispensable puisque le déploiement manuel est la commande
+  du jour J.
+
+### Modifié
+
+- Le journal ne double plus chaque ligne sous systemd.
+
 ## [0.1.0] — 2026-08-28
 
 Première release. Elle ne contient **aucun backend** : son seul but est de
@@ -47,5 +74,6 @@ livrer — spec 001, itération 3.
 - Les données et les secrets vivent dans `shared/`, hors des releases : un
   déploiement ou un retour arrière ne peut pas les toucher.
 
-[Non publié]: https://github.com/computingify/climbcontest-core/compare/v0.1.0...HEAD
+[Non publié]: https://github.com/computingify/climbcontest-core/compare/v0.1.2...HEAD
+[0.1.2]: https://github.com/computingify/climbcontest-core/releases/tag/v0.1.2
 [0.1.0]: https://github.com/computingify/climbcontest-core/releases/tag/v0.1.0

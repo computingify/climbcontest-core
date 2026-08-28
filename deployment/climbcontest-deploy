@@ -24,10 +24,32 @@
 # =============================================================================
 set -uo pipefail
 
+# --- UNE SEULE INSTANCE A LA FOIS --------------------------------------------
+# Le timer tourne toutes les 2 minutes ET le deploiement manuel est LA commande
+# du jour J (decision Q2 : pas de gel pendant une competition). Sans verrou, les
+# deux se croisent.
+#
+# Constate le 2026-08-28 en recette : deux executions a 14 s d'intervalle. La
+# seconde a lu le lien `current` APRES que la premiere l'eut bascule, a donc
+# pris la version CASSEE pour « la precedente », et y est « revenue ». Le
+# service est reste sur la version defectueuse.
+#
+# Le verrou couvre aussi deploy <-> rollback : les deux manipulent le meme lien.
+# Dans shared/ : c'est le seul repertoire que le compte de service possede,
+# et le seul que systemd autorise en ecriture (ReadWritePaths).
+VERROU="/opt/climbcontest/shared/.deploy.lock"
+exec {FD}>"$VERROU" || { echo "verrou inaccessible: $VERROU"; exit 1; }
+if ! flock -n "$FD"; then
+  logger -t "deploy" -- "une autre operation est en cours — abandon"
+  [ -n "${INVOCATION_ID:-}" ] || echo "une autre operation de deploiement est en cours."
+  exit 0
+fi
+
 DEPOT="computingify/climbcontest-core"
 BASE="/opt/climbcontest"
 RELEASES="$BASE/releases"
 ETAT="$BASE/.deployed-tag"
+ECHEC="$BASE/.failed-tag"
 TOKEN_FILE="$BASE/shared/secrets/github-token"
 SANTE="http://127.0.0.1:5007/health"
 GARDE="$BASE/shared/no-deploy"
@@ -75,6 +97,15 @@ TAG="$(printf '%s' "$REL" | python3 -c 'import sys,json; print(json.load(sys.std
 
 ACTUELLE="$( [ -f "$ETAT" ] && cat "$ETAT" || echo "" )"
 [ "$TAG" = "$ACTUELLE" ] && exit 0        # rien de neuf : sortie silencieuse
+
+# Une release qui a deja echoue n'est PAS retentee. Sans ce garde-fou, une
+# version cassee serait reinstallee a chaque tick de 2 minutes, et chaque
+# tentative redemarrerait le service deux fois -- une boucle de redemarrages en
+# pleine competition. Meme raisonnement que le gel de adn-maintenance.
+# Publier une nouvelle version suffit a debloquer : le tag differe.
+if [ -f "$ECHEC" ] && [ "$TAG" = "$(cat "$ECHEC")" ]; then
+  exit 0
+fi
 log "nouvelle release $TAG (deployee: ${ACTUELLE:-aucune})"
 
 # --- 2. Recuperer l'archive et son empreinte ---------------------------------
@@ -138,18 +169,34 @@ done
 
 if [ "$OK" != "1" ]; then
   log "$TAG ne repond pas correctement (version vue: '${VUE:-neant}') — RETOUR ARRIERE"
-  if [ -n "$ANCIEN" ] && [ -d "$ANCIEN" ]; then
-    ln -sfn "$ANCIEN" "$BASE/current.new" && mv -Tf "$BASE/current.new" "$BASE/current"
-    sudo -n /bin/systemctl restart climbcontest
-    log "revenu sur $(basename "$ANCIEN")"
-  else
-    log "aucune version precedente : le service reste en echec, intervention requise"
+  echo "$TAG" > "$ECHEC"
+
+  if [ -z "$ANCIEN" ] || [ ! -d "$ANCIEN" ]; then
+    log "AUCUNE version precedente : le service reste en echec, intervention requise"
+    exit 1
   fi
+
+  ln -sfn "$ANCIEN" "$BASE/current.new" && mv -Tf "$BASE/current.new" "$BASE/current"
+  sudo -n /bin/systemctl restart climbcontest
+
+  # Le retour arriere se VERIFIE. Annoncer « revenu sur X » sans sonder
+  # laisserait croire que tout va bien alors que le service peut etre a terre --
+  # exactement le cas que la spec 001 liste comme « le retour arriere echoue
+  # lui aussi : intervention manuelle ».
+  for _ in $(seq 1 15); do
+    sleep 2
+    if [ "$(curl -s --max-time 5 "$SANTE" | python3 -c 'import sys,json; print(json.load(sys.stdin).get("version",""))' 2>/dev/null)" = "$(basename "$ANCIEN")" ]; then
+      log "retour arriere confirme : $(basename "$ANCIEN") repond"
+      exit 1
+    fi
+  done
+  log "RETOUR ARRIERE EN ECHEC : $(basename "$ANCIEN") ne repond pas non plus. Service a terre, intervention requise."
   exit 1
 fi
 
 # --- 7. Acter et faire le menage ---------------------------------------------
 echo "$TAG" > "$ETAT"
+rm -f "$ECHEC"
 # shellcheck disable=SC2012
 ls -1dt "$RELEASES"/*/ 2>/dev/null | tail -n +$((CONSERVEES + 1)) | while read -r vieux; do
   [ "$(readlink -f "$vieux")" = "$(readlink -f "$BASE/current")" ] && continue
