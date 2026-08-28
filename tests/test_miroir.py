@@ -257,3 +257,59 @@ class TestOuLeJetonEstCherche:
             ClasseurGoogle._identifiants()
 
         assert "nulle-part" in str(e.value), "le message doit citer les chemins essayes"
+
+
+class TestCompetitionSansClasseur:
+    """Entre la creation d'une competition et son parametrage, il n'y a pas
+    encore de classeur. C'est normal -- et ca ne doit pas remplir le journal.
+
+    Sans garde-fou, le miroir tentait l'ecriture toutes les 40 secondes et
+    journalisait une erreur Google a chaque fois, sur chacun des quatre
+    workers : six erreurs par minute pour une situation parfaitement normale.
+    C'est ainsi qu'un journal devient illisible, et qu'on rate la vraie panne
+    quand elle arrive.
+    """
+
+    def test_rien_n_est_tente_sans_classeur(self, app, jeu):
+        jeu["competition"].spreadsheet_id = None
+        db.session.commit()
+        enregistrer_reussite(jeu["participants"][0], jeu["blocs"][0])
+
+        def interdit(*a, **k):
+            raise AssertionError("aucun appel Google ne doit avoir lieu")
+
+        r = synchroniser(classeur=interdit)
+
+        assert r["ignoree"] is True
+        assert "classeur" in r["erreur"]
+
+    def test_la_reussite_reste_en_attente(self, app, jeu):
+        """Elle n'est surtout pas marquee synchronisee : rien n'est parti."""
+        jeu["competition"].spreadsheet_id = "   "
+        db.session.commit()
+        enregistrer_reussite(jeu["participants"][0], jeu["blocs"][0])
+
+        synchroniser()
+
+        assert Success.query.filter(Success.sheet_synced_at.is_(None)).count() == 1
+
+    def test_des_qu_un_classeur_est_relie_le_miroir_repart(self, app, jeu):
+        jeu["competition"].spreadsheet_id = None
+        db.session.commit()
+        enregistrer_reussite(jeu["participants"][0], jeu["blocs"][0])
+        assert synchroniser()["ignoree"] is True
+
+        jeu["competition"].spreadsheet_id = "un-vrai-identifiant"
+        db.session.commit()
+
+        appels = []
+
+        class Faux:
+            def marquer_reussites(self, couples):
+                appels.append(couples)
+                return len(couples)
+
+        r = synchroniser(classeur=Faux())
+
+        assert appels, "le miroir doit repartir des qu'un classeur est relie"
+        assert r["envoyees"] == 1

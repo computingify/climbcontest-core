@@ -118,6 +118,17 @@ def synchroniser(taille_lot: int = 50, classeur=None) -> dict:
     if not comp:
         return resultat
 
+    if not (comp.spreadsheet_id or "").strip():
+        # Une competition pas encore reliee a un classeur -- le cas normal entre
+        # sa creation et son parametrage. Sans ce garde-fou, le miroir tentait
+        # l'ecriture toutes les 40 secondes et journalisait une erreur Google a
+        # chaque fois, sur chacun des quatre workers. Six erreurs par minute
+        # pour une situation parfaitement normale : c'est ainsi qu'un journal
+        # devient illisible, et qu'on rate la vraie panne quand elle arrive.
+        resultat["ignoree"] = True
+        resultat["erreur"] = "aucun classeur relie a cette competition"
+        return resultat
+
     if not _prendre_verrou():
         resultat["ignoree"] = True          # un autre worker s'en charge
         return resultat
