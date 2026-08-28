@@ -9,6 +9,7 @@ méthode.
 | [002](../specs/002-reliable-success-storage/) | `reliable-success-storage` | ✅ **livrée** (28/08) — `v0.2.0` en production sur la VM 110 | La base devient la source de vérité, le classeur un miroir. Identité stable ≠ dossard, multi-compétition |
 | [003](../specs/003-offline-first-judge-app/) | `offline-first-judge-app` | ✅ **livrée** (28/08) — les 5 itérations. Mesuré : 10 800 → **817** requêtes, et **0** aller-retour bloquant | L'app juge valide hors ligne et envoie par lots : 3 allers-retours bloquants par validation → **0**. Réponse directe à la demande initiale |
 | [004](../specs/004-ranking-engine/) | `ranking-engine` | ✅ **livrée et close** (28/08) — les 3 décisions ouvertes sont tranchées | Moteur de classement pur, reproduit 196/196 scores et rangs du vrai classeur. 47 tests + le test d'acceptation sur données réelles |
+| [006](../specs/006-live-results-page/) | `live-results-page` | ✅ **livrée** (28/08) | La page projetée dans la salle et ouverte par les spectateurs. Deux modes, aucune dépendance externe, recherche toutes catégories |
 
 ## Specs pressenties
 
@@ -18,7 +19,7 @@ attendent la validation du cadrage et les réponses aux décisions D1→D6.
 | # prévu | Nom pressenti | Chantier | Bloqué par |
 | --- | --- | --- | --- |
 | 005 | `admin-console` | participants à chaud, saisie manuelle, paramétrage, classeur — **vocation à remplacer le Google Sheet** | 002 |
-| 006 | `live-results-page` | page résultats spectateurs | 004 |
+
 | 007 | `judge-pwa` | app juge iPhone sans store | 003 |
 | 008 | `helloasso-import` | import des inscriptions en ligne, rapprochement avec les inscriptions sur place | 005 |
 | 009 | `finales` | **tours de finale.** Format tranché le 28/08 : les **N meilleurs de chaque catégorie regrimpent des blocs dédiés**, et le classement final ne tient compte **que du second tour** — le score de qualification ne se reporte pas. Reste à fixer : la valeur de N, et si elle varie selon la catégorie | 004 |
