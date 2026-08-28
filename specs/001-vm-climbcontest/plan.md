@@ -79,7 +79,8 @@ tourner pendant qu'on l'utilise.
 - [x] 32. **Vérification** : `https://climbcontest.adn-dev.fr/health` en 200 depuis le LAN, **404 depuis Internet**
 - [x] 33. **Vérification** : chaque nom interne mène au bon chemin
 - [x] 34. **Vérification** : `/.git/config` et `/.env` en 404
-- [~] 35. **Charge vérifiée** : 1489 requêtes en 4 min (368/min), 100 % de réussite, médiane 26 ms, p95 80 ms, charge machine 0,03. **Mais lancée depuis le LAN**, qui est déjà blanchi par `adn/whitelist-usage-legitime` — ce test prouve la capacité, pas le comportement de CrowdSec (voir 36)
+- [~] 35. **Charge vérifiée** (mesure externe à refaire par Adrien, Mac en partage 5G)
+- [x] 35 bis. **Charge vérifiée** : 1489 requêtes en 4 min (368/min), 100 % de réussite, médiane 26 ms, p95 80 ms, charge machine 0,03. **Mais lancée depuis le LAN**, qui est déjà blanchi par `adn/whitelist-usage-legitime` — ce test prouve la capacité, pas le comportement de CrowdSec (voir 36)
 - [x] 36. **CrowdSec vérifié autrement, et mieux** : `cscli explain` sur des événements fabriqués depuis une IP externe (203.0.113.7). API juge en 401 → blanchie ; `/admin/login` → **non** blanchi ; même chemin sur guestflow → **non** blanchi. Aucune décision déclenchée par le test de charge
 - [x] 37. Documenter la commande de déblocage d'urgence dans le runbook du jour J
 

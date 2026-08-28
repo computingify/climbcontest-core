@@ -274,8 +274,13 @@ climbcontest.adn-dev.fr {
 }
 ```
 
-Certificat Let's Encrypt en DNS-01 Cloudflare, comme les cinq autres — aucun port
-à ouvrir pour la validation. Un enregistrement `climbcontest` à créer dans la zone
+Certificat Let's Encrypt en DNS-01 Cloudflare via l'`acme_dns` **global**,
+exactement comme guestFlow et les quatre autres : **aucun réglage TLS propre à ce
+site**. Un contournement (résolveurs IPv4 forcés) avait été posé le temps de
+diagnostiquer, puis retiré une fois la vraie cause corrigée — le DNS sortant
+d'`edge` était bloqué depuis le durcissement du 2026-08-24, ce qui aurait aussi
+fait échouer le renouvellement des cinq certificats de production vers le
+18 octobre. Un enregistrement `climbcontest` à créer dans la zone
 `adn-dev.fr`, en **DNS uniquement** (non proxifié), comme les autres.
 
 ### Deux mécanismes d'authentification, pas un
