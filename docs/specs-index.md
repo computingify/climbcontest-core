@@ -7,6 +7,8 @@ méthode.
 | --- | --- | --- | --- |
 | [001](../specs/001-vm-climbcontest/) | `vm-climbcontest` | ✅ **livrée** (28/08) | VM Proxmox 110, livraison par tirage avec changelog, exposition `climbcontest.adn-dev.fr`, contrôles adaptés à une VM intermittente |
 | [002](../specs/002-reliable-success-storage/) | `reliable-success-storage` | 🔨 **en cours** | La base devient la source de vérité, le classeur un miroir. Identité stable ≠ dossard, multi-compétition |
+| [003](../specs/003-offline-first-judge-app/) | `offline-first-judge-app` | 📝 **rédigée, porte 2 en attente** | L'app juge valide hors ligne et envoie par lots : 3 allers-retours bloquants par validation → **0**. Réponse directe à la demande initiale |
+| [004](../specs/004-ranking-engine/) | `ranking-engine` | 🔍 **PR ouverte, porte 7 en attente** ([#4](https://github.com/computingify/climbcontest-core/pull/4)) | Moteur de classement pur, reproduit 196/196 scores et rangs du vrai classeur. ⚠ `architecture.md` et `plan.md` manquants — à compléter |
 
 ## Specs pressenties
 
@@ -15,8 +17,6 @@ attendent la validation du cadrage et les réponses aux décisions D1→D6.
 
 | # prévu | Nom pressenti | Chantier | Bloqué par |
 | --- | --- | --- | --- |
-| 003 | `offline-first-judge-app` | catalogue local **versionné + rafraîchissable en cours de compétition** | 002 |
-| 004 | `ranking-engine` | moteur de classement, **validation par couleur en option par compétition** | 002 |
 | 005 | `admin-console` | participants à chaud, saisie manuelle, paramétrage, classeur — **vocation à remplacer le Google Sheet** | 002 |
 | 006 | `live-results-page` | page résultats spectateurs | 004 |
 | 007 | `judge-pwa` | app juge iPhone sans store | 003 |
