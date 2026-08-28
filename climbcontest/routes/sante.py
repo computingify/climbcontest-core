@@ -35,6 +35,13 @@ def health():
         corps["reussites_en_attente"] = reussites_en_attente()
     except Exception:
         corps["reussites_en_attente"] = None
+
+    # Compteurs de transition : ils diront quand on pourra rendre la cle d'API
+    # obligatoire sans casser l'application v3.1.4 du Play Store.
+    from ..auth import compteurs
+    from ..sheets.planificateur import est_actif
+    corps["api"] = dict(compteurs)
+    corps["miroir_actif"] = est_actif()
     return jsonify(corps)
 
 

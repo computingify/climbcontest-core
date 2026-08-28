@@ -39,7 +39,9 @@ class Config:
     # Miroir vers le classeur Google.
     SHEETS_ACTIF = os.environ.get("CLIMBCONTEST_SHEETS_ACTIF", "1") == "1"
     SHEETS_TAILLE_LOT = int(os.environ.get("CLIMBCONTEST_SHEETS_LOT", "50"))
-    SHEETS_PERIODE_S = int(os.environ.get("CLIMBCONTEST_SHEETS_PERIODE", "30"))
+    # Rythme conserve de la version precedente (decision Q2 du 28/08) :
+    # 50 reussites par lot, une tentative toutes les 40 secondes.
+    SHEETS_PERIODE_S = int(os.environ.get("CLIMBCONTEST_SHEETS_PERIODE", "40"))
 
 
 class ConfigTest(Config):
