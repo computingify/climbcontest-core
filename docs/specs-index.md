@@ -7,8 +7,8 @@ méthode.
 | --- | --- | --- | --- |
 | [001](../specs/001-vm-climbcontest/) | `vm-climbcontest` | ✅ **livrée** (28/08) | VM Proxmox 110, livraison par tirage avec changelog, exposition `climbcontest.adn-dev.fr`, contrôles adaptés à une VM intermittente |
 | [002](../specs/002-reliable-success-storage/) | `reliable-success-storage` | 🔨 **en cours** | La base devient la source de vérité, le classeur un miroir. Identité stable ≠ dossard, multi-compétition |
-| [003](../specs/003-offline-first-judge-app/) | `offline-first-judge-app` | 📝 **rédigée, porte 2 en attente** — 4 questions ouvertes | L'app juge valide hors ligne et envoie par lots : 3 allers-retours bloquants par validation → **0**. Réponse directe à la demande initiale |
-| [004](../specs/004-ranking-engine/) | `ranking-engine` | ✅ **livrée** (28/08) | Moteur de classement pur, reproduit 196/196 scores et rangs du vrai classeur. 47 tests + le test d'acceptation sur données réelles |
+| [003](../specs/003-offline-first-judge-app/) | `offline-first-judge-app` | 🔨 **en cours** — porte 2 franchie le 28/08, IT1 et IT2 livrées | L'app juge valide hors ligne et envoie par lots : 3 allers-retours bloquants par validation → **0**. Réponse directe à la demande initiale |
+| [004](../specs/004-ranking-engine/) | `ranking-engine` | ✅ **livrée et close** (28/08) — les 3 décisions ouvertes sont tranchées | Moteur de classement pur, reproduit 196/196 scores et rangs du vrai classeur. 47 tests + le test d'acceptation sur données réelles |
 
 ## Specs pressenties
 
@@ -21,6 +21,8 @@ attendent la validation du cadrage et les réponses aux décisions D1→D6.
 | 006 | `live-results-page` | page résultats spectateurs | 004 |
 | 007 | `judge-pwa` | app juge iPhone sans store | 003 |
 | 008 | `helloasso-import` | import des inscriptions en ligne, rapprochement avec les inscriptions sur place | 005 |
+| 009 | `finales` | **tours de finale** — demandés par Adrien le 28/08. L'onglet `Finales` du classeur est vide : le format reste à décrire. Touche au modèle de données | 004 |
+| 010 | `classement-club` | **classement par club** — demandé par Adrien le 28/08. Le classeur n'en a pas : la règle d'agrégation reste à définir (somme, moyenne, *n* meilleurs ?) | 004 |
 
 L'ordre a été fixé par Adrien le 28/08 : **l'hébergement d'abord**.
 

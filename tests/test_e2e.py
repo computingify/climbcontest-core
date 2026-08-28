@@ -328,6 +328,89 @@ class TestConcurrence:
         assert sante["reussites_en_attente"] == 40
 
 
+class TestLotSousGunicorn:
+    """La route de lot, sur un vrai serveur multi-processus.
+
+    Les tests unitaires du lot tournent dans un seul processus avec une base en
+    memoire : ils ne peuvent rien dire de la concurrence reelle. Ici, quatre
+    workers se disputent la meme base SQLite.
+    """
+
+    def test_un_lot_simple_passe(self, serveur):
+        code, corps = appeler(serveur.base, "/api/v3/successes", {"items": [
+            {"ref": "a", "bib": "1", "bloc": "B1"},
+            {"ref": "b", "bib": "1", "bloc": "B2"},
+            {"ref": "c", "bib": "2", "bloc": "B3"},
+        ]})
+        assert code == 200, corps
+        assert [r["etat"] for r in corps["resultats"]] == ["enregistree"] * 3
+        _, sante = appeler(serveur.base, "/health", methode="GET")
+        assert sante["reussites_en_attente"] == 3
+
+    def test_le_meme_lot_envoye_dix_fois_en_parallele(self, serveur):
+        """Le cas du reseau qui hoquette : le telephone reessaie sans savoir
+        si le premier envoi est passe. Dix envois, trois reussites en base.
+
+        C'est la garantie qui rend la file d'attente sure : reessayer est
+        gratuit. Elle ne peut venir que de la contrainte d'unicite en base --
+        un verrou en memoire ne verrait qu'un worker sur quatre.
+        """
+        lot = {"items": [
+            {"ref": "a", "bib": "5", "bloc": "B1"},
+            {"ref": "b", "bib": "5", "bloc": "B2"},
+            {"ref": "c", "bib": "5", "bloc": "B3"},
+        ]}
+        codes, verrou = [], threading.Lock()
+
+        def envoyer():
+            code, _ = appeler(serveur.base, "/api/v3/successes", lot)
+            with verrou:
+                codes.append(code)
+
+        fils = [threading.Thread(target=envoyer) for _ in range(10)]
+        for f in fils:
+            f.start()
+        for f in fils:
+            f.join()
+
+        assert codes == [200] * 10, f"aucun envoi ne doit echouer, obtenu {set(codes)}"
+        _, sante = appeler(serveur.base, "/health", methode="GET")
+        assert sante["reussites_en_attente"] == 3, "trois reussites, pas trente"
+
+    def test_dix_lots_distincts_en_parallele(self, serveur):
+        """50 reussites reparties en 10 lots simultanes : aucune perdue."""
+        def envoyer(i):
+            appeler(serveur.base, "/api/v3/successes", {"items": [
+                {"ref": f"{i}-{j}", "bib": str(i + 1), "bloc": f"B{j + 1}"}
+                for j in range(5)
+            ]})
+
+        fils = [threading.Thread(target=envoyer, args=(i,)) for i in range(10)]
+        for f in fils:
+            f.start()
+        for f in fils:
+            f.join()
+
+        _, sante = appeler(serveur.base, "/health", methode="GET")
+        assert sante["reussites_en_attente"] == 50
+
+    def test_un_lot_mixte_n_echoue_pas_en_bloc(self, serveur):
+        code, corps = appeler(serveur.base, "/api/v3/successes", {"items": [
+            {"ref": "a", "bib": "9", "bloc": "B1"},
+            {"ref": "b", "bib": "9999", "bloc": "B1"},
+            {"ref": "c", "bib": "9", "bloc": "B2"},
+        ]})
+        assert code == 200
+        assert [r["etat"] for r in corps["resultats"]] == \
+            ["enregistree", "refusee", "enregistree"]
+
+    def test_un_corps_malforme_donne_400_pas_500(self, serveur):
+        """Sous gunicorn aussi : un 500 se lirait comme une panne a reessayer."""
+        for corps in ([1, 2], "x", 42):
+            code, _ = appeler(serveur.base, "/api/v3/successes", corps)
+            assert code == 400, f"corps {corps!r} -> {code}"
+
+
 # --- Le catalogue -----------------------------------------------------------
 
 class TestCatalogue:

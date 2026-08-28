@@ -231,12 +231,54 @@ class Success(db.Model):
     source = Column(String(20), nullable=False, default=SOURCE_SCAN)
     sheet_synced_at = Column(DateTime)                # NULL = pas encore au classeur
 
+    # Le dossard tel que le juge l'a scanne, et l'heure a laquelle il l'a fait.
+    # Les deux servent a une seule chose : detecter apres coup qu'une reussite
+    # est arrivee APRES que son dossard ait change de main. Avec la file
+    # d'attente de la spec 003, une reussite peut rester plusieurs secondes dans
+    # le telephone ; si le dossard est reaffecte entre-temps, elle se colle au
+    # nouveau porteur. Decision d'Adrien du 28/08 : on l'AUTORISE, on ne bloque
+    # pas. Ces deux colonnes rendent le cas visible plutot que silencieux.
+    #
+    # `scanne_le` vient du client, donc d'une horloge qu'on ne controle pas :
+    # il est INDICATIF et ne sert jamais a trier. `horodatage` fait foi.
+    dossard_scanne = Column(Integer)
+    scanne_le = Column(DateTime)
+
     participant = relationship("Participant", back_populates="reussites")
     bloc = relationship("Bloc", back_populates="reussites")
 
     def __repr__(self) -> str:
         etat = "synchronisee" if self.sheet_synced_at else "EN ATTENTE"
         return f"<Success p={self.participant_id} b={self.bloc_id} {etat}>"
+
+
+class ReaffectationDossard(db.Model):
+    """Journal des dossards qui ont changé de main.
+
+    Une seule raison d'exister : rendre traçable le cas que la file d'attente
+    de la spec 003 rend possible. Un juge scanne le dossard 42 à 10 h 04 ; la
+    réussite reste huit secondes dans son téléphone ; entre-temps un
+    organisateur donne le 42 à quelqu'un d'autre parce qu'il « n'a aucun
+    résultat ». La réussite arrive et se colle au nouveau porteur.
+
+    Adrien a tranché le 28/08 : **on autorise**. Ce journal ne l'empêche donc
+    pas — il permet de le retrouver, en comparant l'heure du scan à l'heure de
+    la réaffectation. Sans lui, la réussite serait simplement attribuée au
+    mauvais grimpeur et personne ne s'en apercevrait jamais.
+    """
+
+    __tablename__ = "reaffectation_dossard"
+
+    id = Column(Integer, primary_key=True)
+    competition_id = Column(Integer, ForeignKey("competition.id"), nullable=False)
+    dossard = Column(Integer, nullable=False)
+    ancien_participant_id = Column(Integer, ForeignKey("participant.id"))
+    nouveau_participant_id = Column(Integer, ForeignKey("participant.id"), nullable=False)
+    effectuee_le = Column(DateTime, nullable=False, default=func.now())
+
+    def __repr__(self) -> str:
+        return (f"<Reaffectation dossard={self.dossard} "
+                f"{self.ancien_participant_id} -> {self.nouveau_participant_id}>")
 
 
 # --- Comptes, posés dès maintenant pour éviter une migration en spec 005 -----
