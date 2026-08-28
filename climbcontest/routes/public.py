@@ -6,6 +6,7 @@ rafraichissent toutes les 15 s, soit les trois quarts du trafic. Le cache
 plafonne le calcul a 12 fois par minute quel que soit le nombre de spectateurs.
 """
 import logging
+import time
 
 from flask import Blueprint, jsonify, request
 
@@ -55,6 +56,11 @@ def classement():
     return jsonify({
         "competition": {"id": comp.id, "nom": comp.nom, "statut": comp.statut},
         "calcule_le": calcule_le,
+        # L'AGE du calcul, vu par le serveur. Sans lui, la page ne pourrait que
+        # mesurer depuis sa propre reception -- et afficherait « calcule il y a
+        # 1 s » pour un classement que le cache garde depuis 5 s. Le client ne
+        # peut pas le deduire : son horloge n'est pas celle du serveur.
+        "age_s": round(max(0.0, time.time() - calcule_le), 1),
         "classements": [
             {**c.to_dict(), "lignes": [enrichir(l) for l in c.lignes]}
             for c in sorted(choisis.values(), key=lambda c: (c.type, c.groupe))

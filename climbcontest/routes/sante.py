@@ -64,10 +64,7 @@ def health():
     return jsonify(corps), code
 
 
-@bp.get("/")
-def index():
-    return jsonify({
-        "service": "climbcontest",
-        "version": VERSION,
-        "message": "La page de resultats arrive avec la spec 006.",
-    })
+# La racine servait un JSON de service, avec pour tout message « la page de
+# resultats arrive avec la spec 006 ». Elle est arrivee : c'est desormais
+# routes/pages.py qui repond sur « / ». Un visiteur qui tape l'adresse du
+# service doit voir le classement, pas un objet JSON.
