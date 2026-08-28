@@ -34,7 +34,14 @@ GARDE="$BASE/shared/no-deploy"
 CONSERVEES=3
 TAG_LOG="climbcontest-deploy"
 
-log() { echo "$*"; logger -t "$TAG_LOG" -- "$*"; }
+# Sous systemd, stdout part deja dans le journal : un echo EN PLUS de logger
+# ferait apparaitre chaque ligne deux fois. On n'echo donc qu'en lancement
+# manuel, ou l'operateur attend un retour a l'ecran. INVOCATION_ID est pose par
+# systemd.
+log() {
+  [ -n "${INVOCATION_ID:-}" ] || echo "$*"
+  logger -t "$TAG_LOG" -- "$*"
+}
 mourir() { log "ERREUR: $*"; exit 1; }
 
 # --- Garde-fou optionnel -----------------------------------------------------
