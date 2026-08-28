@@ -155,6 +155,17 @@
   }
   #message strong { color: var(--encre); display: block; font-size: 1.3rem; margin-bottom: 8px; }
 
+  /* Avant le premier scan, tout le monde est a zero. Le classement est juste,
+     mais projete sur un mur pendant la premiere demi-heure il se lit comme un
+     ecran casse. On le dit, et on garde la liste : voir les inscrits affiches
+     rassure sur le fait que le systeme tourne. */
+  #attente {
+    background: var(--carte2); border-left: 4px solid var(--groupe, var(--accent));
+    border-radius: 0 10px 10px 0; padding: 12px 18px; margin-bottom: 14px;
+    color: var(--encre2); font-size: 0.95em;
+  }
+  body.mur #attente { font-size: 1.3rem; padding: 18px 26px; }
+
   /* ---- Mode mur : lu a 5 metres, personne ne touche l'ecran ---- */
   body.mur #barre, body.mur #recherche { display: none; }
 
@@ -191,6 +202,7 @@
 
 <main>
   <div id="titreGroupe" hidden></div>
+  <div id="attente" hidden></div>
   <ol id="classement"></ol>
   <div id="message"></div>
 </main>
@@ -222,6 +234,7 @@
     barre: document.getElementById("barre"),
     recherche: document.getElementById("recherche"),
     titre: document.getElementById("titreGroupe"),
+    attente: document.getElementById("attente"),
     liste: document.getElementById("classement"),
     message: document.getElementById("message"),
     fraicheur: document.getElementById("fraicheur"),
@@ -329,7 +342,18 @@
     compte.textContent = compteTexte;
     el.titre.appendChild(compte);
 
+    // Personne n'a encore rien reussi : on l'annonce au lieu de laisser croire
+    // a un classement fige. La liste reste affichee -- voir les inscrits
+    // rassure sur le fait que le systeme tourne.
+    var toutAZero = lignes.length > 0 && lignes.every(function (l) { return !l.score; });
+    el.attente.hidden = !toutAZero;
+    if (toutAZero) {
+      el.attente.textContent = "En attente des premières réussites — "
+        + lignes.length + " grimpeurs inscrits, aucun bloc validé pour l'instant.";
+    }
+
     if (!lignes.length) {
+      el.attente.hidden = true;
       el.liste.innerHTML = "";
       return afficherMessage("Aucun grimpeur trouvé",
         q ? "Aucun nom ni dossard ne correspond à « " + q + " », dans aucune catégorie."
@@ -400,6 +424,7 @@
 
   function afficherMessage(titre, detail) {
     el.titre.hidden = true;
+    el.attente.hidden = true;
     el.liste.innerHTML = "";
     el.message.innerHTML = "";
     var t = document.createElement("strong");

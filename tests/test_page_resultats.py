@@ -128,3 +128,24 @@ class TestContratAvecLApi:
         page = client.get("/resultats").data.decode()
         for champ in ("l.rang", "l.score", "l.blocs", "l.nom", "l.dossard"):
             assert champ in page, f"la page ne lit pas {champ}"
+
+
+class TestAvantLaPremiereReussite:
+    """Le premier quart d'heure de chaque competition, sur l'ecran de la salle.
+
+    Tout le monde est a zero et ex aequo. Le classement est juste, mais projete
+    sur un mur il se lit comme un ecran fige. La page doit le DIRE -- tout en
+    gardant la liste, parce que voir les inscrits affiches rassure sur le fait
+    que le systeme tourne.
+    """
+
+    def test_l_api_rend_bien_tout_le_monde_a_zero(self, client, jeu):
+        d = client.get("/api/public/classement").get_json()
+        lignes = [l for c in d["classements"] for l in c["lignes"]]
+        assert lignes, "les inscrits doivent apparaitre avant toute reussite"
+        assert all(l["score"] == 0 for l in lignes)
+
+    def test_la_page_prevoit_ce_cas(self, client, jeu):
+        page = client.get("/resultats").data.decode()
+        assert "toutAZero" in page, "la page doit distinguer « rien encore » de « fige »"
+        assert "En attente des premi" in page
