@@ -40,7 +40,7 @@ Branche : `feat/002-reliable-success-storage`. PR à la fin, merge par Adrien.
 - [x] 19. Route `POST /admin/import/sheet` + `GET /admin/import/rapport`
 - [x] 20. **Vérification** : API Google en erreur → rien n'est perdu, retenté
 - [x] 21. **Vérification** : classeur injoignable 10 min → tout est rattrapé
-- [x] 22. **Vérification** : import du jeu de novembre 2025 → 98 participants, 67 blocs
+- [x] 22. **Vérification** : import du vrai classeur de novembre 2025 → **98 participants, 67 blocs, 108 liens bloc-circuit**, rejeu idempotent. 33 lignes de plan sans numéro d'import correctement signalées
 
 ## IT4 — Catalogue, clé d'API, livraison
 
@@ -59,6 +59,8 @@ Branche : `feat/002-reliable-success-storage`. PR à la fin, merge par Adrien.
 | Scénario | Résultat |
 | --- | --- |
 | 4 processus démarrent en parallèle | base intacte — **R1 corrigé** |
+| Import du **vrai** classeur nov. 2025 | 98 participants, 67 blocs, 3 circuits, 108 liens |
+| Rejeu du même import | 0 création — idempotent |
 | Contrat des 3 routes de `v3.1.4` | identique, sous 4 workers |
 | 20 envois **simultanés** du même couple | **1 seule réussite** en base |
 | `/health` | expose réussites en attente, compteurs de clé, état du miroir |
