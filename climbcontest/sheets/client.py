@@ -16,6 +16,7 @@ spec 002 :
 
 import logging
 import os
+from pathlib import Path
 import pickle
 from io import BytesIO
 
@@ -48,22 +49,58 @@ class ClasseurGoogle:
     # --- authentification ---------------------------------------------------
 
     @staticmethod
+    def _dossiers_de_jeton():
+        """Ou chercher le jeton, dans l'ordre.
+
+        Le dossier configure d'abord -- c'est celui de la VM. Le repertoire
+        courant ensuite, parce que c'est la que le jeton se trouve quand on
+        lance un outil a la main depuis la racine du depot.
+        """
+        from flask import current_app
+
+        dossiers = []
+        try:
+            configure = current_app.config.get("DOSSIER_SECRETS")
+            if configure:
+                dossiers.append(Path(configure))
+        except RuntimeError:
+            pass                       # hors contexte Flask : outils en ligne de commande
+        if env := os.environ.get("CLIMBCONTEST_SECRETS_DIR"):
+            dossiers.append(Path(env))
+        dossiers.append(Path.cwd())
+        # dedoublonne en gardant l'ordre
+        vus, ordonnes = set(), []
+        for d in dossiers:
+            if d not in vus:
+                vus.add(d)
+                ordonnes.append(d)
+        return ordonnes
+
+    @staticmethod
     def _identifiants():
         from google.auth.transport.requests import Request
 
         creds = None
-        if os.path.exists("token.pickle"):
-            with open("token.pickle", "rb") as f:
-                creds = pickle.load(f)
-        elif os.path.exists("token.base64"):
-            import base64
-            with open("token.base64") as f:
-                creds = pickle.load(BytesIO(base64.b64decode(f.read())))
+        cherches = []
+        for dossier in ClasseurGoogle._dossiers_de_jeton():
+            pickle_ = dossier / "token.pickle"
+            base64_ = dossier / "token.base64"
+            cherches += [str(pickle_), str(base64_)]
+            if pickle_.exists():
+                creds = pickle.loads(pickle_.read_bytes())
+                break
+            if base64_.exists():
+                import base64 as b64
+                creds = pickle.loads(b64.b64decode(base64_.read_text()))
+                break
 
         if creds is None:
+            # On DIT ou on a cherche. Le message precedent renvoyait a
+            # « token.pickle » sans chemin, ce qui a masque le vrai probleme :
+            # le fichier existait, mais ailleurs.
             raise ErreurClasseur(
-                "Aucun jeton Google. Le deposer dans token.pickle (ou "
-                "token.base64) — voir docs/plan-de-repli.md."
+                "Aucun jeton Google. Cherche dans : " + ", ".join(cherches)
+                + " — voir docs/plan-de-repli.md."
             )
         if not creds.valid:
             if creds.expired and creds.refresh_token:

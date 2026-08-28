@@ -19,6 +19,26 @@ qu'on ne met pas à jour le matin d'une compétition :
 
 ## [Non publié]
 
+## [0.3.2] — 2026-08-28
+
+### Corrigé
+
+- **Le miroir ne trouvait jamais le jeton Google en production.** Le client le
+  cherchait en chemin *relatif* — donc dans le répertoire de travail du service,
+  où il n'a jamais été. Il vit dans `shared/secrets/`, hors des releases, comme
+  les données ; l'unité systemd définissait déjà `CLIMBCONTEST_SECRETS_DIR`, que
+  le code n'avait jamais lu.
+
+  Constaté sur la VM : « Aucun jeton Google » toutes les 40 secondes. **Aucune
+  réussite n'aurait atteint le classeur le jour de la compétition.** Les données
+  n'étaient pas perdues pour autant — elles restent en base, marquées non
+  synchronisées, et sont retentées : c'est exactement ce que la spec 002 avait
+  prévu. Mais le classeur serait resté vide.
+
+  Le message d'erreur cite désormais **les chemins essayés**. Le précédent
+  disait « le déposer dans token.pickle », sans chemin — c'est ce qui a masqué
+  le vrai problème : le fichier existait, mais ailleurs.
+
 ## [0.3.1] — 2026-08-28
 
 ### Corrigé
@@ -289,7 +309,8 @@ livrer — spec 001, itération 3.
 - Les données et les secrets vivent dans `shared/`, hors des releases : un
   déploiement ou un retour arrière ne peut pas les toucher.
 
-[Non publié]: https://github.com/computingify/climbcontest-core/compare/v0.3.1...HEAD
+[Non publié]: https://github.com/computingify/climbcontest-core/compare/v0.3.2...HEAD
+[0.3.2]: https://github.com/computingify/climbcontest-core/releases/tag/v0.3.2
 [0.3.1]: https://github.com/computingify/climbcontest-core/releases/tag/v0.3.1
 [0.3.0]: https://github.com/computingify/climbcontest-core/releases/tag/v0.3.0
 [0.2.1]: https://github.com/computingify/climbcontest-core/releases/tag/v0.2.1

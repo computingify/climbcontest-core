@@ -22,8 +22,25 @@ def _chemin_donnees() -> Path:
     return partage if partage.is_dir() else RACINE / "instance"
 
 
+def _chemin_secrets() -> Path:
+    """Ou vivent le jeton Google et les identifiants OAuth.
+
+    Comme les donnees, ils sont HORS des releases : un deploiement ou un retour
+    arriere ne doit pas pouvoir les toucher. L'unite systemd de la VM definit
+    deja `CLIMBCONTEST_SECRETS_DIR` -- le code, lui, cherchait `token.pickle`
+    en chemin RELATIF, donc dans le repertoire de travail du service, ou il n'a
+    jamais ete. Resultat : « Aucun jeton Google » toutes les 40 secondes, et
+    aucune reussite ne serait jamais arrivee dans le classeur.
+    """
+    if defaut := os.environ.get("CLIMBCONTEST_SECRETS_DIR"):
+        return Path(defaut)
+    partage = Path("/opt/climbcontest/shared/secrets")
+    return partage if partage.is_dir() else RACINE / "security"
+
+
 class Config:
     DOSSIER_DONNEES = _chemin_donnees()
+    DOSSIER_SECRETS = _chemin_secrets()
     SQLALCHEMY_DATABASE_URI = os.environ.get(
         "CLIMBCONTEST_DATABASE_URI",
         f"sqlite:///{DOSSIER_DONNEES / 'climbcontest.db'}",

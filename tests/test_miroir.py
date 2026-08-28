@@ -5,6 +5,7 @@ réussites dans la version précédente (risques R2 et R3).
 """
 
 from datetime import datetime, timedelta
+from pathlib import Path
 
 import pytest
 from sqlalchemy import text
@@ -179,3 +180,80 @@ class TestParticipantSansDossard:
         cl = ClasseurFictif()
         assert synchroniser(classeur=cl)["envoyees"] == 0
         assert Success.query.filter(Success.sheet_synced_at.is_(None)).count() == 1
+
+
+class JetonFactice:
+    """Jeton picklable, defini au niveau du module pour que pickle l'accepte."""
+    valid = True
+
+
+class TestOuLeJetonEstCherche:
+    """Le jeton Google vit HORS des releases, comme les donnees.
+
+    Constate en production le 28/08 : le miroir echouait toutes les 40 secondes
+    sur « Aucun jeton Google » alors que `token.pickle` etait bien sur la VM.
+    Le client le cherchait en chemin RELATIF, donc dans le repertoire de travail
+    du service -- ou il n'a jamais ete. L'unite systemd definissait deja
+    `CLIMBCONTEST_SECRETS_DIR` ; le code ne l'avait jamais lu.
+
+    Consequence si personne ne l'avait vu : aucune reussite n'atteint le
+    classeur le jour de la competition. Les donnees ne sont pas perdues -- elles
+    restent en base, marquees non synchronisees -- mais le classeur reste vide.
+    """
+
+    def test_le_dossier_configure_est_regarde_en_premier(self, app, tmp_path, monkeypatch):
+        from climbcontest.sheets.client import ClasseurGoogle
+
+        app.config["DOSSIER_SECRETS"] = str(tmp_path)
+        dossiers = ClasseurGoogle._dossiers_de_jeton()
+
+        assert Path(dossiers[0]) == tmp_path
+
+    def test_la_variable_d_environnement_est_prise_en_compte(self, app, tmp_path, monkeypatch):
+        from climbcontest.sheets.client import ClasseurGoogle
+
+        monkeypatch.setenv("CLIMBCONTEST_SECRETS_DIR", str(tmp_path))
+        app.config["DOSSIER_SECRETS"] = None
+
+        assert tmp_path in [Path(d) for d in ClasseurGoogle._dossiers_de_jeton()]
+
+    def test_le_repertoire_courant_reste_un_repli(self, app):
+        """Pour les outils lances a la main depuis la racine du depot."""
+        from climbcontest.sheets.client import ClasseurGoogle
+
+        assert Path.cwd() in [Path(d) for d in ClasseurGoogle._dossiers_de_jeton()]
+
+    def test_un_jeton_pose_au_bon_endroit_est_trouve(self, app, tmp_path):
+        """Le test qui aurait attrape le defaut."""
+        import pickle
+        from climbcontest.sheets.client import ClasseurGoogle
+
+        # Un objet picklable trivial : ce qui est teste, c'est OU le fichier est
+        # cherche, pas ce qu'il contient. `valid` suffit a court-circuiter le
+        # rafraichissement.
+        (tmp_path / "token.pickle").write_bytes(pickle.dumps(JetonFactice()))
+        app.config["DOSSIER_SECRETS"] = str(tmp_path)
+
+        creds = ClasseurGoogle._identifiants()
+
+        assert creds is not None
+
+    def test_le_message_d_erreur_dit_ou_il_a_cherche(self, app, tmp_path, monkeypatch):
+        """Le message precedent citait « token.pickle » sans chemin.
+
+        C'est exactement ce qui a masque le probleme : le fichier existait,
+        mais ailleurs, et rien ne le disait.
+        """
+        from climbcontest.sheets.client import ClasseurGoogle, ErreurClasseur
+
+        app.config["DOSSIER_SECRETS"] = str(tmp_path / "nulle-part")
+        monkeypatch.delenv("CLIMBCONTEST_SECRETS_DIR", raising=False)
+        # Sans ca, le repli sur le repertoire courant trouverait le VRAI jeton
+        # de developpement, pose a la racine du depot -- et le test passerait
+        # pour une raison qui n'a rien a voir avec ce qu'il verifie.
+        monkeypatch.chdir(tmp_path)
+
+        with pytest.raises(ErreurClasseur) as e:
+            ClasseurGoogle._identifiants()
+
+        assert "nulle-part" in str(e.value), "le message doit citer les chemins essayes"
