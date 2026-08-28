@@ -38,4 +38,7 @@ uritemplate==4.1.1
 urllib3==2.2.3
 Werkzeug==3.0.1
 zipp==3.17.0
-gunicorn
+# Epingle comme tout le reste : la VM reinstalle les dependances a chaque
+# release. Une version non figee laisserait un changement majeur de gunicorn
+# arriver tout seul, un dimanche matin, sans qu'aucun test ne l'ait vu.
+gunicorn==26.2.0

@@ -8,11 +8,16 @@ cles dans la reponse.
 Ce qui change est interne : la reussite est ecrite en base avant de repondre, un
 dossard inconnu ne declenche plus d'appel Google, et un doublon renvoie 201 sans
 creer de seconde ligne.
+
+La cle d'API est appliquee ici en MODE TOLERE : l'application v3.1.4 n'en envoie
+aucune, et une cle absente reste acceptee. C'est neanmoins sur ces routes que la
+mesure compte -- ce sont elles que l'application appelle. Voir auth.py.
 """
 import logging
 
 from flask import Blueprint, current_app, jsonify, request
 
+from ..auth import exige_cle_api
 from ..contest import (
     ErreurMetier, bloc_par_tag, competition_active, enregistrer_reussite,
     participant_par_dossard,
@@ -26,10 +31,27 @@ def _echec(message: str, code: int = 400):
     return jsonify({"success": False, "message": message}), code
 
 
+def _corps() -> dict:
+    """Le corps JSON, garanti dictionnaire.
+
+    `get_json(silent=True)` rend fidelement ce que contient la requete : un
+    objet, mais aussi bien une LISTE, une chaine ou un nombre. Le motif
+    `get_json(...) or {}` ne rattrape que le corps vide -- une liste passe au
+    travers, et le `.get` qui suit levait une AttributeError. La route repondait
+    alors 500, ce qu'un juge ne peut pas distinguer d'une vraie panne serveur.
+
+    On repond 400 « Missing data » : le corps ne porte effectivement pas ce
+    qu'on attend.
+    """
+    corps = request.get_json(silent=True)
+    return corps if isinstance(corps, dict) else {}
+
+
 @bp.post("/climber/name")
+@exige_cle_api
 def verifier_grimpeur():
     """{"id": "<dossard>"} -> 201 {"success": true, "id": "<nom>"}"""
-    data = request.get_json(silent=True) or {}
+    data = _corps()
     dossard = data.get("id")
     if not dossard:
         return _echec("Missing data")
@@ -44,9 +66,10 @@ def verifier_grimpeur():
 
 
 @bp.post("/bloc/name")
+@exige_cle_api
 def verifier_bloc():
     """{"id": "<tag>"} -> 201 {"success": true, "id": "<tag>"}"""
-    data = request.get_json(silent=True) or {}
+    data = _corps()
     tag = data.get("id")
     if not tag:
         return _echec("Missing data")
@@ -60,6 +83,7 @@ def verifier_bloc():
 
 
 @bp.post("/success")
+@exige_cle_api
 def enregistrer():
     """{"bib": "<dossard>", "bloc": "<tag>"} -> 201 {"success": true}
 
@@ -67,7 +91,7 @@ def enregistrer():
     seconde reussite. L'application ne doit JAMAIS voir d'erreur sur un double
     appui -- le juge croirait que ca n'a pas marche et recommencerait.
     """
-    data = request.get_json(silent=True) or {}
+    data = _corps()
     dossard, tag = data.get("bib"), data.get("bloc")
     if not (dossard and tag):
         return _echec("Missing data")

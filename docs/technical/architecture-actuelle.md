@@ -164,10 +164,17 @@ MainActivity ──► MainViewModel (StateFlow) ──► Compose UI
      └──► Server ──► OkHttp ──► https://climbcontestserver.onrender.com
 ```
 
-- `RUN_LOCAL_SERVER = 0` → prod ; `= 1` → `https://10.0.2.2` (émulateur).
-- `RUN_ON_EMULATOR = 1` → génère des valeurs aléatoires au lieu de scanner.
-- Les deux constantes sont **en dur dans `MainActivity.kt`**, il faut recompiler
-  pour changer de serveur (le réglage d'URL a été retiré au commit `f288dad`).
+Les deux constantes qui décrivaient ce paragraphe **n'existent plus**, retirées
+ensemble :
+
+- ~~`RUN_LOCAL_SERVER = 0` → prod ; `= 1` → `https://10.0.2.2`.~~ L'adresse vient
+  maintenant de `BuildConfig.SERVER_URL`, choisie par le type de build et
+  surchargeable par `-PserverUrl=` (debug) ou `-PreleaseServerUrl=` (release,
+  qui exige du https). Plus besoin de recompiler pour changer de serveur.
+- ~~`RUN_ON_EMULATOR = 1` → génère des valeurs aléatoires au lieu de scanner.~~
+  La constante valait `0` — donc du code mort — et les valeurs qu'elle
+  produisait n'existaient dans aucun jeu de données (dossard tiré dans `1..39`,
+  tag de bloc forcé à `"Z1"`). Le scan aurait échoué à tous les coups.
 - Le mode « auto évaluation » (`MainViewModel.autoEval`) conserve le grimpeur
   après un envoi réussi et ne réinitialise que le bloc.
 

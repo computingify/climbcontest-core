@@ -1,0 +1,45 @@
+name: tests
+
+# La CI de release ne se declenche que sur une etiquette vX.Y.Z : les tests n'y
+# passaient donc qu'au moment de publier, quand la branche est deja fusionnee et
+# qu'il est trop tard pour corriger tranquillement. Ce fichier les fait tourner
+# la ou ils servent -- sur la PR, avant la porte 7.
+on:
+  pull_request:
+  push:
+    branches: [master]
+
+jobs:
+  tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+          cache: pip
+
+      - name: Dependances
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements-dev.txt
+
+      # Inclut les tests E2E, qui lancent un vrai gunicorn a quatre workers sur
+      # une base neuve : c'est la seule facon de reproduire le demarrage a froid
+      # du jour de la competition.
+      - name: Tests
+        run: pytest -q
+
+      - name: L'application demarre-t-elle vraiment ?
+        env:
+          CLIMBCONTEST_SHEETS_ACTIF: "0"
+        run: |
+          python -c "
+          from climbcontest import creer_app
+          app = creer_app()
+          with app.test_client() as c:
+              r = c.get('/health')
+              assert r.status_code == 200, r.status_code
+              print('/health ->', r.get_json())
+          "
