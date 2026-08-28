@@ -13,46 +13,55 @@ Branche : `feat/002-reliable-success-storage`. PR à la fin, merge par Adrien.
 
 ## IT1 — Le modèle et son socle
 
-- [ ] 1. `climbcontest/` : fabrique d'application, configuration, session
-- [ ] 2. `models.py` : `Competition`, `Participant`, `Bloc`, `Circuit`, `BlocCircuit`, `Success`, `Utilisateur`, `UtilisateurRole`
-- [ ] 3. `migrations/001_initial.sql` + exécuteur idempotent sous verrou
-- [ ] 4. **Fin du `drop_all()`** — création si absent, jamais de destruction
-- [ ] 5. `conftest.py` : base en mémoire, jeux de données
-- [ ] 6. Tests du modèle : unicité, nullabilité, cascades
-- [ ] 7. **Vérification** : 4 workers gunicorn démarrent sans effacer la base
+- [x] 1. `climbcontest/` : fabrique d'application, configuration, session
+- [x] 2. `models.py` : `Competition`, `Participant`, `Bloc`, `Circuit`, `BlocCircuit`, `Success`, `Utilisateur`, `UtilisateurRole`
+- [x] 3. `migrations/001_initial.sql` + exécuteur idempotent sous verrou
+- [x] 4. **Fin du `drop_all()`** — création si absent, jamais de destruction
+- [x] 5. `conftest.py` : base en mémoire, jeux de données
+- [x] 6. Tests du modèle : unicité, nullabilité, cascades
+- [x] 7. **Vérification** : 4 workers gunicorn démarrent sans effacer la base
 
 ## IT2 — Les réussites survivent
 
-- [ ] 8. `Success` avec `UNIQUE (participant_id, bloc_id)` et `sheet_synced_at`
-- [ ] 9. `enregistrer_reussite()` : idempotent, écrit avant de répondre
-- [ ] 10. Routes `/climber/name`, `/bloc/name`, `/success` réécrites, **contrat inchangé**
-- [ ] 11. Plus aucun appel Google dans le chemin d'une requête juge
-- [ ] 12. `/health` expose le nombre de réussites non synchronisées
-- [ ] 13. **Vérification** : redémarrage en charge, aucune perte
-- [ ] 14. **Vérification** : double envoi → une ligne, `201` deux fois
+- [x] 8. `Success` avec `UNIQUE (participant_id, bloc_id)` et `sheet_synced_at`
+- [x] 9. `enregistrer_reussite()` : idempotent, écrit avant de répondre
+- [x] 10. Routes `/climber/name`, `/bloc/name`, `/success` réécrites, **contrat inchangé**
+- [x] 11. Plus aucun appel Google dans le chemin d'une requête juge
+- [x] 12. `/health` expose le nombre de réussites non synchronisées
+- [x] 13. **Vérification** : redémarrage en charge, aucune perte
+- [x] 14. **Vérification** : double envoi → une ligne, `201` deux fois
 
 ## IT3 — Le classeur devient un miroir
 
-- [ ] 15. `sheets/client.py` : lecture seule, timeouts, erreurs typées
-- [ ] 16. `sheets/mirror.py` : rejeu depuis la base, marquage **après** succès
-- [ ] 17. Verrou consultatif : un seul worker synchronise
-- [ ] 18. `sheets/importer.py` : import tolérant, idempotent, avec rapport
-- [ ] 19. Route `POST /admin/import/sheet` + `GET /admin/import/rapport`
-- [ ] 20. **Vérification** : API Google en erreur → rien n'est perdu, retenté
-- [ ] 21. **Vérification** : classeur injoignable 10 min → tout est rattrapé
-- [ ] 22. **Vérification** : import du jeu de novembre 2025 → 98 participants, 67 blocs
+- [x] 15. `sheets/client.py` : lecture seule, timeouts, erreurs typées
+- [x] 16. `sheets/mirror.py` : rejeu depuis la base, marquage **après** succès
+- [x] 17. Verrou consultatif : un seul worker synchronise
+- [x] 18. `sheets/importer.py` : import tolérant, idempotent, avec rapport
+- [x] 19. Route `POST /admin/import/sheet` + `GET /admin/import/rapport`
+- [x] 20. **Vérification** : API Google en erreur → rien n'est perdu, retenté
+- [x] 21. **Vérification** : classeur injoignable 10 min → tout est rattrapé
+- [x] 22. **Vérification** : import du jeu de novembre 2025 → 98 participants, 67 blocs
 
 ## IT4 — Catalogue, clé d'API, livraison
 
-- [ ] 23. `catalogue_version` incrémentée à chaque changement
-- [ ] 24. `GET /api/v2/catalog` complet et delta
-- [ ] 25. Clé d'API en **mode toléré**, avec compteur d'appels sans clé
-- [ ] 26. Réaffectation de dossard : refusée si le dossard porte une réussite
+- [x] 23. `catalogue_version` incrémentée à chaque changement
+- [x] 24. `GET /api/v2/catalog` complet et delta
+- [x] 25. Clé d'API en **mode toléré**, avec compteur d'appels sans clé
+- [x] 26. Réaffectation de dossard : refusée si le dossard porte une réussite
 - [ ] 27. `CHANGELOG.md`, release `v0.2.0`
 - [ ] 28. **Vérification** : déploiement sur la VM 110, sonde verte
 - [ ] 29. **Vérification** : l'application `v3.1.4` fonctionne contre le nouveau backend
 
 ---
+
+### Vérifié sous gunicorn réel, pas seulement en test unitaire
+
+| Scénario | Résultat |
+| --- | --- |
+| 4 processus démarrent en parallèle | base intacte — **R1 corrigé** |
+| Contrat des 3 routes de `v3.1.4` | identique, sous 4 workers |
+| 20 envois **simultanés** du même couple | **1 seule réussite** en base |
+| `/health` | expose réussites en attente, compteurs de clé, état du miroir |
 
 ## Plan de test
 
