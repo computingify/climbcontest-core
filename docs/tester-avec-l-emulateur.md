@@ -114,6 +114,11 @@ de commande.
 # la VM en direct sur le LAN, depuis un telephone reel
 ./gradlew installDebug -PserverUrl=http://192.168.0.32:5007
 
+# Note : `serverUrl` n'agit QUE sur les builds debug. Un build release lit
+# `releaseServerUrl`, et refuse toute adresse qui n'est pas en https. Deux noms
+# distincts, pour qu'une valeur posée un jour dans gradle.properties ne puisse
+# pas se retrouver, trois semaines plus tard, dans un APK du Play Store.
+
 # production (aucune surcharge)
 ./gradlew assembleRelease
 ```
@@ -153,7 +158,9 @@ besoin puisqu'il passe en HTTP en clair.
 | --- | --- |
 | L'APK debug se construit | ✅ |
 | `BuildConfig.SERVER_URL` vaut `http://10.0.2.2:5007` en debug | ✅ |
-| La surcharge `-PserverUrl=` fonctionne | ✅ |
+| La surcharge `-PserverUrl=` fonctionne, **y compris en clair** | ✅ vérifié : `assembleDebug -PserverUrl=http://192.168.0.32:5007` produit bien cette adresse |
+| `-PserverUrl=` ne peut **pas** contaminer un build release | ✅ le release lit `releaseServerUrl`, une propriété distincte |
+| Un build release refuse une adresse non-https | ✅ `-PreleaseServerUrl=http://…` échoue à la compilation |
 | Le build release garde HTTPS et **n'embarque pas** la config cleartext | ✅ vérifié dans le manifeste de l'APK |
 | Le backend de dev répond exactement ce que l'app attend | ✅ les 3 routes testées |
 | **L'application dans l'émulateur atteint le backend** | ⏳ **à confirmer** |

@@ -32,7 +32,8 @@ ADRESSE=127.0.0.1
 while [ $# -gt 0 ]; do
   case "$1" in
     --neuf)  NEUF=1; shift ;;
-    --port)  PORT="$2"; shift 2 ;;
+    --port)  [ $# -ge 2 ] || { echo "--port attend un numero de port"; exit 1; }
+             PORT="$2"; shift 2 ;;
     --reseau) ADRESSE=0.0.0.0; shift ;;
     -h|--help) sed -n '3,20p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
     *) echo "option inconnue : $1"; exit 1 ;;

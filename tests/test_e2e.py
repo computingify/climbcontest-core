@@ -22,6 +22,8 @@ import json
 import os
 import shutil
 import socket
+import sqlite3
+from datetime import datetime, timedelta
 import subprocess
 import sys
 import tempfile
@@ -509,17 +511,76 @@ class TestBancDeTest:
             squatteur.close()
 
 
+class TestVerrouOrphelinAuRedemarrage:
+    """Le pire scenario du verrou, celui que le TTL seul n'attrape jamais.
+
+    L'unite systemd relance le service **5 s** apres un plantage
+    (`RestartSec=5s`). Un verrou laisse par un worker tue a donc toujours moins
+    de 60 s au redemarrage : il n'est jamais considere comme perime, personne ne
+    le vole, et les quatre nouveaux workers servaient avec une base vide --
+    pendant que `/health` repondait 200 « ok » et que l'agent de deploiement
+    validait la mise en production.
+
+    C'est exactement le chemin que prend une VM qui perd le courant en pleine
+    competition.
+    """
+
+    def _poser_verrou_frais(self, dossier: Path) -> None:
+        """Une base qui ne contient QUE la table verrou, avec un verrou d'il y a 5 s."""
+        base = dossier / "climbcontest.db"
+        if base.exists():
+            base.unlink()
+        cx = sqlite3.connect(base)
+        cx.execute("CREATE TABLE verrou (nom TEXT PRIMARY KEY,"
+                   " detenu_par TEXT, pris_le TIMESTAMP)")
+        cx.execute("INSERT INTO verrou VALUES ('schema', 'mort:99999', ?)",
+                   (str(datetime.now() - timedelta(seconds=5)),))
+        cx.commit()
+        cx.close()
+
+    def test_le_serveur_prepare_le_schema_au_lieu_de_servir_une_base_vide(self, tmp_path):
+        self._poser_verrou_frais(tmp_path)
+
+        with ServeurReel(tmp_path, workers=4) as s:
+            code, sante = appeler(s.base, "/health", methode="GET")
+            assert code == 200, f"/health devait remonter, obtenu {code} : {sante}"
+            assert sante["status"] == "ok"
+
+            # La preuve qui compte : une vraie requete de juge, pas la sonde.
+            code, _ = appeler(s.base, "/api/v2/contest/climber/name", {"id": "1"})
+            assert code != 500, "le schema n'a pas ete prepare : la base est vide"
+
+        # Le verrou a bien ete rendu, sinon le prochain demarrage rejouerait tout.
+        cx = sqlite3.connect(tmp_path / "climbcontest.db")
+        restant = cx.execute("SELECT * FROM verrou WHERE nom = 'schema'").fetchall()
+        tables = {r[0] for r in cx.execute(
+            "SELECT name FROM sqlite_master WHERE type = 'table'")}
+        cx.close()
+        assert restant == [], "le verrou doit etre libere"
+        assert "competition" in tables, "les tables doivent avoir ete creees"
+
+
 # --- Le demarrage a froid ---------------------------------------------------
 
 class TestDemarrageAFroid:
-    def test_base_vide_quatre_workers_premiere_requete_immediate(self, dossier):
-        """LE scénario du risque R1, que rien ne couvrait.
+    def test_base_vide_quatre_workers_repondent_proprement(self, dossier):
+        """Quatre workers, base vide : personne ne doit voir d'erreur SQL.
 
         Toutes les autres fixtures peuplent la base **avant** de lancer
-        gunicorn. Ici la base est vide au démarrage : le maître lie la socket
-        avant de forker, donc un worker qui n'a pas le verrou de schéma peut
-        servir une requête pendant que le détenteur exécute encore
-        `create_all()`.
+        gunicorn ; ici elle est vide au démarrage, avec quatre workers qui se
+        disputent la préparation du schéma.
+
+        Ce que ce test ne fait **pas**, contrairement à ce que sa version
+        précédente prétendait : courir après le détenteur du verrou. Le harnais
+        sonde `/health` jusqu'à obtenir 200 avant de rendre la main, donc la
+        préparation est finie depuis longtemps quand la requête part. Il n'y a
+        pas de « première requête immédiate ».
+
+        Ce qu'il vaut quand même : depuis que `/health` interroge la base et
+        répond **503** quand elle est inutilisable, cette attente n'est plus une
+        formalité — c'est l'assertion que le serveur ne se déclare pas prêt
+        avant que le schéma le soit. La vraie course, elle, est couverte par
+        [TestVerrouOrphelinAuRedemarrage], qui la provoque au lieu de l'espérer.
         """
         vide = dossier / "vide"
         vide.mkdir()
