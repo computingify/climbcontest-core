@@ -1,4 +1,5 @@
 """Sonde de sante et page d'accueil provisoire."""
+import os
 from pathlib import Path
 
 from flask import Blueprint, jsonify
@@ -36,11 +37,14 @@ def health():
     except Exception:
         corps["reussites_en_attente"] = None
 
-    # Compteurs de transition : ils diront quand on pourra rendre la cle d'API
-    # obligatoire sans casser l'application v3.1.4 du Play Store.
+    # ⚠️ Compteurs PAR WORKER, pas globaux. Avec 4 workers gunicorn, ce que
+    # vous lisez ici est la vue d'un seul d'entre eux. Pour savoir si quelqu'un
+    # appelle encore sans cle d'API -- la question qui decide du passage en mode
+    # strict -- utiliser le journal, qui agrege tout :
+    #   journalctl -u climbcontest --since today | grep -c "appel sans cle"
     from ..auth import compteurs
     from ..sheets.planificateur import est_actif
-    corps["api"] = dict(compteurs)
+    corps["api"] = {**compteurs, "portee": "ce worker seulement", "pid": os.getpid()}
     corps["miroir_actif"] = est_actif()
     return jsonify(corps)
 

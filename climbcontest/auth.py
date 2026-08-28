@@ -30,8 +30,17 @@ logger = logging.getLogger(__name__)
 
 ENTETE = "X-Api-Key"
 
-# Compteurs de processus. Volontairement en mémoire : ce sont des indicateurs
-# de transition, pas des données. Les perdre à un redémarrage est sans effet.
+# ⚠️ Ces compteurs sont PAR PROCESSUS. Avec quatre workers gunicorn, `/health`
+# ne montre que la vue du worker qui a servi la requête — un autre peut en avoir
+# compté cinquante. Ne jamais conclure « plus personne n'appelle sans clé » sur
+# ce seul chiffre : c'est ainsi qu'on activerait le mode strict et qu'on
+# casserait l'application un dimanche matin.
+#
+# La mesure qui fait foi est le JOURNAL, agrégé sur tous les workers :
+#
+#   journalctl -u climbcontest --since today | grep -c "appel sans cle"
+#
+# Ces compteurs restent utiles en développement, avec un seul worker.
 compteurs = {"sans_cle": 0, "avec_cle": 0, "refusees": 0}
 
 
@@ -65,6 +74,10 @@ def exige_cle_api(vue):
 
         # Aucune clé fournie.
         compteurs["sans_cle"] += 1
+        # Journalisé, parce que c'est la seule mesure agrégée sur tous les
+        # workers — et c'est elle qui décidera du passage en mode strict.
+        logger.info("appel sans cle sur %s depuis %s",
+                    request.path, request.remote_addr)
         if stricte:
             return jsonify({"success": False, "message": "Cle d'API requise"}), 401
         return vue(*args, **kwargs)

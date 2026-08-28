@@ -8,11 +8,16 @@ cles dans la reponse.
 Ce qui change est interne : la reussite est ecrite en base avant de repondre, un
 dossard inconnu ne declenche plus d'appel Google, et un doublon renvoie 201 sans
 creer de seconde ligne.
+
+La cle d'API est appliquee ici en MODE TOLERE : l'application v3.1.4 n'en envoie
+aucune, et une cle absente reste acceptee. C'est neanmoins sur ces routes que la
+mesure compte -- ce sont elles que l'application appelle. Voir auth.py.
 """
 import logging
 
 from flask import Blueprint, current_app, jsonify, request
 
+from ..auth import exige_cle_api
 from ..contest import (
     ErreurMetier, bloc_par_tag, competition_active, enregistrer_reussite,
     participant_par_dossard,
@@ -27,6 +32,7 @@ def _echec(message: str, code: int = 400):
 
 
 @bp.post("/climber/name")
+@exige_cle_api
 def verifier_grimpeur():
     """{"id": "<dossard>"} -> 201 {"success": true, "id": "<nom>"}"""
     data = request.get_json(silent=True) or {}
@@ -44,6 +50,7 @@ def verifier_grimpeur():
 
 
 @bp.post("/bloc/name")
+@exige_cle_api
 def verifier_bloc():
     """{"id": "<tag>"} -> 201 {"success": true, "id": "<tag>"}"""
     data = request.get_json(silent=True) or {}
@@ -60,6 +67,7 @@ def verifier_bloc():
 
 
 @bp.post("/success")
+@exige_cle_api
 def enregistrer():
     """{"bib": "<dossard>", "bloc": "<tag>"} -> 201 {"success": true}
 

@@ -109,5 +109,16 @@ class TestSanteComplete:
         d = client.get("/health").get_json()
         assert d["status"] == "ok"
         assert "reussites_en_attente" in d
-        assert set(d["api"]) == {"sans_cle", "avec_cle", "refusees"}
+        assert {"sans_cle", "avec_cle", "refusees"} <= set(d["api"])
         assert "miroir_actif" in d
+
+    def test_annonce_que_le_compteur_est_local_au_worker(self, client, jeu):
+        """Sans cette mention, le chiffre serait lu comme un total.
+
+        Avec quatre workers gunicorn, `/health` ne montre que la vue de celui
+        qui a répondu : conclure « plus personne n'appelle sans clé » ferait
+        activer le mode strict et casserait l'application v3.1.4.
+        """
+        api = client.get("/health").get_json()["api"]
+        assert api["portee"] == "ce worker seulement"
+        assert isinstance(api["pid"], int)
