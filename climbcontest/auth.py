@@ -63,6 +63,40 @@ def cle_valide(fournie: str | None) -> bool:
     return hmac.compare_digest(str(fournie), str(attendue))
 
 
+def exige_cle_api_stricte(vue):
+    """Exige une clé valide, **quel que soit le régime configuré**.
+
+    Le mode toléré existe pour une seule raison : l'application `v3.1.4` du Play
+    Store n'envoie aucune clé, et la casser le jour d'une compétition serait
+    pire que tout. Cette tolérance ne concerne QUE les trois routes que cette
+    application appelle.
+
+    Elle n'avait rien à faire sur la console d'administration. Vérifié sur la VM
+    le 28/08 : `GET /admin/import/rapport` répondait **200 depuis Internet**,
+    sans aucune authentification, et un `POST /admin/import/sheet` aurait
+    déclenché un réimport complet du classeur — donc une réécriture de la base
+    et une rafale d'appels Google, à la demande de n'importe qui.
+
+    Ces routes ne sont appelées par aucune application déployée : les rendre
+    strictes ne casse rien. C'est une mesure d'attente : la spec 005 apportera
+    de vrais comptes avec login et rôles.
+    """
+
+    @wraps(vue)
+    def enveloppe(*args, **kwargs):
+        fournie = _cle_fournie()
+        if not cle_valide(fournie):
+            compteurs["refusees"] += 1
+            logger.warning("acces administration refuse depuis %s sur %s",
+                           request.remote_addr, request.path)
+            return jsonify({"success": False,
+                            "message": "Authentification requise"}), 401
+        compteurs["avec_cle"] += 1
+        return vue(*args, **kwargs)
+
+    return enveloppe
+
+
 def exige_cle_api(vue):
     """Protège une route selon le régime configuré."""
 

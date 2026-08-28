@@ -19,7 +19,31 @@ qu'on ne met pas à jour le matin d'une compétition :
 
 ## [Non publié]
 
-Rien pour l'instant.
+## [0.2.1] — 2026-08-28
+
+### Sécurité
+
+- **La console d'administration n'exigeait aucune authentification.** Ses deux
+  routes (`/admin/import/sheet`, `/admin/import/rapport`) étaient protégées par
+  le garde-fou de clé d'API **en mode toléré** — lequel accepte, par
+  construction, une requête sans clé. Cette tolérance existe pour que
+  l'application `v3.1.4` du Play Store continue de fonctionner ; elle n'avait
+  rien à faire ici.
+
+  Constaté en production, exposé sur Internet :
+  `GET https://climbcontest.adn-dev.fr/admin/import/rapport` répondait `200`, et
+  un `POST` sur `/admin/import/sheet` aurait déclenché un **réimport complet du
+  classeur** — réécriture de la base et rafale d'appels Google — à la demande de
+  n'importe qui.
+
+  Ces routes exigent désormais une clé **valide**, sans tolérance, et chaque
+  refus est journalisé. Les trois routes du juge restent tolérantes ; un test le
+  verrouille explicitement pour qu'on ne durcisse pas la `v3.1.4` par accident.
+
+  Corrigé en parallèle côté `edge` : `/admin/*` ne sort plus du LAN, sur le même
+  motif que `/health`. Les deux couches sont voulues — la spec 005 ouvrira cette
+  console à de vrais comptes, et il vaut mieux que le filtre réseau soit déjà là
+  le jour où l'authentification applicative change.
 
 ## [0.2.0] — 2026-08-28
 
