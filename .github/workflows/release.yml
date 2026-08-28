@@ -41,17 +41,14 @@ jobs:
       - name: Dependances
         run: |
           python -m pip install --upgrade pip
-          pip install -r requirements.txt
-          pip install pytest
+          pip install -r requirements-dev.txt
 
+      # Plus de garde conditionnelle : elle datait de la spec 001, quand il n'y
+      # avait pas encore de test. Une suite disparue laisserait passer une
+      # release sans que rien ne l'annonce — c'est exactement ce qu'on veut voir
+      # echouer.
       - name: Tests
-        run: |
-          if [ -d tests ] && compgen -G "tests/test_*.py" > /dev/null; then
-            pytest -q
-          else
-            echo "aucun test unitaire a ce stade (spec 001 IT3) — les tests"
-            echo "arrivent avec la spec 002. La porte est en place."
-          fi
+        run: pytest -q
 
       - name: L'application demarre-t-elle ?
         run: |

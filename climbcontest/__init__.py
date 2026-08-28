@@ -20,6 +20,9 @@ logger = logging.getLogger(__name__)
 
 
 def creer_app(config=None) -> Flask:
+    from .journal import configurer
+    configurer()
+
     app = Flask(__name__)
     app.config.from_object(config or (ConfigTest if os.environ.get("CLIMBCONTEST_TEST") else Config))
 

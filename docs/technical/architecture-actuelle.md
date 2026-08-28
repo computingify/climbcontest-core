@@ -165,7 +165,10 @@ MainActivity ──► MainViewModel (StateFlow) ──► Compose UI
 ```
 
 - `RUN_LOCAL_SERVER = 0` → prod ; `= 1` → `https://10.0.2.2` (émulateur).
-- `RUN_ON_EMULATOR = 1` → génère des valeurs aléatoires au lieu de scanner.
+- ~~`RUN_ON_EMULATOR = 1` → génère des valeurs aléatoires au lieu de scanner.~~
+  **Retiré.** La constante valait `0` — donc du code mort — et les valeurs
+  qu'elle produisait n'existaient dans aucun jeu de données (dossard tiré dans
+  `1..39`, tag de bloc forcé à `"Z1"`). Le scan aurait échoué à tous les coups.
 - Les deux constantes sont **en dur dans `MainActivity.kt`**, il faut recompiler
   pour changer de serveur (le réglage d'URL a été retiré au commit `f288dad`).
 - Le mode « auto évaluation » (`MainViewModel.autoEval`) conserve le grimpeur

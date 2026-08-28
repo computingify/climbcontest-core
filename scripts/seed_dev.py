@@ -82,13 +82,32 @@ def peupler() -> None:
             numero += 1
 
     # 98 participants, comme en novembre 2025.
+    def identite(dossard: int) -> tuple[str, str]:
+        """Nom et prenom d'un dossard, DISTINCTS pour deux dossards differents.
+
+        La version precedente indexait le prenom par `dossard * 7`. Comme NOMS
+        et PRENOMS ont la meme longueur, les dossards d et d+18 tombaient sur la
+        meme personne : le jeu de dev annoncait 98 participants et n'en portait
+        que 18 identites, chacune en cinq exemplaires. Un ecran de resultats y
+        aurait ete illisible, et « chercher un grimpeur par son nom » n'aurait
+        rien voulu dire.
+
+        Ici le couple (nom, prenom) encode le dossard dans une grille 18 x 18 :
+        le nom donne le reste, le prenom le quotient. Deux dossards ne peuvent
+        donc pas se retrouver au meme endroit. Le seul homonyme du jeu est celui
+        qu'on ajoute exprès plus bas.
+        """
+        n = len(NOMS)
+        return NOMS[dossard % n], PRENOMS[(dossard // n * 7) % len(PRENOMS)]
+
     for dossard in range(1, 99):
         circuit = CIRCUITS[dossard % len(CIRCUITS)]
         genre = GENRES[dossard % 2]
+        nom, prenom = identite(dossard)
         db.session.add(Participant(
             competition_id=comp.id,
-            nom=NOMS[dossard % len(NOMS)],
-            prenom=PRENOMS[(dossard * 7) % len(PRENOMS)],
+            nom=nom,
+            prenom=prenom,
             club=CLUBS[dossard % len(CLUBS)],
             categorie=f"{circuit} {genre}",
             dossard=dossard,
@@ -101,7 +120,18 @@ def peupler() -> None:
     db.session.add(Participant(competition_id=comp.id, nom="Absent", prenom="Paul",
                                club=CLUBS[0], categorie="U11 H", dossard=None))
     #  - un homonyme dans un autre club : le cas qui cassait tout l'import
-    db.session.add(Participant(competition_id=comp.id, nom=NOMS[1], prenom=PRENOMS[1],
+    #
+    # Il faut le CALCULER a partir d'un dossard existant. La version precedente
+    # ecrivait `NOMS[1], PRENOMS[1]`, une paire qu'aucun dossard ne produit
+    # (le prenom est indexe par `dossard * 7`) : le jeu de dev annonçait un
+    # homonyme et n'en contenait aucun, donc le cas n'a jamais ete teste alors
+    # que la documentation affirmait le contraire.
+    dossards = range(1, 99)
+    assert len({identite(d) for d in dossards}) == len(list(dossards)), \
+        "les 98 participants doivent avoir 98 identites distinctes"
+    nom_jumeau, prenom_jumeau = identite(1)
+    db.session.add(Participant(competition_id=comp.id,
+                               nom=nom_jumeau, prenom=prenom_jumeau,
                                club=CLUBS[3], categorie="U13 F", dossard=99))
 
     db.session.commit()

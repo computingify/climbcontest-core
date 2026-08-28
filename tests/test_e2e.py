@@ -37,9 +37,20 @@ RACINE = Path(__file__).resolve().parent.parent
 
 
 def port_libre() -> int:
+    """Un port que le noyau vient de nous donner.
+
+    Il est libre a cet instant, pas forcement une milliseconde plus tard : entre
+    la fermeture de cette socket et le `bind` de gunicorn, un autre processus
+    peut le prendre. On ne peut pas fermer cette fenetre depuis ici, alors
+    [ServeurReel.demarrer] la rattrape en reessayant sur un autre port.
+    """
     with socket.socket() as s:
         s.bind(("127.0.0.1", 0))
         return s.getsockname()[1]
+
+
+class PortDejaPris(RuntimeError):
+    """Le port choisi a ete pris entre son attribution et le `bind` de gunicorn."""
 
 
 def appeler(base: str, chemin: str, corps: dict | None = None, methode: str = "POST"):
@@ -61,43 +72,79 @@ def appeler(base: str, chemin: str, corps: dict | None = None, methode: str = "P
 class ServeurReel:
     """Un gunicorn lancé pour de vrai, arrêté proprement à la fin."""
 
-    def __init__(self, dossier: Path, workers: int = 3):
+    def __init__(self, dossier: Path, workers: int = 3, env_sup: dict | None = None):
         self.dossier = dossier
         self.workers = workers
+        self.env_sup = env_sup or {}
         self.port = port_libre()
         self.base = f"http://127.0.0.1:{self.port}"
         self.processus: subprocess.Popen | None = None
+        # Le journal va dans un FICHIER, pas un tube. Un tube que personne ne
+        # draine se remplit (64 ko sur macOS) et bloque gunicorn en ecriture ;
+        # et `stderr.read()` attend l'EOF, qu'un worker orphelin peut retenir
+        # indefiniment. Le fichier permet aussi de VERIFIER ce qui est journalise.
+        self.journal = dossier / f"gunicorn-{self.port}.log"
 
-    def demarrer(self) -> None:
+    def demarrer(self, essais: int = 3) -> None:
+        """Lance gunicorn, en reessayant si le port a ete pris entre-temps."""
+        for essai in range(essais):
+            try:
+                self._demarrer_une_fois()
+                return
+            except PortDejaPris:
+                if essai == essais - 1:
+                    raise
+                self.port = port_libre()
+                self.base = f"http://127.0.0.1:{self.port}"
+                self.journal = self.journal.with_name(f"gunicorn-{self.port}.log")
+
+    def _demarrer_une_fois(self) -> None:
         env = {
             **os.environ,
             "CLIMBCONTEST_DATA_DIR": str(self.dossier),
             "CLIMBCONTEST_SHEETS_ACTIF": "0",     # aucun acces reseau
             "CLIMBCONTEST_API_KEY": "cle-e2e",
             "PYTHONPATH": str(RACINE),
+            **self.env_sup,
         }
         env.pop("CLIMBCONTEST_TEST", None)        # on veut la vraie config
+        self.sortie = open(self.journal, "w")
         self.processus = subprocess.Popen(
             [sys.executable, "-m", "gunicorn",
              "--workers", str(self.workers), "--threads", "4",
              "--worker-class", "gthread",
              "--bind", f"127.0.0.1:{self.port}",
-             "--log-level", "error", "wsgi:app"],
+             "wsgi:app"],
             cwd=RACINE, env=env,
-            stdout=subprocess.DEVNULL, stderr=subprocess.PIPE,
+            stdout=subprocess.DEVNULL, stderr=self.sortie,
         )
         limite = time.monotonic() + 30
         while time.monotonic() < limite:
             if self.processus.poll() is not None:
-                erreur = self.processus.stderr.read().decode()[-800:]
-                raise RuntimeError(f"gunicorn n'a pas demarre :\n{erreur}")
+                journal = self.lire_journal()
+                # Distingue « le port a ete pris sous nos pieds », qu'on sait
+                # rattraper, d'une vraie panne de demarrage, qu'il faut montrer.
+                if "Address already in use" in journal or "in use" in journal.lower():
+                    self.arreter()
+                    raise PortDejaPris(self.port)
+                raise RuntimeError(f"gunicorn n'a pas demarre :\n{journal[-800:]}")
             try:
                 code, _ = appeler(self.base, "/health", methode="GET")
                 if code == 200:
                     return
             except Exception:
-                time.sleep(0.3)
+                pass
+            # On dort TOUJOURS : sans ca, un /health qui repond autre chose que
+            # 200 ferait tourner cette boucle a 100 % de CPU pendant 30 s --
+            # empechant precisement le serveur de finir de demarrer.
+            time.sleep(0.3)
         raise RuntimeError("gunicorn n'a pas repondu en 30 s")
+
+    def lire_journal(self) -> str:
+        try:
+            return self.journal.read_text(errors="replace")
+        except OSError:
+            return ""
 
     def arreter(self) -> None:
         if self.processus and self.processus.poll() is None:
@@ -107,9 +154,21 @@ class ServeurReel:
             except subprocess.TimeoutExpired:
                 self.processus.kill()
                 self.processus.wait(timeout=5)
+        sortie = getattr(self, "sortie", None)
+        if sortie and not sortie.closed:
+            sortie.close()
 
     def __enter__(self):
-        self.demarrer()
+        # Si demarrer() leve, le `with` n'est jamais entre, donc __exit__ n'est
+        # jamais appele : le gunicorn resterait vivant, gardant le port et la
+        # base d'un dossier temporaire que la fixture va supprimer sous ses
+        # pieds. Sur une machine chargee, chaque test lent laisserait un serveur
+        # orphelin, qui ferait expirer le suivant.
+        try:
+            self.demarrer()
+        except Exception:
+            self.arreter()
+            raise
         return self
 
     def __exit__(self, *_):
@@ -344,6 +403,133 @@ class TestCleApi:
             pytest.fail("une fausse cle doit etre refusee")
         except urllib.error.HTTPError as e:
             assert e.code == 401
+
+
+# --- Le garde-fou du mode strict --------------------------------------------
+
+class TestModeStrictEtSonGardeFou:
+    """Le mode strict casse l'application v3.1.4. Le journal doit le prévenir.
+
+    Ces deux tests vont ensemble : l'un fixe ce que fait l'interrupteur, l'autre
+    vérifie que l'indicateur qui décide de l'actionner fonctionne vraiment.
+    """
+
+    def test_le_journal_recoit_bien_les_appels_sans_cle(self, serveur):
+        """Le test qui manquait, et son absence était dangereuse.
+
+        `auth.py` et le runbook décident du passage en mode strict sur :
+
+            journalctl -u climbcontest --since today | grep -c "appel sans cle"
+
+        Cette ligne ne sortait nulle part : le logger racine est à WARNING sans
+        handler, et le service ne passe ni --log-level ni --capture-output. La
+        commande renvoyait 0 quoi qu'il arrive.
+
+        ⚠️ Un test avec `caplog` passerait alors que la production reste muette :
+        caplog installe son propre handler et force le niveau. Seul un vrai
+        gunicorn, dont on lit la sortie, prouve quelque chose.
+        """
+        for _ in range(3):
+            appeler(serveur.base, "/api/v2/contest/climber/name", {"id": "1"})
+        time.sleep(0.5)
+        journal = serveur.lire_journal()
+        assert journal.count("appel sans cle") >= 3, (
+            "le journal ne recoit pas les appels sans cle : la commande du "
+            "runbook renverrait 0 et ferait activer le mode strict a tort.\n"
+            f"journal :\n{journal[-600:]}")
+
+    def test_le_mode_strict_refuse_les_routes_du_juge(self, dossier):
+        """Ce que fait l'interrupteur, écrit noir sur blanc.
+
+        Ce test ne dit pas que c'est bien : il dit que **c'est ça**. Tant que
+        l'application v3.1.4 est en service, poser
+        CLIMBCONTEST_API_KEY_STRICTE=1 arrête la compétition.
+        """
+        with ServeurReel(dossier, workers=1,
+                         env_sup={"CLIMBCONTEST_API_KEY_STRICTE": "1"}) as s:
+            for chemin, corps in [
+                ("/api/v2/contest/climber/name", {"id": "1"}),
+                ("/api/v2/contest/bloc/name", {"id": "B1"}),
+                ("/api/v2/contest/success", {"bib": "1", "bloc": "B1"}),
+            ]:
+                code, _ = appeler(s.base, chemin, corps)
+                assert code == 401, f"{chemin} devrait etre refuse en mode strict"
+
+    def test_le_mode_strict_accepte_avec_la_cle(self, dossier):
+        with ServeurReel(dossier, workers=1,
+                         env_sup={"CLIMBCONTEST_API_KEY_STRICTE": "1"}) as s:
+            requete = urllib.request.Request(
+                f"{s.base}/api/v2/contest/climber/name",
+                data=json.dumps({"id": "1"}).encode(), method="POST",
+                headers={"Content-Type": "application/json", "X-Api-Key": "cle-e2e"},
+            )
+            with urllib.request.urlopen(requete, timeout=10) as r:
+                assert r.status == 201
+
+    def test_fausse_cle_refusee_sur_les_routes_du_juge(self, serveur):
+        """Le comportement NOUVEAU de cette branche, jusqu'ici non couvert :
+        le decorateur sur les trois routes gelees."""
+        requete = urllib.request.Request(
+            f"{serveur.base}/api/v2/contest/success",
+            data=json.dumps({"bib": "1", "bloc": "B1"}).encode(), method="POST",
+            headers={"Content-Type": "application/json", "X-Api-Key": "fausse"},
+        )
+        try:
+            urllib.request.urlopen(requete, timeout=10)
+            pytest.fail("une fausse cle doit etre refusee, meme en mode tolere")
+        except urllib.error.HTTPError as e:
+            assert e.code == 401
+
+
+# --- Le banc de test lui-meme -----------------------------------------------
+
+class TestBancDeTest:
+    """Le harnais doit etre fiable, sinon ses verdicts ne valent rien.
+
+    Un test E2E qui echoue une fois sur vingt pour une raison qui ne concerne
+    pas le produit finit par etre relance sans etre lu -- et le jour ou il
+    signale un vrai defaut, personne ne le croit.
+    """
+
+    def test_reprend_un_autre_port_si_le_sien_est_pris(self, tmp_path):
+        serveur = ServeurReel(tmp_path, workers=1)
+        # On simule exactement la course : le noyau nous a donne un port, et
+        # quelqu'un le prend avant que gunicorn ne s'y attache.
+        squatteur = socket.socket()
+        squatteur.bind(("127.0.0.1", serveur.port))
+        squatteur.listen(1)
+        port_pris = serveur.port
+        try:
+            serveur.demarrer()
+            assert serveur.port != port_pris, "le serveur devait changer de port"
+            code, _ = appeler(serveur.base, "/health", methode="GET")
+            assert code == 200
+        finally:
+            serveur.arreter()
+            squatteur.close()
+
+
+# --- Le demarrage a froid ---------------------------------------------------
+
+class TestDemarrageAFroid:
+    def test_base_vide_quatre_workers_premiere_requete_immediate(self, dossier):
+        """LE scénario du risque R1, que rien ne couvrait.
+
+        Toutes les autres fixtures peuplent la base **avant** de lancer
+        gunicorn. Ici la base est vide au démarrage : le maître lie la socket
+        avant de forker, donc un worker qui n'a pas le verrou de schéma peut
+        servir une requête pendant que le détenteur exécute encore
+        `create_all()`.
+        """
+        vide = dossier / "vide"
+        vide.mkdir()
+        with ServeurReel(vide, workers=4) as s:
+            # Pas de competition : on attend un 409 propre, jamais un 500 ni
+            # une erreur SQL sur une table absente.
+            code, corps = appeler(s.base, "/api/v2/contest/climber/name", {"id": "1"})
+            assert code == 409, f"attendu 409, obtenu {code} : {corps}"
+            code, _ = appeler(s.base, "/health", methode="GET")
+            assert code == 200
 
 
 # --- La sonde ---------------------------------------------------------------

@@ -1,0 +1,5 @@
+# Dependances de developpement et de test uniquement.
+# La VM n'installe QUE requirements.txt : rien d'ici ne part en production.
+-r requirements.txt
+
+pytest==9.1.1

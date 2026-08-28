@@ -70,7 +70,9 @@ fabriquer :
 
 - **un inscrit absent, sans dossard** — celui dont on peut reprendre le numéro ;
 - **un homonyme dans un autre club** — le cas qui faisait échouer tout l'import
-  dans l'ancienne version.
+  dans l'ancienne version. C'est le dossard **99**, jumeau du dossard **1** :
+  même nom, même prénom, club différent. Les 98 autres identités sont toutes
+  distinctes, et le script le vérifie au démarrage.
 
 La graine aléatoire est fixe : le jeu est le même à chaque fois.
 
@@ -169,7 +171,8 @@ tu verras le scan arriver.
 | « Aucun accès au serveur » dans l'app | le backend n'est pas lancé, ou pas sur le port 5007 |
 | Erreur réseau alors que `curl` marche depuis le Mac | l'application a été compilée en `release`, pas en `debug` |
 | « Grimpeur inconnu » sur un dossard valide | mauvaise base — relancer avec `--neuf` |
-| L'émulateur ne voit rien sur `10.0.2.2` | le backend écoute sur `127.0.0.1` seulement ; `dev-server.sh` écoute bien sur `0.0.0.0` |
+| L'émulateur ne voit rien sur `10.0.2.2` | le backend n'est pas lancé. `10.0.2.2` pointe sur la **boucle locale** du Mac : l'écoute sur `127.0.0.1` suffit, pas besoin de `--reseau` |
+| Un téléphone **physique** ne voit rien | il passe par le wifi, pas par la boucle locale : lancer `dev-server.sh --reseau` et viser l'IP du Mac |
 | Le scan ne s'ouvre pas | ML Kit télécharge son module au premier lancement — il faut que l'émulateur ait accès à Internet et aux services Google Play (choisir une image système **avec Play Store**) |
 | L'émulateur ne répond plus à `adb` | ne pas le lancer en `-no-window` sur Apple Silicon : il plante sur OpenGL (`swiftshader_indirect`). Le lancer depuis Android Studio, avec sa fenêtre |
 

@@ -7,6 +7,8 @@ La clé d'API est délicate : l'application `v3.1.4` du Play Store n'en envoie
 aucune. La rendre obligatoire aujourd'hui la casserait.
 """
 
+import pytest
+
 from climbcontest.auth import compteurs
 from climbcontest.contest import reaffecter_dossard
 from climbcontest.extensions import db
@@ -81,6 +83,39 @@ class TestCleApiTolere:
         r = client.get("/api/v2/catalog", headers={"X-Api-Key": "pas-la-bonne"})
         assert r.status_code == 401
         assert compteurs["refusees"] == 1
+
+
+class TestCorpsMalforme:
+    """Un corps inattendu ne doit jamais produire un 500.
+
+    Le garde-fou lisait `api_key` dans le corps JSON sans verifier que c'en
+    etait bien un objet : poster `[1,2]` levait une AttributeError et la route
+    repondait 500. C'est ce qu'un scanner de vulnerabilites trouve en premier,
+    et un 500 sur une route de juge est indistinguable d'une vraie panne.
+    """
+
+    def setup_method(self):
+        for k in compteurs:
+            compteurs[k] = 0
+
+    @pytest.mark.parametrize("corps", ['[1, 2]', '"une chaine"', '42', 'null', 'true'])
+    def test_un_json_qui_n_est_pas_un_objet_ne_fait_pas_planter(self, client, jeu, corps):
+        r = client.post("/api/v2/contest/climber/name", data=corps,
+                        content_type="application/json")
+        assert r.status_code != 500, f"corps {corps} a produit une erreur serveur"
+
+    def test_un_corps_qui_n_est_pas_du_json_ne_fait_pas_planter(self, client, jeu):
+        r = client.post("/api/v2/contest/success", data="<xml/>",
+                        content_type="application/json")
+        assert r.status_code != 500
+
+    def test_une_liste_avec_la_bonne_cle_dans_l_entete_reste_acceptee(self, client, jeu):
+        """La clé de l'en-tête doit être lue avant même de regarder le corps."""
+        r = client.post("/api/v2/contest/climber/name", data='[1, 2]',
+                        content_type="application/json",
+                        headers={"X-Api-Key": "cle-de-test"})
+        assert r.status_code != 500
+        assert compteurs["avec_cle"] == 1, "la cle de l'en-tete doit avoir ete vue"
 
 
 class TestCleApiStricte:
