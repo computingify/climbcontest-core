@@ -35,35 +35,42 @@ déployable seule et sans risque.
       des conflits pour économiser quelques kilo-octets, alors que le `304` — le
       cas de loin le plus fréquent — ne fait déjà passer que ~150 octets.
 - [x] `catalogue_version` incrémentée à chaque écriture sur participant ou bloc
-- [ ] Mesure : combien pèse un rafraîchissement à vide, et un catalogue complet.
-      **À faire sur la VM**, une fois la `v0.2.0` déployée — mesurer en local
-      donnerait un chiffre sans compression ni TLS, donc faux.
+- [x] Mesure : un rafraîchissement à vide coûte **286 octets**, le catalogue
+      complet **14 ko**. Mesuré sur la VM.
 
 ## IT3 — La file persistante, côté application
 
-- [ ] `StockageFichier` — `append`, `fsync`, `rename` atomique
-- [ ] `FileDeReussites` — ajout, lot suivant, acquittement, compactage
-- [ ] Tests JVM avec `@TempDir`, dont les **coupures à chaque étape**
-- [ ] Rien n'est branché à l'interface : la file existe et est prouvée
+- [x] `StockageFichier` — `append`, `fsync`, `rename` atomique
+- [x] `FileDeReussites` — ajout, lot suivant, acquittement, compactage
+- [x] Tests JVM avec un dossier temporaire, dont les **coupures à chaque étape**
+      → 31 tests. L'un d'eux a trouvé un vrai défaut : une ligne tronquée sans
+      saut de ligne final **avalait la réussite suivante**
+- [x] Rien n'est branché à l'interface : la file existe et est prouvée
 
 C'est l'itération la plus délicate, et c'est pour ça qu'elle est isolée. Une
 file qui perd des données est exactement le défaut qu'on cherche à supprimer.
 
 ## IT4 — Le catalogue local et la validation hors ligne
 
-- [ ] `Catalogue` — chargement, recherche, persistance
-- [ ] Le scan consulte le catalogue, plus le réseau
-- [ ] Repli réseau sur QR inconnu **+ rafraîchissement**
-- [ ] Les quatre déclencheurs de rafraîchissement
-- [ ] Tests JVM, dont A5 (dossard inconnu en local, connu du serveur)
+- [x] `Catalogue` — chargement, recherche, persistance
+- [x] Le scan consulte le catalogue, plus le réseau
+- [x] Repli réseau sur QR inconnu **+ rafraîchissement**
+- [x] Les quatre déclencheurs de rafraîchissement
+- [x] Tests JVM (22), dont le parseur confronté au **vrai catalogue de la VM**
+      pris tel quel comme fixture — un test écrit à la main vérifie le format
+      qu'on a imaginé, celui-ci vérifie le format qui existe
 
 ## IT5 — L'expéditeur, l'indicateur, la mesure
 
-- [ ] `Expediteur` — lot de 5 ou 10 s, retrait exponentiel, reprise au lancement
-- [ ] Indicateur « n en attente » dans l'interface
-- [ ] Bouton « tout envoyer maintenant » (si Q2 est validée)
-- [ ] `tools/mesurer_volume.py` — le critère A12
-- [ ] Mesure réelle, comparée au tableau de la spec
+- [x] `Expediteur` — lot de 5 ou 10 s, retrait exponentiel plafonné à 60 s,
+      reprise au lancement. 26 tests
+- [x] Indicateur « n en attente » dans l'interface
+- [x] Bouton « tout envoyer maintenant », dans les réglages. Il ignore le lot
+      et le délai, mais **pas** le retrait — sinon appuyer en boucle sur un
+      serveur éteint noierait le téléphone de requêtes
+- [x] `tools/mesurer_volume.py` — le critère A12
+- [x] Mesure réelle, comparée au tableau de la spec → **l'estimation était trop
+      optimiste**, la spec a été corrigée avec les chiffres mesurés
 
 ---
 

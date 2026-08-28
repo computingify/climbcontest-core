@@ -24,12 +24,28 @@ nous pouvons avoir plusieurs dizaines de requêtes en même temps »*.
 Le chiffrage est dans
 [etat-des-lieux.md §7](../../docs/etat-des-lieux.md#7-volume-de-données-échangé--mesure-et-cible) :
 
-| | Aujourd'hui | Cible |
-| --- | --- | --- |
-| Requêtes HTTP par validation | **3** | ~0,1 (lot de 10) |
-| Octets réels par validation | ~2 à 2,5 ko | ~30 o |
-| Allers-retours **bloquants pour le juge** | **3** | **0** |
-| Sur une compétition (~3 600 validations) | ~10 800 requêtes, ~8 Mo | ~360 requêtes, ~110 ko |
+| | Aujourd'hui | Estimé | **Mesuré le 28/08** |
+| --- | --- | --- | --- |
+| Requêtes HTTP | ~10 800 | ~360 | **817** |
+| Octets sur le fil | ~8 Mo | ~110 ko | **696 ko** |
+| Allers-retours **bloquants pour le juge** | **10 800** | 0 | **0** |
+
+> **L'estimation était trop optimiste, et c'est la mesure qui fait foi.**
+> Mesuré contre la VM 110 par `tools/mesurer_volume.py`, sur 200 validations
+> réelles extrapolées à 3 600.
+>
+> L'écart vient de deux endroits. D'abord un lot de **5** et non de 10 — c'est
+> le réglage retenu, pour qu'une réussite atteigne l'écran de résultats en moins
+> de dix secondes. Ensuite le coût réel d'une réussite sur le fil : ~180 octets
+> une fois les en-têtes HTTP amortis sur le lot, pas 30.
+>
+> Le gain reste de **13× sur les requêtes** et **6,5× sur le volume**. Mais le
+> chiffre qui compte n'est aucun des deux : c'est **10 800 → 0** allers-retours
+> pendant lesquels un juge attendait devant son téléphone.
+>
+> Détail du coût, par téléphone et par journée : catalogue complet **14 ko** une
+> seule fois, 96 rafraîchissements `304` pour **27 ko** au total, et **655 ko**
+> pour les 3 600 réussites.
 
 Le problème n'a jamais été le débit. C'est le **nombre d'allers-retours**,
 chacun avec sa latence, chacun capable d'échouer, chacun bloquant un juge.
