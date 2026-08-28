@@ -333,6 +333,25 @@ Gain : ~30× moins de requêtes, scan instantané, et surtout **l'app continue d
 fonctionner quand le réseau tombe**. C'est le même geste qui règle R9 et une
 partie de R2.
 
+### Mesuré le 28/08, après implémentation
+
+`tools/mesurer_volume.py`, contre la VM 110, sur 200 validations réelles
+extrapolées à 3 600 :
+
+| | v2 (aujourd'hui) | v3 (mesuré) |
+| --- | --- | --- |
+| Requêtes HTTP | 10 800 | **817** |
+| Octets sur le fil | 4,53 Mo | **696 ko** |
+| Allers-retours **bloquants** | 10 800 | **0** |
+
+**L'estimation de ~30× était trop optimiste : le gain réel est de 13× sur les
+requêtes et 6,5× sur le volume.** L'écart vient d'un lot de 5 (et non 10), et du
+coût réel d'une réussite sur le fil — ~180 octets une fois les en-têtes amortis,
+pas 30.
+
+Le chiffre qui compte n'est aucun des deux. C'est **10 800 → 0** : le nombre de
+fois où un juge attendait devant son téléphone.
+
 ---
 
 ## 8. Une VM à la maison, est-ce que ça suit ?
