@@ -5,7 +5,8 @@ méthode.
 
 | # | Spec | Statut | Résumé |
 | --- | --- | --- | --- |
-| [001](../specs/001-vm-climbcontest/) | `vm-climbcontest` | **rédigée — en attente de validation (porte 2)** | VM Proxmox 110, livraison par tirage avec changelog, exposition `climbcontest.adn-dev.fr`, contrôles adaptés à une VM intermittente |
+| [001](../specs/001-vm-climbcontest/) | `vm-climbcontest` | ✅ **livrée** (28/08) | VM Proxmox 110, livraison par tirage avec changelog, exposition `climbcontest.adn-dev.fr`, contrôles adaptés à une VM intermittente |
+| [002](../specs/002-reliable-success-storage/) | `reliable-success-storage` | 🔨 **en cours** | La base devient la source de vérité, le classeur un miroir. Identité stable ≠ dossard, multi-compétition |
 
 ## Specs pressenties
 
@@ -14,7 +15,6 @@ attendent la validation du cadrage et les réponses aux décisions D1→D6.
 
 | # prévu | Nom pressenti | Chantier | Bloqué par |
 | --- | --- | --- | --- |
-| 002 | `reliable-success-storage` | la base devient la source de vérité ; **identité stable ≠ dossard** | 001 |
 | 003 | `offline-first-judge-app` | catalogue local **versionné + rafraîchissable en cours de compétition** | 002 |
 | 004 | `ranking-engine` | moteur de classement, **validation par couleur en option par compétition** | 002 |
 | 005 | `admin-console` | participants à chaud, saisie manuelle, paramétrage, classeur — **vocation à remplacer le Google Sheet** | 002 |
