@@ -12,6 +12,7 @@ import os
 
 from flask import Flask
 
+from . import sqlite_reglages  # noqa: F401  (branche les pragmas SQLite)
 from .config import Config, ConfigTest
 from .extensions import db
 
