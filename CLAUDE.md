@@ -55,9 +55,9 @@ peut jamais y être committé**.
 
 1. **Pas de code sans spec validée.** Voir [docs/workflow.md](docs/workflow.md).
    Les portes 2 (spec approuvée) et 7 (merge approuvé) appartiennent à Adrien.
-2. **Ne jamais lancer `tests/test_*.py` du serveur.** Ce sont des scripts de
-   charge pointés sur la production, qui **écrivent réellement** dans le
-   classeur de la compétition.
+2. **Les scripts de `tools/load/` écrivent réellement** dans le classeur de la
+   compétition. Ils refusent de démarrer sans `CLIMBCONTEST_LOAD_URL` explicite ;
+   ne jamais leur donner l'adresse de production.
 3. **Ne jamais écrire dans le classeur Google** hors d'un environnement de test
    explicitement dédié. Le classeur est la mémoire de la compétition. Pour le
    lire, `tools/dump_sheet.py` (lecture seule) — voir
@@ -75,8 +75,8 @@ peut jamais y être committé**.
 
 - **Langue** : specs et documentation en français ; code, identifiants, commits
   et branches en anglais.
-- **Backend** : Python 3.9+, Flask, SQLAlchemy. `venv/` local, dépendances dans
-  `deployement/requirements.txt`.
+- **Backend** : Python 3.13 sur la VM, Flask, SQLAlchemy. Dépendances dans
+  `requirements.txt` à la racine.
 - **Android** : Kotlin, Jetpack Compose, Material 3, OkHttp, ML Kit.
 - **Branches** : `feat/`, `fix/`, `refactor/`, `docs/`.
 - **Commits** : conventionnels. Portées : `api`, `sheets`, `db`, `ranking`,
@@ -85,14 +85,17 @@ peut jamais y être committé**.
 ## Commandes utiles
 
 ```bash
-# Backend — environnement
-source venv/bin/activate
+# Publier une release (tag -> CI -> la VM tire toute seule)
+./scripts/release.sh 0.2.0
 
-# Backend — lancement local (HTTPS auto-signé, port 5007)
-python main.py
+# Sur la VM 110
+ssh adrien@192.168.0.32 'journalctl -t climbcontest-deploy -f'   # suivre un déploiement
+ssh adrien@192.168.0.32 'sudo climbcontest-rollback --list'      # releases installées
+ssh adrien@192.168.0.32 'sudo climbcontest-rollback'             # revenir en arrière
 
-# Backend — inspecter la base
-sqlite3 instance/database.db ".tables"
+# Allumer / éteindre la VM (elle est éteinte hors compétition)
+ssh root@192.168.0.21 'qm start 110'
+ssh root@192.168.0.21 'qm shutdown 110'
 
 # Vérifier qu'un moteur de classement reproduit le classeur
 python3 tools/verify_ranking.py fixtures/contest-nov2025.json
