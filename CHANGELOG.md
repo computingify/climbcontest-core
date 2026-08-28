@@ -19,6 +19,54 @@ qu'on ne met pas à jour le matin d'une compétition :
 
 ## [Non publié]
 
+## [0.3.0] — 2026-08-28
+
+La page de résultats. Spec 006.
+
+C'est la première version que les **spectateurs** voient : jusqu'ici, tout ce qui
+avait été livré s'adressait aux juges ou aux organisateurs.
+
+### Ajouté
+
+- **La page de résultats**, en deux modes servis par un seul fichier :
+  - `/resultats?mur` — l'écran de la salle. Rotation automatique des catégories
+    toutes les 20 s, nom à **42 px** sur un écran 1080p (lisible à cinq mètres),
+    aucun bouton. Elle ne s'arrête jamais et n'attend aucune interaction.
+  - `/resultats` — les téléphones. Recherche par nom ou par dossard, et choix de
+    la catégorie.
+- La recherche traverse **tous** les classements, pas seulement celui affiché :
+  un parent qui cherche son enfant ne connaît pas forcément sa catégorie.
+- `age_s` dans `/api/public/classement` : l'âge réel du calcul, vu par le
+  serveur. La page ne peut pas le déduire — son horloge n'est pas celle du
+  serveur — et affichait donc « calculé il y a 1 s » pour un classement que le
+  cache gardait depuis 5 s.
+- `tools/mesurer_volume.py` — le critère A12 de la spec 003.
+
+### Modifié
+
+- La racine `/` sert la page de résultats, et non plus un JSON de service.
+- **Aucune dépendance extérieure** dans la page : polices système, aucune
+  bibliothèque, un seul fichier servi tel quel. Une page projetée pendant une
+  compétition ne peut pas dépendre d'un CDN — si la box tombe à 10 h, l'écran de
+  la salle doit continuer. Vérifié dans un navigateur : **2 requêtes en tout**.
+- Quand le backend devient injoignable, la page **garde** le dernier classement
+  connu et affiche son âge en rouge. Une page de résultats qui se vide sur une
+  erreur réseau fait croire que la compétition s'est arrêtée.
+
+### Mesuré
+
+Le volume échangé par l'application juge, contre la VM, sur 200 validations
+réelles extrapolées à 3 600 :
+
+| | v2 | v3 |
+| --- | --- | --- |
+| Requêtes HTTP | 10 800 | **817** |
+| Octets sur le fil | 4,53 Mo | **696 ko** |
+| Allers-retours **bloquants** | 10 800 | **0** |
+
+L'estimation de la spec 003 (~360 requêtes, ~110 ko) était trop optimiste ; la
+spec a été corrigée avec les chiffres mesurés, pas l'inverse.
+
 ## [0.2.1] — 2026-08-28
 
 ### Sécurité
@@ -231,7 +279,9 @@ livrer — spec 001, itération 3.
 - Les données et les secrets vivent dans `shared/`, hors des releases : un
   déploiement ou un retour arrière ne peut pas les toucher.
 
-[Non publié]: https://github.com/computingify/climbcontest-core/compare/v0.2.0...HEAD
+[Non publié]: https://github.com/computingify/climbcontest-core/compare/v0.3.0...HEAD
+[0.3.0]: https://github.com/computingify/climbcontest-core/releases/tag/v0.3.0
+[0.2.1]: https://github.com/computingify/climbcontest-core/releases/tag/v0.2.1
 [0.2.0]: https://github.com/computingify/climbcontest-core/releases/tag/v0.2.0
 [0.1.2]: https://github.com/computingify/climbcontest-core/releases/tag/v0.1.2
 [0.1.0]: https://github.com/computingify/climbcontest-core/releases/tag/v0.1.0
