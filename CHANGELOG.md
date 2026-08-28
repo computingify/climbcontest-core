@@ -19,6 +19,16 @@ qu'on ne met pas à jour le matin d'une compétition :
 
 ## [Non publié]
 
+## [0.3.1] — 2026-08-28
+
+### Corrigé
+
+- **Avant le premier scan, l'écran de la salle affichait tout le monde à zéro,
+  sans rien dire.** Le classement était juste — tous ex æquo — mais projeté sur
+  un mur pendant la première demi-heure de chaque compétition, il se lisait
+  comme un écran figé. La page l'annonce désormais, tout en gardant la liste :
+  voir les inscrits affichés rassure sur le fait que le système tourne.
+
 ## [0.3.0] — 2026-08-28
 
 La page de résultats. Spec 006.
@@ -279,7 +289,8 @@ livrer — spec 001, itération 3.
 - Les données et les secrets vivent dans `shared/`, hors des releases : un
   déploiement ou un retour arrière ne peut pas les toucher.
 
-[Non publié]: https://github.com/computingify/climbcontest-core/compare/v0.3.0...HEAD
+[Non publié]: https://github.com/computingify/climbcontest-core/compare/v0.3.1...HEAD
+[0.3.1]: https://github.com/computingify/climbcontest-core/releases/tag/v0.3.1
 [0.3.0]: https://github.com/computingify/climbcontest-core/releases/tag/v0.3.0
 [0.2.1]: https://github.com/computingify/climbcontest-core/releases/tag/v0.2.1
 [0.2.0]: https://github.com/computingify/climbcontest-core/releases/tag/v0.2.0
