@@ -72,27 +72,40 @@ tourner pendant qu'on l'utilise.
 
 ## IT4 — L'exposition
 
-- [ ] 28. Enregistrement DNS `climbcontest` dans `adn-dev.fr` chez Cloudflare, DNS uniquement
-- [ ] 29. Bloc Caddy sur `edge`, `import commun` + `import sondes`, plan d'URL des 5 surfaces
-- [ ] 30. Whitelist CrowdSec sur les chemins `/api/v2/contest/` et `/api/public/`
-- [ ] 31. Noms internes sur la LXC 109 (redirections + alias) et entrée sur la page d'accueil du portail
-- [ ] 32. **Vérification** : `https://climbcontest.adn-dev.fr/health` en 200 depuis le LAN, **404 depuis Internet**
-- [ ] 33. **Vérification** : chaque nom interne mène au bon chemin
-- [ ] 34. **Vérification** : `/.git/config` et `/.env` en 404
-- [ ] 35. **Vérification de charge** : 25 « juges » + 80 « spectateurs », 10 min, depuis **une seule IP**
-- [ ] 36. **Vérification** : `cscli decisions list` vide après le test de charge
-- [ ] 37. Documenter la commande de déblocage d'urgence dans le runbook du jour J
+- [x] 28. Enregistrement DNS `climbcontest` dans `adn-dev.fr` chez Cloudflare, DNS uniquement
+- [x] 29. Bloc Caddy sur `edge`, `import commun` + `import sondes`, plan d'URL des 5 surfaces
+- [x] 30. Whitelist CrowdSec sur les chemins `/api/v2/contest/` et `/api/public/`
+- [x] 31. Noms internes sur la LXC 109 (redirections + alias) et entrée sur la page d'accueil du portail
+- [x] 32. **Vérification** : `https://climbcontest.adn-dev.fr/health` en 200 depuis le LAN, **404 depuis Internet**
+- [x] 33. **Vérification** : chaque nom interne mène au bon chemin
+- [x] 34. **Vérification** : `/.git/config` et `/.env` en 404
+- [~] 35. **Charge vérifiée** : 1489 requêtes en 4 min (368/min), 100 % de réussite, médiane 26 ms, p95 80 ms, charge machine 0,03. **Mais lancée depuis le LAN**, qui est déjà blanchi par `adn/whitelist-usage-legitime` — ce test prouve la capacité, pas le comportement de CrowdSec (voir 36)
+- [x] 36. **CrowdSec vérifié autrement, et mieux** : `cscli explain` sur des événements fabriqués depuis une IP externe (203.0.113.7). API juge en 401 → blanchie ; `/admin/login` → **non** blanchi ; même chemin sur guestflow → **non** blanchi. Aucune décision déclenchée par le test de charge
+- [x] 37. Documenter la commande de déblocage d'urgence dans le runbook du jour J
+
+### Ce qu'IT4 a révélé
+
+Un problème qui **dépassait la spec 001** : le pare-feu sortant d'`edge`,
+resserré le 2026-08-24, bloquait le DNS vers Internet. Or la vérification de
+propagation DNS-01 de Caddy interroge directement les serveurs autoritaires sur
+le port 53.
+
+Conséquence dépassant largement ClimbContest : **les cinq certificats de
+production (expiration 17-18 novembre) n'auraient pas pu être renouvelés** vers
+le 18 octobre — juste avant la compétition. Deux règles sortantes, posées après
+les DROP du LAN, corrigent les deux problèmes à la fois. Cloisonnement interne
+vérifié inchangé.
 
 ## IT5 — Exploitation et sauvegarde
 
-- [ ] 38. `homelab/scripts/climbcontest` : `start` / `stop` / `status` avec sonde
-- [ ] 39. Sonde `probes/110.sh`
-- [ ] 40. Procédure en quatre temps — préparer / jour J (avec bascule `onboot`) / corriger en cours / clôturer — jouée **une fois** de bout en bout
+- [x] 38. `homelab/scripts/climbcontest` : `start` / `stop` / `status` avec sonde
+- [x] 39. Sonde `probes/110.sh`
+- [x] 40. Procédure en quatre temps — préparer / jour J (avec bascule `onboot`) / corriger en cours / clôturer — jouée **une fois** de bout en bout
 - [x] 41. Exclure la 110 du job `backup-nightly` — fait en IT2, le job était en `all 1`
-- [ ] 42. Vérifier que `adn-watchdog` ne réclame pas sa sauvegarde
+- [x] 42. Vérifier que `adn-watchdog` ne réclame pas sa sauvegarde
 - [ ] 43. ~~Copie de base toutes les 10 min~~ — **abandonné le 28/08** (jugé inutile). Remplacé par : instantané `avant-compet` + archive de fin de journée, décrits dans la procédure
-- [ ] 44. `README.md` du dossier `vm110-climbcontest` dans `homelab`
-- [ ] 45. Mettre à jour le parc dans `homelab/README.md` et les notes de migration
+- [x] 44. `README.md` du dossier `vm110-climbcontest` dans `homelab`
+- [x] 45. Mettre à jour le parc dans `homelab/README.md` et les notes de migration
 
 ---
 
