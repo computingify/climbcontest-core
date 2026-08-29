@@ -1,0 +1,413 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Console — ClimbContest</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='7' fill='%237A4F99'/><circle cx='16' cy='12' r='5' fill='%23EEF1F5'/><path d='M11 19h10l-2 8h-6z' fill='%23EEF1F5'/></svg>">
+<style>
+  /* Memes contraintes que la page de resultats : aucune dependance exterieure.
+     Une console qu'on ouvre le matin d'une competition ne peut pas attendre un
+     CDN. Polices systeme, aucune bibliotheque, un seul fichier.
+
+     Le mauve du circuit Mauve distingue la console de la page publique, qui est
+     en bleu : sur un ecran d'organisateur, on doit savoir en un coup d'oeil si
+     on regarde ce que voient les spectateurs ou ce qu'on peut modifier. */
+  :root {
+    --accent: #A87FC7;
+    --fond: #0E1116; --carte: #171B23; --carte2: #1E232D; --trait: #2B313D;
+    --encre: #EEF1F5; --encre2: #9AA4B4;
+    --ok: #5FB073; --alerte: #E0705F; --attention: #E5B44A;
+    --titre: system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+    --chiffre: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; min-height: 100%; background: var(--fond); color: var(--encre);
+    font-family: var(--titre); -webkit-font-smoothing: antialiased;
+  }
+
+  header {
+    display: flex; align-items: baseline; gap: 14px; flex-wrap: wrap;
+    padding: 16px 22px; border-bottom: 2px solid var(--accent);
+    background: linear-gradient(180deg, var(--carte), var(--fond));
+  }
+  h1 { margin: 0; font-size: 1.25rem; font-weight: 800; letter-spacing: -0.02em; }
+  #qui { margin-left: auto; color: var(--encre2); font-size: 0.9rem; }
+
+  nav { display: flex; gap: 8px; padding: 12px 22px; border-bottom: 1px solid var(--trait);
+        overflow-x: auto; }
+  nav button {
+    flex: 0 0 auto; cursor: pointer; font: inherit; font-size: 0.9rem; font-weight: 600;
+    background: var(--carte); color: var(--encre2);
+    border: 1px solid var(--trait); border-radius: 999px; padding: 7px 15px;
+  }
+  nav button[aria-pressed="true"] { background: var(--accent); color: #12141a; border-color: transparent; }
+  nav button:focus-visible, button:focus-visible, input:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+  main { padding: 20px 22px 60px; max-width: 1000px; }
+  section[hidden] { display: none; }
+  h2 { font-size: 1.1rem; margin: 0 0 14px; font-weight: 700; }
+
+  .grille { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 10px; }
+  label { display: block; font-size: 0.8rem; color: var(--encre2); margin-bottom: 4px; }
+  input, select {
+    width: 100%; padding: 10px 12px; font: inherit;
+    background: var(--carte); color: var(--encre);
+    border: 1px solid var(--trait); border-radius: 8px;
+  }
+  button.action {
+    cursor: pointer; font: inherit; font-weight: 600; margin-top: 12px;
+    background: var(--accent); color: #12141a; border: none;
+    border-radius: 8px; padding: 11px 20px;
+  }
+  button.action:disabled { opacity: 0.5; cursor: not-allowed; }
+  button.discret {
+    cursor: pointer; font: inherit; font-size: 0.82rem;
+    background: transparent; color: var(--alerte);
+    border: 1px solid var(--trait); border-radius: 6px; padding: 5px 10px;
+  }
+
+  #message {
+    margin: 14px 0; padding: 12px 16px; border-radius: 8px; font-size: 0.95rem;
+    border-left: 4px solid var(--trait); background: var(--carte2);
+  }
+  #message[hidden] { display: none; }
+  #message.ok { border-left-color: var(--ok); }
+  #message.erreur { border-left-color: var(--alerte); }
+  #message.attention { border-left-color: var(--attention); }
+
+  table { width: 100%; border-collapse: collapse; margin-top: 16px; font-size: 0.92rem; }
+  th, td { text-align: left; padding: 9px 10px; border-bottom: 1px solid var(--trait); }
+  th { font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--encre2); }
+  td.num { font-family: var(--chiffre); font-variant-numeric: tabular-nums; }
+  .sans { color: var(--encre2); font-style: italic; }
+
+  .aide { color: var(--encre2); font-size: 0.87rem; line-height: 1.55; margin: 0 0 16px; max-width: 62ch; }
+  .scroll { overflow-x: auto; }
+
+  /* Connexion : plein ecran, rien d'autre a l'ecran. */
+  #connexion { max-width: 340px; margin: 12vh auto; padding: 0 22px; }
+  #connexion h2 { text-align: center; }
+</style>
+</head>
+<body>
+
+<div id="connexion">
+  <h2>Console d'administration</h2>
+  <p class="aide">Réservée aux organisateurs. La page de résultats, elle, est
+     publique : <a href="/resultats" style="color:var(--accent)">/resultats</a>.</p>
+  <!-- Un vrai <form> : sans lui, les gestionnaires de mots de passe ignorent
+       le champ, et le navigateur previent en console. C'est aussi ce qui donne
+       la validation « Entree » gratuitement, sur mobile comme au clavier. -->
+  <form id="formConnexion">
+    <div>
+      <label for="identifiant">Identifiant</label>
+      <input id="identifiant" name="username" autocomplete="username" autocapitalize="none">
+    </div>
+    <div style="margin-top:12px">
+      <label for="motdepasse">Mot de passe</label>
+      <input id="motdepasse" name="password" type="password" autocomplete="current-password">
+    </div>
+    <button class="action" id="btnConnexion" type="submit" style="width:100%">Se connecter</button>
+  </form>
+  <div id="messageConnexion" hidden></div>
+</div>
+
+<div id="console" hidden>
+  <header>
+    <h1>Console</h1>
+    <span id="competition"></span>
+    <span id="qui"></span>
+  </header>
+
+  <nav>
+    <button data-onglet="participants" aria-pressed="true">Participants</button>
+    <button data-onglet="saisie" aria-pressed="false">Saisie manuelle</button>
+    <button data-onglet="dossards" aria-pressed="false">Dossards</button>
+    <button data-onglet="quitter" aria-pressed="false">Se déconnecter</button>
+  </nav>
+
+  <main>
+    <div id="message" hidden></div>
+
+    <section id="ongletParticipants">
+      <h2>Ajouter un participant</h2>
+      <p class="aide">Pour quelqu'un qui s'inscrit le matin, ou pendant la
+         compétition. Les téléphones des juges le verront en moins de vingt
+         secondes, sans rien faire.</p>
+      <div class="grille">
+        <div><label for="pNom">Nom *</label><input id="pNom"></div>
+        <div><label for="pPrenom">Prénom</label><input id="pPrenom"></div>
+        <div><label for="pClub">Club</label><input id="pClub"></div>
+        <div><label for="pCategorie">Catégorie</label><input id="pCategorie" placeholder="U13 F"></div>
+        <div><label for="pDossard">Dossard</label><input id="pDossard" inputmode="numeric" placeholder="laisser vide si absent"></div>
+      </div>
+      <button class="action" id="btnAjouter">Ajouter</button>
+
+      <h2 style="margin-top:32px">Les participants</h2>
+      <input id="recherche" placeholder="Chercher un nom ou un dossard…" style="max-width:340px">
+      <div class="scroll"><table>
+        <thead><tr><th>Dossard</th><th>Nom</th><th>Club</th><th>Catégorie</th><th></th></tr></thead>
+        <tbody id="listeParticipants"></tbody>
+      </table></div>
+    </section>
+
+    <section id="ongletSaisie" hidden>
+      <h2>Saisir une réussite à la main</h2>
+      <p class="aide">Pour rattraper ce qui n'a pas pu être scanné : QR illisible,
+         téléphone à plat, envoi oublié. Elle comptera au classement
+         <strong>exactement comme un scan</strong>, et gardera la trace de qui
+         l'a saisie.</p>
+      <div class="grille" style="max-width:420px">
+        <div><label for="sDossard">Dossard</label><input id="sDossard" inputmode="numeric"></div>
+        <div><label for="sBloc">Bloc</label><input id="sBloc" placeholder="ZJ6"></div>
+      </div>
+      <button class="action" id="btnSaisir">Enregistrer</button>
+    </section>
+
+    <section id="ongletDossards" hidden>
+      <h2>Imprimer les dossards</h2>
+      <p class="aide">Des bandes à découper. Vérifie l'échelle d'impression :
+         <strong>100 %</strong>, sans « ajuster à la page », sinon les QR
+         sortiront trop petits.</p>
+      <div class="grille" style="max-width:420px">
+        <div><label for="dCategorie">Une catégorie (vide = toutes)</label><input id="dCategorie" placeholder="U13 F"></div>
+        <div><label for="dUnSeul">Ou un seul dossard</label><input id="dUnSeul" inputmode="numeric"></div>
+      </div>
+      <button class="action" id="btnImprimer">Ouvrir la planche</button>
+    </section>
+  </main>
+</div>
+
+<script>
+(function () {
+  "use strict";
+
+  var etat = { participants: [], moi: null };
+  var $ = function (id) { return document.getElementById(id); };
+
+  // --- Appels ---------------------------------------------------------------
+
+  function appeler(chemin, options) {
+    options = options || {};
+    return fetch(chemin, {
+      method: options.methode || "GET",
+      headers: options.corps ? { "Content-Type": "application/json" } : {},
+      body: options.corps ? JSON.stringify(options.corps) : undefined,
+      cache: "no-store",
+    }).then(function (r) {
+      // Une session qui expire en pleine saisie ne doit pas ressembler a une
+      // panne : on ramene a la connexion en le disant.
+      if (r.status === 401 && etat.moi) {
+        etat.moi = null;
+        montrerConnexion("Session expirée. Reconnecte-toi.");
+        throw { gere: true };
+      }
+      return r.json().catch(function () { return {}; }).then(function (d) {
+        if (!r.ok) throw { message: d.message || ("Erreur " + r.status) };
+        return d;
+      });
+    });
+  }
+
+  function dire(texte, genre) {
+    var m = $("message");
+    m.textContent = texte;
+    m.className = genre || "";
+    m.hidden = false;
+    if (genre === "ok") setTimeout(function () { m.hidden = true; }, 6000);
+  }
+
+  function signaler(e) {
+    if (e && e.gere) return;
+    dire((e && e.message) || "Quelque chose n'a pas fonctionné.", "erreur");
+  }
+
+  // --- Connexion ------------------------------------------------------------
+
+  function montrerConnexion(raison) {
+    $("console").hidden = true;
+    $("connexion").hidden = false;
+    if (raison) {
+      var m = $("messageConnexion");
+      m.textContent = raison;
+      m.className = "erreur";
+      m.style.cssText = "margin-top:14px;padding:11px 14px;border-radius:8px;" +
+                        "background:var(--carte2);border-left:4px solid var(--alerte)";
+      m.hidden = false;
+    }
+  }
+
+  function montrerConsole() {
+    $("connexion").hidden = true;
+    $("console").hidden = false;
+    $("qui").textContent = etat.moi.identifiant + " · " + etat.moi.roles.join(", ");
+    chargerParticipants();
+  }
+
+  $("formConnexion").addEventListener("submit", function (evenement) {
+    evenement.preventDefault();
+    appeler("/admin/connexion", {
+      methode: "POST",
+      corps: { identifiant: $("identifiant").value, mot_de_passe: $("motdepasse").value },
+    }).then(function (d) {
+      etat.moi = d;
+      $("motdepasse").value = "";
+      montrerConsole();
+    }).catch(function (e) {
+      montrerConnexion(e.message || "Identifiant ou mot de passe incorrect");
+    });
+  });
+
+  // --- Onglets --------------------------------------------------------------
+
+  Array.prototype.forEach.call(document.querySelectorAll("nav button"), function (b) {
+    b.addEventListener("click", function () {
+      if (b.dataset.onglet === "quitter") {
+        appeler("/admin/deconnexion", { methode: "POST" }).catch(function () {})
+          .then(function () { etat.moi = null; montrerConnexion(); });
+        return;
+      }
+      Array.prototype.forEach.call(document.querySelectorAll("nav button"), function (x) {
+        x.setAttribute("aria-pressed", String(x === b));
+      });
+      $("ongletParticipants").hidden = b.dataset.onglet !== "participants";
+      $("ongletSaisie").hidden = b.dataset.onglet !== "saisie";
+      $("ongletDossards").hidden = b.dataset.onglet !== "dossards";
+      $("message").hidden = true;
+    });
+  });
+
+  // --- Participants ---------------------------------------------------------
+
+  function chargerParticipants() {
+    appeler("/admin/participants").then(function (d) {
+      etat.participants = d.participants || [];
+      dessinerParticipants();
+    }).catch(signaler);
+  }
+
+  function dessinerParticipants() {
+    var q = $("recherche").value.trim().toLowerCase();
+    var liste = etat.participants.filter(function (p) {
+      return !q || (p.nom || "").toLowerCase().indexOf(q) !== -1
+                || String(p.dossard || "").indexOf(q) !== -1;
+    });
+
+    var corps = $("listeParticipants");
+    corps.innerHTML = "";
+    liste.forEach(function (p) {
+      var tr = document.createElement("tr");
+
+      var td = document.createElement("td");
+      td.className = "num";
+      if (p.dossard === null) {
+        td.className = "sans";
+        td.textContent = "aucun";
+      } else {
+        td.textContent = p.dossard;
+      }
+      tr.appendChild(td);
+
+      ["nom", "club", "categorie"].forEach(function (champ) {
+        var c = document.createElement("td");
+        c.textContent = p[champ] || "—";
+        tr.appendChild(c);
+      });
+
+      var actions = document.createElement("td");
+      var b = document.createElement("button");
+      b.className = "discret";
+      b.textContent = p.dossard === null ? "Donner un dossard" : "Changer le dossard";
+      b.style.color = "var(--encre2)";
+      b.addEventListener("click", function () { reaffecter(p); });
+      actions.appendChild(b);
+      tr.appendChild(actions);
+
+      corps.appendChild(tr);
+    });
+  }
+
+  function reaffecter(p) {
+    var valeur = prompt(
+      "Quel dossard donner à " + p.nom + " ?\n\n" +
+      "Rappel : un dossard qui porte déjà des réussites ne peut pas changer " +
+      "de main — il faudra en imprimer un neuf.",
+      p.dossard || "");
+    if (valeur === null || !valeur.trim()) return;
+    appeler("/admin/participants/" + p.id + "/dossard", {
+      methode: "POST", corps: { dossard: valeur.trim() },
+    }).then(function () {
+      dire("Dossard " + valeur.trim() + " attribué à " + p.nom + ".", "ok");
+      chargerParticipants();
+    }).catch(signaler);
+  }
+
+  $("recherche").addEventListener("input", dessinerParticipants);
+
+  $("btnAjouter").addEventListener("click", function () {
+    var dossard = $("pDossard").value.trim();
+    appeler("/admin/participants", {
+      methode: "POST",
+      corps: {
+        nom: $("pNom").value, prenom: $("pPrenom").value,
+        club: $("pClub").value, categorie: $("pCategorie").value,
+        dossard: dossard === "" ? null : dossard,
+      },
+    }).then(function (d) {
+      dire(d.participant.nom + " ajouté" +
+           (d.participant.dossard ? " avec le dossard " + d.participant.dossard : "") +
+           ". Les téléphones le verront dans quelques secondes.", "ok");
+      ["pNom", "pPrenom", "pDossard"].forEach(function (i) { $(i).value = ""; });
+      chargerParticipants();
+    }).catch(signaler);
+  });
+
+  // --- Saisie manuelle ------------------------------------------------------
+
+  $("btnSaisir").addEventListener("click", function () {
+    appeler("/admin/reussites", {
+      methode: "POST",
+      corps: { bib: $("sDossard").value.trim(), bloc: $("sBloc").value.trim() },
+    }).then(function (d) {
+      dire(d.nouvelle
+        ? "Réussite enregistrée : " + d.reussite.grimpeur + " sur " + d.reussite.bloc + "."
+        : "Déjà enregistrée : " + d.reussite.grimpeur + " sur " + d.reussite.bloc +
+          ". Rien n'a été ajouté en double.",
+        d.nouvelle ? "ok" : "attention");
+      $("sBloc").value = "";
+      $("sBloc").focus();
+    }).catch(signaler);
+  });
+
+  $("sBloc").addEventListener("keydown", function (e) {
+    if (e.key === "Enter") $("btnSaisir").click();
+  });
+
+  // --- Dossards -------------------------------------------------------------
+
+  $("btnImprimer").addEventListener("click", function () {
+    var un = $("dUnSeul").value.trim();
+    var cat = $("dCategorie").value.trim();
+    var url = "/admin/dossards";
+    if (un) url += "?dossard=" + encodeURIComponent(un);
+    else if (cat) url += "?categorie=" + encodeURIComponent(cat);
+    window.open(url, "_blank");
+  });
+
+  // --- Demarrage ------------------------------------------------------------
+
+  // Une session peut deja etre ouverte : on ne redemande pas le mot de passe
+  // pour rien, surtout le jour d'une competition.
+  fetch("/admin/moi", { cache: "no-store" })
+    .then(function (r) { return r.ok ? r.json() : null; })
+    .then(function (d) {
+      if (d && d.success) { etat.moi = d; montrerConsole(); }
+      else montrerConnexion();
+    })
+    .catch(function () { montrerConnexion(); });
+})();
+</script>
+</body>
+</html>

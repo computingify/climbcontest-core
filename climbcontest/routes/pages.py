@@ -12,6 +12,22 @@ logger = logging.getLogger(__name__)
 bp = Blueprint("pages", __name__)
 
 
+@bp.get("/console")
+def console():
+    """La console d'administration, pour les organisateurs.
+
+    Servie SANS authentification -- c'est la page elle-meme qui demande la
+    connexion, puis appelle les routes `/admin/*`, lesquelles exigent une
+    session. Proteger le HTML n'apporterait rien : il ne contient aucune
+    donnee, seulement le formulaire de connexion.
+
+    En mauve, la ou la page publique est en bleu : sur un ecran d'organisateur,
+    on doit savoir en un coup d'oeil si on regarde ce que voient les
+    spectateurs ou ce qu'on peut modifier.
+    """
+    return render_template("admin.html")
+
+
 @bp.get("/resultats")
 @bp.get("/")
 def resultats():

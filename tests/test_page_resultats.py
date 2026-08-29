@@ -149,3 +149,59 @@ class TestAvantLaPremiereReussite:
         page = client.get("/resultats").data.decode()
         assert "toutAZero" in page, "la page doit distinguer « rien encore » de « fige »"
         assert "En attente des premi" in page
+
+
+class TestConsoleAdmin:
+    """La page de la console (spec 005).
+
+    Elle avait ete OUBLIEE : j'ai livre les routes JSON et marque la spec
+    « livree » alors que l'architecture prevoyait `templates/admin.html`. Un
+    organisateur ne peut pas utiliser curl un dimanche matin.
+    """
+
+    def test_la_console_est_servie(self, client, jeu):
+        r = client.get("/console")
+        assert r.status_code == 200
+        assert r.headers["Content-Type"].startswith("text/html")
+
+    def test_elle_est_servie_sans_authentification(self, client, app, jeu):
+        """C'est la PAGE qui demande la connexion.
+
+        Proteger le HTML n'apporterait rien : il ne contient aucune donnee,
+        seulement le formulaire. Et un 401 sur le HTML afficherait une erreur
+        de navigateur au lieu d'un ecran de connexion.
+        """
+        app.config["SECRET_KEY"] = "une-vraie-cle-de-test-suffisamment-longue"
+        assert client.get("/console").status_code == 200
+
+    def test_elle_ne_contient_aucune_donnee(self, client, jeu):
+        """Tout passe par les routes /admin/*, qui exigent une session."""
+        from climbcontest.contest import enregistrer_reussite
+        enregistrer_reussite(jeu["participants"][0], jeu["blocs"][0])
+        page = client.get("/console").data.decode()
+        assert "Dupont" not in page
+
+    def test_aucune_ressource_externe(self, client, jeu):
+        import re
+        page = client.get("/console").data.decode()
+        externes = [u for u in re.findall(r'https?://[^\s"\'<>)]+', page)
+                    if u != "http://www.w3.org/2000/svg"]
+        assert not externes, f"ressources externes : {externes}"
+
+    def test_elle_appelle_les_bonnes_routes(self, client, jeu):
+        """Si une route est renommee, la console casse en silence."""
+        page = client.get("/console").data.decode()
+        for route in ("/admin/connexion", "/admin/deconnexion", "/admin/moi",
+                      "/admin/participants", "/admin/reussites", "/admin/dossards"):
+            assert route in page, f"la console n'appelle pas {route}"
+
+    def test_elle_gere_la_session_expiree(self, client, jeu):
+        """Une session qui expire en pleine saisie ne doit pas ressembler a une
+        panne : la console doit ramener a la connexion en le disant."""
+        page = client.get("/console").data.decode()
+        assert "Session expir" in page
+
+    def test_elle_previent_pour_l_echelle_d_impression(self, client, jeu):
+        """« Ajuster a la page » sort des QR trop petits pour etre scannes."""
+        page = client.get("/console").data.decode()
+        assert "100" in page and "chelle" in page
