@@ -12,9 +12,10 @@ et l'exemption posee pour l'API des juges ne s'y applique pas.
 """
 import logging
 
-from flask import Blueprint, jsonify
+from flask import Blueprint, g, jsonify, request
 
-from ..auth import exige_cle_api_stricte
+from ..auth_session import exige_role, fermer, ouvrir, utilisateur_courant
+from ..comptes import ErreurCompte, verifier
 from ..contest import ErreurMetier, competition_active
 from ..sheets.client import ErreurClasseur
 from ..sheets.importer import importer
@@ -22,13 +23,64 @@ from ..sheets.importer import importer
 logger = logging.getLogger(__name__)
 bp = Blueprint("admin", __name__, url_prefix="/admin")
 
+
+# --- Connexion --------------------------------------------------------------
+#
+# La cle d'API partagee qui protegeait ces routes etait une mesure d'attente,
+# posee en urgence le 28/08 apres avoir constate qu'elles repondaient 200 depuis
+# Internet. Elle est remplacee ici par de vrais comptes.
+
+@bp.post("/connexion")
+def connexion():
+    """{"identifiant": "...", "mot_de_passe": "..."} -> ouvre une session."""
+    corps = request.get_json(silent=True)
+    if not isinstance(corps, dict):
+        return jsonify({"success": False, "message": "Corps JSON attendu"}), 400
+
+    u = verifier(corps.get("identifiant", ""), corps.get("mot_de_passe", ""))
+    if u is None:
+        # Le MEME message et le MEME delai que l'identifiant existe ou non :
+        # distinguer les deux revelerait quels comptes sont valides.
+        logger.warning("connexion refusee pour « %s » depuis %s",
+                       str(corps.get("identifiant", ""))[:40], request.remote_addr)
+        return jsonify({"success": False,
+                        "message": "Identifiant ou mot de passe incorrect"}), 401
+
+    ouvrir(u)
+    logger.info("connexion de %s depuis %s", u.identifiant, request.remote_addr)
+    return jsonify({"success": True, "identifiant": u.identifiant,
+                    "roles": sorted(r.role for r in u.roles)}), 200
+
+
+@bp.post("/deconnexion")
+def deconnexion():
+    u = utilisateur_courant()
+    fermer()
+    if u:
+        logger.info("deconnexion de %s", u.identifiant)
+    return jsonify({"success": True}), 200
+
+
+@bp.get("/moi")
+@exige_role()
+def moi():
+    """Qui je suis, et ce que j'ai le droit de faire. La console s'en sert
+    pour n'afficher que les boutons utilisables."""
+    u = g.utilisateur
+    return jsonify({
+        "success": True,
+        "identifiant": u.identifiant,
+        "nom_affiche": u.nom_affiche,
+        "roles": sorted(r.role for r in u.roles),
+    }), 200
+
 # Dernier rapport, en memoire. C'est un confort de consultation, pas une donnee :
 # le perdre a un redemarrage est sans consequence, on relance l'import.
 _dernier_rapport: dict | None = None
 
 
 @bp.post("/import/sheet")
-@exige_cle_api_stricte
+@exige_role()
 def importer_classeur():
     """Relit le classeur et met la base a jour.
 
@@ -54,7 +106,7 @@ def importer_classeur():
 
 
 @bp.get("/import/rapport")
-@exige_cle_api_stricte
+@exige_role()
 def dernier_rapport():
     if _dernier_rapport is None:
         return jsonify({"success": True, "rapport": None,
