@@ -15,7 +15,9 @@ donne aux benevoles, et n'est jamais ecrit dans ces fichiers.
 """
 import logging
 
-from flask import Blueprint, current_app, render_template, send_from_directory
+from flask import (
+    Blueprint, current_app, make_response, render_template, send_from_directory,
+)
 
 logger = logging.getLogger(__name__)
 bp = Blueprint("pwa", __name__, url_prefix="/juge")
@@ -24,8 +26,21 @@ bp = Blueprint("pwa", __name__, url_prefix="/juge")
 @bp.get("")
 @bp.get("/")
 def application():
-    """La coquille. Aucune donnee, aucun secret : tout arrive par l'API."""
-    return render_template("juge.html")
+    """La coquille. Aucune donnee, aucun secret : tout arrive par l'API.
+
+    ⚠️ **Servie sans cache**, et ce n'est pas un detail. Constate en developpant :
+    le navigateur gardait la page precedente et ignorait les modifications. En
+    production, ca voudrait dire publier un correctif et voir vingt-cinq
+    telephones continuer de tourner sur l'ancienne version -- sans que personne
+    ne comprenne pourquoi le correctif « ne marche pas ».
+
+    Le cout est nul : la coquille fait quelques kilo-octets, et c'est le service
+    worker (IT4) qui prendra en charge le fonctionnement hors ligne, avec une
+    strategie explicite plutot qu'un cache navigateur qu'on ne controle pas.
+    """
+    reponse = make_response(render_template("juge.html"))
+    reponse.headers["Cache-Control"] = "no-cache, must-revalidate"
+    return reponse
 
 
 # Le service worker viendra en IT4. Il devra etre servi DEPUIS /juge/ et non

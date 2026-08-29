@@ -35,6 +35,14 @@ class TestLaPageEstServie:
         cookie. Ce qui est garde, c'est l'API."""
         assert client_sans_cle.get("/juge").status_code == 200
 
+    def test_la_coquille_n_est_pas_mise_en_cache(self, client_sans_cle):
+        """⚠️ Constate en developpant : le navigateur gardait la page precedente
+        et ignorait les modifications. En production, ca voudrait dire publier un
+        correctif et voir vingt-cinq telephones tourner sur l'ancienne version --
+        sans que personne ne comprenne pourquoi le correctif « ne marche pas »."""
+        cache = client_sans_cle.get("/juge").headers.get("Cache-Control", "")
+        assert "no-cache" in cache
+
     def test_le_manifeste_est_servi_avec_le_bon_type(self, client_sans_cle):
         r = client_sans_cle.get("/juge/manifest.webmanifest")
         assert r.status_code == 200
@@ -141,12 +149,61 @@ class TestLeNouveauLien:
         juge = (STATIQUE / "juge.js").read_text(encoding="utf-8")
         assert "replaceState" in juge
 
+    def test_un_nouveau_lien_remet_le_retrait_a_zero(self):
+        """Apres une serie de refus, le retrait exponentiel atteint une minute.
+
+        Or l'organisateur envoie un nouveau lien PRECISEMENT pour debloquer la
+        situation : faire attendre le juge une minute de plus apres ca n'aurait
+        aucun sens, la cause des echecs vient d'etre traitee.
+
+        Verifie a l'ecran : jeton revoque, cinq reussites bloquees, nouveau
+        lien, et elles repartent en moins de trois secondes.
+        """
+        juge = (STATIQUE / "juge.js").read_text(encoding="utf-8")
+        assert "echecsConsecutifs = 0" in juge
+
     def test_le_jeton_voyage_dans_le_fragment_pas_la_requete(self):
         """Un fragment n'est pas envoye au serveur : il n'entre ni dans les
         journaux de Caddy, ni dans ceux de gunicorn, ni dans un `Referer`."""
         jeton = (STATIQUE / "jeton.js").read_text(encoding="utf-8")
         assert "location.search" not in jeton
         assert "fragment" in jeton
+
+
+class TestLaFileHorsLigne:
+    """IT2. Ce qui garantit qu'une reussite validee n'est jamais perdue.
+
+    Le detail se teste sur Node (`tests/js/file.test.mjs`) : ces tests-ci
+    verifient seulement que les pieces sont branchees, et surtout que le
+    stockage choisi est le bon.
+    """
+
+    def test_indexeddb_et_pas_localstorage(self):
+        """`localStorage` est synchrone -- il bloque le fil pendant qu'on scanne
+        --, plafonne a ~5 Mo, et surtout il ne sait pas faire de TRANSACTION. Or
+        l'invariant central est une transaction : retirer de la file exactement
+        ce que le serveur a acquitte, tout ou rien."""
+        idb = (STATIQUE / "idb.js").read_text(encoding="utf-8")
+        assert "indexedDB.open" in idb
+        file = (STATIQUE / "file.js").read_text(encoding="utf-8")
+        assert "localStorage" not in file
+
+    def test_le_verrou_entre_onglets_existe(self):
+        """Un juge peut avoir la PWA installee ET un onglet Safari sur la meme
+        adresse ; les deux partagent le meme IndexedDB. Sans bail, les deux
+        videraient la file en double."""
+        juge = (STATIQUE / "juge.js").read_text(encoding="utf-8")
+        assert "peutPrendre" in juge and "bailNeuf" in juge
+
+    def test_les_constantes_d_envoi_sont_celles_de_l_android(self):
+        """Deux clients qui envoient au meme rythme font une charge previsible.
+        Deux clients qui divergent font une charge qu'on ne sait plus mesurer,
+        et les chiffres de la spec 003 ne vaudraient plus rien."""
+        politique = (STATIQUE / "politique.js").read_text(encoding="utf-8")
+        assert "LOT_PLEIN = 5" in politique
+        assert "DELAI_MS = 10_000" in politique
+        assert "LOT_MAX = 50" in politique
+        assert "RETRAIT_MAX_MS = 60_000" in politique
 
 
 class TestLaCleDeLaPwa:
