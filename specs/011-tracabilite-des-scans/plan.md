@@ -7,25 +7,25 @@ quelque chose qui sert déjà.
 
 ## IT1 — Le téléphone se souvient
 
-- [ ] `IdentiteAppareil` : création à la première ouverture, lecture, renommage.
-- [ ] `HistoriqueScans` : ajout d'un scan, changement d'état, relecture
+- [x] `IdentiteAppareil` : création à la première ouverture, lecture, renommage.
+- [x] `HistoriqueScans` : ajout d'un scan, changement d'état, relecture
       (dernière ligne gagnante), purge à 30 jours.
-- [ ] `Server` note chaque scan validé, puis son sort (partie / refusée).
-- [ ] Écran « Mes scans » : liste inversée, filtre « pas parti », référence
+- [x] `Server` note chaque scan validé, puis son sort (partie / refusée).
+- [x] Écran « Mes scans » : liste inversée, filtre « pas parti », référence
       courte.
-- [ ] Réglages : champ « nom de ce téléphone », lien vers l'écran des scans.
+- [x] Réglages : champ « nom de ce téléphone », lien vers l'écran des scans.
 
 ## IT2 — Le serveur retient qui a parlé
 
-- [ ] Trois colonnes, ajoutées par `COLONNES_AJOUTEES`.
-- [ ] `POST /api/v3/successes` lit `appareil` s'il est là, l'ignore sinon.
-- [ ] L'application envoie son identité.
-- [ ] Commentaire de `saisie_par` corrigé.
+- [x] Trois colonnes, ajoutées par `COLONNES_AJOUTEES`.
+- [x] `POST /api/v3/successes` lit `appareil` s'il est là, l'ignore sinon.
+- [x] L'application envoie son identité.
+- [x] Commentaire de `saisie_par` corrigé.
 
 ## IT3 — La page de contrôle
 
-- [ ] `GET /api/v3/appareils` et `GET /api/v3/reussites`, réservées aux rôles.
-- [ ] Onglet « Appareils » dans la console : liste, silence de plus de dix
+- [x] `GET /api/v3/appareils` et `GET /api/v3/reussites`, réservées aux rôles.
+- [x] Onglet « Appareils » dans la console : liste, silence de plus de dix
       minutes mis en évidence, recherche par référence.
 
 ## Plan de test

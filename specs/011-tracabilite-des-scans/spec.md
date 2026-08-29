@@ -108,43 +108,43 @@ que le juge saisit désigne **un poste**, pas lui.
 
 ### Le téléphone
 
-- [ ] L'identifiant d'appareil est créé au premier lancement et **ne change
+- [x] L'identifiant d'appareil est créé au premier lancement et **ne change
       plus** — ni au redémarrage, ni à la mise à jour de l'application.
-- [ ] Le juge peut donner un nom à son téléphone, et le changer. Le nom est
+- [x] Le juge peut donner un nom à son téléphone, et le changer. Le nom est
       facultatif : sans lui, tout fonctionne.
-- [ ] Le journal contient **tous** les scans validés, y compris ceux déjà partis
+- [x] Le journal contient **tous** les scans validés, y compris ceux déjà partis
       et ceux refusés. Il n'est jamais compacté.
-- [ ] L'état de chaque scan est juste : en attente, parti, ou refusé avec son
+- [x] L'état de chaque scan est juste : en attente, parti, ou refusé avec son
       motif.
-- [ ] L'écran liste les scans du plus récent au plus ancien, et sait n'afficher
+- [x] L'écran liste les scans du plus récent au plus ancien, et sait n'afficher
       que ce qui n'est pas parti.
-- [ ] Chaque ligne montre une référence courte, lisible à voix haute.
-- [ ] Un scan de plus de 30 jours disparaît du journal.
-- [ ] **L'effacement du journal ne peut jamais perdre une réussite non envoyée.**
+- [x] Chaque ligne montre une référence courte, lisible à voix haute.
+- [x] Un scan de plus de 30 jours disparaît du journal.
+- [x] **L'effacement du journal ne peut jamais perdre une réussite non envoyée.**
       Le journal est une *vue* ; la file d'envoi de la spec 003 reste la source.
 
 ### Le serveur
 
-- [ ] Une réussite envoyée par un téléphone porte son identifiant, son nom au
+- [x] Une réussite envoyée par un téléphone porte son identifiant, son nom au
       moment de l'envoi, et la référence client.
-- [ ] Le nom est **figé** à l'envoi : renommer le téléphone ne réécrit pas
+- [x] Le nom est **figé** à l'envoi : renommer le téléphone ne réécrit pas
       l'historique.
-- [ ] Une version de l'application qui n'envoie pas d'identité continue de
+- [x] Une version de l'application qui n'envoie pas d'identité continue de
       fonctionner. Les colonnes restent vides.
-- [ ] Une saisie manuelle ou un import n'invente pas d'appareil : colonnes
+- [x] Une saisie manuelle ou un import n'invente pas d'appareil : colonnes
       vides, `saisie_par` inchangé.
-- [ ] Le double envoi reste idempotent, exactement comme aujourd'hui.
-- [ ] Les deux routes de lecture refusent un visiteur non authentifié.
+- [x] Le double envoi reste idempotent, exactement comme aujourd'hui.
+- [x] Les deux routes de lecture refusent un visiteur non authentifié.
 
 ### La console
 
-- [ ] La page liste les appareils vus sur la compétition active, avec pour
+- [x] La page liste les appareils vus sur la compétition active, avec pour
       chacun le nombre de réussites et l'heure de la dernière.
-- [ ] Un appareil qui n'a plus rien envoyé depuis plus de dix minutes est
+- [x] Un appareil qui n'a plus rien envoyé depuis plus de dix minutes est
       **visible d'un coup d'œil** — c'est le signal qu'un juge est bloqué.
-- [ ] Chercher une référence répond : trouvée, avec le grimpeur, le bloc et
+- [x] Chercher une référence répond : trouvée, avec le grimpeur, le bloc et
       l'heure ; ou non trouvée.
-- [ ] Aucune compétition active, ou aucune réussite : pas de plantage.
+- [x] Aucune compétition active, ou aucune réussite : pas de plantage.
 
 ## Cas limites
 
