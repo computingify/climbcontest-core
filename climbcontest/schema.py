@@ -240,8 +240,38 @@ COLONNES_AJOUTEES = {
         "dossard_scanne": "INTEGER",
         "scanne_le": "TIMESTAMP",
         "saisie_par": "TEXT",
+        "appareil_id": "TEXT",
+        "appareil_nom": "TEXT",
+        "ref_client": "TEXT",
     },
 }
+
+# Les index qui accompagnent ces colonnes.
+#
+# `ALTER TABLE ADD COLUMN` n'en cree aucun, et `create_all` ne touche pas a une
+# table existante : sans ce tableau, le modele declarerait `index=True` sur une
+# base de production qui n'en aurait pas. Le code mentirait sur ce qui existe.
+#
+# SQLite, lui, connait `IF NOT EXISTS` sur les index : une seule instruction
+# suffit, idempotente.
+INDEX_AJOUTES = {
+    "idx_success_appareil_id": ("success", "appareil_id"),
+    "idx_success_ref_client": ("success", "ref_client"),
+}
+
+
+def _completer_index() -> None:
+    """Cree les index manquants. Idempotent."""
+    for nom, (table, colonne) in INDEX_AJOUTES.items():
+        try:
+            db.session.execute(
+                text(f"CREATE INDEX IF NOT EXISTS {nom} ON {table} ({colonne})")
+            )
+            db.session.commit()
+        except Exception as e:
+            # Une table absente : `create_all` s'en occupe, et l'index avec.
+            db.session.rollback()
+            logger.info("schema : index %s non cree (%s)", nom, e)
 
 
 def _completer_colonnes() -> None:
@@ -283,6 +313,9 @@ def preparer_schema() -> None:
         # create_all ne touche pas aux tables existantes : sûr à relancer.
         db.create_all()
         _completer_colonnes()
+        # Apres les colonnes : un index sur une colonne qui n'existe pas encore
+        # echouerait.
+        _completer_index()
         _table_migrations()
 
         jouees = _deja_jouees()

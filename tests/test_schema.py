@@ -66,6 +66,63 @@ class TestPreparation:
         assert _verrou() is None
 
 
+class TestColonnesEtIndex:
+    """Une base d'avant la spec 011 doit gagner ses colonnes, sans rien perdre.
+
+    SQLite n'a ni `ADD COLUMN IF NOT EXISTS` ni de creation d'index par
+    `create_all` sur une table qui existe deja. Sans ce mecanisme, une base de
+    production garderait l'ancienne forme et chaque requete echouerait sur la
+    colonne manquante.
+    """
+
+    def _colonnes(self, table):
+        return {
+            ligne[1] for ligne in
+            db.session.execute(text(f"PRAGMA table_info({table})")).fetchall()
+        }
+
+    def _index(self, table):
+        return {
+            ligne[1] for ligne in
+            db.session.execute(text(f"PRAGMA index_list({table})")).fetchall()
+        }
+
+    def test_les_colonnes_de_la_spec_011_sont_la(self, app):
+        schema.preparer_schema()
+        colonnes = self._colonnes("success")
+        assert {"appareil_id", "appareil_nom", "ref_client"} <= colonnes
+
+    def test_une_table_amputee_retrouve_ses_colonnes(self, app):
+        """Le vrai cas : une base creee avant que les colonnes n'existent."""
+        db.session.execute(text("DROP TABLE IF EXISTS ancienne_success"))
+        db.session.execute(text(
+            "CREATE TABLE ancienne_success (id INTEGER PRIMARY KEY, participant_id INTEGER)"
+        ))
+        db.session.commit()
+        # On fait passer le mecanisme sur cette table-la.
+        schema.COLONNES_AJOUTEES["ancienne_success"] = {"appareil_id": "TEXT"}
+        try:
+            schema._completer_colonnes()
+            assert "appareil_id" in self._colonnes("ancienne_success")
+        finally:
+            schema.COLONNES_AJOUTEES.pop("ancienne_success", None)
+            db.session.execute(text("DROP TABLE ancienne_success"))
+            db.session.commit()
+
+    def test_les_index_declares_existent_vraiment(self, app):
+        """`index=True` dans le modele ne cree rien sur une table existante."""
+        schema.preparer_schema()
+        index = self._index("success")
+        assert "idx_success_appareil_id" in index
+        assert "idx_success_ref_client" in index
+
+    def test_la_creation_des_index_est_idempotente(self, app):
+        schema.preparer_schema()
+        schema._completer_index()
+        schema._completer_index()
+        assert "idx_success_ref_client" in self._index("success")
+
+
 class TestVerrouOrphelin:
     """Le cas qui rendait la panne invisible.
 

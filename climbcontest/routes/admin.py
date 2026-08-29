@@ -22,9 +22,9 @@ from .. import qr
 from ..extensions import db
 from ..models import SOURCE_MANUEL, Participant, Utilisateur
 from ..contest import (
-    ErreurMetier, ajouter_participant, bloc_par_tag, competition_active,
-    enregistrer_reussite, participant_par_dossard, reaffecter_dossard,
-    supprimer_reussite,
+    ErreurMetier, ajouter_participant, appareils, bloc_par_tag,
+    competition_active, enregistrer_reussite, participant_par_dossard,
+    reaffecter_dossard, reussites_tracees, supprimer_reussite,
 )
 from ..sheets.client import ErreurClasseur
 from ..sheets.importer import importer
@@ -469,3 +469,51 @@ def dernier_rapport():
         return jsonify({"success": True, "rapport": None,
                         "message": "Aucun import depuis le demarrage"}), 200
     return jsonify({"success": True, "rapport": _dernier_rapport}), 200
+
+
+# --- Tracabilite : quel telephone a envoye quoi (spec 011) -------------------
+
+@bp.get("/appareils")
+@exige_role(ORGANISATEUR)
+def lister_appareils():
+    """Les telephones vus sur la competition active, et leur derniere activite.
+
+    Reserve aux comptes : la liste dit combien de reussites chaque poste a
+    remontees, ce qui n'a aucune raison d'etre public.
+    """
+    try:
+        comp = competition_active()
+    except ErreurMetier as e:
+        return jsonify({"success": False, "message": e.message}), e.code
+
+    return jsonify({"success": True, "appareils": appareils(comp)}), 200
+
+
+@bp.get("/reussites-tracees")
+@exige_role(ORGANISATEUR)
+def chercher_reussites():
+    """?ref=a1b2c3 ou ?appareil=... — « ce scan-la est-il arrive ? »
+
+    Une reference introuvable donne `trouvee: false` plutot qu'une liste vide :
+    « aucun resultat » et « je n'ai pas compris la question » ne doivent pas se
+    ressembler quand quelqu'un cherche une reponse dans le feu de l'action.
+    """
+    try:
+        comp = competition_active()
+    except ErreurMetier as e:
+        return jsonify({"success": False, "message": e.message}), e.code
+
+    ref = (request.args.get("ref") or "").strip()
+    appareil_id = (request.args.get("appareil") or "").strip() or None
+    try:
+        limite = int(request.args.get("limite", 100))
+    except (TypeError, ValueError):
+        limite = 100
+
+    lignes = reussites_tracees(comp, ref=ref or None,
+                               appareil_id=appareil_id, limite=limite)
+    return jsonify({
+        "success": True,
+        "trouvee": bool(lignes) if ref else None,
+        "reussites": lignes,
+    }), 200

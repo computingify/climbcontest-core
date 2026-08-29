@@ -244,12 +244,31 @@ class Success(db.Model):
     dossard_scanne = Column(Integer)
     scanne_le = Column(DateTime)
 
-    # Qui a saisi, quand c'est une saisie manuelle. NULL pour un scan : le juge
-    # n'est pas identifie, et il n'y a aucune raison de le devenir. Ce qu'on
-    # veut tracer, c'est l'INTERVENTION HUMAINE sur les donnees -- le jour ou un
+    # Qui a saisi, quand c'est une saisie manuelle. NULL pour un scan. Ce qu'on
+    # trace ici, c'est l'INTERVENTION HUMAINE sur les donnees -- le jour ou un
     # score est conteste, savoir qu'une reussite a ete ajoutee a la main par
     # untel a 14 h 32 est la seule chose qui permette de trancher.
+    #
+    # Cette colonne identifie donc QUELQU'UN. Les trois suivantes, non : elles
+    # identifient un TELEPHONE. Ne pas confondre les deux -- un telephone change
+    # de main dans la journee, et « Mur jaune » designe un poste, pas un
+    # benevole.
     saisie_par = Column(String(60))
+
+    # De quel telephone vient cette reussite (spec 011). NULL pour une saisie
+    # manuelle ou un import : ils n'ont pas d'appareil.
+    #
+    # `appareil_nom` est DENORMALISE exprès : c'est le nom au moment de l'envoi.
+    # Renommer un telephone en pleine competition ne doit pas reecrire
+    # l'histoire de ce qu'il a deja envoye.
+    #
+    # `ref_client` est la reference que le telephone a donnee au scan. Ce n'est
+    # PAS une cle -- l'idempotence reste portee par `uq_reussite`. C'est ce qui
+    # permet a un juge de lire six caracteres a voix haute et a un organisateur
+    # de repondre « oui, elle est arrivee ».
+    appareil_id = Column(String(40), index=True)
+    appareil_nom = Column(String(60))
+    ref_client = Column(String(40), index=True)
 
     participant = relationship("Participant", back_populates="reussites")
     bloc = relationship("Bloc", back_populates="reussites")

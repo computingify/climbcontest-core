@@ -19,7 +19,9 @@ import logging
 from flask import Blueprint, jsonify, request
 
 from ..auth import exige_cle_api
-from ..contest import ErreurMetier, competition_active, enregistrer_lot
+from ..contest import (
+    ErreurMetier, competition_active, enregistrer_lot, identite_appareil,
+)
 
 logger = logging.getLogger(__name__)
 bp = Blueprint("lot", __name__, url_prefix="/api/v3")
@@ -34,7 +36,12 @@ TAILLE_MAX = 200
 @bp.post("/successes")
 @exige_cle_api
 def envoyer_lot():
-    """{"items": [{"ref", "bib", "bloc", "at"}]} → un verdict par élément."""
+    """{"appareil": {...}, "items": [{"ref", "bib", "bloc", "at"}]} → un verdict par élément.
+
+    `appareil` est **facultatif**. Rien ne garantit que les 25 téléphones auront
+    pris la mise à jour le matin de la compétition ; une application qui ne
+    l'envoie pas doit continuer à fonctionner exactement comme avant.
+    """
     corps = request.get_json(silent=True)
     if not isinstance(corps, dict):
         # Même garde que sur les routes v2 : un corps qui n'est pas un objet
@@ -61,7 +68,7 @@ def envoyer_lot():
         # tard, pas jeter ce qu'elle a.
         return jsonify({"success": False, "message": e.message}), e.code
 
-    resultats = enregistrer_lot(elements)
+    resultats = enregistrer_lot(elements, identite_appareil(corps.get("appareil")))
 
     # La version du catalogue voyage dans une réponse qui part de toute façon :
     # l'application apprend qu'elle a du retard sans requête supplémentaire.

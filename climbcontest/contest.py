@@ -6,6 +6,7 @@ Tout ce qui décide est ici ; les routes ne font que traduire HTTP.
 import logging
 from datetime import datetime
 
+from sqlalchemy import func
 from sqlalchemy.exc import IntegrityError
 
 from .extensions import db
@@ -71,7 +72,9 @@ def enregistrer_reussite(participant: Participant, bloc: Bloc,
                          source: str = SOURCE_SCAN,
                          dossard_scanne: int | None = None,
                          scanne_le: datetime | None = None,
-                         saisie_par: str | None = None) -> tuple[Success, bool]:
+                         saisie_par: str | None = None,
+                         appareil: dict | None = None,
+                         ref_client: str | None = None) -> tuple[Success, bool]:
     """Enregistre une réussite. Renvoie (réussite, était_nouvelle).
 
     **Idempotent.** Un double appui sur « Envoyer », ou deux juges qui valident
@@ -101,6 +104,11 @@ def enregistrer_reussite(participant: Participant, bloc: Bloc,
         dossard_scanne=dossard_scanne if dossard_scanne is not None else participant.dossard,
         scanne_le=scanne_le,
         saisie_par=saisie_par,
+        # De quel telephone (spec 011). Vide pour une saisie manuelle ou un
+        # import : ils n'ont pas d'appareil, et en inventer un serait faux.
+        appareil_id=(appareil or {}).get("id"),
+        appareil_nom=(appareil or {}).get("nom"),
+        ref_client=ref_client,
     )
     db.session.add(reussite)
     try:
@@ -224,7 +232,7 @@ def incrementer_catalogue(comp: Competition) -> None:
     db.session.add(comp)
 
 
-def enregistrer_lot(elements: list[dict]) -> list[dict]:
+def enregistrer_lot(elements: list[dict], appareil: dict | None = None) -> list[dict]:
     """Enregistre un lot de réussites. Un élément qui échoue n'entraîne pas les autres.
 
     C'est la règle centrale de la route de lot : **un lot n'échoue jamais en
@@ -252,6 +260,8 @@ def enregistrer_lot(elements: list[dict]) -> list[dict]:
                 participant, bloc,
                 dossard_scanne=participant.dossard,
                 scanne_le=_horodatage_client(element.get("at")),
+                appareil=appareil,
+                ref_client=str(ref) if ref else None,
             )
         except Exception as e:
             # On NE marque PAS l'element comme traite : l'application le garde
@@ -264,6 +274,34 @@ def enregistrer_lot(elements: list[dict]) -> list[dict]:
         resultats.append({"ref": ref,
                           "etat": "enregistree" if nouvelle else "deja_connue"})
     return resultats
+
+
+def identite_appareil(valeur) -> dict | None:
+    """Lit l'identite du telephone dans le corps d'un lot. Ne leve jamais.
+
+    ⚠️ Le principe est celui du reste de la route : **une identite mal formee
+    est ignoree, jamais rejetee.** Perdre une reussite parce qu'un nom contient
+    un caractere inattendu serait le pire des echanges — et un juge n'a aucun
+    moyen de comprendre ni de corriger un tel refus le jour J.
+
+    Renvoie `None` quand il n'y a rien d'exploitable : une application plus
+    ancienne, qui n'envoie pas d'identite, continue simplement de fonctionner.
+    """
+    if not isinstance(valeur, dict):
+        return None
+    identifiant = valeur.get("id")
+    if not isinstance(identifiant, str) or not identifiant.strip():
+        return None
+
+    nom = valeur.get("nom")
+    if not isinstance(nom, str) or not nom.strip():
+        nom = None
+    else:
+        # Coupe a la longueur de la colonne. Un nom trop long tronque reste
+        # utilisable ; un envoi rejete pour ca ne le serait pas.
+        nom = nom.strip()[:60]
+
+    return {"id": identifiant.strip()[:40], "nom": nom}
 
 
 def _horodatage_client(valeur) -> datetime | None:
@@ -354,3 +392,105 @@ def reussites_en_attente() -> int:
     Exposé par /health : c'est l'indicateur qui dit si le miroir suit.
     """
     return Success.query.filter(Success.sheet_synced_at.is_(None)).count()
+
+
+# --- Tracabilite : quel telephone a envoye quoi (spec 011) -------------------
+#
+# Le besoin, tel qu'Adrien l'a pose : « il faut qu'on trace quelle mobile a
+# envoye quelle reussite pour pouvoir controler ». Ce qu'on trace est un
+# APPAREIL, pas une personne — les telephones changent de main dans la journee.
+
+#: Au-dela, un telephone est considere comme silencieux et signale dans la
+#: console. Dix minutes sans rien envoyer pendant une competition, c'est
+#: presque toujours un juge bloque : batterie, wifi, ou application fermee.
+SILENCE_S = 600
+
+
+def appareils(comp: Competition, maintenant: datetime | None = None) -> list[dict]:
+    """Les telephones vus sur cette competition, du plus recent au plus ancien.
+
+    Regroupe par IDENTIFIANT et non par nom : deux telephones peuvent porter le
+    meme nom — personne n'a le temps de verifier l'unicite d'un nom le jour J —
+    et un meme telephone peut avoir ete renomme en cours de route.
+
+    Le nom affiche est donc le DERNIER connu, celui du dernier envoi.
+    """
+    maintenant = maintenant or datetime.now()
+
+    lignes = (
+        db.session.query(
+            Success.appareil_id,
+            func.count(Success.id),
+            func.min(Success.horodatage),
+            func.max(Success.horodatage),
+        )
+        .join(Participant, Success.participant_id == Participant.id)
+        .filter(Participant.competition_id == comp.id)
+        .filter(Success.appareil_id.isnot(None))
+        .group_by(Success.appareil_id)
+        .all()
+    )
+
+    resultat = []
+    for identifiant, nombre, premiere, derniere in lignes:
+        # Le dernier nom connu : une requete par appareil, mais il y en a
+        # vingt-cinq au plus. Le faire en une seule passerait par une
+        # sous-requete correlee, pour un gain nul a cette echelle.
+        dernier_nom = (
+            db.session.query(Success.appareil_nom)
+            .filter(Success.appareil_id == identifiant)
+            .order_by(Success.horodatage.desc())
+            .limit(1)
+            .scalar()
+        )
+        silence = (maintenant - derniere).total_seconds() if derniere else None
+        resultat.append({
+            "id": identifiant,
+            "nom": dernier_nom,
+            "reussites": nombre,
+            "premiere_le": premiere.isoformat() if premiere else None,
+            "derniere_le": derniere.isoformat() if derniere else None,
+            "silence_s": round(silence) if silence is not None else None,
+            "silencieux": silence is not None and silence >= SILENCE_S,
+        })
+
+    resultat.sort(key=lambda a: a["derniere_le"] or "", reverse=True)
+    return resultat
+
+
+def reussites_tracees(comp: Competition, ref: str | None = None,
+                      appareil_id: str | None = None,
+                      limite: int = 100) -> list[dict]:
+    """Les reussites de cette competition, filtrables par reference ou appareil.
+
+    La recherche par reference est la raison d'etre de tout ceci : un juge lit
+    six caracteres sur son ecran, l'organisateur les tape ici, et la question
+    « est-ce arrive ? » a enfin une reponse.
+
+    La reference est cherchee par PREFIXE : l'ecran du juge n'en montre que les
+    six premiers caracteres, et lui demander de dicter un UUID complet au
+    milieu d'une competition n'arriverait jamais.
+    """
+    q = (
+        Success.query
+        .join(Participant, Success.participant_id == Participant.id)
+        .filter(Participant.competition_id == comp.id)
+    )
+    if ref:
+        q = q.filter(Success.ref_client.like(f"{ref.strip()}%"))
+    if appareil_id:
+        q = q.filter(Success.appareil_id == appareil_id)
+
+    lignes = q.order_by(Success.horodatage.desc()).limit(max(1, min(limite, 500))).all()
+    return [{
+        "id": r.id,
+        "ref_client": r.ref_client,
+        "appareil_id": r.appareil_id,
+        "appareil_nom": r.appareil_nom,
+        "grimpeur": r.participant.nom_complet if r.participant else None,
+        "dossard": r.dossard_scanne,
+        "bloc": r.bloc.tag if r.bloc else None,
+        "horodatage": r.horodatage.isoformat() if r.horodatage else None,
+        "source": r.source,
+        "saisie_par": r.saisie_par,
+    } for r in lignes]
