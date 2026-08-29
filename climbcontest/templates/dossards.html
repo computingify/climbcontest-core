@@ -1,0 +1,93 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<title>Dossards — {{ titre }}</title>
+<style>
+  /* Des bandes de quelques centimetres, a decouper. Format repris du classeur
+     (onglet « QR Code »), repete sur des pages A4.
+
+     Tout est en MILLIMETRES : ce qui compte est la taille physique sur le
+     papier, pas des pixels dont l'imprimante fera ce qu'elle veut. */
+  @page { size: A4 portrait; margin: 8mm; }
+
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: #fff; color: #000;
+    font-family: system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+  }
+
+  .entete { padding: 6mm 0 4mm; border-bottom: 0.4mm solid #000; margin-bottom: 5mm; }
+  .entete h1 { margin: 0; font-size: 5mm; font-weight: 700; }
+  .entete p { margin: 1mm 0 0; font-size: 3.4mm; color: #444; }
+
+  .planche { display: grid; grid-template-columns: 1fr 1fr; gap: 0; }
+
+  .dossard {
+    display: grid;
+    grid-template-columns: 24mm 1fr;
+    align-items: center;
+    gap: 4mm;
+    height: 30mm;
+    padding: 3mm 4mm;
+    /* Le trait de coupe. En pointille : on decoupe dessus, il ne doit pas
+       ressembler a un cadre imprime a garder. */
+    border: 0.3mm dashed #999;
+    /* Une bande ne doit JAMAIS etre coupee en deux par un saut de page :
+       le grimpeur se retrouverait avec un demi-QR. */
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
+  .dossard svg { display: block; width: 22mm; height: 22mm; }
+
+  .numero {
+    font-size: 11mm; font-weight: 800; line-height: 1;
+    font-variant-numeric: tabular-nums;
+  }
+  .nom {
+    font-size: 4.2mm; font-weight: 600; margin-top: 1.5mm;
+    /* Un nom tres long ne doit pas pousser le QR hors de la bande. */
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 62mm;
+  }
+  .detail {
+    font-size: 3.2mm; color: #555; margin-top: 0.8mm;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 62mm;
+  }
+
+  .vide { padding: 20mm 0; text-align: center; color: #666; font-size: 4mm; }
+
+  @media print {
+    .entete { display: none; }   /* l'encre est pour les dossards */
+  }
+</style>
+</head>
+<body>
+
+<div class="entete">
+  <h1>Dossards — {{ titre }}</h1>
+  <p>{{ dossards|length }} à imprimer, puis à découper sur les pointillés.
+     Vérifie l'échelle d'impression : <strong>100 %</strong>, sans « ajuster à la page ».</p>
+</div>
+
+{% if not dossards %}
+  <div class="vide">
+    Aucun dossard à imprimer : aucun participant ne porte de numéro pour l'instant.
+  </div>
+{% else %}
+<div class="planche">
+  {% for d in dossards %}
+  <div class="dossard">
+    {{ d.qr|safe }}
+    <div>
+      <div class="numero">{{ d.dossard }}</div>
+      <div class="nom">{{ d.nom }}</div>
+      <div class="detail">{{ d.detail }}</div>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+{% endif %}
+
+</body>
+</html>

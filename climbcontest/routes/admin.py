@@ -12,10 +12,11 @@ et l'exemption posee pour l'API des juges ne s'y applique pas.
 """
 import logging
 
-from flask import Blueprint, g, jsonify, request
+from flask import Blueprint, g, jsonify, render_template, request
 
 from ..auth_session import exige_role, fermer, ouvrir, utilisateur_courant
 from ..comptes import ORGANISATEUR, ErreurCompte, verifier
+from .. import qr
 from ..extensions import db
 from ..models import SOURCE_MANUEL, Participant
 from ..contest import (
@@ -211,6 +212,50 @@ def supprimer_reussite_route(reussite_id):
     except ErreurMetier as e:
         return jsonify({"success": False, "message": e.message}), e.code
     return jsonify({"success": True, "supprimee": trace}), 200
+
+
+# --- Impression des dossards ------------------------------------------------
+
+@bp.get("/dossards")
+@exige_role(ORGANISATEUR)
+def page_dossards():
+    """La planche a imprimer. `?dossard=42` pour un seul, `?categorie=U13 F` pour un lot.
+
+    Format repris du classeur : des bandes de quelques centimetres, a decouper.
+    Le QR est genere LOCALEMENT -- le classeur, lui, appelle api.qrserver.com,
+    ce qui envoie les dossards a un tiers et ne marche pas si la connexion
+    tombe le matin de la competition.
+    """
+    try:
+        comp = competition_active()
+    except ErreurMetier as e:
+        return jsonify({"success": False, "message": e.message}), e.code
+
+    participants = Participant.query.filter_by(competition_id=comp.id).all()
+    participants = [p for p in participants if p.dossard is not None]
+
+    un_seul = request.args.get("dossard", type=int)
+    categorie = (request.args.get("categorie") or "").strip()
+    if un_seul is not None:
+        participants = [p for p in participants if p.dossard == un_seul]
+        titre = f"dossard {un_seul}"
+    elif categorie:
+        participants = [p for p in participants if (p.categorie or "") == categorie]
+        titre = categorie
+    else:
+        titre = comp.nom
+
+    participants.sort(key=lambda p: p.dossard)
+    dossards = [{
+        "dossard": p.dossard,
+        "nom": p.nom_complet,
+        "detail": " · ".join(x for x in (p.categorie, p.club) if x),
+        "qr": qr.svg(p.dossard),
+    } for p in participants]
+
+    logger.info("impression de %d dossard(s) par %s (%s)",
+                len(dossards), g.utilisateur.identifiant, titre)
+    return render_template("dossards.html", dossards=dossards, titre=titre)
 
 
 def _corps_objet():

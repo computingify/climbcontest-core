@@ -42,3 +42,4 @@ zipp==3.17.0
 # release. Une version non figee laisserait un changement majeur de gunicorn
 # arriver tout seul, un dimanche matin, sans qu'aucun test ne l'ait vu.
 gunicorn==26.2.0
+segno==1.6.6
