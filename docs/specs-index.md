@@ -9,7 +9,7 @@ méthode.
 | [002](../specs/002-reliable-success-storage/) | `reliable-success-storage` | ✅ **livrée** (28/08) — `v0.2.0` en production sur la VM 110 | La base devient la source de vérité, le classeur un miroir. Identité stable ≠ dossard, multi-compétition |
 | [003](../specs/003-offline-first-judge-app/) | `offline-first-judge-app` | ✅ **livrée** (28/08) — les 5 itérations. Mesuré : 10 800 → **817** requêtes, et **0** aller-retour bloquant | L'app juge valide hors ligne et envoie par lots : 3 allers-retours bloquants par validation → **0**. Réponse directe à la demande initiale |
 | [004](../specs/004-ranking-engine/) | `ranking-engine` | ✅ **livrée et close** (28/08) — les 3 décisions ouvertes sont tranchées | Moteur de classement pur, reproduit 196/196 scores et rangs du vrai classeur. 47 tests + le test d'acceptation sur données réelles |
-| [005](../specs/005-admin-console/) | `admin-console` | ✅ **livrée** (29/08) | Comptes et rôles, participants à chaud, saisie manuelle, impression des dossards. Archives et paramétrage restent pour plus tard |
+| [005](../specs/005-admin-console/) | `admin-console` | ✅ **livrée** (29/08) | Console sur `/console` : comptes et rôles, participants à chaud, saisie manuelle, impression des dossards. Joignable depuis Internet, avec frein anti-force-brute |
 | [006](../specs/006-live-results-page/) | `live-results-page` | ✅ **livrée** (28/08) | La page projetée dans la salle et ouverte par les spectateurs. Deux modes, aucune dépendance externe, recherche toutes catégories |
 
 ## Specs pressenties
