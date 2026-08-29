@@ -52,10 +52,22 @@ class Config:
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     SECRET_KEY = os.environ.get("CLIMBCONTEST_SECRET_KEY", "dev-non-secret")
 
-    # Clé d'API des juges. Voir specs/002 §6 : mode TOLERE tant que
-    # l'application v3.1.4 du Play Store, qui n'en envoie aucune, est en service.
-    API_KEY = os.environ.get("CLIMBCONTEST_API_KEY")
-    API_KEY_STRICTE = os.environ.get("CLIMBCONTEST_API_KEY_STRICTE", "") == "1"
+    # Cles d'API des juges (spec 012).
+    #
+    # Plusieurs cles acceptees en parallele, pour pouvoir en changer sans jour
+    # de bascule : on publie la nouvelle application, on attend que les
+    # vingt-cinq telephones l'aient, puis on retire l'ancienne cle.
+    #
+    # Une chaine VIDE n'est pas une cle et n'entre pas dans le tuple. Sans ce
+    # filtre, `CLIMBCONTEST_API_KEY=` ouvrirait la porte a un `X-Api-Key:` vide
+    # -- exactement le trou qu'on ferme ici.
+    API_KEYS = ()   # renseigne juste apres, par `cles_depuis_environnement`
+
+    # ⚠️ Le defaut est STRICT depuis la spec 012 : une installation qui oublie
+    # la variable est FERMEE, pas ouverte. Le mode tolere reste atteignable par
+    # `CLIMBCONTEST_API_KEY_STRICTE=0` -- c'est la porte de sortie du plan de
+    # repli, puisque le gel `V3.1.4` n'envoie aucune cle.
+    API_KEY_STRICTE = os.environ.get("CLIMBCONTEST_API_KEY_STRICTE", "1") == "1"
 
     # Miroir vers le classeur Google.
     SHEETS_ACTIF = os.environ.get("CLIMBCONTEST_SHEETS_ACTIF", "1") == "1"
@@ -65,7 +77,31 @@ class Config:
     SHEETS_PERIODE_S = int(os.environ.get("CLIMBCONTEST_SHEETS_PERIODE", "40"))
 
 
+def cles_depuis_environnement(env=None) -> tuple:
+    """Les cles d'API acceptees, lues dans l'environnement.
+
+    Une fonction plutot qu'une expression dans la classe : la regle qui compte
+    -- une chaine VIDE n'est pas une cle -- se teste alors avec un
+    environnement choisi. Ecrite en ligne, elle ne se testait pas : la variable
+    est absente pendant les tests, donc le tuple etait vide quoi qu'on fasse, et
+    le test passait dans les deux sens.
+
+    Sans ce filtre, `CLIMBCONTEST_API_KEY=` ouvrirait la porte a un
+    `X-Api-Key: ` vide -- exactement le trou qu'on ferme.
+    """
+    env = os.environ if env is None else env
+    return tuple(
+        cle.strip() for cle in (
+            env.get("CLIMBCONTEST_API_KEY"),
+            env.get("CLIMBCONTEST_API_KEY_PRECEDENTE"),
+        ) if cle and cle.strip()
+    )
+
+
+Config.API_KEYS = cles_depuis_environnement()
+
+
 class ConfigTest(Config):
     SQLALCHEMY_DATABASE_URI = "sqlite://"   # en mémoire
     SHEETS_ACTIF = False                    # aucun accès réseau dans les tests
-    API_KEY = "cle-de-test"
+    API_KEYS = ("cle-de-test",)

@@ -105,7 +105,46 @@ tête dans le choix de l'option.
 
 ---
 
-## 3. ⚠ Le geste à ne pas oublier : changer le classeur
+## 3. ⚠ Le PREMIER geste : rouvrir l'API aux anciens téléphones
+
+Depuis la spec 012, le backend **exige une clé d'API** des applications juges.
+Le gel `V3.1.4` — celui vers lequel ce plan replie — **n'en envoie aucune**.
+
+Y revenir sans rien faire d'autre donnerait donc, sur chaque téléphone, un
+`401` à chaque envoi. Les réussites ne seraient pas perdues (l'application garde
+sa file et réessaie), mais **rien n'arriverait sur le serveur**, et la seule
+trace serait dans le journal.
+
+Sur la VM 110, **avant** de remettre l'ancienne version en service :
+
+```bash
+ssh adrien@192.168.0.32
+sudo systemctl edit climbcontest        # ou le fichier d'environnement du service
+#   Environment=CLIMBCONTEST_API_KEY_STRICTE=0
+sudo systemctl restart climbcontest
+curl -s http://127.0.0.1:8000/health | python3 -m json.tool | grep regime
+#   "regime": "tolere"      <- c'est ce qu'on veut voir
+```
+
+Vérification que ça a bien pris, sans clé :
+
+```bash
+curl -s -o /dev/null -w '%{http_code}\n' \
+  -X POST https://climbcontest.adn-dev.fr/api/v2/contest/climber/name \
+  -H 'Content-Type: application/json' -d '{"id":"1"}'
+#   201  -> l'ancienne application peut de nouveau travailler
+#   401  -> la variable n'a pas ete prise en compte, recommencer
+```
+
+> **Pourquoi c'est en tête de ce document** : c'est une étape qui n'existait pas
+> avant, qui ne se voit nulle part, et qu'on découvrirait au pire moment — vingt
+> juges qui scannent et un classement qui ne bouge pas.
+
+Le régime redevient strict en retirant la variable et en redémarrant.
+
+---
+
+## 4. ⚠ Le geste à ne pas oublier : changer le classeur
 
 `climbcontest-core/google_sheets.py`, ligne 12 :
 
@@ -130,7 +169,7 @@ Deux autres points de vigilance sur la version gelée :
 
 ---
 
-## 4. Vérification avant le jour J
+## 5. Vérification avant le jour J
 
 À faire une fois, quelques jours avant, pas le matin même :
 
@@ -143,7 +182,7 @@ Deux autres points de vigilance sur la version gelée :
 
 ---
 
-## 5. Reste à faire (une action de ta part)
+## 6. Reste à faire (une action de ta part)
 
 - [x] ~~Pousser le tag `V2.1.1`~~ — **fait le 28/08**.
 - [ ] **Copier `archive/gel-2026-08/secrets/` hors de ce Mac** (NAS, gestionnaire

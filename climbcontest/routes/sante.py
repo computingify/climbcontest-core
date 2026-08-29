@@ -3,7 +3,7 @@ import os
 import time
 from pathlib import Path
 
-from flask import Blueprint, jsonify
+from flask import Blueprint, current_app, jsonify
 
 bp = Blueprint("sante", __name__)
 RACINE = Path(__file__).resolve().parent.parent.parent
@@ -58,9 +58,18 @@ def health():
     # appelle encore sans cle d'API -- la question qui decide du passage en mode
     # strict -- utiliser le journal, qui agrege tout :
     #   journalctl -u climbcontest --since today | grep -c "appel sans cle"
-    from ..auth import compteurs
+    from ..auth import cles_acceptees, compteurs
     from ..sheets.planificateur import est_actif
-    corps["api"] = {**compteurs, "portee": "ce worker seulement", "pid": os.getpid()}
+    # Le REGIME et le NOMBRE de cles, jamais les cles -- ni meme un prefixe :
+    # un prefixe reduit l'espace de recherche sans rien apprendre a qui a acces
+    # a la configuration de la VM.
+    corps["api"] = {
+        **compteurs,
+        "regime": "strict" if current_app.config.get("API_KEY_STRICTE") else "tolere",
+        "cles_acceptees": len(cles_acceptees()),
+        "portee": "ce worker seulement",
+        "pid": os.getpid(),
+    }
     corps["miroir_actif"] = est_actif()
     corps["sauvegarde"] = _etat_sauvegarde()
     return jsonify(corps), code
@@ -77,7 +86,6 @@ def _etat_sauvegarde() -> dict:
     Ne fait jamais echouer la sonde : ne pas savoir sauvegarder n'est pas la
     meme chose que ne pas savoir servir.
     """
-    from flask import current_app
 
     try:
         dossier = Path(current_app.config["DOSSIER_SAUVEGARDES"])

@@ -130,17 +130,18 @@ Trois de tes précisions changent des choix faits ici :
       → `strict-transport-security`, `x-content-type-options`, `x-frame-options`,
       `referrer-policy` vérifiés en réponse réelle
 - [x] `/.git/config` et `/.env` répondent **404** (`import sondes`). → vérifié
-- [ ] ~~L'API des juges refuse une requête sans clé (401), l'accepte avec.~~
-      **Critère corrigé le 28/08 : c'est délibérément faux aujourd'hui.**
+- [x] L'API des juges refuse une requête sans clé (401), l'accepte avec.
+      **Satisfait le 29/08 par la spec 012.**
 
-      L'application `v3.1.4` du Play Store **n'envoie aucune clé**. Rendre la clé
-      obligatoire la casserait le jour de la compétition. Le régime est donc
-      *toléré* : clé absente → acceptée et **comptée** ; clé fausse → `401`.
-      Vérifié en production : `201` sans clé, `401` avec une fausse.
+      Le critère est resté ouvert un jour, et à dessein : l'application
+      `v3.1.4` du Play Store n'envoie aucune clé, et la casser aurait été pire
+      que le risque couvert. Le régime était donc *toléré*.
 
-      Le passage en mode strict se décidera sur le journal, quand il restera à
-      zéro pendant toute une compétition. La case reste ouverte à dessein :
-      c'est un état transitoire, pas un critère satisfait.
+      La spec 012 a fait les deux moitiés en même temps : l'application envoie
+      désormais sa clé, et le régime **strict est le défaut**. Le mode toléré
+      reste atteignable par `CLIMBCONTEST_API_KEY_STRICTE=0` — c'est ce que le
+      plan de repli exige en premier, puisque le gel `V3.1.4` n'envoie toujours
+      rien.
 - [x] La console d'administration exige une authentification.
       → **Était faux jusqu'au 28/08.** `GET /admin/import/rapport` répondait `200`
       depuis Internet : les routes portaient le garde-fou de clé en mode *toléré*,

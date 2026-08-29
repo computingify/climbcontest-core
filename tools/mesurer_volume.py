@@ -13,6 +13,7 @@ base. Ne le lancer que contre un serveur de developpement -- il refuse de
 demarrer sans URL explicite, comme les scripts de charge.
 """
 import json
+import os
 import ssl
 import sys
 import urllib.error
@@ -51,6 +52,11 @@ class Compteur:
             entetes["Content-Length"] = str(len(donnees))
         entetes.setdefault("Host", self.hote)
         entetes.setdefault("User-Agent", "okhttp/5.3.2")
+        # Le serveur exige une cle depuis la spec 012. Sans elle, on mesurerait
+        # le volume des 401, pas celui d'une vraie competition.
+        cle = os.environ.get("CLIMBCONTEST_API_KEY")
+        if cle:
+            entetes.setdefault("X-Api-Key", cle)
         entetes.setdefault("Accept-Encoding", "gzip")
         entetes.setdefault("Connection", "keep-alive")
 

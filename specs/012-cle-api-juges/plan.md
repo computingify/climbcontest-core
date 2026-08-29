@@ -10,19 +10,19 @@ fermer la porte.
 
 ## IT1 — L'application envoie la clé
 
-- [ ] `build.gradle.kts` : `API_KEY`, valeur par défaut en debug, absente en
+- [x] `build.gradle.kts` : `API_KEY`, valeur par défaut en debug, absente en
       release.
-- [ ] Garde-fou : une tâche release sans clé fait échouer le build.
-- [ ] `ClimbContestApi` pose `X-Api-Key` sur les quatre requêtes.
+- [x] Garde-fou : une tâche release sans clé fait échouer le build.
+- [x] `ClimbContestApi` pose `X-Api-Key` sur les quatre requêtes.
 
 ## IT2 — Le serveur l'exige
 
-- [ ] `API_KEYS` remplace `API_KEY`, plusieurs clés acceptées.
-- [ ] Comparaison à temps constant, sans court-circuit.
-- [ ] Le mode strict devient le défaut.
-- [ ] Strict sans clé configurée → `503` nommant la variable.
-- [ ] `/health` expose le régime et le nombre de clés.
-- [ ] Plan de repli et critère de la spec 001 mis à jour.
+- [x] `API_KEYS` remplace `API_KEY`, plusieurs clés acceptées.
+- [x] Comparaison à temps constant, sans court-circuit.
+- [x] Le mode strict devient le défaut.
+- [x] Strict sans clé configurée → `503` nommant la variable.
+- [x] `/health` expose le régime et le nombre de clés.
+- [x] Plan de repli et critère de la spec 001 mis à jour.
 
 ## Plan de test
 

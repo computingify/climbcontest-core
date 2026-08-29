@@ -113,6 +113,32 @@ Une exemption est déjà posée sur `/api/v2/contest/*` et `/api/public/*`, donc
 ne devrait pas arriver. Si ça arrive quand même, regarde **quel scénario** a
 déclenché : c'est probablement un chemin qu'on n'avait pas prévu.
 
+### 🔴 Un téléphone n'envoie plus rien, les autres si
+
+Le symptôme, vu de la console : dans l'onglet **Appareils**, un téléphone
+apparaît en rouge (« muet depuis plus de dix minutes ») pendant que les autres
+avancent. Vu du juge : le voyant de connexion est rouge barré alors que son
+wifi marche.
+
+Cause la plus probable depuis la spec 012 : **ce téléphone a une ancienne
+version de l'application**, sans clé d'API, et le serveur refuse tout ce qu'il
+envoie.
+
+Vérifier :
+
+```bash
+ssh adrien@192.168.0.32 'journalctl -u climbcontest --since "10 min ago" | grep "appel sans cle"'
+```
+
+- des lignes → c'est bien ça. Installer la version à jour sur ce téléphone.
+  **Ses réussites ne sont pas perdues** : l'application garde sa file et
+  repartira toute seule une fois la clé bonne ;
+- aucune ligne → ce n'est pas la clé. Regarder le wifi du téléphone.
+
+En dernier recours, si plusieurs téléphones sont concernés et qu'on n'a pas le
+temps de les mettre à jour, on rouvre l'API : c'est le §3 du
+[plan de repli](plan-de-repli.md).
+
 ### Le service ne répond plus
 
 ```bash
@@ -190,3 +216,5 @@ secrets Google.
 | Journal du déploiement | `journalctl -t climbcontest-deploy -f` |
 | Journal de l'application | `journalctl -u climbcontest -f` |
 | Reverse proxy | LXC 101 `edge`, `pct exec 101 -- ...` depuis l'hyperviseur |
+| Régime de la clé d'API | `curl -s http://127.0.0.1:8000/health \| grep -o '"regime":"[a-z]*"'` sur la VM |
+| Rouvrir l'API aux anciens téléphones | `CLIMBCONTEST_API_KEY_STRICTE=0` puis redémarrer — §3 du plan de repli |

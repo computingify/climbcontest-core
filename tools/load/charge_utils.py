@@ -37,6 +37,12 @@ class BaseClient:
     def __init__(self, client_id):
         self.client_id = client_id
         self.session = requests.Session()
+        # Depuis la spec 012, le serveur EXIGE une cle par defaut. Sans elle,
+        # cet outil ne mesurerait plus que des 401 -- des reponses minuscules
+        # qui donneraient de faux chiffres rassurants.
+        cle = os.environ.get("CLIMBCONTEST_API_KEY")
+        if cle:
+            self.session.headers["X-Api-Key"] = cle
     
     def log(self, message):
         """Log message with timestamp"""

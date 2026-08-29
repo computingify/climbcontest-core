@@ -114,35 +114,35 @@ premier, avant le retour de version — pas en note de bas de page.
 
 ### Serveur
 
-- [ ] Sans variable `CLIMBCONTEST_API_KEY_STRICTE`, le régime est **strict**.
-- [ ] Une requête sans clé sur une route de juge reçoit `401`.
-- [ ] Une requête avec la bonne clé passe.
-- [ ] Une requête avec une clé fausse reçoit `401`, dans les deux régimes.
-- [ ] La comparaison des clés est à **temps constant**, et ne dit jamais
+- [x] Sans variable `CLIMBCONTEST_API_KEY_STRICTE`, le régime est **strict**.
+- [x] Une requête sans clé sur une route de juge reçoit `401`.
+- [x] Une requête avec la bonne clé passe.
+- [x] Une requête avec une clé fausse reçoit `401`, dans les deux régimes.
+- [x] La comparaison des clés est à **temps constant**, et ne dit jamais
       laquelle des clés acceptées a été reconnue.
-- [ ] Deux clés configurées : les deux passent.
-- [ ] Mode strict **sans aucune clé configurée** : `503` avec un message qui
+- [x] Deux clés configurées : les deux passent.
+- [x] Mode strict **sans aucune clé configurée** : `503` avec un message qui
       nomme la variable manquante.
-- [ ] Le mode toléré reste atteignable par `CLIMBCONTEST_API_KEY_STRICTE=0` —
+- [x] Le mode toléré reste atteignable par `CLIMBCONTEST_API_KEY_STRICTE=0` —
       c'est la porte de sortie du plan de repli.
-- [ ] `/health` expose le régime et le nombre de clés acceptées, **jamais** la
+- [x] `/health` expose le régime et le nombre de clés acceptées, **jamais** la
       clé elle-même ni un préfixe.
-- [ ] Les routes publiques restent accessibles sans clé.
+- [x] Les routes publiques restent accessibles sans clé.
 
 ### Application
 
-- [ ] Toutes les requêtes API portent `X-Api-Key`.
-- [ ] La clé n'apparaît **nulle part** dans le dépôt.
-- [ ] `assembleRelease` sans clé **échoue**, avec un message qui dit quoi faire.
-- [ ] `installDebug` sans clé **fonctionne** : la clé de développement suffit.
-- [ ] Une clé refusée par le serveur ne fait perdre aucune réussite : la file
+- [x] Toutes les requêtes API portent `X-Api-Key`.
+- [x] La clé n'apparaît **nulle part** dans le dépôt.
+- [x] `assembleRelease` sans clé **échoue**, avec un message qui dit quoi faire.
+- [x] `installDebug` sans clé **fonctionne** : la clé de développement suffit.
+- [x] Une clé refusée par le serveur ne fait perdre aucune réussite : la file
       garde tout et réessaie.
 
 ### Documentation
 
-- [ ] Le plan de repli porte l'étape `CLIMBCONTEST_API_KEY_STRICTE=0`, **avant**
+- [x] Le plan de repli porte l'étape `CLIMBCONTEST_API_KEY_STRICTE=0`, **avant**
       le retour de version.
-- [ ] Le critère de la spec 001 est repris et daté.
+- [x] Le critère de la spec 001 est repris et daté.
 
 ## Cas limites
 
