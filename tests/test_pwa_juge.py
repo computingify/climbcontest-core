@@ -62,6 +62,87 @@ class TestLaPageEstServie:
             assert r.status_code == 200, icone["src"]
 
 
+class TestLeServiceWorker:
+    """IT4. Ce qui rend l'application utilisable sans reseau."""
+
+    def test_il_est_servi_depuis_juge_et_pas_depuis_static(self, client_sans_cle):
+        """Sa PORTEE est le dossier d'ou il est servi. Depuis
+        `/static/juge/sw.js`, il ne pourrait controler que `/static/juge/` --
+        donc pas `/juge`, donc pas l'application."""
+        r = client_sans_cle.get("/juge/sw.js")
+        assert r.status_code == 200
+        assert "javascript" in r.headers["Content-Type"]
+
+    def test_sa_portee_couvre_l_application_elle_meme(self, client_sans_cle):
+        """⚠️ Sans cet en-tete, la PWA s'installe mais ne fonctionne JAMAIS hors
+        ligne -- et rien ne le dit.
+
+        Par defaut, un script servi depuis `/juge/` ne peut controler que
+        `/juge/`, avec la barre finale. Or l'application vit a `/juge`, SANS
+        barre, qui n'est pas sous `/juge/`. Le navigateur refuse alors
+        l'enregistrement. Trouve en essayant pour de vrai :
+
+            The path of the provided scope ('/juge') is not under the max scope
+            allowed ('/juge/').
+        """
+        r = client_sans_cle.get("/juge/sw.js")
+        assert r.headers.get("Service-Worker-Allowed") == "/juge"
+
+    def test_il_n_est_jamais_mis_en_cache(self, client_sans_cle):
+        """Un service worker mis en cache est un service worker qu'on ne peut
+        plus corriger."""
+        cache = client_sans_cle.get("/juge/sw.js").headers.get("Cache-Control", "")
+        assert "no-cache" in cache
+
+    def test_il_ne_touche_JAMAIS_aux_appels_api(self):
+        """⚠️ La regle la plus importante de ce fichier.
+
+        Un service worker qui rejouerait un POST creerait des doublons ;
+        l'idempotence du serveur les absorberait, mais la file du telephone se
+        croirait videe pendant qu'une reussite y reste. La file est geree par
+        l'application, et elle seule decide de ce qui part.
+        """
+        sw = (STATIQUE / "sw.js").read_text(encoding="utf-8")
+        assert 'requete.method !== "GET"' in sw
+        assert 'url.pathname.startsWith("/api/")' in sw
+
+    def test_la_coquille_prechargee_existe_vraiment(self, client_sans_cle):
+        """Un chemin errone dans la liste laisserait l'application sans
+        hors-ligne, en silence."""
+        import re
+        sw = (STATIQUE / "sw.js").read_text(encoding="utf-8")
+        debut = sw.index("const COQUILLE = [")
+        liste = sw[debut:sw.index("]", debut)]
+        chemins = re.findall(r'"(/[^"]+)"', liste)
+        assert chemins, "la coquille ne doit pas etre vide"
+        for chemin in chemins:
+            assert client_sans_cle.get(chemin).status_code == 200, chemin
+
+    def test_jsqr_n_est_pas_precharge(self):
+        """250 ko qui ne servent qu'a Safari. Les precharger ferait payer a tout
+        le monde ce dont seuls certains ont besoin ; il entre au cache au
+        premier scan, sur les appareils qui en ont besoin."""
+        sw = (STATIQUE / "sw.js").read_text(encoding="utf-8")
+        debut = sw.index("const COQUILLE = [")
+        assert "jsqr.js" not in sw[debut:sw.index("]", debut)]
+
+    def test_l_echec_d_un_seul_fichier_n_empeche_pas_l_installation(self):
+        """`addAll` echoue en bloc si UN fichier manque. Mieux vaut une coquille
+        incomplete qu'un service worker qui ne s'installe pas du tout."""
+        sw = (STATIQUE / "sw.js").read_text(encoding="utf-8")
+        # `.addAll(` et non `addAll` : le mot apparait dans le commentaire qui
+        # explique justement pourquoi on ne l'utilise pas.
+        assert ".addAll(" not in sw
+        assert "cache.add(url).catch" in sw
+
+    def test_son_echec_n_empeche_pas_l_application_de_marcher(self):
+        """Un juge dont le navigateur refuse les service workers -- mode prive,
+        reglage d'entreprise -- doit pouvoir travailler quand meme."""
+        juge = (STATIQUE / "juge.js").read_text(encoding="utf-8")
+        assert 'navigator.serviceWorker.register("/juge/sw.js"' in juge
+        assert ".catch(" in juge[juge.index("serviceWorker.register"):]
+
+
 class TestRienNeFuit:
     """La page est publique. Tout ce qu'elle contient l'est aussi."""
 

@@ -614,6 +614,21 @@ async function demarrer() {
 
   await rafraichirLeCatalogue();
   setInterval(boucle, PERIODE_BOUCLE_MS);
+  enregistrerLeServiceWorker();
+}
+
+/**
+ * Ce qui rend l'application utilisable sans réseau.
+ *
+ * Enregistré **après** le démarrage : un échec ici ne doit jamais empêcher
+ * l'application de fonctionner. Un juge dont le navigateur refuse les service
+ * workers — mode privé, réglage d'entreprise — doit pouvoir travailler quand
+ * même, simplement sans le hors-ligne.
+ */
+function enregistrerLeServiceWorker() {
+  if (!("serviceWorker" in navigator)) return;
+  navigator.serviceWorker.register("/juge/sw.js", { scope: "/juge" })
+    .catch(() => { /* pas de hors-ligne, mais l'application marche */ });
 }
 
 demarrer();
