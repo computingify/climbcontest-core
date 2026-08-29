@@ -79,6 +79,33 @@ session, sans changer de comportement.
 illisible, une session expirée, un utilisateur supprimé entre-temps — tous
 donnent `401`. Il n'y a pas de branche « on laisse passer en cas de doute ».
 
+### La console est joignable depuis Internet, et c'est voulu
+
+Elle a été restreinte au LAN le 28/08, en urgence, quand elle n'avait qu'une
+clé d'API partagée. Ce filtre avait un **défaut de fond** : le jour de la
+compétition, les organisateurs sont **au gymnase** et la VM est à la maison.
+Ils passent donc par Internet, comme les juges — le filtre rendait la console
+inutilisable exactement quand elle sert.
+
+Décision d'Adrien du 29/08 : ouvrir, avec un frein anti-force-brute.
+
+```
+  1. mot de passe haché (scrypt)
+  2. session signée, 12 h, relue en base à chaque requête
+  3. fail closed sur tout doute
+  4. frein anti-force-brute
+  5. CrowdSec sur edge
+  6. HTTPS obligatoire
+```
+
+Le frein compte les échecs **par adresse** et **en base** : avec quatre
+workers, un compteur par processus diviserait la protection par quatre. Il
+n'est pas par identifiant — ce serait offrir à n'importe qui le moyen de
+bloquer le compte d'un organisateur en se trompant exprès. Et il agit **avant**
+la vérification du mot de passe, parce que `scrypt` est lent à dessein.
+
+`/health`, lui, reste au LAN : c'est une sonde interne.
+
 C'est la leçon directe du 28/08 : `@exige_cle_api` en mode toléré **laissait
 passer** une requête sans clé, et cette tolérance — parfaitement justifiée pour
 les routes des juges — avait contaminé l'administration.
@@ -118,6 +145,6 @@ en écrire un qui encode des dossards ne l'est pas.
 | --- | --- |
 | `SECRET_KEY` laissée par défaut | l'administration refuse de démarrer, et le dit |
 | Un cookie volé sur le wifi de la salle | HTTPS obligatoire, cookie `Secure` + `HttpOnly` + `SameSite=Lax` |
-| Force brute sur la connexion | temporisation après échec, et journalisation avec l'adresse |
+| Force brute sur la connexion | attente doublante par adresse, plafonnée à 5 min, comptée en base ; journalisée |
 | Un organisateur supprime une réussite par erreur | la suppression laisse une trace |
 | La console tombe pendant la compétition | les juges continuent : elle est **indépendante** des routes `v2`/`v3` |
