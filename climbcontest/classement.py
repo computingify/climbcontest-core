@@ -47,6 +47,7 @@ class ParticipantCalcul:
     id: int
     dossard: int | None
     categorie: str | None
+    club: str | None = None
 
     @property
     def circuit(self) -> str | None:
@@ -73,15 +74,30 @@ class Ligne:
     score: int
     rang: int
     blocs_reussis: int
+    # Renseigne UNIQUEMENT pour un classement de clubs : combien de grimpeurs
+    # composent la ligne. Un champ dedie plutot qu'un detournement de `dossard`
+    # -- un detournement se paie toujours plus tard, quand quelqu'un affiche
+    # « dossard 15 » pour un club.
+    membres: int | None = None
+    # Le nom porte par la ligne quand ce n'est pas un participant -- un club,
+    # aujourd'hui. Un champ declare plutot qu'un dictionnaire pose a cote de la
+    # dataclass : un canal parallele ne se serialise pas et casse au premier
+    # remaniement.
+    libelle: str | None = None
 
     def to_dict(self) -> dict:
-        return {
+        base = {
             "participant_id": self.participant_id,
             "dossard": self.dossard,
             "score": self.score,
             "rang": self.rang,
             "blocs": self.blocs_reussis,
         }
+        if self.membres is not None:
+            base["membres"] = self.membres
+        if self.libelle is not None:
+            base["nom"] = self.libelle
+        return base
 
 
 @dataclass
@@ -225,6 +241,71 @@ def calculer_groupe(
         ))
 
     return classement
+
+
+def calculer_clubs(classements: dict[str, "Classement"],
+                   participants: list[ParticipantCalcul]) -> "Classement | None":
+    """Le classement par club : SOMME des scores de tous ses grimpeurs.
+
+    Regle tranchee par Adrien le 29/08, en connaissance de cause : un club qui
+    vient a quinze passera presque toujours devant un club qui vient a quatre,
+    quel que soit le niveau. C'est ce que la regle mesure -- la participation
+    autant que la performance. A redire au micro le jour J.
+
+    ⚠️ ON NE RECALCULE RIEN. On additionne des scores deja calcules, en ne
+    prenant que les classements de type « categorie ». C'est ce qui garantit que
+    ce classement ne pourra jamais diverger des autres : recalculer a partir des
+    reussites creerait un second chemin, donc la possibilite qu'ils ne disent
+    pas la meme chose.
+
+    POURQUOI LA CATEGORIE ET PAS LE SCRATCH. Un grimpeur figure dans DEUX
+    classements -- sa categorie (« U13 F ») et son circuit (« U13 »). Les
+    additionner le compterait deux fois. La categorie est son resultat officiel,
+    celui du podium ; le scratch est une lecture transversale du meme travail.
+
+    Renvoie `None` s'il n'y a aucun club -- un classement vide n'apprend rien.
+    """
+    club_de = {p.id: (p.club or "").strip() for p in participants}
+
+    total: dict[str, dict] = defaultdict(lambda: {"score": 0, "blocs": 0, "membres": 0})
+    for classement in classements.values():
+        if classement.type != "categorie":
+            continue
+        for ligne in classement.lignes:
+            club = club_de.get(ligne.participant_id, "")
+            if not club:
+                continue            # sans club, on n'invente pas de club fantome
+            total[club]["score"] += ligne.score
+            total[club]["blocs"] += ligne.blocs_reussis
+            total[club]["membres"] += 1
+
+    if not total:
+        return None
+
+    # Tri par score decroissant, puis par nom pour que l'ordre soit stable
+    # d'un rafraichissement a l'autre.
+    ordonnes = sorted(total.items(), key=lambda kv: (-kv[1]["score"], kv[0]))
+
+    lignes: list[Ligne] = []
+    rang, precedent, place = 0, None, 0
+    for nom, valeurs in ordonnes:
+        place += 1
+        if valeurs["score"] != precedent:
+            rang = place                       # ex aequo : le suivant saute les places
+            precedent = valeurs["score"]
+        lignes.append(Ligne(
+            # L'identite d'un club est son nom : il n'a pas d'identifiant en
+            # base. On garde le champ pour ne pas casser la forme des lignes.
+            participant_id=0,
+            dossard=None,
+            score=valeurs["score"],
+            rang=rang,
+            blocs_reussis=valeurs["blocs"],
+            membres=valeurs["membres"],
+            libelle=nom,
+        ))
+
+    return Classement(groupe="Clubs", type="club", circuit=None, lignes=lignes)
 
 
 def calculer_tout(

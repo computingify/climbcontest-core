@@ -46,8 +46,11 @@ class TestRouteClassement:
         d = client.get("/api/public/classement").get_json()
 
         # « blocs » est un COMPTE de blocs reussis, pas la liste des blocs.
+        # « membres » est le nombre de grimpeurs d'un club (spec 010) : un
+        # agregat, qui ne designe personne. Ajoute ICI, consciemment, parce que
+        # ce test a fait son travail en le refusant d'abord.
         autorises = {"participant_id", "dossard", "nom", "club", "categorie",
-                     "score", "rang", "blocs"}
+                     "score", "rang", "blocs", "membres"}
         for classement in d["classements"]:
             for ligne in classement["lignes"]:
                 surplus = set(ligne) - autorises

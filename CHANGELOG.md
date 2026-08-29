@@ -19,6 +19,35 @@ qu'on ne met pas à jour le matin d'une compétition :
 
 ## [Non publié]
 
+## [0.6.0] — 2026-08-29
+
+### Ajouté
+
+- **Le classement par club** (spec 010). Somme des scores de tous les grimpeurs
+  du club, comme décidé le 29/08. Il apparaît comme un groupe de plus dans
+  `/api/public/classement` et sur la page de résultats — aucune route n'a
+  changé.
+
+  **Dérivé, jamais recalculé** : il additionne les classements par catégorie
+  déjà produits. C'est ce qui garantit qu'il ne pourra pas diverger d'eux.
+
+  Chaque grimpeur ne compte **qu'une fois**, par sa catégorie. Un grimpeur
+  figure aussi dans le scratch de son circuit ; additionner les deux l'aurait
+  compté deux fois. La catégorie est son résultat officiel, celui du podium.
+
+  Le **nombre de grimpeurs** du club est affiché : sans lui, le classement
+  serait illisible vu la règle retenue.
+
+### À savoir pour le jour J
+
+Un club nombreux est avantagé — c'est la règle, choisie en connaissance de
+cause. Mais **s'agglutiner sur les mêmes blocs ne rapporte presque rien** : un
+bloc vaut `1000 / nombre de personnes l'ayant réussi`. Trois grimpeurs qui font
+tous le même bloc facile gagnent 999 à eux trois, moins qu'un seul ayant tenu
+deux blocs que personne d'autre n'a réussis.
+
+« Le gros club gagne » est donc vrai **à niveau égal**, pas dans l'absolu.
+
 ## [0.5.1] — 2026-08-29
 
 ### Ajouté
@@ -484,7 +513,8 @@ livrer — spec 001, itération 3.
 - Les données et les secrets vivent dans `shared/`, hors des releases : un
   déploiement ou un retour arrière ne peut pas les toucher.
 
-[Non publié]: https://github.com/computingify/climbcontest-core/compare/v0.5.1...HEAD
+[Non publié]: https://github.com/computingify/climbcontest-core/compare/v0.6.0...HEAD
+[0.6.0]: https://github.com/computingify/climbcontest-core/releases/tag/v0.6.0
 [0.5.1]: https://github.com/computingify/climbcontest-core/releases/tag/v0.5.1
 [0.5.0]: https://github.com/computingify/climbcontest-core/releases/tag/v0.5.0
 [0.4.2]: https://github.com/computingify/climbcontest-core/releases/tag/v0.4.2
