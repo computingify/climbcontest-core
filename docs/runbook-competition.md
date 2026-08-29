@@ -151,6 +151,21 @@ En dernier recours, si plusieurs téléphones sont concernés et qu'on n'a pas l
 temps de les mettre à jour, on rouvre l'API : c'est le §3 du
 [plan de repli](plan-de-repli.md).
 
+### Un correctif publié ne semble pas arriver sur les téléphones
+
+**PWA (iPhone).** Elle sert son code depuis son propre cache, pour pouvoir
+s'ouvrir sans réseau. La version fraîche est téléchargée en arrière-plan et
+prend effet **au lancement suivant** — c'est volontaire : recharger la page
+toute seule couperait un juge en plein geste.
+
+Concrètement : demande aux juges de **fermer complètement l'application et de la
+rouvrir**. Sur iPhone, glisser vers le haut depuis la barre d'accueil puis
+balayer la carte de l'application.
+
+**Android.** Un correctif passe par le Play Store, donc par une mise à jour
+d'application. On ne fait pas ça un jour de compétition — c'est le sens du gel
+de repli.
+
 ### Le service ne répond plus
 
 ```bash

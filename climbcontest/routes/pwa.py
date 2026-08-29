@@ -43,11 +43,34 @@ def application():
     return reponse
 
 
-# Le service worker viendra en IT4. Il devra etre servi DEPUIS /juge/ et non
-# depuis /static/ : sa portee est le dossier d'ou il est servi, et depuis
-# `/static/juge/sw.js` il ne pourrait pas controler `/juge`. On n'expose pas la
-# route tant que le fichier n'existe pas : une route qui repond 404 est pire
-# qu'une route absente, elle donne l'illusion d'une fonctionnalite.
+@bp.get("/sw.js")
+def service_worker():
+    """Le service worker, servi depuis /juge/ et NON depuis /static/.
+
+    Sa PORTEE est le dossier d'ou il est servi. Depuis `/static/juge/sw.js`, il
+    ne pourrait controler que `/static/juge/` -- donc pas `/juge`, donc pas
+    l'application. C'est la seule raison de cette route.
+
+    Servi sans cache : un service worker mis en cache est un service worker
+    qu'on ne peut plus corriger.
+
+    ⚠️ **`Service-Worker-Allowed` n'est pas optionnel ici.** Par defaut, un
+    script servi depuis `/juge/` ne peut controler que `/juge/` -- avec la barre
+    finale. Or l'application vit a `/juge`, SANS barre, qui n'est pas sous
+    `/juge/`. Le navigateur refuse alors l'enregistrement, avec un message que
+    seul un essai reel fait apparaitre :
+
+        The path of the provided scope ('/juge') is not under the max scope
+        allowed ('/juge/').
+
+    Cet en-tete elargit la portee autorisee a `/juge`, ce qui couvre
+    l'application ET ses fichiers. Sans lui, la PWA s'installe mais ne
+    fonctionne jamais hors ligne -- et rien ne le dit.
+    """
+    reponse = send_from_directory(_dossier(), "sw.js", mimetype="text/javascript")
+    reponse.headers["Cache-Control"] = "no-cache, must-revalidate"
+    reponse.headers["Service-Worker-Allowed"] = "/juge"
+    return reponse
 
 
 @bp.get("/manifest.webmanifest")

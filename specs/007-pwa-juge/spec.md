@@ -86,39 +86,39 @@ savoir.
 
 ### Le geste du juge
 
-- [ ] Sur iPhone, la PWA s'ajoute à l'écran d'accueil et s'ouvre en plein écran.
-- [ ] Elle scanne un QR code sur **Safari iOS** et sur **Chrome Android**.
-- [ ] Le juge ne saisit **jamais** d'identifiant ni de mot de passe.
-- [ ] Un scan est validé **sans réseau** quand le catalogue local le connaît.
-- [ ] « Validé » s'affiche quand la réussite est **sur le téléphone**, pas quand
+- [x] Sur iPhone, la PWA s'ajoute à l'écran d'accueil et s'ouvre en plein écran.
+- [x] Elle scanne un QR code sur **Safari iOS** et sur **Chrome Android**.
+- [x] Le juge ne saisit **jamais** d'identifiant ni de mot de passe.
+- [x] Un scan est validé **sans réseau** quand le catalogue local le connaît.
+- [x] « Validé » s'affiche quand la réussite est **sur le téléphone**, pas quand
       elle est sur le serveur.
 
 ### Ce qui ne doit jamais arriver
 
-- [ ] Une réussite validée par le juge n'est **jamais** perdue : ni par une
+- [x] Une réussite validée par le juge n'est **jamais** perdue : ni par une
       coupure réseau, ni par une fermeture d'onglet, ni par un rechargement.
-- [ ] Une réussite ne quitte la file que si le serveur a **statué** sur elle.
-- [ ] Un rechargement de la page ne rejoue pas les envois déjà acquittés.
+- [x] Une réussite ne quitte la file que si le serveur a **statué** sur elle.
+- [x] Un rechargement de la page ne rejoue pas les envois déjà acquittés.
 
 ### Hors ligne
 
-- [ ] L'application s'ouvre et fonctionne **sans réseau**, une fois installée.
-- [ ] La file survit à la fermeture complète de l'application.
-- [ ] Le voyant de connexion dit la vérité, et jamais l'état d'avant la mise en
+- [x] L'application s'ouvre et fonctionne **sans réseau**, une fois installée.
+- [x] La file survit à la fermeture complète de l'application.
+- [x] Le voyant de connexion dit la vérité, et jamais l'état d'avant la mise en
       veille.
 
 ### Sécurité
 
-- [ ] Aucune requête API ne part sans jeton.
-- [ ] Le jeton n'apparaît **pas** dans le code source servi publiquement.
-- [ ] Le jeton se révoque sans toucher aux applications Android.
-- [ ] Aucune ressource n'est chargée depuis un domaine tiers.
+- [x] Aucune requête API ne part sans jeton.
+- [x] Le jeton n'apparaît **pas** dans le code source servi publiquement.
+- [x] Le jeton se révoque sans toucher aux applications Android.
+- [x] Aucune ressource n'est chargée depuis un domaine tiers.
 
 ### Parité
 
-- [ ] Journal de tous les scans, avec leur état, purgé à 30 jours.
-- [ ] Identité d'appareil et nom, visibles dans la console à côté des réussites.
-- [ ] Réussites refusées conservées et renvoyables.
+- [x] Journal de tous les scans, avec leur état, purgé à 30 jours.
+- [x] Identité d'appareil et nom, visibles dans la console à côté des réussites.
+- [x] Réussites refusées conservées et renvoyables.
 
 ## Cas limites
 

@@ -27,9 +27,9 @@ arrive trop vite, on s'arrête à la dernière terminée.
 
 ## IT4 — Installable
 
-- [ ] Manifeste et icônes.
-- [ ] Service worker : la coquille hors ligne, **jamais** les appels API.
-- [ ] Bandeau d'installation.
+- [x] Manifeste et icônes.
+- [x] Service worker : la coquille hors ligne, **jamais** les appels API.
+- [x] Bandeau d'installation.
 
 ## Plan de test
 
