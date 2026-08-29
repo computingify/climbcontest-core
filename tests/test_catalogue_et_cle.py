@@ -210,6 +210,36 @@ class TestConfigurationIncoherente:
         finally:
             app.config["API_KEYS"] = ("cle-de-test",)
 
+    def test_la_sonde_passe_en_degraded(self, client, jeu, app):
+        """C'est ce qui doit faire echouer le deploiement.
+
+        Sans cette verification, l'agent de deploiement verrait « ok »,
+        validerait la mise en production, et la panne se decouvrirait quand
+        vingt-cinq juges commenceraient a scanner.
+        """
+        app.config["API_KEYS"] = ()
+        try:
+            r = client.get("/health")
+            assert r.status_code == 503
+            d = r.get_json()
+            assert d["status"] == "degraded"
+            assert "CLIMBCONTEST_API_KEY" in d["cle_api"]
+        finally:
+            app.config["API_KEYS"] = ("cle-de-test",)
+
+    def test_la_sonde_reste_ok_en_mode_tolere_sans_cle(self, client, jeu, app):
+        """Sans cle ET en mode tolere, la configuration est coherente : c'est le
+        repli, et il ne doit pas faire echouer un deploiement."""
+        app.config["API_KEYS"] = ()
+        app.config["API_KEY_STRICTE"] = False
+        try:
+            r = client.get("/health")
+            assert r.status_code == 200
+            assert r.get_json()["status"] == "ok"
+        finally:
+            app.config["API_KEYS"] = ("cle-de-test",)
+            app.config["API_KEY_STRICTE"] = True
+
     def test_le_mode_tolere_sans_cle_reste_utilisable(self, client_sans_cle, jeu, app):
         """Sans cle ET en mode tolere, ce n'est pas incoherent : c'est le repli."""
         app.config["API_KEYS"] = ()

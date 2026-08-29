@@ -145,7 +145,13 @@ class ServeurReel:
                 raise RuntimeError(f"gunicorn n'a pas demarre :\n{journal[-800:]}")
             try:
                 code, _ = appeler(self.base, "/health", methode="GET")
-                if code == 200:
+                # 200 ou 503 : dans les deux cas gunicorn ECOUTE et repond,
+                # c'est tout ce que cette boucle mesure. Un 503 dit que la
+                # configuration est mauvaise -- base injoignable, ou cle d'API
+                # absente en mode strict (spec 012) -- et c'est justement ce que
+                # certains tests veulent observer. Exiger 200 ici les empecherait
+                # meme de demarrer.
+                if code in (200, 503):
                     return
             except Exception:
                 pass
