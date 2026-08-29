@@ -15,6 +15,7 @@ import logging
 from flask import Blueprint, g, jsonify, render_template, request
 
 from ..auth_session import exige_role, fermer, ouvrir, utilisateur_courant
+from .. import freinage
 from ..comptes import ORGANISATEUR, ErreurCompte, verifier
 from .. import qr
 from ..extensions import db
@@ -44,8 +45,25 @@ def connexion():
     if not isinstance(corps, dict):
         return jsonify({"success": False, "message": "Corps JSON attendu"}), 400
 
+    # Le frein AVANT la verification : sinon un robot ferait travailler le
+    # hachage scrypt a chaque tentative, ce qui est precisement ce qu'on veut
+    # eviter -- il est lent a dessein.
+    adresse = request.remote_addr or "inconnue"
+    attente = freinage.attente_restante(adresse)
+    if attente.total_seconds() > 0:
+        secondes = max(1, int(attente.total_seconds()))
+        logger.warning("connexion freinee pour %s (%d s restantes)", adresse, secondes)
+        reponse = jsonify({
+            "success": False,
+            "message": f"Trop de tentatives. Reessaie dans {secondes} seconde"
+                       f"{'s' if secondes > 1 else ''}.",
+        })
+        reponse.headers["Retry-After"] = str(secondes)
+        return reponse, 429
+
     u = verifier(corps.get("identifiant", ""), corps.get("mot_de_passe", ""))
     if u is None:
+        freinage.noter_echec(adresse)
         # Le MEME message et le MEME delai que l'identifiant existe ou non :
         # distinguer les deux revelerait quels comptes sont valides.
         logger.warning("connexion refusee pour « %s » depuis %s",
@@ -53,8 +71,9 @@ def connexion():
         return jsonify({"success": False,
                         "message": "Identifiant ou mot de passe incorrect"}), 401
 
+    freinage.noter_reussite(adresse)
     ouvrir(u)
-    logger.info("connexion de %s depuis %s", u.identifiant, request.remote_addr)
+    logger.info("connexion de %s depuis %s", u.identifiant, adresse)
     return jsonify({"success": True, "identifiant": u.identifiant,
                     "roles": sorted(r.role for r in u.roles)}), 200
 

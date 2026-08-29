@@ -324,6 +324,29 @@ class UtilisateurRole(db.Model):
     utilisateur = relationship("Utilisateur", back_populates="roles")
 
 
+class TentativeConnexion(db.Model):
+    """Les echecs de connexion, par adresse. Le frein anti-force-brute.
+
+    EN BASE, et non en memoire : avec quatre workers gunicorn, un compteur par
+    processus diviserait la protection par quatre -- un robot n'aurait qu'a
+    insister pour tomber sur un worker au compteur vierge. Il survit aussi aux
+    redemarrages, ce qui compte : relancer le service ne doit pas offrir une
+    ardoise propre a qui essaie des mots de passe.
+
+    Le volume est negligeable : une ligne par adresse ayant echoue, effacee des
+    qu'une connexion reussit.
+    """
+
+    __tablename__ = "tentative_connexion"
+
+    adresse = Column(String(64), primary_key=True)
+    echecs = Column(Integer, nullable=False, default=0)
+    derniere = Column(DateTime, nullable=False, default=func.now())
+
+    def __repr__(self) -> str:
+        return f"<TentativeConnexion {self.adresse} x{self.echecs}>"
+
+
 class Verrou(db.Model):
     """Verrou consultatif porté par la base.
 

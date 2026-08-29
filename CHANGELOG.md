@@ -19,6 +19,36 @@ qu'on ne met pas à jour le matin d'une compétition :
 
 ## [Non publié]
 
+## [0.4.2] — 2026-08-29
+
+### Ajouté
+
+- **Frein anti-force-brute** sur la connexion à la console. Au-delà de trois
+  échecs depuis une même adresse, l'attente double à chaque tentative — 2 s,
+  4 s, 8 s… — plafonnée à cinq minutes, et l'ardoise s'efface après trente
+  minutes de silence ou à la première connexion réussie.
+
+  Le compteur est **en base**, pas en mémoire : avec quatre workers, un
+  compteur par processus diviserait la protection par quatre. Il est **par
+  adresse** et non par identifiant — compter par identifiant offrirait à
+  n'importe qui le moyen de bloquer le compte d'un organisateur en se trompant
+  exprès.
+
+  Le frein agit **avant** la vérification du mot de passe : `scrypt` est lent à
+  dessein, et laisser un robot le déclencher à chaque tentative reviendrait à
+  lui offrir un moyen d'épuiser le serveur.
+
+### Modifié
+
+- **La console est de nouveau joignable depuis Internet.** La restriction au
+  LAN posée le 28/08 était une mesure d'attente, quand la console n'avait
+  qu'une clé d'API partagée. Elle avait surtout un défaut de fond : le jour de
+  la compétition, **les organisateurs sont au gymnase et la VM est à la
+  maison**. Le filtre rendait la console inutilisable exactement quand elle
+  sert.
+
+  `/health` reste au LAN : c'est une sonde interne.
+
 ## [0.4.1] — 2026-08-29
 
 ### Ajouté
@@ -398,7 +428,8 @@ livrer — spec 001, itération 3.
 - Les données et les secrets vivent dans `shared/`, hors des releases : un
   déploiement ou un retour arrière ne peut pas les toucher.
 
-[Non publié]: https://github.com/computingify/climbcontest-core/compare/v0.4.1...HEAD
+[Non publié]: https://github.com/computingify/climbcontest-core/compare/v0.4.2...HEAD
+[0.4.2]: https://github.com/computingify/climbcontest-core/releases/tag/v0.4.2
 [0.4.1]: https://github.com/computingify/climbcontest-core/releases/tag/v0.4.1
 [0.4.0]: https://github.com/computingify/climbcontest-core/releases/tag/v0.4.0
 [0.3.4]: https://github.com/computingify/climbcontest-core/releases/tag/v0.3.4
