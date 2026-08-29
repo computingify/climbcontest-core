@@ -125,6 +125,8 @@
     <button data-onglet="participants" aria-pressed="true">Participants</button>
     <button data-onglet="saisie" aria-pressed="false">Saisie manuelle</button>
     <button data-onglet="dossards" aria-pressed="false">Dossards</button>
+    <button data-onglet="comptes" aria-pressed="false" id="btnOngletComptes" hidden>Comptes</button>
+    <button data-onglet="moi" aria-pressed="false">Mon mot de passe</button>
     <button data-onglet="quitter" aria-pressed="false">Se déconnecter</button>
   </nav>
 
@@ -177,6 +179,43 @@
       </div>
       <button class="action" id="btnImprimer">Ouvrir la planche</button>
     </section>
+    <section id="ongletComptes" hidden>
+      <h2>Créer un compte</h2>
+      <p class="aide">Pour un bénévole qui aidera le jour de la compétition.
+         Choisis un mot de passe et transmets-le de vive voix — il pourra le
+         changer lui-même ensuite.</p>
+      <div class="grille" style="max-width:640px">
+        <div><label for="cIdentifiant">Identifiant *</label><input id="cIdentifiant" autocapitalize="none"></div>
+        <div><label for="cNom">Nom affiché</label><input id="cNom"></div>
+        <div><label for="cMotDePasse">Mot de passe *</label><input id="cMotDePasse" type="password" autocomplete="new-password"></div>
+        <div><label for="cRole">Rôle</label>
+          <select id="cRole">
+            <option value="organisateur">Organisateur</option>
+            <option value="admin">Administrateur</option>
+          </select>
+        </div>
+      </div>
+      <p class="aide" id="aideLongueur" style="margin-top:8px"></p>
+      <button class="action" id="btnCreerCompte">Créer le compte</button>
+
+      <h2 style="margin-top:32px">Les comptes</h2>
+      <div class="scroll"><table>
+        <thead><tr><th>Identifiant</th><th>Nom</th><th>Rôle</th><th>État</th><th></th></tr></thead>
+        <tbody id="listeComptes"></tbody>
+      </table></div>
+    </section>
+
+    <section id="ongletMoi" hidden>
+      <h2>Changer mon mot de passe</h2>
+      <p class="aide">L'ancien est demandé même si tu es déjà connecté : sinon,
+         un ordinateur laissé déverrouillé dans la salle suffirait à
+         s'approprier ton compte.</p>
+      <form id="formMonMdp" class="grille" style="max-width:420px">
+        <div><label for="mActuel">Mot de passe actuel</label><input id="mActuel" type="password" autocomplete="current-password"></div>
+        <div><label for="mNouveau">Nouveau mot de passe</label><input id="mNouveau" type="password" autocomplete="new-password"></div>
+      </form>
+      <button class="action" id="btnMonMdp">Changer</button>
+    </section>
   </main>
 </div>
 
@@ -199,7 +238,13 @@
     }).then(function (r) {
       // Une session qui expire en pleine saisie ne doit pas ressembler a une
       // panne : on ramene a la connexion en le disant.
-      if (r.status === 401 && etat.moi) {
+      //
+      // MAIS toutes les 401 ne sont pas des sessions expirees. Changer son mot
+      // de passe exige l'ancien, et se tromper repond 401 aussi -- sans cette
+      // exception, une faute de frappe DECONNECTAIT l'utilisateur au lieu de
+      // lui dire que l'ancien mot de passe est faux. Trouve en le faisant a la
+      // main : aucun test de route ne pouvait le voir.
+      if (r.status === 401 && etat.moi && !options.motDePasseAttendu) {
         etat.moi = null;
         montrerConnexion("Session expirée. Reconnecte-toi.");
         throw { gere: true };
@@ -243,6 +288,10 @@
     $("connexion").hidden = true;
     $("console").hidden = false;
     $("qui").textContent = etat.moi.identifiant + " · " + etat.moi.roles.join(", ");
+    // L'onglet « Comptes » n'apparait que pour un administrateur. Le serveur
+    // refuse de toute facon (403) -- masquer evite d'offrir un bouton qui ne
+    // marche pas, ce n'est pas la protection.
+    $("btnOngletComptes").hidden = etat.moi.roles.indexOf("admin") === -1;
     chargerParticipants();
   }
 
@@ -275,6 +324,9 @@
       $("ongletParticipants").hidden = b.dataset.onglet !== "participants";
       $("ongletSaisie").hidden = b.dataset.onglet !== "saisie";
       $("ongletDossards").hidden = b.dataset.onglet !== "dossards";
+      $("ongletComptes").hidden = b.dataset.onglet !== "comptes";
+      $("ongletMoi").hidden = b.dataset.onglet !== "moi";
+      if (b.dataset.onglet === "comptes") chargerComptes();
       $("message").hidden = true;
     });
   });
@@ -394,6 +446,147 @@
     if (un) url += "?dossard=" + encodeURIComponent(un);
     else if (cat) url += "?categorie=" + encodeURIComponent(cat);
     window.open(url, "_blank");
+  });
+
+  // --- Comptes --------------------------------------------------------------
+
+  function chargerComptes() {
+    appeler("/admin/comptes").then(function (d) {
+      $("aideLongueur").textContent =
+        "Au moins " + d.longueur_minimale + " caractères. " +
+        "Une phrase courte vaut mieux qu'un mot compliqué : elle se retient, " +
+        "donc elle ne finit pas sur un post-it collé à l'écran.";
+      var corps = $("listeComptes");
+      corps.innerHTML = "";
+      d.comptes.forEach(function (c) { corps.appendChild(ligneCompte(c)); });
+    }).catch(signaler);
+  }
+
+  function ligneCompte(c) {
+    var tr = document.createElement("tr");
+
+    [c.identifiant, c.nom_affiche || "—", c.roles.join(", ")].forEach(function (t) {
+      var td = document.createElement("td");
+      td.textContent = t;
+      tr.appendChild(td);
+    });
+
+    var etatTd = document.createElement("td");
+    etatTd.textContent = c.actif ? "actif" : "désactivé";
+    if (!c.actif) etatTd.className = "sans";
+    tr.appendChild(etatTd);
+
+    var actions = document.createElement("td");
+
+    var mdp = document.createElement("button");
+    mdp.className = "discret";
+    mdp.style.color = "var(--encre2)";
+    mdp.textContent = "Nouveau mot de passe";
+    mdp.addEventListener("click", function () { reinitialiser(c); });
+    actions.appendChild(mdp);
+
+    var role = document.createElement("button");
+    role.className = "discret";
+    role.style.cssText = "color:var(--encre2);margin-left:6px";
+    var vise = c.roles.indexOf("admin") !== -1 ? "organisateur" : "admin";
+    role.textContent = vise === "admin" ? "Nommer administrateur" : "Passer organisateur";
+    role.addEventListener("click", function () { changerRole(c, vise); });
+    actions.appendChild(role);
+
+    var actif = document.createElement("button");
+    actif.className = "discret";
+    actif.style.marginLeft = "6px";
+    actif.textContent = c.actif ? "Désactiver" : "Réactiver";
+    if (!c.actif) actif.style.color = "var(--ok)";
+    actif.addEventListener("click", function () { basculerActif(c); });
+    actions.appendChild(actif);
+
+    // Le dernier administrateur : on grise plutot que de laisser cliquer sur
+    // ce que le serveur refusera. Le serveur refuse quand meme -- c'est lui
+    // qui protege, l'interface ne fait qu'eviter une fausse manoeuvre.
+    if (c.dernier_admin) {
+      [role, actif].forEach(function (b) {
+        b.disabled = true;
+        b.style.opacity = "0.4";
+        b.title = "Dernier administrateur : nomme d'abord quelqu'un d'autre.";
+      });
+    }
+
+    tr.appendChild(actions);
+    return tr;
+  }
+
+  function reinitialiser(c) {
+    var valeur = prompt("Nouveau mot de passe pour « " + c.identifiant + " » :\n\n" +
+                        "Transmets-le de vive voix. Il pourra le changer lui-même " +
+                        "depuis l'onglet « Mon mot de passe ».");
+    if (!valeur) return;
+    appeler("/admin/comptes/" + c.id + "/mot-de-passe", {
+      methode: "POST", corps: { mot_de_passe: valeur },
+    }).then(function () {
+      dire("Mot de passe de « " + c.identifiant + " » remplacé.", "ok");
+    }).catch(signaler);
+  }
+
+  function changerRole(c, vise) {
+    appeler("/admin/comptes/" + c.id + "/roles", {
+      methode: "POST", corps: { roles: [vise] },
+    }).then(function () {
+      dire("« " + c.identifiant + " » est maintenant " + vise + ".", "ok");
+      chargerComptes();
+      if (etat.moi && c.identifiant === etat.moi.identifiant) {
+        // On vient peut-etre de se retirer ses propres droits.
+        fetch("/admin/moi").then(function (r) { return r.json(); })
+          .then(function (d) { etat.moi = d; montrerConsole(); });
+      }
+    }).catch(signaler);
+  }
+
+  function basculerActif(c) {
+    appeler("/admin/comptes/" + c.id + "/actif", {
+      methode: "POST", corps: { actif: !c.actif },
+    }).then(function () {
+      dire("« " + c.identifiant + " » " + (c.actif ? "désactivé" : "réactivé") + ".", "ok");
+      chargerComptes();
+    }).catch(signaler);
+  }
+
+  $("btnCreerCompte").addEventListener("click", function () {
+    appeler("/admin/comptes", {
+      methode: "POST",
+      corps: {
+        identifiant: $("cIdentifiant").value,
+        nom_affiche: $("cNom").value,
+        mot_de_passe: $("cMotDePasse").value,
+        roles: [$("cRole").value],
+      },
+    }).then(function (d) {
+      dire("Compte « " + d.identifiant + " » créé. Transmets-lui son mot de passe " +
+           "de vive voix.", "ok");
+      ["cIdentifiant", "cNom", "cMotDePasse"].forEach(function (i) { $(i).value = ""; });
+      chargerComptes();
+    }).catch(signaler);
+  });
+
+  // --- Mon mot de passe -----------------------------------------------------
+
+  $("btnMonMdp").addEventListener("click", function () {
+    appeler("/admin/mon-mot-de-passe", {
+      methode: "POST",
+      // Ici, un 401 veut dire « ancien mot de passe faux », pas « session
+      // expiree ». Voir le commentaire dans appeler().
+      motDePasseAttendu: true,
+      corps: { actuel: $("mActuel").value, nouveau: $("mNouveau").value },
+    }).then(function () {
+      dire("Mot de passe changé.", "ok");
+      $("mActuel").value = "";
+      $("mNouveau").value = "";
+    }).catch(signaler);
+  });
+
+  $("formMonMdp").addEventListener("submit", function (e) {
+    e.preventDefault();
+    $("btnMonMdp").click();
   });
 
   // --- Demarrage ------------------------------------------------------------
