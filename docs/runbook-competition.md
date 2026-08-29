@@ -130,6 +130,31 @@ ssh root@192.168.0.21 'qm rollback 110 avant-compet'
 
 ---
 
+## Pendant la compétition — les recopies locales
+
+La base est recopiée **toutes les dix minutes** dans
+`/opt/climbcontest/shared/sauvegardes/`, les 24 dernières sont conservées
+(soit quatre heures de recul). Chaque copie fait ~160 ko et est relue
+immédiatement après écriture.
+
+```bash
+# Est-ce que ça tourne encore ? (l'âge de la dernière copie)
+curl -s https://climbcontest.adn-dev.fr/health | python3 -m json.tool | grep -A4 sauvegarde
+
+# Les copies disponibles
+ssh adrien@192.168.0.32 'sudo ls -lht /opt/climbcontest/shared/sauvegardes/ | head'
+
+# Revenir dix minutes en arrière (APRÈS avoir arrêté le service)
+ssh adrien@192.168.0.32 'sudo systemctl stop climbcontest
+  sudo -u climbcontest cp /opt/climbcontest/shared/sauvegardes/climbcontest-AAAAMMJJ-HHMMSS.db \
+    /opt/climbcontest/shared/data/climbcontest.db
+  sudo systemctl start climbcontest'
+```
+
+> ⚠️ Ces copies sont sur le **même disque** que la base. Elles protègent d'une
+> fausse manœuvre ou d'une corruption, pas de la perte du disque — pour ça, il
+> y a l'instantané `avant-compet` et le `vzdump` de fin de journée.
+
 ## Après la compétition
 
 ```bash

@@ -1,0 +1,17 @@
+[Unit]
+Description=Recopie locale de la base ClimbContest
+Documentation=file:///opt/climbcontest/current/docs/runbook-competition.md
+
+[Service]
+Type=oneshot
+User=climbcontest
+Group=climbcontest
+ExecStart=/usr/local/bin/climbcontest-sauvegarde
+
+# Meme durcissement que le service principal. La sauvegarde n'a besoin d'ecrire
+# que dans shared/ : tout le reste est en lecture seule.
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+NoNewPrivileges=yes
+ReadWritePaths=/opt/climbcontest/shared

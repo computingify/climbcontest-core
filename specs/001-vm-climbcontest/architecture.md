@@ -568,7 +568,7 @@ outils sont ailleurs :
 | Quand | Quoi | Où |
 | --- | --- | --- |
 | Juste avant le début | instantané Proxmox `avant-compet` (30 s, gratuit) | `local-lvm` |
-| Pendant la journée | **rien** | — |
+| Pendant la journée | **recopie locale de la base, toutes les 10 min** | `shared/sauvegardes/` |
 | En fin de compétition | un `vzdump` manuel + un export de la base | PBS 107 → NAS (immuable) |
 | Après un changement d'infra | un `vzdump` manuel | PBS 107 |
 | Le reste de l'année | **rien** | — |
@@ -577,10 +577,29 @@ La VM sort du job `backup-nightly`. Les archives de fin de compétition passent 
 PBS et héritent donc des instantanés Btrfs immuables du NAS : la propriété
 d'immuabilité est conservée pour ce qui compte.
 
-> **Le point qui reste ouvert (Q7).** Tant que le backend écrit aussi dans le
-> classeur Google, les données du jour existent en deux endroits — c'est une
-> redondance gratuite. Le jour où la page de paramétrage remplace le classeur,
-> cette redondance disparaît et il faudra en reparler. À décider en spec 002.
+> **Q7, tranchée le 29/08 — et l'argument d'origine était faux.**
+>
+> La ligne « pendant la journée : rien » reposait sur une idée : le miroir vers
+> le classeur Google donne une redondance gratuite des données du jour.
+>
+> Ce jour-là, on a découvert que ce miroir était **cassé en silence depuis des
+> heures** — il cherchait le jeton Google au mauvais endroit. La redondance
+> n'était donc pas une garantie, c'était une espérance. Et elle disparaîtra de
+> toute façon quand la console remplacera le classeur.
+>
+> D'où une **recopie locale de la base toutes les dix minutes**, qui ne dépend
+> de personne. Ce n'est pas la copie de VM qu'Adrien avait jugée inutile à ce
+> rythme, et il avait raison de la juger inutile : une copie SQLite fait
+> ~160 ko et prend moins d'une seconde, là où un instantané de VM est une
+> opération lourde. Ce sont deux choses différentes.
+>
+> Elle protège de la fausse manœuvre, de la corruption, et du « c'était mieux
+> il y a dix minutes ». Elle ne protège **pas** de la perte du disque — pour
+> ça, il y a l'instantané pris avant la compétition et le `vzdump` de fin de
+> journée.
+>
+> Et son âge est exposé par `/health` : une sauvegarde qui s'arrête doit **se
+> voir**. C'est exactement la leçon du miroir.
 
 ## 9. Fichiers créés ou modifiés
 
