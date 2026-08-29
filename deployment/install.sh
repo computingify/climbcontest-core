@@ -35,6 +35,7 @@ echo "== arborescence =="
 # une release. C'est ce qui permet de deployer et de revenir en arriere sans
 # jamais toucher aux donnees.
 install -d -o "$UTILISATEUR" -g "$UTILISATEUR" -m 0755 "$BASE" "$BASE/releases" "$BASE/shared"
+install -d -o "$UTILISATEUR" -g "$UTILISATEUR" -m 0750 "$BASE/shared/sauvegardes"
 install -d -o "$UTILISATEUR" -g "$UTILISATEUR" -m 0750 "$BASE/shared/data"
 install -d -o "$UTILISATEUR" -g "$UTILISATEUR" -m 0700 "$BASE/shared/secrets"
 
@@ -64,17 +65,21 @@ visudo -cf /etc/sudoers.d/climbcontest >/dev/null || { echo "sudoers invalide"; 
 echo "== scripts =="
 install -o root -g root -m 0755 "$ICI/climbcontest-deploy"   /usr/local/bin/
 install -o root -g root -m 0755 "$ICI/climbcontest-rollback" /usr/local/bin/
+install -o root -g root -m 0755 "$ICI/climbcontest-sauvegarde" /usr/local/bin/
 
 echo "== unites systemd =="
 install -m 0644 "$ICI/climbcontest.service"        /etc/systemd/system/
 install -m 0644 "$ICI/climbcontest-deploy.service" /etc/systemd/system/
 install -m 0644 "$ICI/climbcontest-deploy.timer"   /etc/systemd/system/
+install -m 0644 "$ICI/climbcontest-sauvegarde.service" /etc/systemd/system/
+install -m 0644 "$ICI/climbcontest-sauvegarde.timer"   /etc/systemd/system/
 systemctl daemon-reload
 
 # Le service applicatif est active mais PAS demarre : il n'y a pas encore de
 # release. Le timer s'en chargera au premier tick.
 systemctl enable climbcontest.service >/dev/null
 systemctl enable --now climbcontest-deploy.timer >/dev/null
+systemctl enable --now climbcontest-sauvegarde.timer >/dev/null
 
 echo
 echo "Socle en place."

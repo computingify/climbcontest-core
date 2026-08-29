@@ -1,0 +1,71 @@
+#!/bin/bash
+# =============================================================================
+# Recopie locale de la base, pendant la competition.
+#
+# POURQUOI, alors que la strategie de la spec 001 dit « pendant la journee :
+# rien ». Cette decision reposait sur un argument : le miroir vers le classeur
+# Google donne une redondance gratuite des donnees du jour.
+#
+# Le 29/08, on a decouvert que ce miroir etait casse en silence depuis des
+# heures -- il cherchait le jeton Google au mauvais endroit. La redondance
+# n'etait donc pas une garantie, c'etait une esperance. Une recopie locale, elle,
+# ne depend de personne.
+#
+# CE QUE CA PROTEGE, ET CE QUE CA NE PROTEGE PAS
+#
+#   ✓ une fausse manoeuvre : un reimport qui ecrase, une suppression de trop
+#   ✓ une corruption de la base
+#   ✓ « c'etait mieux il y a dix minutes » -- on revient en arriere
+#   ✗ la perte du disque de la VM : la copie est sur le meme disque
+#
+# Le troisieme point est le plus frequent en pratique, et le seul qu'on ne
+# pouvait pas traiter jusqu'ici. Pour la perte de disque, il y a l'instantane
+# Proxmox pris avant la competition et le vzdump de fin de journee.
+#
+# POURQUOI `.backup` ET PAS `cp`
+#   La base est en WAL. Un `cp` pendant une ecriture donne un fichier dechire,
+#   qui a l'air d'un fichier mais ne s'ouvre pas. `.backup` est l'API de
+#   sauvegarde en ligne de SQLite : elle produit une copie COHERENTE d'une base
+#   en cours d'utilisation, sans bloquer les ecritures.
+#
+# COUT : ~300 ko par copie, moins d'une seconde. C'est sans commune mesure avec
+# un instantane de VM -- qu'Adrien avait juge inutile toutes les dix minutes, et
+# il avait raison : ce n'est pas la meme chose.
+# =============================================================================
+set -euo pipefail
+
+BASE=${CLIMBCONTEST_DB:-/opt/climbcontest/shared/data/climbcontest.db}
+DOSSIER=${CLIMBCONTEST_SAUVEGARDES:-/opt/climbcontest/shared/sauvegardes}
+GARDER=${CLIMBCONTEST_SAUVEGARDES_GARDEES:-24}
+
+if [ ! -f "$BASE" ]; then
+  echo "pas de base a sauvegarder ($BASE)" >&2
+  exit 0
+fi
+
+mkdir -p "$DOSSIER"
+HORODATAGE=$(date +%Y%m%d-%H%M%S)
+CIBLE="$DOSSIER/climbcontest-$HORODATAGE.db"
+
+# Ecriture sous un nom provisoire puis renommage : une copie interrompue ne doit
+# pas se retrouver dans la liste avec l'air d'etre valide.
+sqlite3 "$BASE" ".backup '$CIBLE.partiel'"
+mv "$CIBLE.partiel" "$CIBLE"
+
+# Verification immediate. Une sauvegarde qu'on n'a pas relue n'est pas une
+# sauvegarde : c'est un fichier. On paie 50 ms pour le savoir maintenant plutot
+# que le jour ou on en a besoin.
+if ! sqlite3 "$CIBLE" "PRAGMA quick_check;" | grep -q "^ok$"; then
+  echo "ECHEC : la copie $CIBLE ne se relit pas" >&2
+  mv "$CIBLE" "$CIBLE.invalide"
+  exit 1
+fi
+
+REUSSITES=$(sqlite3 "$CIBLE" "SELECT COUNT(*) FROM success;" 2>/dev/null || echo "?")
+
+# Rotation. On garde les N plus recentes, le reste part.
+cd "$DOSSIER"
+ls -1t climbcontest-*.db 2>/dev/null | tail -n +$((GARDER + 1)) | xargs -r rm -f
+RESTANTES=$(ls -1 climbcontest-*.db 2>/dev/null | wc -l | tr -d ' ')
+
+echo "sauvegarde $CIBLE ($REUSSITES reussites) — $RESTANTES copie(s) conservee(s)"

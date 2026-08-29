@@ -19,6 +19,26 @@ qu'on ne met pas à jour le matin d'une compétition :
 
 ## [Non publié]
 
+## [0.5.1] — 2026-08-29
+
+### Ajouté
+
+- **Recopie locale de la base toutes les dix minutes**, les 24 dernières
+  conservées — quatre heures de recul. Chaque copie fait ~160 ko, est produite
+  par l'API de sauvegarde en ligne de SQLite (donc cohérente sans bloquer les
+  écritures) et **relue immédiatement** : une sauvegarde qu'on n'a pas relue
+  n'est pas une sauvegarde, c'est un fichier.
+
+  La stratégie disait « pendant la journée : rien », en s'appuyant sur la
+  redondance offerte par le miroir Google. Or ce miroir était cassé en silence
+  ce matin-là : la redondance était une espérance, pas une garantie.
+
+  ⚠️ Ces copies sont sur le **même disque** : elles protègent d'une fausse
+  manœuvre ou d'une corruption, pas de la perte du disque.
+
+- `/health` expose l'**âge de la dernière copie**. Une sauvegarde qui s'arrête
+  doit se voir — c'est la leçon du miroir.
+
 ## [0.5.0] — 2026-08-29
 
 **La gestion des comptes se fait depuis la console.** La ligne de commande ne
@@ -464,7 +484,8 @@ livrer — spec 001, itération 3.
 - Les données et les secrets vivent dans `shared/`, hors des releases : un
   déploiement ou un retour arrière ne peut pas les toucher.
 
-[Non publié]: https://github.com/computingify/climbcontest-core/compare/v0.5.0...HEAD
+[Non publié]: https://github.com/computingify/climbcontest-core/compare/v0.5.1...HEAD
+[0.5.1]: https://github.com/computingify/climbcontest-core/releases/tag/v0.5.1
 [0.5.0]: https://github.com/computingify/climbcontest-core/releases/tag/v0.5.0
 [0.4.2]: https://github.com/computingify/climbcontest-core/releases/tag/v0.4.2
 [0.4.1]: https://github.com/computingify/climbcontest-core/releases/tag/v0.4.1

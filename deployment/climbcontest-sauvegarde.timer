@@ -1,0 +1,15 @@
+[Unit]
+Description=Recopie la base ClimbContest toutes les 10 minutes
+
+[Timer]
+# Toutes les dix minutes, et une fois au demarrage. La VM ne tourne que les
+# jours de competition et de developpement : ce rythme ne coute donc rien le
+# reste de l'annee, puisqu'il n'y a rien qui tourne.
+OnBootSec=2min
+OnUnitActiveSec=10min
+# Sans ca, quatre VM allumees ensemble sauvegarderaient a la meme seconde.
+RandomizedDelaySec=30s
+Persistent=false
+
+[Install]
+WantedBy=timers.target

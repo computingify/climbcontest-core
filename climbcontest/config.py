@@ -41,6 +41,10 @@ def _chemin_secrets() -> Path:
 class Config:
     DOSSIER_DONNEES = _chemin_donnees()
     DOSSIER_SECRETS = _chemin_secrets()
+    # Les recopies locales de la base, ecrites par climbcontest-sauvegarde.
+    # `/health` en expose l'age : une sauvegarde qui s'arrete doit SE VOIR.
+    DOSSIER_SAUVEGARDES = Path(
+        os.environ.get("CLIMBCONTEST_SAUVEGARDES", str(DOSSIER_DONNEES.parent / "sauvegardes")))
     SQLALCHEMY_DATABASE_URI = os.environ.get(
         "CLIMBCONTEST_DATABASE_URI",
         f"sqlite:///{DOSSIER_DONNEES / 'climbcontest.db'}",

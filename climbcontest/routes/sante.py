@@ -1,5 +1,6 @@
 """Sonde de sante et page d'accueil provisoire."""
 import os
+import time
 from pathlib import Path
 
 from flask import Blueprint, jsonify
@@ -61,7 +62,36 @@ def health():
     from ..sheets.planificateur import est_actif
     corps["api"] = {**compteurs, "portee": "ce worker seulement", "pid": os.getpid()}
     corps["miroir_actif"] = est_actif()
+    corps["sauvegarde"] = _etat_sauvegarde()
     return jsonify(corps), code
+
+
+def _etat_sauvegarde() -> dict:
+    """Age de la derniere recopie locale de la base.
+
+    Exposee ici pour une raison precise : le 29/08, le miroir vers le classeur
+    Google etait casse en silence depuis des heures. Une sauvegarde qui
+    s'arrete doit SE VOIR -- sinon on ne le decouvre que le jour ou on en a
+    besoin, c'est-a-dire au pire moment.
+
+    Ne fait jamais echouer la sonde : ne pas savoir sauvegarder n'est pas la
+    meme chose que ne pas savoir servir.
+    """
+    from flask import current_app
+
+    try:
+        dossier = Path(current_app.config["DOSSIER_SAUVEGARDES"])
+        copies = sorted(dossier.glob("climbcontest-*.db"))
+        if not copies:
+            return {"copies": 0, "derniere_il_y_a_s": None}
+        derniere = max(copies, key=lambda f: f.stat().st_mtime)
+        return {
+            "copies": len(copies),
+            "derniere_il_y_a_s": round(time.time() - derniere.stat().st_mtime),
+            "derniere_octets": derniere.stat().st_size,
+        }
+    except Exception as e:
+        return {"copies": None, "erreur": type(e).__name__}
 
 
 # La racine servait un JSON de service, avec pour tout message « la page de
