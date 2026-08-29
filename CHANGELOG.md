@@ -19,6 +19,47 @@ qu'on ne met pas à jour le matin d'une compétition :
 
 ## [Non publié]
 
+## [0.4.0] — 2026-08-29
+
+**La console d'administration.** Spec 005 — les quatre briques retenues pour
+novembre.
+
+### Ajouté
+
+- **Comptes et rôles.** Deux rôles : `admin` et `organisateur`. Mot de passe
+  haché, session signée de 12 heures, et un contrôle d'accès **fail closed** —
+  session absente, illisible, expirée, cookie forgé, utilisateur désactivé
+  entre-temps, rôle inconnu : tout donne `401`.
+  Le premier compte se crée par `flask creer-admin`, jamais par une route.
+- **Participants à chaud** : ajouter quelqu'un pendant la compétition, et
+  réaffecter un dossard. Le catalogue est incrémenté, donc les téléphones
+  voient le nouveau venu en moins de vingt secondes.
+- **Saisie manuelle** d'une réussite, et sa suppression. Elle compte au
+  classement exactement comme un scan, porte `source = manuel` et
+  **l'identifiant de qui l'a saisie**.
+- **Impression des dossards** : format repris du classeur, en bandes à
+  découper, dimensionné en millimètres. Un lot, une catégorie, ou un seul.
+  Le QR est généré **localement** — le classeur, lui, appelle
+  `api.qrserver.com`, ce qui envoie les dossards à un tiers et ne fonctionne
+  pas si la connexion tombe.
+
+### Sécurité
+
+- La clé d'API ne donne **plus** accès à l'administration. Elle est partagée
+  entre 25 téléphones ; en faire un droit d'administration reviendrait à donner
+  les clés de la base à tout le monde. C'était une mesure d'attente, posée en
+  urgence la veille.
+- Le temps de réponse à la connexion est le même que l'identifiant existe ou
+  non. Répondre plus vite pour un compte inconnu révélerait quels identifiants
+  sont valides.
+
+### ⚠️ À faire au déploiement
+
+`CLIMBCONTEST_SECRET_KEY` doit être définie sur la VM. Sans elle, la console
+répond **503** et refuse de servir — avec la clé de développement, un cookie de
+session se forge en trois lignes. Mieux vaut une console indisponible qu'une
+console ouverte. Le reste du service n'est pas affecté.
+
 ## [0.3.4] — 2026-08-28
 
 ### Corrigé
@@ -339,7 +380,8 @@ livrer — spec 001, itération 3.
 - Les données et les secrets vivent dans `shared/`, hors des releases : un
   déploiement ou un retour arrière ne peut pas les toucher.
 
-[Non publié]: https://github.com/computingify/climbcontest-core/compare/v0.3.4...HEAD
+[Non publié]: https://github.com/computingify/climbcontest-core/compare/v0.4.0...HEAD
+[0.4.0]: https://github.com/computingify/climbcontest-core/releases/tag/v0.4.0
 [0.3.4]: https://github.com/computingify/climbcontest-core/releases/tag/v0.3.4
 [0.3.3]: https://github.com/computingify/climbcontest-core/releases/tag/v0.3.3
 [0.3.2]: https://github.com/computingify/climbcontest-core/releases/tag/v0.3.2
