@@ -10,8 +10,8 @@ from sqlalchemy.exc import IntegrityError
 
 from .extensions import db
 from .models import (
-    Bloc, Competition, EN_COURS, Participant, ReaffectationDossard, SOURCE_SCAN,
-    Success,
+    Bloc, Competition, EN_COURS, Participant, ReaffectationDossard, SOURCE_MANUEL,
+    SOURCE_SCAN, Success,
 )
 
 logger = logging.getLogger(__name__)
@@ -70,7 +70,8 @@ def bloc_par_tag(tag) -> Bloc:
 def enregistrer_reussite(participant: Participant, bloc: Bloc,
                          source: str = SOURCE_SCAN,
                          dossard_scanne: int | None = None,
-                         scanne_le: datetime | None = None) -> tuple[Success, bool]:
+                         scanne_le: datetime | None = None,
+                         saisie_par: str | None = None) -> tuple[Success, bool]:
     """Enregistre une réussite. Renvoie (réussite, était_nouvelle).
 
     **Idempotent.** Un double appui sur « Envoyer », ou deux juges qui valident
@@ -99,6 +100,7 @@ def enregistrer_reussite(participant: Participant, bloc: Bloc,
         # arrivee sur un dossard qui avait change de main entre-temps.
         dossard_scanne=dossard_scanne if dossard_scanne is not None else participant.dossard,
         scanne_le=scanne_le,
+        saisie_par=saisie_par,
     )
     db.session.add(reussite)
     try:
@@ -113,6 +115,58 @@ def enregistrer_reussite(participant: Participant, bloc: Bloc,
         if existante:
             return existante, False
         raise
+
+
+def ajouter_participant(nom: str, prenom: str | None = None,
+                        club: str | None = None, categorie: str | None = None,
+                        dossard: int | None = None,
+                        source: str = SOURCE_MANUEL) -> Participant:
+    """Ajoute un participant a la competition en cours.
+
+    Le cas reel : quelqu'un s'inscrit a 8 h 45, ou pendant la competition. Sans
+    cette fonction, il fallait passer par le classeur puis un reimport -- ce qui
+    reecrit toute la base au moment ou elle est le plus utilisee.
+
+    Le dossard est FACULTATIF : un inscrit qui n'est pas venu n'en a pas, et
+    c'est precisement lui dont on reprendra le numero.
+    """
+    nom = (nom or "").strip()
+    if not nom:
+        raise ErreurMetier("Le nom est obligatoire")
+
+    comp = competition_active()
+
+    if dossard is not None:
+        try:
+            dossard = int(str(dossard).strip())
+        except (TypeError, ValueError):
+            raise ErreurMetier(f"Dossard invalide : {dossard!r}")
+        occupant = Participant.query.filter_by(
+            competition_id=comp.id, dossard=dossard).first()
+        if occupant:
+            # On dit QUI le porte. « Dossard deja pris » obligerait a aller
+            # chercher dans la liste, au moment ou on a le moins de temps.
+            raise ErreurMetier(
+                f"Le dossard {dossard} est deja porte par {occupant.nom_complet}.",
+                code=409)
+
+    p = Participant(
+        competition_id=comp.id,
+        nom=nom,
+        prenom=(prenom or "").strip() or None,
+        club=(club or "").strip() or None,
+        categorie=(categorie or "").strip() or None,
+        dossard=dossard,
+        present=dossard is not None,
+        source=source,
+    )
+    db.session.add(p)
+    # Sans cette incrementation, les telephones ne verraient jamais le nouveau
+    # venu : ils ne retelechargent le catalogue que si la version a bouge.
+    incrementer_catalogue(comp)
+    db.session.commit()
+    logger.info("participant ajoute : %s (dossard %s)", p.nom_complet, dossard)
+    return p
 
 
 def reaffecter_dossard(participant: Participant, dossard: int) -> None:
@@ -225,6 +279,33 @@ def _horodatage_client(valeur) -> datetime | None:
         return datetime.fromisoformat(str(valeur).replace("Z", "+00:00")).replace(tzinfo=None)
     except (ValueError, TypeError):
         return None
+
+
+def supprimer_reussite(reussite_id: int, par: str) -> dict:
+    """Supprime une reussite saisie par erreur, en laissant une trace.
+
+    Le geste est destructeur et sans confirmation possible dans le feu de
+    l'action : on journalise QUI, QUOI et QUAND avant d'effacer. Sans cette
+    trace, un score qui change entre deux consultations serait inexplicable.
+    """
+    r = db.session.get(Success, reussite_id)
+    if r is None:
+        raise ErreurMetier(f"Reussite {reussite_id} inconnue", code=404)
+
+    trace = {
+        "reussite_id": r.id,
+        "participant": r.participant.nom_complet if r.participant else None,
+        "bloc": r.bloc.tag if r.bloc else None,
+        "source": r.source,
+        "etait_synchronisee": r.sheet_synced_at is not None,
+    }
+    logger.warning("SUPPRESSION de reussite par %s : %s sur %s (source=%s, "
+                   "deja au classeur=%s)",
+                   par, trace["participant"], trace["bloc"], trace["source"],
+                   trace["etait_synchronisee"])
+    db.session.delete(r)
+    db.session.commit()
+    return trace
 
 
 def reussites_suspectes(comp: Competition | None = None) -> list[dict]:

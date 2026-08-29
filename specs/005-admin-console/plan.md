@@ -5,25 +5,26 @@ livrable seule.
 
 ## IT1 — Comptes et connexion
 
-- [ ] `comptes.py` — créer, vérifier un mot de passe, attribuer des rôles
-- [ ] `auth_session.py` — session signée, expiration, `@exige_role`
-- [ ] `flask creer-admin` — le premier compte, sans route ouverte
-- [ ] Refus de démarrer l'administration si `SECRET_KEY` est celle de dev
-- [ ] Les deux routes `/admin/import/*` passent de la clé d'API à la session
-- [ ] Tests
+- [x] `comptes.py` — créer, vérifier un mot de passe, attribuer des rôles
+- [x] `auth_session.py` — session signée, expiration, `@exige_role`
+- [x] `flask creer-admin` — le premier compte, sans route ouverte
+- [x] Refus de démarrer l'administration si `SECRET_KEY` est celle de dev
+- [x] Les deux routes `/admin/import/*` passent de la clé d'API à la session
+- [x] Tests
 
 ## IT2 — Participants à chaud
 
-- [ ] `GET`/`POST /admin/participants`, `POST .../dossard`
-- [ ] Le catalogue est incrémenté à chaque écriture
-- [ ] La règle de réaffectation est respectée (déjà écrite, à exposer)
-- [ ] Tests
+- [x] `GET`/`POST /admin/participants`, `POST .../dossard`
+- [x] Le catalogue est incrémenté à chaque écriture — et un test vérifie qu'un
+      ajout à chaud est **scannable dans la seconde** par la route du juge
+- [x] La règle de réaffectation est respectée (déjà écrite, exposée)
+- [x] Tests
 
 ## IT3 — Saisie manuelle
 
-- [ ] `POST /admin/reussites`, `DELETE /admin/reussites/<id>`
-- [ ] `source = manuel`, et l'identifiant du saisisseur
-- [ ] Tests
+- [x] `POST /admin/reussites`, `DELETE /admin/reussites/<id>`
+- [x] `source = manuel`, et l'identifiant du saisisseur
+- [x] Tests
 
 ## IT4 — Impression
 
