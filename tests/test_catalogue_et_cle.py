@@ -237,11 +237,14 @@ class TestAdministrationProtegee:
     Constate sur la VM le 28/08, en production et expose sur Internet :
     `GET /admin/import/rapport` repondait 200 sans aucune authentification, et
     un POST sur `/admin/import/sheet` aurait declenche un reimport complet du
-    classeur — reecriture de la base et rafale d'appels Google — a la demande
+    classeur -- reecriture de la base et rafale d'appels Google -- a la demande
     de n'importe qui.
 
-    Le mode tolere existe pour UNE raison : l'application v3.1.4 du Play Store
-    n'envoie pas de cle. Elle n'appelle pas ces routes-la.
+    La cle d'API stricte etait une mesure d'attente. Depuis la spec 005, ces
+    routes exigent une SESSION : la cle d'API, meme valide, ne donne plus acces
+    a l'administration. Le detail est dans tests/test_comptes_et_session.py ;
+    ce qui reste ici est le garde-fou de non-regression, place a cote du mode
+    tolere pour qu'on ne les reconfonde pas.
     """
 
     def setup_method(self):
@@ -252,29 +255,23 @@ class TestAdministrationProtegee:
         ("post", "/admin/import/sheet"),
         ("get", "/admin/import/rapport"),
     ])
-    def test_sans_cle_refuse_meme_en_mode_tolere(self, client, jeu, methode, chemin):
+    def test_sans_authentification_c_est_refuse(self, client, jeu, methode, chemin):
         r = getattr(client, methode)(chemin)
-        assert r.status_code == 401, "le mode tolere ne doit pas s'appliquer ici"
-        assert "authentification" in r.get_json()["message"].lower()
+        assert r.status_code in (401, 503), "le mode tolere ne doit pas s'appliquer ici"
 
     @pytest.mark.parametrize("methode,chemin", [
         ("post", "/admin/import/sheet"),
         ("get", "/admin/import/rapport"),
     ])
-    def test_avec_une_mauvaise_cle_refuse(self, client, jeu, methode, chemin):
-        r = getattr(client, methode)(chemin, headers={"X-Api-Key": "pas-la-bonne"})
-        assert r.status_code == 401
+    def test_meme_avec_une_cle_d_api_valide(self, client, jeu, methode, chemin):
+        """La cle d'API sert aux juges, pas aux organisateurs.
 
-    def test_avec_la_bonne_cle_la_route_repond(self, client, jeu):
-        r = client.get("/admin/import/rapport", headers={"X-Api-Key": "cle-de-test"})
-        assert r.status_code == 200
-
-    def test_le_refus_est_journalise(self, client, jeu, caplog):
-        """Une tentative d'acces a l'administration doit laisser une trace."""
-        import logging
-        with caplog.at_level(logging.WARNING, logger="climbcontest.auth"):
-            client.get("/admin/import/rapport")
-        assert any("administration" in m for m in caplog.messages)
+        Elle est partagee entre 25 telephones : en faire un droit
+        d'administration reviendrait a donner les cles de la base a tout le
+        monde.
+        """
+        r = getattr(client, methode)(chemin, headers={"X-Api-Key": "cle-de-test"})
+        assert r.status_code in (401, 503)
 
     def test_les_routes_du_juge_restent_tolerantes(self, client, jeu):
         """Le durcissement ne doit surtout pas deborder sur la v3.1.4."""

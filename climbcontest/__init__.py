@@ -50,6 +50,9 @@ def creer_app(config=None) -> Flask:
     app.register_blueprint(bp_catalogue)
     app.register_blueprint(bp_lot)
     app.register_blueprint(bp_pages)
+
+    from .cli import enregistrer as enregistrer_commandes
+    enregistrer_commandes(app)
     app.register_blueprint(bp_admin)
     app.register_blueprint(bp_public)
     app.register_blueprint(bp_sante)
