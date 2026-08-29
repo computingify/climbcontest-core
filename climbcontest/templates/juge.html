@@ -123,6 +123,20 @@
                    background: var(--vide); border: 0; border-radius: 10px;
                    padding: 12px 20px; cursor: pointer; }
 
+  /* La file ne s'affiche que quand elle a quelque chose a dire. Toute la
+     bande est cliquable : elle declenche un envoi immediat, ce qu'un juge veut
+     faire en fin de competition avant d'eteindre son telephone. */
+  #bandeFile { display: flex; gap: 8px; padding: 8px 16px; background: var(--carte2);
+               cursor: pointer; }
+  #bandeFile[hidden] { display: none; }
+  .pastille { font-size: 0.82rem; font-weight: 600; padding: 4px 9px;
+              border-radius: 8px; }
+  .pastille[hidden] { display: none; }
+  .attente { color: var(--attention); background: rgba(229,180,74,.15); }
+  /* Le rouge est reserve a ce qui demande une ACTION : une refusee ne repartira
+     pas toute seule, contrairement a une reussite en file. */
+  .refus { color: var(--alerte); background: rgba(224,112,95,.15); }
+
   #installer { margin: 0 16px 12px; padding: 12px 14px; border-radius: 10px;
                background: var(--carte2); color: var(--encre2); font-size: 0.88rem;
                line-height: 1.5; }
@@ -148,6 +162,11 @@
     <path id="barreVoyant" d="M4.2 4.2 L19.8 19.8" />
   </svg>
 </header>
+
+<div id="bandeFile" hidden>
+  <span id="compteurAttente" class="pastille attente" hidden></span>
+  <span id="compteurRefus" class="pastille refus" hidden></span>
+</div>
 
 <p id="installer" hidden>
   Ajoute cette page à ton écran d'accueil : elle s'ouvrira comme une

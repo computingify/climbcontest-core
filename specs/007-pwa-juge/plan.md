@@ -13,10 +13,10 @@ arrive trop vite, on s'arrête à la dernière terminée.
 
 ## IT2 — Elle survit au réseau
 
-- [ ] Catalogue local en IndexedDB, `If-None-Match`.
-- [ ] File persistante, acquittements, invariant « rien ne sort sans verdict ».
-- [ ] Envoi par lots, retrait exponentiel.
-- [ ] Verrou entre onglets.
+- [x] Catalogue local en IndexedDB, `If-None-Match`.
+- [x] File persistante, acquittements, invariant « rien ne sort sans verdict ».
+- [x] Envoi par lots, retrait exponentiel.
+- [x] Verrou entre onglets.
 
 ## IT3 — La parité
 
