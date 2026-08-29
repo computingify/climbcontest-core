@@ -31,17 +31,29 @@ Puis :
    ssh adrien@192.168.0.32 'sudo climbcontest-rollback --list'
    ```
 
-3. **Le classeur est-il le bon ?** ⚠️ Point le plus souvent oublié.
+3. **La clé d'API est-elle en place ?** ⚠️ Depuis la spec 012, sans elle le
+   service démarre mais **toutes les routes du juge répondent 503**.
+   ```bash
+   ssh adrien@192.168.0.32 \
+     'curl -s localhost:8000/health | python3 -c "import sys,json; d=json.load(sys.stdin); print(d[\"status\"], d[\"api\"][\"regime\"], d[\"api\"][\"cles_acceptees\"], \"cle(s)\")"'
+   ```
+   Attendu : `ok strict 1 cle(s)`. Si c'est `degraded`, voir
+   [Poser la clé d'API](#poser-la-cle-dapi) plus bas.
+
+   Et vérifier que **les téléphones ont la version qui envoie la clé** : un
+   téléphone resté sur l'ancienne recevra un 401 sur chaque envoi.
+
+4. **Le classeur est-il le bon ?** ⚠️ Point le plus souvent oublié.
    Vérifier que l'identifiant du classeur pointe sur **la** compétition à venir.
 
-4. **Un scan de bout en bout** avec un vrai téléphone et un vrai QR code.
+5. **Un scan de bout en bout** avec un vrai téléphone et un vrai QR code.
 
-5. **Instantané de secours**
+6. **Instantané de secours**
    ```bash
    ssh root@192.168.0.21 'qm snapshot 110 prete-compet --description "Prete pour la competition"'
    ```
 
-6. **Éteindre**
+7. **Éteindre**
    ```bash
    climbcontest stop
    ```
@@ -203,6 +215,67 @@ La version 2025-2026 tourne toujours sur Render et reste déployable en une
 trentaine de minutes. Tout est dans [plan-de-repli.md](plan-de-repli.md) :
 tags `V2.1.1` (backend) et `V3.1.4` (app), bundles hors-ligne, APK installable,
 secrets Google.
+
+---
+
+## Poser la clé d'API
+
+À faire **une fois**, et à refaire seulement si la clé doit changer.
+
+⚠️ Deux choses doivent porter **la même clé** : la VM et l'application. Poser
+l'une sans l'autre casse le lien — VM sans clé = `503` partout, application sans
+clé = `401` partout.
+
+### 1. Sur la VM — générer et poser
+
+La clé est générée **sur la VM** : elle ne transite ainsi par aucune autre
+machine, aucun presse-papier, aucun historique de terminal.
+
+```bash
+ssh adrien@192.168.0.32
+CLE=$(python3 -c 'import secrets; print(secrets.token_urlsafe(32))')
+echo "CLIMBCONTEST_API_KEY=$CLE" | sudo tee -a /opt/climbcontest/shared/secrets/env
+sudo sed -i '/^CLIMBCONTEST_API_KEY=$/d' /opt/climbcontest/shared/secrets/env   # retire la ligne vide
+sudo systemctl restart climbcontest
+curl -s localhost:8000/health | python3 -m json.tool | grep -E 'status|regime|cles_acceptees'
+```
+
+Attendu : `"status": "ok"`, `"regime": "strict"`, `"cles_acceptees": 1`.
+
+### 2. La lire une fois, pour l'application
+
+```bash
+sudo grep '^CLIMBCONTEST_API_KEY=' /opt/climbcontest/shared/secrets/env
+```
+
+Copier la valeur dans `~/.gradle/gradle.properties` **sur le Mac** — ce fichier
+est hors du dépôt :
+
+```properties
+releaseApiKey=la-valeur-lue
+```
+
+⚠️ **Jamais** dans le `gradle.properties` du projet : il est suivi par git, et
+les deux dépôts ClimbContest sont publics.
+
+### 3. Publier l'application
+
+```bash
+cd climbcontest-android
+./gradlew assembleRelease -PreleaseServerUrl=https://climbcontest.adn-dev.fr
+```
+
+Le build **refuse de démarrer** sans clé : c'est voulu, un APK sans clé serait
+refusé par le serveur et on le découvrirait le jour J.
+
+### Changer de clé sans coupure
+
+Le serveur accepte deux clés en même temps. On ne fait donc jamais de bascule
+brutale :
+
+1. `CLIMBCONTEST_API_KEY_PRECEDENTE=<l'ancienne>` et `CLIMBCONTEST_API_KEY=<la nouvelle>`, redémarrer ;
+2. publier l'application avec la nouvelle clé, attendre que tous les téléphones l'aient ;
+3. retirer `CLIMBCONTEST_API_KEY_PRECEDENTE`, redémarrer.
 
 ---
 
