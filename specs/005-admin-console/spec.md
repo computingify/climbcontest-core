@@ -110,8 +110,15 @@ si la connexion tombe. On génère nous-mêmes.
 | Impression avant tout import | page vide et lisible, pas un plantage |
 | Le premier admin n'existe pas encore | la console le dit, et donne la commande à lancer |
 
-## Ce qui reste ouvert
+## Le mot de passe oublié — tranché le 29/08
 
-**Le mot de passe oublié.** Il n'y a pas de serveur de courriel dans le
-périmètre. Proposition : l'admin réinitialise depuis la console, et le tout
-premier admin par la commande en ligne. À confirmer.
+Il n'y a pas de serveur de courriel dans le périmètre, et en monter un pour un
+usage annuel serait une pièce de plus à maintenir.
+
+**L'administrateur pose un nouveau mot de passe depuis la console et le
+transmet de vive voix.** Dans un club, c'est le chemin le plus court et le plus
+sûr. Chacun peut ensuite changer le sien depuis l'onglet « Mon mot de passe » —
+qui exige l'ancien, même en session ouverte : sinon un ordinateur laissé
+déverrouillé dans la salle suffirait à s'approprier un compte.
+
+La ligne de commande ne sert plus qu'à **amorcer** le tout premier compte.

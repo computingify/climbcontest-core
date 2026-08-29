@@ -19,6 +19,42 @@ qu'on ne met pas à jour le matin d'une compétition :
 
 ## [Non publié]
 
+## [0.5.0] — 2026-08-29
+
+**La gestion des comptes se fait depuis la console.** La ligne de commande ne
+sert plus qu'à créer le tout premier administrateur — demander un accès SSH à
+chaque nouveau bénévole n'avait aucun sens.
+
+### Ajouté
+
+- Écran **Comptes**, visible des seuls administrateurs : créer un compte,
+  remettre un mot de passe oublié, changer un rôle, désactiver ou réactiver.
+- Onglet **Mon mot de passe** : chacun change le sien sans déranger un
+  administrateur. **L'ancien est exigé**, même en session ouverte — sinon un
+  ordinateur laissé déverrouillé dans la salle suffirait à s'approprier un
+  compte.
+- **Le dernier administrateur ne peut plus se retirer ses droits ni se
+  désactiver.** C'est un piège sans retour : plus personne ne peut gérer les
+  comptes, et il faut ressortir SSH et la ligne de commande — typiquement un
+  dimanche matin. Le message dit quoi faire : nommer d'abord quelqu'un d'autre.
+
+  La console grise les boutons concernés, mais c'est le **serveur** qui
+  protège : l'interface évite seulement une fausse manœuvre.
+
+### Corrigé
+
+- Une **faute de frappe sur l'ancien mot de passe déconnectait**. Le serveur
+  répond `401`, que la console interprétait comme une session expirée. Trouvé
+  en le faisant à la main dans un navigateur : aucun test de route ne pouvait
+  le voir, les deux cas répondent `401`.
+
+### Le mot de passe oublié
+
+Tranché : pas de serveur de courriel — en monter un pour un usage annuel serait
+une pièce de plus à maintenir. L'administrateur pose un nouveau mot de passe
+depuis la console et le transmet de vive voix ; l'intéressé le change ensuite
+lui-même.
+
 ## [0.4.2] — 2026-08-29
 
 ### Ajouté
@@ -428,7 +464,8 @@ livrer — spec 001, itération 3.
 - Les données et les secrets vivent dans `shared/`, hors des releases : un
   déploiement ou un retour arrière ne peut pas les toucher.
 
-[Non publié]: https://github.com/computingify/climbcontest-core/compare/v0.4.2...HEAD
+[Non publié]: https://github.com/computingify/climbcontest-core/compare/v0.5.0...HEAD
+[0.5.0]: https://github.com/computingify/climbcontest-core/releases/tag/v0.5.0
 [0.4.2]: https://github.com/computingify/climbcontest-core/releases/tag/v0.4.2
 [0.4.1]: https://github.com/computingify/climbcontest-core/releases/tag/v0.4.1
 [0.4.0]: https://github.com/computingify/climbcontest-core/releases/tag/v0.4.0

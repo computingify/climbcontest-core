@@ -192,7 +192,8 @@ class TestConsoleAdmin:
         """Si une route est renommee, la console casse en silence."""
         page = client.get("/console").data.decode()
         for route in ("/admin/connexion", "/admin/deconnexion", "/admin/moi",
-                      "/admin/participants", "/admin/reussites", "/admin/dossards"):
+                      "/admin/participants", "/admin/reussites", "/admin/dossards",
+                      "/admin/comptes", "/admin/mon-mot-de-passe"):
             assert route in page, f"la console n'appelle pas {route}"
 
     def test_elle_gere_la_session_expiree(self, client, jeu):
@@ -200,6 +201,32 @@ class TestConsoleAdmin:
         panne : la console doit ramener a la connexion en le disant."""
         page = client.get("/console").data.decode()
         assert "Session expir" in page
+
+    def test_l_onglet_comptes_est_masque_par_defaut(self, client, jeu):
+        """Il n'apparait que pour un administrateur.
+
+        Le serveur refuse de toute facon (403) : masquer evite d'offrir un
+        bouton qui ne marche pas, ce n'est pas la protection.
+        """
+        page = client.get("/console").data.decode()
+        assert 'id="btnOngletComptes"' in page and "hidden" in page
+
+    def test_une_faute_de_frappe_ne_deconnecte_pas(self, client, jeu):
+        """Changer son mot de passe exige l'ancien, et se tromper repond 401 --
+        comme une session expiree. Sans distinction, une faute de frappe
+        renvoyait a l'ecran de connexion au lieu de dire ce qui n'allait pas.
+
+        Trouve en le faisant a la main dans un navigateur : aucun test de route
+        ne pouvait le voir, les deux repondent 401.
+        """
+        page = client.get("/console").data.decode()
+        assert "motDePasseAttendu" in page
+
+    def test_elle_gere_le_dernier_administrateur(self, client, jeu):
+        """Le piege sans retour : l'unique admin se retire ses droits."""
+        page = client.get("/console").data.decode()
+        assert "dernier_admin" in page
+        assert "Dernier administrateur" in page
 
     def test_elle_previent_pour_l_echelle_d_impression(self, client, jeu):
         """« Ajuster a la page » sort des QR trop petits pour etre scannes."""

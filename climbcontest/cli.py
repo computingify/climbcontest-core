@@ -3,6 +3,11 @@
     flask creer-admin <identifiant>
     flask lister-comptes
 
+Ces commandes servent a AMORCER, et a rien d'autre. Une fois le premier
+administrateur cree, tout se fait depuis la console : creer un benevole,
+remettre un mot de passe oublie, changer un role. Demander un acces SSH a
+chaque nouveau benevole n'aurait aucun sens.
+
 Le premier administrateur se cree ICI, jamais par une route ouverte « juste
 pour le premier ». Ce genre de route reste : on la met en place un soir, on se
 promet de la retirer, et elle se retrouve en production trois mois plus tard.
@@ -48,6 +53,8 @@ def creer_admin(identifiant, organisateur_seulement):
         sys.exit(1)
 
     click.echo(f"Compte « {u.identifiant} » cree ({', '.join(roles)}).")
+    click.echo("Les comptes suivants se creent depuis la console, "
+               "onglet « Comptes » — plus besoin de revenir ici.")
 
 
 @click.command("lister-comptes")

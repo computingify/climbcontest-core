@@ -39,6 +39,16 @@ livrable seule.
 - [x] `GET /admin/dossards` — lot, par catégorie, ou un seul
 - [x] Tests, dont le **décodage réel** par un décodeur indépendant
 
+## IT6 — La gestion des comptes depuis la console
+
+- [x] `GET`/`POST /admin/comptes` — lister et créer
+- [x] Réinitialiser un mot de passe, changer un rôle, activer/désactiver
+- [x] `POST /admin/mon-mot-de-passe` — chacun change le sien, **l'ancien exigé**
+- [x] **Le dernier administrateur ne peut pas se retirer ses droits** ni se
+      désactiver : c'est un piège sans retour, qui obligerait à ressortir SSH
+- [x] Écran « Comptes », visible des seuls administrateurs
+- [x] Tests, dont le parcours complet en navigateur
+
 ## IT5 — La console elle-même
 
 - [x] `templates/admin.html` — connexion, participants, saisie, impression

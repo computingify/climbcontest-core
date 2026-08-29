@@ -112,7 +112,33 @@ def changer_mot_de_passe(u: Utilisateur, nouveau: str) -> None:
     u.mot_de_passe_hache = generate_password_hash(nouveau)
     db.session.add(u)
     db.session.commit()
+    # L'identifiant, jamais le mot de passe -- meme pas sa longueur.
     logger.info("mot de passe change pour %s", u.identifiant)
+
+
+def administrateurs_actifs() -> list[Utilisateur]:
+    """Les comptes qui peuvent encore gerer les autres."""
+    return [u for u in Utilisateur.query.filter_by(actif=True).all() if u.a_le_role(ADMIN)]
+
+
+def _verifier_qu_il_restera_un_admin(u: Utilisateur, futur_admin: bool) -> None:
+    """Empeche de supprimer le DERNIER administrateur.
+
+    Le piege classique, et il est sans retour : l'unique administrateur se
+    retire ses droits ou desactive son compte « pour faire propre », et plus
+    personne ne peut gerer les comptes. Il faut alors un acces SSH a la VM et
+    la ligne de commande -- exactement ce qu'on cherche a eviter, et
+    typiquement un dimanche matin.
+    """
+    if futur_admin or not u.a_le_role(ADMIN):
+        return                                  # on ne retire rien
+    autres = [a for a in administrateurs_actifs() if a.id != u.id]
+    if not autres:
+        raise ErreurCompte(
+            "C'est le dernier administrateur : lui retirer ce role fermerait "
+            "la gestion des comptes a tout le monde. Nomme d'abord quelqu'un "
+            "d'autre administrateur.",
+            code=409)
 
 
 def definir_roles(u: Utilisateur, roles: list[str]) -> None:
@@ -121,6 +147,7 @@ def definir_roles(u: Utilisateur, roles: list[str]) -> None:
         raise ErreurCompte(f"Role(s) inconnu(s) : {', '.join(sorted(inconnus))}")
     if not roles:
         raise ErreurCompte("Un compte sans role ne sert a rien.")
+    _verifier_qu_il_restera_un_admin(u, futur_admin=ADMIN in roles)
     UtilisateurRole.query.filter_by(utilisateur_id=u.id).delete()
     for role in sorted(set(roles)):
         db.session.add(UtilisateurRole(utilisateur_id=u.id, role=role))
@@ -130,10 +157,18 @@ def definir_roles(u: Utilisateur, roles: list[str]) -> None:
 
 def desactiver(u: Utilisateur) -> None:
     """Desactive plutot que supprimer : les reussites saisies gardent leur auteur."""
+    _verifier_qu_il_restera_un_admin(u, futur_admin=False)
     u.actif = False
     db.session.add(u)
     db.session.commit()
     logger.info("compte desactive : %s", u.identifiant)
+
+
+def reactiver(u: Utilisateur) -> None:
+    u.actif = True
+    db.session.add(u)
+    db.session.commit()
+    logger.info("compte reactive : %s", u.identifiant)
 
 
 def existe_un_admin() -> bool:

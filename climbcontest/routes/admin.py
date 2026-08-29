@@ -16,10 +16,11 @@ from flask import Blueprint, g, jsonify, render_template, request
 
 from ..auth_session import exige_role, fermer, ouvrir, utilisateur_courant
 from .. import freinage
-from ..comptes import ORGANISATEUR, ErreurCompte, verifier
+from .. import comptes
+from ..comptes import ADMIN, ORGANISATEUR, ErreurCompte, verifier
 from .. import qr
 from ..extensions import db
-from ..models import SOURCE_MANUEL, Participant
+from ..models import SOURCE_MANUEL, Participant, Utilisateur
 from ..contest import (
     ErreurMetier, ajouter_participant, bloc_par_tag, competition_active,
     enregistrer_reussite, participant_par_dossard, reaffecter_dossard,
@@ -103,6 +104,154 @@ def moi():
 # Dernier rapport, en memoire. C'est un confort de consultation, pas une donnee :
 # le perdre a un redemarrage est sans consequence, on relance l'import.
 _dernier_rapport: dict | None = None
+
+
+# --- Les comptes ------------------------------------------------------------
+#
+# La ligne de commande sert a AMORCER -- le tout premier compte, quand il n'y a
+# encore personne pour en creer un. Tout le reste se fait d'ici : creer un
+# organisateur, remettre un mot de passe oublie, changer un role. Demander un
+# acces SSH a chaque nouveau benevole n'aurait aucun sens.
+
+@bp.get("/comptes")
+@exige_role(ADMIN)
+def lister_comptes():
+    tous = Utilisateur.query.order_by(Utilisateur.identifiant).all()
+    return jsonify({
+        "success": True,
+        "comptes": [{
+            "id": u.id,
+            "identifiant": u.identifiant,
+            "nom_affiche": u.nom_affiche,
+            "actif": u.actif,
+            "roles": sorted(r.role for r in u.roles),
+            # Pour que la console puisse griser ce qui fermerait la porte.
+            "dernier_admin": u.a_le_role(ADMIN) and u.actif
+                             and len(comptes.administrateurs_actifs()) == 1,
+        } for u in tous],
+        "roles_possibles": sorted(comptes.ROLES_CONNUS),
+        "longueur_minimale": comptes.LONGUEUR_MINIMALE,
+    }), 200
+
+
+@bp.post("/comptes")
+@exige_role(ADMIN)
+def creer_compte():
+    corps = _corps_objet()
+    if corps is None:
+        return jsonify({"success": False, "message": "Corps JSON attendu"}), 400
+    try:
+        u = comptes.creer(
+            corps.get("identifiant", ""), corps.get("mot_de_passe", ""),
+            corps.get("roles") or [], corps.get("nom_affiche"),
+        )
+    except comptes.ErreurCompte as e:
+        return jsonify({"success": False, "message": e.message}), e.code
+
+    logger.info("compte %s cree par %s", u.identifiant, g.utilisateur.identifiant)
+    return jsonify({"success": True, "identifiant": u.identifiant}), 201
+
+
+@bp.post("/comptes/<int:compte_id>/mot-de-passe")
+@exige_role(ADMIN)
+def reinitialiser_mot_de_passe(compte_id):
+    """Le « mot de passe oublie », sans serveur de courriel.
+
+    L'administrateur en pose un nouveau et le transmet de vive voix. Dans un
+    club, c'est le chemin le plus court et le plus sur -- une chaine de
+    reinitialisation par courriel demanderait un serveur de mail, donc une
+    piece de plus a maintenir pour un usage annuel.
+    """
+    corps = _corps_objet()
+    if corps is None:
+        return jsonify({"success": False, "message": "Corps JSON attendu"}), 400
+
+    u = db.session.get(Utilisateur, compte_id)
+    if u is None:
+        return jsonify({"success": False, "message": "Compte inconnu"}), 404
+
+    try:
+        comptes.changer_mot_de_passe(u, corps.get("mot_de_passe", ""))
+    except comptes.ErreurCompte as e:
+        return jsonify({"success": False, "message": e.message}), e.code
+
+    logger.info("mot de passe de %s reinitialise par %s",
+                u.identifiant, g.utilisateur.identifiant)
+    return jsonify({"success": True}), 200
+
+
+@bp.post("/comptes/<int:compte_id>/roles")
+@exige_role(ADMIN)
+def changer_roles(compte_id):
+    corps = _corps_objet()
+    if corps is None:
+        return jsonify({"success": False, "message": "Corps JSON attendu"}), 400
+
+    u = db.session.get(Utilisateur, compte_id)
+    if u is None:
+        return jsonify({"success": False, "message": "Compte inconnu"}), 404
+
+    try:
+        comptes.definir_roles(u, corps.get("roles") or [])
+    except comptes.ErreurCompte as e:
+        return jsonify({"success": False, "message": e.message}), e.code
+
+    logger.info("roles de %s changes par %s", u.identifiant, g.utilisateur.identifiant)
+    return jsonify({"success": True}), 200
+
+
+@bp.post("/comptes/<int:compte_id>/actif")
+@exige_role(ADMIN)
+def activer_ou_desactiver(compte_id):
+    """Desactive plutot que supprime : les reussites saisies gardent leur auteur."""
+    corps = _corps_objet()
+    if corps is None or "actif" not in corps:
+        return jsonify({"success": False, "message": "Champ « actif » attendu"}), 400
+
+    u = db.session.get(Utilisateur, compte_id)
+    if u is None:
+        return jsonify({"success": False, "message": "Compte inconnu"}), 404
+
+    try:
+        if corps["actif"]:
+            comptes.reactiver(u)
+        else:
+            comptes.desactiver(u)
+    except comptes.ErreurCompte as e:
+        return jsonify({"success": False, "message": e.message}), e.code
+
+    logger.info("compte %s %s par %s", u.identifiant,
+                "reactive" if corps["actif"] else "desactive",
+                g.utilisateur.identifiant)
+    return jsonify({"success": True}), 200
+
+
+@bp.post("/mon-mot-de-passe")
+@exige_role()
+def changer_mon_mot_de_passe():
+    """Chacun change le sien, sans passer par un administrateur.
+
+    L'ANCIEN mot de passe est exige, meme si la session est deja ouverte : sans
+    ca, une session volee -- un ordinateur laisse deverrouille dans la salle --
+    permettrait de s'approprier le compte definitivement.
+    """
+    corps = _corps_objet()
+    if corps is None:
+        return jsonify({"success": False, "message": "Corps JSON attendu"}), 400
+
+    u = g.utilisateur
+    if verifier(u.identifiant, corps.get("actuel", "")) is None:
+        logger.warning("changement de mot de passe refuse pour %s : ancien incorrect",
+                       u.identifiant)
+        return jsonify({"success": False,
+                        "message": "Mot de passe actuel incorrect"}), 401
+
+    try:
+        comptes.changer_mot_de_passe(u, corps.get("nouveau", ""))
+    except comptes.ErreurCompte as e:
+        return jsonify({"success": False, "message": e.message}), e.code
+
+    return jsonify({"success": True}), 200
 
 
 # --- Participants a chaud ---------------------------------------------------

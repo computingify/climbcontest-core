@@ -106,6 +106,11 @@ class TestVerification:
         assert comptes.verifier("personne", MDP) is None
 
     def test_un_compte_desactive_ne_peut_plus_entrer(self, admin):
+        # Un second admin, sinon le garde-fou du dernier administrateur refuse
+        # la desactivation -- et il a raison : ce qu'on teste ici, c'est qu'un
+        # compte desactive ne peut plus entrer, pas qu'on peut fermer la porte
+        # a tout le monde.
+        comptes.creer("second", MDP, [comptes.ADMIN])
         comptes.desactiver(admin)
         assert comptes.verifier("chef", MDP) is None
 
@@ -204,6 +209,7 @@ class TestFailClosed:
         """La session reste valide, mais le compte est relu en base a chaque
         requete : desactiver quelqu'un pendant la competition doit avoir un
         effet tout de suite, pas dans douze heures."""
+        comptes.creer("second", MDP, [comptes.ADMIN])   # voir le garde-fou
         connecter(client)
         comptes.desactiver(admin)
         assert client.get("/admin/moi").status_code == 401
@@ -275,7 +281,16 @@ class TestPremierAdmin:
         assert comptes.existe_un_admin() is True
 
     def test_un_admin_desactive_ne_compte_pas(self, admin):
-        comptes.desactiver(admin)
+        """On force l'etat en base plutot que de passer par `desactiver()`.
+
+        Le garde-fou du dernier administrateur rend ce cas inatteignable par la
+        console -- et c'est voulu. Mais `existe_un_admin()` doit quand meme
+        repondre juste : la base peut arriver dans cet etat par une
+        modification manuelle, ou par un import.
+        """
+        admin.actif = False
+        db.session.add(admin)
+        db.session.commit()
         assert comptes.existe_un_admin() is False
 
     def test_un_organisateur_ne_compte_pas_comme_admin(self, organisateur):
