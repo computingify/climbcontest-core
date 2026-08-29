@@ -61,6 +61,13 @@
   @media (prefers-reduced-motion: reduce) { #voyant.doute { animation: none } }
 
   main { padding: 12px 16px 28px; display: flex; flex-direction: column; gap: 14px; }
+  /* ⚠️ Sans cette ligne, l'attribut `hidden` ne cachait PAS le contenu
+     principal : la regle `main { display: flex }` est une regle d'AUTEUR, et
+     elle bat le `[hidden] { display: none }` de la feuille du navigateur, qui
+     n'est qu'une regle d'agent utilisateur. Les ecrans secondaires
+     s'affichaient donc SOUS l'ecran principal au lieu de le remplacer.
+     Constate a l'ecran. */
+  main[hidden] { display: none; }
 
   .carte {
     border: 0; width: 100%; text-align: left; font: inherit; color: inherit;
@@ -129,13 +136,77 @@
   #bandeFile { display: flex; gap: 8px; padding: 8px 16px; background: var(--carte2);
                cursor: pointer; }
   #bandeFile[hidden] { display: none; }
+  /* ⚠️ Ces classes s'appelaient `.attente` et `.refus`. `.attente` entrait
+     alors en collision avec `.carte .valeur.attente`, qui marque une carte NON
+     SCANNEE : le fond ambre de la pastille se retrouvait derriere le texte
+     « A scanner », dans les deux cartes. Constate a l'ecran, invisible a la
+     relecture. Deux choses differentes, deux noms differents. */
   .pastille { font-size: 0.82rem; font-weight: 600; padding: 4px 9px;
               border-radius: 8px; }
   .pastille[hidden] { display: none; }
-  .attente { color: var(--attention); background: rgba(229,180,74,.15); }
+  .pastilleAttente { color: var(--attention); background: rgba(229,180,74,.15); }
   /* Le rouge est reserve a ce qui demande une ACTION : une refusee ne repartira
      pas toute seule, contrairement a une reussite en file. */
-  .refus { color: var(--alerte); background: rgba(224,112,95,.15); }
+  .pastilleRefus { color: var(--alerte); background: rgba(224,112,95,.15); }
+
+  /* Les ecrans secondaires. Une seule page, trois vues : un juge n'a pas
+     besoin d'un routeur pour trois ecrans, et une navigation par URL ferait
+     sortir de la PWA installee sur certains iOS. */
+  .ecran[hidden] { display: none; }
+  .barreEcran { display: flex; align-items: center; gap: 12px;
+                padding: 10px 16px; background: var(--carte); }
+  .barreEcran h2 { margin: 0; font-size: 1.15rem; font-weight: 700; flex: 1; }
+  .retour { background: none; border: 0; color: var(--encre); font: inherit;
+            font-size: 1.5rem; line-height: 1; padding: 4px 8px; cursor: pointer; }
+
+  .section { margin: 16px; }
+  .section > h3 { margin: 0 0 6px 4px; font-size: 0.75rem; text-transform: uppercase;
+                  letter-spacing: 0.09em; color: var(--encre2); font-weight: 600; }
+  .bloc { background: var(--carte); border-radius: 14px; padding: 16px; }
+  .bloc + .bloc { margin-top: 10px; }
+  .ligne { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+  .ligne + .ligne { margin-top: 14px; }
+  .explication { color: var(--encre2); font-size: 0.85rem; line-height: 1.5;
+                 margin: 6px 0 0; }
+  .bloc input[type=text] {
+    width: 100%; font: inherit; font-size: 1rem; color: var(--encre);
+    background: var(--vide); border: 1px solid var(--trait); border-radius: 10px;
+    padding: 12px 14px; -webkit-user-select: text; user-select: text;
+  }
+  .bloc label { display: block; font-size: 0.8rem; color: var(--encre2);
+                margin-bottom: 6px; }
+  /* La case a cocher par defaut est blanche : sur un fond sombre, elle saute
+     aux yeux plus que le reste de l'ecran, pour un reglage secondaire. */
+  .bloc input[type=checkbox] { accent-color: var(--bleu); }
+  .action { font: inherit; font-size: 0.95rem; font-weight: 600; color: #12141a;
+            background: var(--bleu); border: 0; border-radius: 10px;
+            padding: 11px 18px; cursor: pointer; white-space: nowrap; }
+  .action:disabled { opacity: .45; cursor: default; }
+  .mono { font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+          font-size: 0.8rem; color: var(--encre2); }
+  .lien { background: none; border: 0; color: var(--bleu); font: inherit;
+          font-size: 1rem; padding: 12px 0; cursor: pointer; text-align: left; }
+
+  /* « Mes scans ». */
+  #listeScans { margin: 0 16px 24px; }
+  .scan { display: flex; align-items: center; gap: 12px; background: var(--carte);
+          border-radius: 12px; padding: 12px 14px; margin-bottom: 8px; }
+  .scan .point { width: 9px; height: 9px; border-radius: 50%; flex: none; }
+  .scan .qui { flex: 1; min-width: 0; }
+  .scan .nom { font-weight: 600; white-space: nowrap; overflow: hidden;
+               text-overflow: ellipsis; }
+  .scan .ou { color: var(--encre2); font-size: 0.88rem; }
+  .scan .motif { color: var(--alerte); font-size: 0.82rem; }
+  .scan .etat { text-align: right; font-size: 0.82rem; font-weight: 600; }
+  .filtre { display: flex; align-items: center; justify-content: space-between;
+            gap: 12px; margin: 12px 16px; color: var(--encre2); font-size: 0.88rem; }
+  .filtre button { font: inherit; font-size: 0.85rem; color: var(--encre2);
+                   background: none; border: 1px solid var(--trait);
+                   border-radius: 999px; padding: 7px 14px; cursor: pointer; }
+  .filtre button.actif { color: var(--attention); border-color: var(--attention);
+                         background: rgba(229,180,74,.15); }
+  .vide { color: var(--encre2); text-align: center; margin: 40px 24px;
+          line-height: 1.6; }
 
   #installer { margin: 0 16px 12px; padding: 12px 14px; border-radius: 10px;
                background: var(--carte2); color: var(--encre2); font-size: 0.88rem;
@@ -152,6 +223,8 @@
        connexion sans fil, verte quand ca passe, BARREE et rouge sinon. Barree,
        parce que le vert et le rouge seuls sont indistinguables pour environ 8 %
        des hommes, et il y a des juges hommes. -->
+  <button id="ouvrirReglages" class="retour" aria-label="Réglages"
+          style="font-size:1.25rem">⚙</button>
   <svg id="voyant" class="doute" viewBox="0 0 24 24" fill="none"
        stroke="currentColor" stroke-width="2.1" stroke-linecap="round"
        role="img" aria-label="Connexion en cours">
@@ -164,8 +237,8 @@
 </header>
 
 <div id="bandeFile" hidden>
-  <span id="compteurAttente" class="pastille attente" hidden></span>
-  <span id="compteurRefus" class="pastille refus" hidden></span>
+  <span id="compteurAttente" class="pastille pastilleAttente" hidden></span>
+  <span id="compteurRefus" class="pastille pastilleRefus" hidden></span>
 </div>
 
 <p id="installer" hidden>
@@ -173,7 +246,7 @@
   application, et gardera tes scans même sans réseau.
 </p>
 
-<main>
+<main id="principal">
   <button class="carte" id="carteGrimpeur">
     <span class="quoi">Grimpeur</span>
     <span class="valeur attente" id="valeurGrimpeur">À scanner</span>
@@ -189,6 +262,75 @@
   <p id="aide">Scannez le grimpeur puis le bloc</p>
   <button id="effacer">Effacer le scan</button>
 </main>
+
+<section id="ecranReglages" class="ecran" hidden>
+  <div class="barreEcran">
+    <button class="retour" data-ferme="ecranReglages" aria-label="Retour">←</button>
+    <h2>Réglages</h2>
+  </div>
+
+  <div class="section">
+    <h3>Ce téléphone</h3>
+    <div class="bloc">
+      <label for="nomTelephone">Nom de ce téléphone</label>
+      <input type="text" id="nomTelephone" placeholder="Mur jaune"
+             autocapitalize="sentences" autocomplete="off" maxlength="60">
+      <p class="explication">Ce nom apparaît dans la console à côté des réussites
+         envoyées depuis ce téléphone. Il désigne un poste, pas une personne.</p>
+      <p class="mono" id="identifiantTelephone"></p>
+      <button class="lien" id="voirMesScans">Voir mes scans</button>
+    </div>
+  </div>
+
+  <div class="section">
+    <h3>Saisie</h3>
+    <div class="bloc">
+      <div class="ligne">
+        <span>Garder le grimpeur entre deux blocs</span>
+        <input type="checkbox" id="garderGrimpeur" style="width:22px;height:22px">
+      </div>
+      <p class="explication">Pratique quand un grimpeur enchaîne plusieurs blocs :
+         seul le bloc est remis à zéro après un envoi.</p>
+    </div>
+  </div>
+
+  <div class="section">
+    <h3>File d'attente</h3>
+    <div class="bloc">
+      <div class="ligne">
+        <span id="etatFile">Tout est déjà envoyé</span>
+        <button class="action" id="toutEnvoyer" disabled>Tout envoyer</button>
+      </div>
+      <div class="ligne" id="ligneRefus" hidden>
+        <span id="etatRefus"></span>
+        <button class="action" id="renvoyerRefus">Renvoyer</button>
+      </div>
+      <p class="explication" id="expliquerRefus" hidden>Une réussite est refusée
+         quand le serveur ne connaît pas encore le dossard. Dès que l'organisateur
+         a ajouté le participant, renvoyez-la.</p>
+    </div>
+  </div>
+
+  <div class="section">
+    <h3>Serveur</h3>
+    <div class="bloc">
+      <div class="ligne"><span id="etatServeur">Connexion en cours</span></div>
+      <p class="mono" id="adresseServeur"></p>
+    </div>
+  </div>
+</section>
+
+<section id="ecranScans" class="ecran" hidden>
+  <div class="barreEcran">
+    <button class="retour" data-ferme="ecranScans" aria-label="Retour">←</button>
+    <h2>Mes scans</h2>
+  </div>
+  <div class="filtre">
+    <span id="compteScans"></span>
+    <button id="filtreNonArrives">Pas arrivés (0)</button>
+  </div>
+  <div id="listeScans"></div>
+</section>
 
 <div id="viseur" hidden>
   <video id="flux" playsinline muted></video>

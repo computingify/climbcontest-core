@@ -50,6 +50,19 @@ class Config:
         f"sqlite:///{DOSSIER_DONNEES / 'climbcontest.db'}",
     )
     SQLALCHEMY_TRACK_MODIFICATIONS = False
+
+    # ⚠️ Les fichiers statiques sont TOUJOURS revalides (spec 007).
+    #
+    # Par defaut, Flask les annonce cachables douze heures. Les vingt-cinq
+    # telephones des juges garderaient donc l'ancien `juge.js` apres une
+    # correction, sans que personne ne comprenne pourquoi le correctif « ne
+    # marche pas » -- constate en developpant, sur cette machine.
+    #
+    # Le cout est nul : Flask envoie un `ETag`, le navigateur revalide et
+    # recoit un `304` de quelques octets. Le fonctionnement HORS LIGNE est
+    # assure par le service worker (IT4), avec une strategie explicite plutot
+    # qu'un cache navigateur qu'on ne controle pas.
+    SEND_FILE_MAX_AGE_DEFAULT = 0
     SECRET_KEY = os.environ.get("CLIMBCONTEST_SECRET_KEY", "dev-non-secret")
 
     # Cles d'API des juges (spec 012).
