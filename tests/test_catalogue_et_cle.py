@@ -57,32 +57,40 @@ class TestCatalogue:
 
 
 class TestCleApiTolere:
-    """Mode par défaut, tant que l'application v3.1.4 est en service."""
+    """Le regime de repli, atteignable par `CLIMBCONTEST_API_KEY_STRICTE=0`.
+
+    Il n'est plus le defaut depuis la spec 012, mais il doit continuer de
+    marcher : le gel `V3.1.4`, plan de repli garanti de novembre, n'envoie
+    aucune cle.
+    """
 
     def setup_method(self):
         for k in compteurs:
             compteurs[k] = 0
 
-    def test_sans_cle_acceptee_mais_comptee(self, client, jeu):
-        """C'est ce que fait l'application déployée : aucune clé.
-
-        Le compteur est ce qui dira quand on pourra passer en mode strict — le
-        jour où il reste à zéro pendant toute une compétition.
-        """
-        assert client.get("/api/v2/catalog").status_code == 200
-        assert compteurs["sans_cle"] == 1
+    def test_sans_cle_acceptee_mais_comptee(self, client_sans_cle, jeu, app):
+        app.config["API_KEY_STRICTE"] = False
+        try:
+            assert client_sans_cle.get("/api/v2/catalog").status_code == 200
+            assert compteurs["sans_cle"] == 1
+        finally:
+            app.config["API_KEY_STRICTE"] = True
 
     def test_bonne_cle_acceptee(self, client, jeu):
-        r = client.get("/api/v2/catalog", headers={"X-Api-Key": "cle-de-test"})
-        assert r.status_code == 200
+        assert client.get("/api/v2/catalog").status_code == 200
         assert compteurs["avec_cle"] == 1
 
-    def test_mauvaise_cle_refusee_meme_en_mode_tolere(self, client, jeu):
+    def test_mauvaise_cle_refusee_meme_en_mode_tolere(self, client_sans_cle, jeu, app):
         """Quelqu'un qui envoie une fausse clé n'est pas l'application
         d'origine : on refuse dans les deux modes."""
-        r = client.get("/api/v2/catalog", headers={"X-Api-Key": "pas-la-bonne"})
-        assert r.status_code == 401
-        assert compteurs["refusees"] == 1
+        app.config["API_KEY_STRICTE"] = False
+        try:
+            r = client_sans_cle.get("/api/v2/catalog",
+                                    headers={"X-Api-Key": "pas-la-bonne"})
+            assert r.status_code == 401
+            assert compteurs["refusees"] == 1
+        finally:
+            app.config["API_KEY_STRICTE"] = True
 
 
 class TestCorpsMalforme:
@@ -119,24 +127,98 @@ class TestCorpsMalforme:
 
 
 class TestCleApiStricte:
+    """Le regime PAR DEFAUT depuis la spec 012."""
+
     def setup_method(self):
         for k in compteurs:
             compteurs[k] = 0
 
-    def test_sans_cle_refusee(self, client, jeu, app):
-        app.config["API_KEY_STRICTE"] = True
-        try:
-            assert client.get("/api/v2/catalog").status_code == 401
-        finally:
-            app.config["API_KEY_STRICTE"] = False
+    def test_le_defaut_est_strict(self, app):
+        """Une installation qui oublie la variable doit etre fermee, pas ouverte."""
+        assert app.config["API_KEY_STRICTE"] is True
 
-    def test_avec_cle_acceptee(self, client, jeu, app):
-        app.config["API_KEY_STRICTE"] = True
+    def test_sans_cle_refusee(self, client_sans_cle, jeu):
+        assert client_sans_cle.get("/api/v2/catalog").status_code == 401
+
+    def test_avec_cle_acceptee(self, client, jeu):
+        assert client.get("/api/v2/catalog").status_code == 200
+
+    def test_les_routes_publiques_restent_ouvertes(self, client_sans_cle, jeu):
+        """Les spectateurs n'ont pas de cle, et n'en auront jamais."""
+        assert client_sans_cle.get("/api/public/classement").status_code == 200
+        assert client_sans_cle.get("/api/public/groupes").status_code == 200
+
+
+class TestPlusieursCles:
+    """Changer de cle sans jour de bascule (spec 012)."""
+
+    def test_les_deux_cles_passent(self, client_sans_cle, jeu, app):
+        app.config["API_KEYS"] = ("courante", "precedente")
         try:
-            r = client.get("/api/v2/catalog", headers={"X-Api-Key": "cle-de-test"})
-            assert r.status_code == 200
+            for cle in ("courante", "precedente"):
+                r = client_sans_cle.get("/api/v2/catalog", headers={"X-Api-Key": cle})
+                assert r.status_code == 200, cle
         finally:
-            app.config["API_KEY_STRICTE"] = False
+            app.config["API_KEYS"] = ("cle-de-test",)
+
+    def test_une_cle_retiree_ne_passe_plus(self, client_sans_cle, jeu, app):
+        app.config["API_KEYS"] = ("courante",)
+        try:
+            r = client_sans_cle.get("/api/v2/catalog",
+                                    headers={"X-Api-Key": "precedente"})
+            assert r.status_code == 401
+        finally:
+            app.config["API_KEYS"] = ("cle-de-test",)
+
+    def test_une_chaine_vide_n_est_pas_une_cle(self):
+        """`CLIMBCONTEST_API_KEY=` ne doit pas ouvrir la porte a `X-Api-Key: `."""
+        from climbcontest.config import cles_depuis_environnement as lire
+
+        assert lire({"CLIMBCONTEST_API_KEY": ""}) == ()
+        assert lire({"CLIMBCONTEST_API_KEY": "   "}) == ()
+        assert lire({}) == ()
+
+    def test_les_deux_variables_alimentent_le_tuple(self):
+        from climbcontest.config import cles_depuis_environnement as lire
+
+        assert lire({"CLIMBCONTEST_API_KEY": "a",
+                     "CLIMBCONTEST_API_KEY_PRECEDENTE": "b"}) == ("a", "b")
+
+    def test_une_cle_est_nettoyee_de_ses_espaces(self):
+        """Une variable posee dans un fichier d'environnement traine souvent
+        un espace ou un retour a la ligne. Le telephone, lui, envoie la cle
+        exacte : sans ce nettoyage, la comparaison echouerait sans que personne
+        ne comprenne pourquoi."""
+        from climbcontest.config import cles_depuis_environnement as lire
+
+        assert lire({"CLIMBCONTEST_API_KEY": "  secrete\n"}) == ("secrete",)
+
+
+class TestConfigurationIncoherente:
+    """Mode strict et aucune cle : dire ce qui se passe, pas `401`.
+
+    Un `401` enverrait chercher un probleme de cle cote application, alors que
+    la variable est absente cote serveur.
+    """
+
+    def test_503_et_pas_401(self, client, jeu, app):
+        app.config["API_KEYS"] = ()
+        try:
+            r = client.get("/api/v2/catalog")
+            assert r.status_code == 503
+            assert "CLIMBCONTEST_API_KEY" in r.get_json()["message"]
+        finally:
+            app.config["API_KEYS"] = ("cle-de-test",)
+
+    def test_le_mode_tolere_sans_cle_reste_utilisable(self, client_sans_cle, jeu, app):
+        """Sans cle ET en mode tolere, ce n'est pas incoherent : c'est le repli."""
+        app.config["API_KEYS"] = ()
+        app.config["API_KEY_STRICTE"] = False
+        try:
+            assert client_sans_cle.get("/api/v2/catalog").status_code == 200
+        finally:
+            app.config["API_KEYS"] = ("cle-de-test",)
+            app.config["API_KEY_STRICTE"] = True
 
 
 class TestSanteComplete:
@@ -145,6 +227,10 @@ class TestSanteComplete:
         assert d["status"] == "ok"
         assert "reussites_en_attente" in d
         assert {"sans_cle", "avec_cle", "refusees"} <= set(d["api"])
+        # Le regime et le NOMBRE de cles, jamais les cles.
+        assert d["api"]["regime"] == "strict"
+        assert d["api"]["cles_acceptees"] == 1
+        assert "cle-de-test" not in client.get("/health").get_data(as_text=True)
         assert "miroir_actif" in d
 
     def test_annonce_que_le_compteur_est_local_au_worker(self, client, jeu):

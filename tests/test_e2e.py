@@ -55,12 +55,25 @@ class PortDejaPris(RuntimeError):
     """Le port choisi a ete pris entre son attribution et le `bind` de gunicorn."""
 
 
-def appeler(base: str, chemin: str, corps: dict | None = None, methode: str = "POST"):
-    """Un appel HTTP, comme le ferait l'application. Renvoie (code, json)."""
+#: La cle que `ServeurReel` configure. Les appels la portent par defaut, comme
+#: l'application des juges depuis la spec 012 -- le regime par defaut du serveur
+#: etant desormais STRICT, un appel sans cle serait refuse.
+CLE_E2E = "cle-e2e"
+
+
+def appeler(base: str, chemin: str, corps: dict | None = None,
+            methode: str = "POST", cle: str | None = CLE_E2E):
+    """Un appel HTTP, comme le ferait l'application. Renvoie (code, json).
+
+    `cle=None` omet l'en-tete : c'est ce que fait le gel `V3.1.4`, et c'est ce
+    qu'il faut pour verifier qu'une route est bien fermee.
+    """
     donnees = json.dumps(corps).encode() if corps is not None else None
+    entetes = {"Content-Type": "application/json"}
+    if cle is not None:
+        entetes["X-Api-Key"] = cle
     requete = urllib.request.Request(
-        f"{base}{chemin}", data=donnees, method=methode,
-        headers={"Content-Type": "application/json"},
+        f"{base}{chemin}", data=donnees, method=methode, headers=entetes,
     )
     try:
         with urllib.request.urlopen(requete, timeout=15) as r:
@@ -435,20 +448,47 @@ class TestCatalogue:
 # --- La cle d'API -----------------------------------------------------------
 
 class TestCleApi:
-    def test_absente_acceptee(self, serveur):
-        """Mode toléré : l'application v3.1.4 n'envoie aucune clé.
+    def test_absente_refusee_par_defaut(self, serveur):
+        """Le regime par defaut est STRICT depuis la spec 012.
 
-        Les trois routes du juge doivent répondre sans clé, sinon l'application
-        déployée cesse de fonctionner.
+        Sur un gunicorn reel, sans aucune variable de regime : les trois routes
+        du juge refusent une requete sans cle. C'est le coeur de la spec, et
+        c'est le seul test qui le verifie sur le vrai serveur.
         """
         for chemin, corps in [
             ("/api/v2/contest/climber/name", {"id": "1"}),
             ("/api/v2/contest/bloc/name", {"id": "B1"}),
             ("/api/v2/contest/success", {"bib": "1", "bloc": "B1"}),
         ]:
-            code, reponse = appeler(serveur.base, chemin, corps)
-            assert code == 201, f"{chemin} refuse sans cle : l'app v3.1.4 casserait"
-            assert reponse["success"] is True
+            code, _ = appeler(serveur.base, chemin, corps, cle=None)
+            assert code == 401, f"{chemin} devrait etre ferme sans cle"
+
+    def test_absente_acceptee_en_mode_tolere(self, dossier):
+        """La porte de sortie du plan de repli.
+
+        Le gel `V3.1.4` n'envoie aucune cle. Poser
+        `CLIMBCONTEST_API_KEY_STRICTE=0` doit le faire remarcher, sinon le repli
+        de novembre ne repliera rien.
+        """
+        with ServeurReel(dossier, workers=1,
+                         env_sup={"CLIMBCONTEST_API_KEY_STRICTE": "0"}) as s:
+            for chemin, corps in [
+                ("/api/v2/contest/climber/name", {"id": "1"}),
+                ("/api/v2/contest/bloc/name", {"id": "B1"}),
+                ("/api/v2/contest/success", {"bib": "1", "bloc": "B1"}),
+            ]:
+                code, reponse = appeler(s.base, chemin, corps, cle=None)
+                assert code == 201, f"{chemin} refuse : le repli V3.1.4 casserait"
+                assert reponse["success"] is True
+
+    def test_strict_sans_aucune_cle_configuree_donne_503(self, dossier):
+        """Une erreur de CONFIGURATION doit se lire comme telle, pas comme un 401."""
+        with ServeurReel(dossier, workers=1,
+                         env_sup={"CLIMBCONTEST_API_KEY": ""}) as s:
+            code, reponse = appeler(s.base, "/api/v2/contest/climber/name",
+                                    {"id": "1"}, cle=None)
+            assert code == 503
+            assert "CLIMBCONTEST_API_KEY" in reponse["message"]
 
     def test_le_compteur_est_par_worker_et_le_dit(self, serveur):
         """Le compteur de /health ne vaut que pour le worker qui a répondu.
@@ -464,9 +504,10 @@ class TestCleApi:
 
     def test_compteur_fiable_avec_un_seul_worker(self, dossier):
         """Avec un worker, le compteur est exact — c'est le cas du dev."""
-        with ServeurReel(dossier, workers=1) as s:
-            appeler(s.base, "/api/v2/contest/climber/name", {"id": "1"})
-            appeler(s.base, "/api/v2/contest/climber/name", {"id": "2"})
+        with ServeurReel(dossier, workers=1,
+                         env_sup={"CLIMBCONTEST_API_KEY_STRICTE": "0"}) as s:
+            appeler(s.base, "/api/v2/contest/climber/name", {"id": "1"}, cle=None)
+            appeler(s.base, "/api/v2/contest/climber/name", {"id": "2"}, cle=None)
             _, sante = appeler(s.base, "/health", methode="GET")
             assert sante["api"]["sans_cle"] >= 2
 
@@ -493,10 +534,11 @@ class TestCleApi:
 # --- Le garde-fou du mode strict --------------------------------------------
 
 class TestModeStrictEtSonGardeFou:
-    """Le mode strict casse l'application v3.1.4. Le journal doit le prévenir.
+    """Le mode strict, et la trace qu'il laisse.
 
-    Ces deux tests vont ensemble : l'un fixe ce que fait l'interrupteur, l'autre
-    vérifie que l'indicateur qui décide de l'actionner fonctionne vraiment.
+    Il est le defaut depuis la spec 012. Le journal reste indispensable, mais il
+    ne sert plus a decider du passage : il sert a REPERER, le jour J, un
+    telephone reste sur l'ancienne application et dont les envois sont refuses.
     """
 
     def test_le_journal_recoit_bien_les_appels_sans_cle(self, serveur):
@@ -515,7 +557,8 @@ class TestModeStrictEtSonGardeFou:
         gunicorn, dont on lit la sortie, prouve quelque chose.
         """
         for _ in range(3):
-            appeler(serveur.base, "/api/v2/contest/climber/name", {"id": "1"})
+            appeler(serveur.base, "/api/v2/contest/climber/name", {"id": "1"},
+                    cle=None)
         time.sleep(0.5)
         journal = serveur.lire_journal()
         assert journal.count("appel sans cle") >= 3, (
@@ -537,7 +580,7 @@ class TestModeStrictEtSonGardeFou:
                 ("/api/v2/contest/bloc/name", {"id": "B1"}),
                 ("/api/v2/contest/success", {"bib": "1", "bloc": "B1"}),
             ]:
-                code, _ = appeler(s.base, chemin, corps)
+                code, _ = appeler(s.base, chemin, corps, cle=None)
                 assert code == 401, f"{chemin} devrait etre refuse en mode strict"
 
     def test_le_mode_strict_accepte_avec_la_cle(self, dossier):

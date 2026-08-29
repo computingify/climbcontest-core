@@ -1,23 +1,30 @@
-"""Clé d'API des juges — en mode toléré.
+"""Clé d'API des juges.
 
-Le problème : l'application `v3.1.4`, déployée sur le Play Store, **n'envoie
-aucune clé**. La rendre obligatoire aujourd'hui, c'est casser l'application le
-jour de la compétition.
+Deux régimes, choisis par `CLIMBCONTEST_API_KEY_STRICTE` :
 
-Trois régimes, choisis par `CLIMBCONTEST_API_KEY_STRICTE` :
-
-| Requête | Mode toléré (défaut) | Mode strict |
+| Requête | Mode **strict** (défaut) | Mode toléré (`=0`) |
 | --- | --- | --- |
-| clé absente | **acceptée**, comptée | refusée `401` |
+| clé absente | refusée `401` | **acceptée**, comptée |
 | clé correcte | acceptée | acceptée |
-| clé **incorrecte** | **refusée `401`** | refusée `401` |
+| clé **incorrecte** | refusée `401` | refusée `401` |
 
-Une clé incorrecte est refusée dans les deux modes : quelqu'un qui en envoie une
-fausse n'est pas l'application d'origine.
+Une clé incorrecte est refusée dans les deux régimes : quelqu'un qui en envoie
+une fausse n'est pas l'application d'origine.
 
-Le compteur d'appels sans clé est exposé par `/health`. C'est lui qui dira quand
-on peut passer en mode strict sans risque : le jour où il reste à zéro pendant
-toute une compétition, plus personne n'utilise l'ancienne application.
+**Le défaut est strict depuis la spec 012.** Il était toléré jusque-là, pour une
+raison qui n'a pas disparu : l'application `v3.1.4` du Play Store n'envoie aucune
+clé, et c'est elle le plan de repli garanti de novembre. Y revenir suppose donc
+de reposer `CLIMBCONTEST_API_KEY_STRICTE=0` — c'est écrit en tête du plan de
+repli, parce que c'est exactement le genre d'étape qu'on oublie dans l'urgence.
+
+⚠️ **Ce qu'une clé compilée dans un APK protège.** Elle s'extrait en quelques
+minutes de l'application, qui est distribuée publiquement. Elle arrête un robot
+qui balaie Internet et trouve `/api/v3/successes` ; elle n'arrête pas quelqu'un
+qui a l'application et veut fausser la compétition. Le raisonnement complet est
+dans `specs/012-cle-api-juges/spec.md`.
+
+Plusieurs clés peuvent être acceptées en même temps, pour en changer sans jour
+de bascule.
 """
 
 import hmac
@@ -56,11 +63,45 @@ def _cle_fournie() -> str | None:
     return corps.get("api_key") if isinstance(corps, dict) else None
 
 
+def cles_acceptees() -> tuple:
+    return tuple(current_app.config.get("API_KEYS") or ())
+
+
 def cle_valide(fournie: str | None) -> bool:
-    attendue = current_app.config.get("API_KEY")
-    if not attendue or not fournie:
+    """Compare a TOUTES les cles acceptees, sans court-circuit.
+
+    Un `any(...)` s'arreterait a la premiere qui correspond, et le temps de
+    reponse dirait alors LAQUELLE des cles a ete reconnue -- ce qui indique a
+    quelqu'un qui tatonne laquelle des deux il vient de deviner. On les compare
+    donc toutes, et on accumule.
+    """
+    if not fournie:
         return False
-    return hmac.compare_digest(str(fournie), str(attendue))
+    resultat = False
+    for attendue in cles_acceptees():
+        resultat |= hmac.compare_digest(str(fournie), str(attendue))
+    return resultat
+
+
+def _configuration_incoherente():
+    """Mode strict et aucune cle : personne ne peut plus rien envoyer.
+
+    Repondre `401` enverrait chercher un probleme de cle cote application, alors
+    que la variable est absente cote serveur. Un `503` nommant la variable dit
+    ce qui se passe -- le meme choix que `auth_session` fait deja pour une
+    `SECRET_KEY` absente.
+    """
+    if not current_app.config.get("API_KEY_STRICTE"):
+        return None
+    if cles_acceptees():
+        return None
+    logger.error("cle d'API exigee mais AUCUNE n'est configuree : "
+                 "poser CLIMBCONTEST_API_KEY, ou CLIMBCONTEST_API_KEY_STRICTE=0")
+    return jsonify({
+        "success": False,
+        "message": "Serveur mal configure : aucune cle d'API n'est definie "
+                   "(CLIMBCONTEST_API_KEY).",
+    }), 503
 
 
 def exige_cle_api_stricte(vue):
@@ -84,6 +125,9 @@ def exige_cle_api_stricte(vue):
 
     @wraps(vue)
     def enveloppe(*args, **kwargs):
+        incoherente = _configuration_incoherente()
+        if incoherente:
+            return incoherente
         fournie = _cle_fournie()
         if not cle_valide(fournie):
             compteurs["refusees"] += 1
@@ -102,6 +146,10 @@ def exige_cle_api(vue):
 
     @wraps(vue)
     def enveloppe(*args, **kwargs):
+        incoherente = _configuration_incoherente()
+        if incoherente:
+            return incoherente
+
         fournie = _cle_fournie()
         stricte = current_app.config.get("API_KEY_STRICTE")
 

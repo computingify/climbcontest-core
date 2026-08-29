@@ -3,6 +3,8 @@ import os
 from datetime import date
 
 import pytest
+from flask.testing import FlaskClient
+from werkzeug.datastructures import Headers
 
 os.environ["CLIMBCONTEST_TEST"] = "1"
 
@@ -32,8 +34,41 @@ def app():
         db.session.remove()
 
 
+CLE_DE_TEST = "cle-de-test"
+
+
+class ClientAvecCle(FlaskClient):
+    """Un client qui porte la cle d'API, comme l'application des juges.
+
+    Depuis la spec 012, le regime par defaut est STRICT : une requete sans cle
+    est refusee. Les tests doivent donc s'executer dans le meme regime que la
+    production -- sinon ils prouveraient que les routes marchent dans une
+    configuration que personne ne fait tourner.
+
+    La bascule a fait tomber 107 tests d'un coup. Ils ne testaient pas la cle :
+    ils passaient simplement parce que l'API etait ouverte.
+
+    Un test qui veut verifier le refus prend [client_sans_cle].
+    """
+
+    def open(self, *args, **kwargs):
+        entetes = Headers(kwargs.get("headers") or {})
+        if "X-Api-Key" not in entetes:
+            entetes["X-Api-Key"] = CLE_DE_TEST
+        kwargs["headers"] = entetes
+        return super().open(*args, **kwargs)
+
+
 @pytest.fixture()
 def client(app):
+    app.test_client_class = ClientAvecCle
+    return app.test_client()
+
+
+@pytest.fixture()
+def client_sans_cle(app):
+    """Le client brut, sans cle : pour verifier qu'une route est bien fermee."""
+    app.test_client_class = FlaskClient
     return app.test_client()
 
 

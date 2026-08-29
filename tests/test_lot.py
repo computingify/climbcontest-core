@@ -146,25 +146,41 @@ class TestCleApi:
         for k in compteurs:
             compteurs[k] = 0
 
-    def test_sans_cle_en_mode_tolere(self, client, jeu):
-        r = envoyer(client, [{"ref": "a", "bib": "1", "bloc": "ZJ6"}])
-        assert r.status_code == 200
-        assert compteurs["sans_cle"] == 1, "l'appel doit etre compte"
+    def test_sans_cle_le_defaut_refuse(self, client_sans_cle, jeu):
+        """Le regime par defaut est STRICT depuis la spec 012.
 
-    def test_sans_cle_en_mode_strict(self, client, jeu, app):
-        """401, et surtout : rien n'est ecrit. La file du client reste intacte."""
-        app.config["API_KEY_STRICTE"] = True
+        Et surtout : rien n'est ecrit. La file du telephone reste intacte, donc
+        les reussites repartiront des que la cle sera bonne.
+        """
+        r = envoyer(client_sans_cle, [{"ref": "a", "bib": "1", "bloc": "ZJ6"}])
+        assert r.status_code == 401
+        assert Success.query.count() == 0
+
+    def test_sans_cle_en_mode_tolere(self, client_sans_cle, jeu, app):
+        """La porte de sortie du plan de repli : le gel V3.1.4 n'envoie rien."""
+        app.config["API_KEY_STRICTE"] = False
         try:
-            r = envoyer(client, [{"ref": "a", "bib": "1", "bloc": "ZJ6"}])
-            assert r.status_code == 401
-            assert Success.query.count() == 0
+            r = envoyer(client_sans_cle, [{"ref": "a", "bib": "1", "bloc": "ZJ6"}])
+            assert r.status_code == 200
+            assert compteurs["sans_cle"] == 1, "l'appel doit etre compte"
         finally:
-            app.config["API_KEY_STRICTE"] = False
+            app.config["API_KEY_STRICTE"] = True
 
     def test_avec_la_bonne_cle(self, client, jeu):
-        r = envoyer(client, [{"ref": "a", "bib": "1", "bloc": "ZJ6"}],
-                    headers={"X-Api-Key": "cle-de-test"})
+        r = envoyer(client, [{"ref": "a", "bib": "1", "bloc": "ZJ6"}])
         assert r.status_code == 200
+
+    def test_avec_une_mauvaise_cle(self, client_sans_cle, jeu):
+        r = envoyer(client_sans_cle, [{"ref": "a", "bib": "1", "bloc": "ZJ6"}],
+                    headers={"X-Api-Key": "pas-la-bonne"})
+        assert r.status_code == 401
+        assert Success.query.count() == 0
+
+    def test_un_en_tete_vide_est_une_mauvaise_cle(self, client_sans_cle, jeu):
+        """Ce n'est PAS la meme chose qu'une absence d'en-tete."""
+        r = envoyer(client_sans_cle, [{"ref": "a", "bib": "1", "bloc": "ZJ6"}],
+                    headers={"X-Api-Key": ""})
+        assert r.status_code == 401
 
 
 class TestSansCompetition:
