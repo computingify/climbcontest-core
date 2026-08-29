@@ -1,0 +1,186 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0E1116">
+<meta name="mobile-web-app-capable" content="yes">
+<!-- L'ancien nom reste : les iOS anterieurs a 17 ne connaissent que lui,
+     et ce sont exactement les telephones des benevoles. -->
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="ClimbContest">
+<title>Juge — ClimbContest</title>
+<link rel="manifest" href="/juge/manifest.webmanifest">
+<link rel="apple-touch-icon" href="/static/juge/icone-192.png">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='7' fill='%232F6BB0'/><circle cx='16' cy='16' r='7' fill='%23EEF1F5'/></svg>">
+<style>
+  /* Les MEMES couleurs que l'application Android (ui/theme/Color.kt). Deux
+     clients, une seule identite : un juge qui passe d'un telephone a l'autre ne
+     doit pas avoir l'impression de changer d'outil.
+
+     Ici comme ailleurs, la couleur PORTE DE L'INFORMATION : vert = scanne,
+     gris = pas encore. Rien de decoratif. */
+  :root {
+    --fond: #0E1116; --carte: #171B23; --carte2: #1E232D; --trait: #2B313D;
+    --encre: #EEF1F5; --encre2: #9AA4B4;
+    --fait: #4E9A5A; --vide: #39404E;
+    --bleu: #2F6BB0; --alerte: #E0705F; --attention: #E5B44A;
+    --police: system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { height: 100%; }
+  body {
+    margin: 0; background: var(--fond); color: var(--encre);
+    font-family: var(--police); -webkit-font-smoothing: antialiased;
+    /* `viewport-fit=cover` + ces marges : sur un iPhone, l'encoche et la barre
+       d'accueil mangeraient sinon le haut de la barre et le bas du bouton. */
+    padding: env(safe-area-inset-top) env(safe-area-inset-right)
+             env(safe-area-inset-bottom) env(safe-area-inset-left);
+    /* Un juge qui appuie vite ne doit pas selectionner du texte par megarde. */
+    -webkit-user-select: none; user-select: none;
+    overscroll-behavior: none;
+  }
+
+  header {
+    display: flex; align-items: center; gap: 10px;
+    padding: 10px 16px; background: var(--carte);
+  }
+  header .titre { font-weight: 700; font-size: 0.95rem; letter-spacing: -0.01em; }
+  header .place { flex: 1; }
+  #voyant { width: 22px; height: 22px; }
+  #voyant.ok    { color: var(--fait); }
+  #voyant.ko    { color: var(--alerte); }
+  #voyant.doute { color: var(--attention); animation: battement 1.4s ease-in-out infinite; }
+  /* Le trait n'apparait QUE sur « injoignable ». Pilote par le CSS et non par
+     l'attribut `hidden` : dans un SVG, `hidden` ne cache pas de facon fiable --
+     constate a l'ecran, le trait restait visible sur un voyant vert. */
+  #barreVoyant { display: none; }
+  #voyant.ko #barreVoyant { display: inline; }
+  @keyframes battement { 0%,100% { opacity: 1 } 50% { opacity: .35 } }
+  @media (prefers-reduced-motion: reduce) { #voyant.doute { animation: none } }
+
+  main { padding: 12px 16px 28px; display: flex; flex-direction: column; gap: 14px; }
+
+  .carte {
+    border: 0; width: 100%; text-align: left; font: inherit; color: inherit;
+    background: var(--vide); border-radius: 14px; padding: 14px 20px;
+    min-height: 96px; display: flex; flex-direction: column; justify-content: center;
+    cursor: pointer;
+  }
+  .carte.fait { background: var(--fait); }
+  .carte .quoi {
+    font-size: 0.8rem; letter-spacing: 0.09em; text-transform: uppercase;
+    font-weight: 600; color: var(--encre2);
+  }
+  .carte.fait .quoi { color: rgba(238,241,245,.78); }
+  .carte .valeur {
+    font-size: 1.7rem; font-weight: 700; margin-top: 4px;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .carte .valeur.attente { font-size: 1.5rem; font-weight: 400; color: var(--encre2); }
+  .carte .detail { font-size: 0.95rem; color: rgba(238,241,245,.7); }
+
+  #envoyer {
+    width: 100%; height: 96px; border-radius: 14px; font: inherit;
+    font-size: 2.1rem; font-weight: 700; color: var(--encre);
+    background: var(--bleu); border: 0; cursor: pointer; margin-top: 10px;
+  }
+  /* Desactive, il ne doit PAS ressembler a une carte de scan a remplir : vide
+     et cercle d'un trait, il se lit comme un emplacement qui attend. */
+  #envoyer:disabled {
+    background: transparent; border: 1px solid var(--trait); color: var(--encre2);
+    cursor: default;
+  }
+  #aide { text-align: center; color: var(--encre2); font-size: 0.9rem; }
+  #effacer {
+    background: none; border: 0; font: inherit; font-size: 1rem;
+    color: var(--encre2); padding: 12px; cursor: pointer;
+  }
+
+  #message {
+    position: fixed; left: 50%; transform: translateX(-50%);
+    bottom: calc(24px + env(safe-area-inset-bottom));
+    max-width: 90%; padding: 12px 18px; border-radius: 10px;
+    background: var(--carte2); border-left: 4px solid var(--trait);
+    font-size: 0.95rem; box-shadow: 0 6px 24px rgba(0,0,0,.45);
+  }
+  #message[hidden] { display: none; }
+  #message.ok { border-left-color: var(--fait); }
+  #message.erreur { border-left-color: var(--alerte); }
+  #message.attention { border-left-color: var(--attention); }
+
+  /* Le viseur. Plein ecran : on scanne a bout de bras, dans une salle mal
+     eclairee, avec des gens autour. */
+  #viseur { position: fixed; inset: 0; background: #000; display: flex;
+            flex-direction: column; z-index: 10; }
+  #viseur[hidden] { display: none; }
+  #viseur video { flex: 1; width: 100%; object-fit: cover; }
+  #viseur .barre { padding: 14px 16px calc(14px + env(safe-area-inset-bottom));
+                   background: var(--carte); display: flex; align-items: center; gap: 12px; }
+  #viseur .barre span { flex: 1; color: var(--encre2); font-size: 0.95rem; }
+  #viseur button { font: inherit; font-size: 1rem; color: var(--encre);
+                   background: var(--vide); border: 0; border-radius: 10px;
+                   padding: 12px 20px; cursor: pointer; }
+
+  #installer { margin: 0 16px 12px; padding: 12px 14px; border-radius: 10px;
+               background: var(--carte2); color: var(--encre2); font-size: 0.88rem;
+               line-height: 1.5; }
+  #installer[hidden] { display: none; }
+</style>
+</head>
+<body>
+
+<header>
+  <span class="titre">ClimbContest</span>
+  <span class="place"></span>
+  <!-- Le voyant de connexion, meme principe que sur l'Android : une icone de
+       connexion sans fil, verte quand ca passe, BARREE et rouge sinon. Barree,
+       parce que le vert et le rouge seuls sont indistinguables pour environ 8 %
+       des hommes, et il y a des juges hommes. -->
+  <svg id="voyant" class="doute" viewBox="0 0 24 24" fill="none"
+       stroke="currentColor" stroke-width="2.1" stroke-linecap="round"
+       role="img" aria-label="Connexion en cours">
+    <path d="M3.2 11 Q12 2.6 20.8 11" />
+    <path d="M6.9 14.6 Q12 9 17.1 14.6" />
+    <path d="M10.1 17.9 Q12 15.6 13.9 17.9" />
+    <circle cx="12" cy="19.4" r="1.6" fill="currentColor" stroke="none" />
+    <path id="barreVoyant" d="M4.2 4.2 L19.8 19.8" />
+  </svg>
+</header>
+
+<p id="installer" hidden>
+  Ajoute cette page à ton écran d'accueil : elle s'ouvrira comme une
+  application, et gardera tes scans même sans réseau.
+</p>
+
+<main>
+  <button class="carte" id="carteGrimpeur">
+    <span class="quoi">Grimpeur</span>
+    <span class="valeur attente" id="valeurGrimpeur">À scanner</span>
+    <span class="detail" id="detailGrimpeur"></span>
+  </button>
+
+  <button class="carte" id="carteBloc">
+    <span class="quoi">Bloc</span>
+    <span class="valeur attente" id="valeurBloc">À scanner</span>
+  </button>
+
+  <button id="envoyer" disabled>Envoyer</button>
+  <p id="aide">Scannez le grimpeur puis le bloc</p>
+  <button id="effacer">Effacer le scan</button>
+</main>
+
+<div id="viseur" hidden>
+  <video id="flux" playsinline muted></video>
+  <div class="barre">
+    <span id="consigne">Vise le QR code</span>
+    <button id="annulerScan">Annuler</button>
+  </div>
+</div>
+
+<div id="message" hidden></div>
+
+<script type="module" src="/static/juge/juge.js"></script>
+</body>
+</html>

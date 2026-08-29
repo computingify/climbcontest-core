@@ -51,6 +51,9 @@ def creer_app(config=None) -> Flask:
     app.register_blueprint(bp_lot)
     app.register_blueprint(bp_pages)
 
+    from .routes.pwa import bp as bp_pwa
+    app.register_blueprint(bp_pwa)
+
     from .cli import enregistrer as enregistrer_commandes
     enregistrer_commandes(app)
     app.register_blueprint(bp_admin)

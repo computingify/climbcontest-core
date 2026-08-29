@@ -31,6 +31,12 @@ jobs:
       - name: Tests
         run: pytest -q
 
+      # La logique de la PWA juge (spec 007) est en JavaScript, et testee sur
+      # Node : ce qui decide -- le jeton, le contrat HTTP -- doit se tester sans
+      # navigateur, sinon ca ne se teste pas. Node est deja sur le runner.
+      - name: Tests JavaScript de la PWA juge
+        run: node --test "tests/js/*.test.mjs"
+
       - name: L'application demarre-t-elle vraiment ?
         env:
           CLIMBCONTEST_SHEETS_ACTIF: "0"
