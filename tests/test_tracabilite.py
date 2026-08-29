@@ -285,3 +285,23 @@ class TestRoutesDeControle:
         for chemin in ("?limite=abc", "?limite=-5", "?limite=999999"):
             r = organisateur.get(f"/admin/reussites-tracees{chemin}")
             assert r.status_code == 200
+
+    def test_aucune_reussite_ne_fait_pas_planter(self, client, jeu, organisateur):
+        assert organisateur.get("/admin/appareils").get_json()["appareils"] == []
+        assert organisateur.get("/admin/reussites-tracees").get_json()["reussites"] == []
+
+    def test_aucune_competition_active_repond_proprement(self, client, app, jeu,
+                                                         organisateur):
+        """Le cas du lundi matin : la competition est close, la console reste ouverte."""
+        from climbcontest.extensions import db
+        from climbcontest.models import Competition
+
+        for c in Competition.query.all():
+            c.active = False
+        db.session.commit()
+
+        for chemin in ("/admin/appareils", "/admin/reussites-tracees?ref=abc"):
+            r = organisateur.get(chemin)
+            assert r.status_code in (404, 409), chemin
+            assert r.get_json()["success"] is False
+            assert r.get_json()["message"], "un message, pas une trace Python"
