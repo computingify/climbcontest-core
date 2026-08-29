@@ -19,6 +19,24 @@ qu'on ne met pas à jour le matin d'une compétition :
 
 ## [Non publié]
 
+## [0.4.1] — 2026-08-29
+
+### Ajouté
+
+- **La console d'administration elle-même**, sur `/console`. La `0.4.0` livrait
+  ses routes JSON — et la spec la déclarait livrée — mais pas la page. Un
+  organisateur ne peut pas utiliser `curl` un dimanche matin.
+
+  Quatre écrans : connexion, participants, saisie manuelle, impression. En
+  mauve là où la page publique est en bleu, pour qu'on sache d'un coup d'œil si
+  on regarde ce que voient les spectateurs ou ce qu'on peut modifier.
+
+  Pensée pour le jour J : une session qui expire ramène à la connexion **en le
+  disant** plutôt que de ressembler à une panne ; une saisie en double
+  s'affiche en jaune et non en rouge — ce n'est pas une faute, c'est une
+  précaution qui a fonctionné ; après une saisie le curseur revient sur le
+  champ « bloc », pour enchaîner plusieurs blocs du même grimpeur.
+
 ## [0.4.0] — 2026-08-29
 
 **La console d'administration.** Spec 005 — les quatre briques retenues pour
@@ -380,7 +398,8 @@ livrer — spec 001, itération 3.
 - Les données et les secrets vivent dans `shared/`, hors des releases : un
   déploiement ou un retour arrière ne peut pas les toucher.
 
-[Non publié]: https://github.com/computingify/climbcontest-core/compare/v0.4.0...HEAD
+[Non publié]: https://github.com/computingify/climbcontest-core/compare/v0.4.1...HEAD
+[0.4.1]: https://github.com/computingify/climbcontest-core/releases/tag/v0.4.1
 [0.4.0]: https://github.com/computingify/climbcontest-core/releases/tag/v0.4.0
 [0.3.4]: https://github.com/computingify/climbcontest-core/releases/tag/v0.3.4
 [0.3.3]: https://github.com/computingify/climbcontest-core/releases/tag/v0.3.3
