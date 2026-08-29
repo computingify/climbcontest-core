@@ -93,6 +93,11 @@ def cles_depuis_environnement(env=None) -> tuple:
     return tuple(
         cle.strip() for cle in (
             env.get("CLIMBCONTEST_API_KEY"),
+            # La PWA (spec 007) a SA cle, distincte de celle de l'Android. Elle
+            # voyage dans un lien qu'on donne aux benevoles, donc elle se
+            # promene plus qu'une cle enfermee dans un APK. La separer permet de
+            # la revoquer sans toucher aux telephones Android.
+            env.get("CLIMBCONTEST_API_KEY_PWA"),
             env.get("CLIMBCONTEST_API_KEY_PRECEDENTE"),
         ) if cle and cle.strip()
     )

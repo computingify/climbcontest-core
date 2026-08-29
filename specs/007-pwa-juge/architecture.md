@@ -90,7 +90,16 @@ lequel cette spec existe. Il est donc testé en premier.
 
 jsQR est **versé dans le dépôt en clair**, pas minifié. Une bibliothèque
 illisible dans un dépôt public est une bibliothèque que personne ne relira
-jamais. Sa licence (MIT) et sa provenance sont notées en tête du fichier.
+jamais. Sa provenance, sa version et sa licence sont notées en tête du fichier,
+et la licence complète est versée à côté.
+
+⚠️ Elle est sous **Apache-2.0**, pas MIT — je l'avais écrit à tort dans une
+première version de cette spec. La différence n'est pas cosmétique : Apache-2.0
+demande de conserver la licence et l'avis d'origine, ce que fait
+`static/juge/jsqr-LICENSE.txt`.
+
+Elle n'est chargée que si `BarcodeDetector` manque : sur Chrome Android, ces
+250 ko ne sont jamais téléchargés.
 
 ⚠️ Je n'écris pas mon propre décodeur. J'ai produit cette semaine un encodeur QR
 dont les matrices étaient indécodables, et j'ai mis longtemps à admettre que la

@@ -78,7 +78,7 @@ savoir.
   rajoute en trois lignes une fois le reste éprouvé.
 - **Toute dépendance chargée depuis Internet.** Même règle que la page de
   résultats et la console : rien ne doit dépendre d'un CDN le matin d'une
-  compétition. jsQR est **versé dans le dépôt**, en clair.
+  compétition. jsQR (Apache-2.0) est **versé dans le dépôt**, en clair, avec sa licence.
 - **Les notifications, la géolocalisation, le mode paysage forcé.** Rien de tout
   ça ne sert au geste du juge.
 

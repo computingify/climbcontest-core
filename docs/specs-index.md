@@ -11,6 +11,7 @@ méthode.
 | [004](../specs/004-ranking-engine/) | `ranking-engine` | ✅ **livrée et close** (28/08) — les 3 décisions ouvertes sont tranchées | Moteur de classement pur, reproduit 196/196 scores et rangs du vrai classeur. 47 tests + le test d'acceptation sur données réelles |
 | [005](../specs/005-admin-console/) | `admin-console` | ✅ **livrée** (29/08) | Console sur `/console` : comptes et rôles, participants à chaud, saisie manuelle, impression des dossards. Joignable depuis Internet, avec frein anti-force-brute |
 | [006](../specs/006-live-results-page/) | `live-results-page` | ✅ **livrée** (28/08) | La page projetée dans la salle et ouverte par les spectateurs. Deux modes, aucune dépendance externe, recherche toutes catégories |
+| [007](../specs/007-pwa-juge/) | `pwa-juge` | 🚧 **IT1 livrée** (29/08) — 3 itérations restantes | L'application juge sur iPhone, sans payer de store. Une PWA servie par le backend, jeton dans le lien, jsQR versé dans le dépôt |
 | [010](../specs/010-classement-club/) | `classement-club` | ✅ **livrée** (29/08) | Somme des scores de tous les grimpeurs du club, dérivée des classements par catégorie. Chaque grimpeur compte une fois, par sa catégorie |
 | [011](../specs/011-tracabilite-des-scans/) | `tracabilite-des-scans` | ✅ **livrée** (29/08) — les 3 itérations | Le journal complet des scans sur le téléphone, l'appareil et la référence client gardés côté serveur, et une page de contrôle qui dit si un scan précis est arrivé |
 | [012](../specs/012-cle-api-juges/) | `cle-api-juges` | ✅ **livrée** (29/08) | L'application envoie sa clé, le serveur l'exige. Mode strict par défaut, plusieurs clés acceptées pour en changer sans coupure. Le plan de repli porte l'étape qui rouvre l'API au gel `V3.1.4` |
@@ -24,7 +25,6 @@ attendent la validation du cadrage et les réponses aux décisions D1→D6.
 | --- | --- | --- | --- |
 
 
-| 007 | `judge-pwa` | app juge iPhone sans store | 003 |
 | 008 | `helloasso-import` | import des inscriptions en ligne, rapprochement avec les inscriptions sur place | 005 |
 | 009 | `finales` | **tours de finale.** Format tranché le 28/08 : les **N meilleurs de chaque catégorie regrimpent des blocs dédiés**, et le classement final ne tient compte **que du second tour** — le score de qualification ne se reporte pas. Reste à fixer : la valeur de N, et si elle varie selon la catégorie | 004 |
 

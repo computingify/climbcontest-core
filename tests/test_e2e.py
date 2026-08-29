@@ -87,10 +87,21 @@ def appeler(base: str, chemin: str, corps: dict | None = None,
 class ServeurReel:
     """Un gunicorn lancé pour de vrai, arrêté proprement à la fin."""
 
-    def __init__(self, dossier: Path, workers: int = 3, env_sup: dict | None = None):
+    def __init__(self, dossier: Path, workers: int = 3, env_sup: dict | None = None,
+                 sante_attendue: int = 200):
         self.dossier = dossier
         self.workers = workers
         self.env_sup = env_sup or {}
+        # Ce que `/health` doit repondre pour qu'on considere le serveur pret.
+        #
+        # 200 par defaut, et c'est important : plusieurs tests supposent qu'a la
+        # sortie de cette attente, le schema est pret et la base interrogeable.
+        # Accepter 503 « pour que le processus reponde » a fait passer le test
+        # du verrou orphelin AVANT que le schema ne soit prepare -- il est
+        # tombe, et il avait raison.
+        #
+        # Un test qui veut observer une configuration MAUVAISE le dit ici.
+        self.sante_attendue = sante_attendue
         self.port = port_libre()
         self.base = f"http://127.0.0.1:{self.port}"
         self.processus: subprocess.Popen | None = None
@@ -145,13 +156,7 @@ class ServeurReel:
                 raise RuntimeError(f"gunicorn n'a pas demarre :\n{journal[-800:]}")
             try:
                 code, _ = appeler(self.base, "/health", methode="GET")
-                # 200 ou 503 : dans les deux cas gunicorn ECOUTE et repond,
-                # c'est tout ce que cette boucle mesure. Un 503 dit que la
-                # configuration est mauvaise -- base injoignable, ou cle d'API
-                # absente en mode strict (spec 012) -- et c'est justement ce que
-                # certains tests veulent observer. Exiger 200 ici les empecherait
-                # meme de demarrer.
-                if code in (200, 503):
+                if code == self.sante_attendue:
                     return
             except Exception:
                 pass
@@ -490,7 +495,8 @@ class TestCleApi:
     def test_strict_sans_aucune_cle_configuree_donne_503(self, dossier):
         """Une erreur de CONFIGURATION doit se lire comme telle, pas comme un 401."""
         with ServeurReel(dossier, workers=1,
-                         env_sup={"CLIMBCONTEST_API_KEY": ""}) as s:
+                         env_sup={"CLIMBCONTEST_API_KEY": ""},
+                         sante_attendue=503) as s:
             code, reponse = appeler(s.base, "/api/v2/contest/climber/name",
                                     {"id": "1"}, cle=None)
             assert code == 503

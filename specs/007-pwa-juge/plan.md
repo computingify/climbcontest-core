@@ -5,11 +5,11 @@ arrive trop vite, on s'arrête à la dernière terminée.
 
 ## IT1 — Un iPhone peut juger
 
-- [ ] `routes/pwa.py` : `/juge` sert la coquille.
-- [ ] Le jeton : lu dans le fragment, rangé, adresse nettoyée.
-- [ ] `CLIMBCONTEST_API_KEY_PWA` entre dans les clés acceptées.
-- [ ] Scan : `BarcodeDetector`, repli jsQR versé dans le dépôt.
-- [ ] Envoi direct, avec le même écran que l'Android : deux cartes, un bouton.
+- [x] `routes/pwa.py` : `/juge` sert la coquille.
+- [x] Le jeton : lu dans le fragment, rangé, adresse nettoyée.
+- [x] `CLIMBCONTEST_API_KEY_PWA` entre dans les clés acceptées.
+- [x] Scan : `BarcodeDetector`, repli jsQR versé dans le dépôt.
+- [x] Envoi direct, avec le même écran que l'Android : deux cartes, un bouton.
 
 ## IT2 — Elle survit au réseau
 
