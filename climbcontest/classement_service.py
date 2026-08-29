@@ -22,7 +22,7 @@ import time
 from collections import defaultdict
 
 from .classement import (
-    BlocCalcul, Classement, ParticipantCalcul, calculer_tout,
+    BlocCalcul, Classement, ParticipantCalcul, calculer_clubs, calculer_tout,
 )
 from .extensions import db
 from .models import Bloc, BlocCircuit, Circuit, Competition, Participant, Success
@@ -75,7 +75,8 @@ def couleurs_requises(comp: Competition) -> int:
 def charger(comp: Competition):
     """Lit en base tout ce dont le moteur a besoin. Trois requêtes, pas plus."""
     participants = [
-        ParticipantCalcul(id=p.id, dossard=p.dossard, categorie=p.categorie)
+        ParticipantCalcul(id=p.id, dossard=p.dossard, categorie=p.categorie,
+                          club=p.club)
         for p in Participant.query.filter_by(competition_id=comp.id).all()
     ]
 
@@ -132,6 +133,11 @@ def classements(comp: Competition, forcer: bool = False) -> tuple[dict[str, Clas
             participants, blocs, reussites, circuits,
             couleurs_requises=couleurs_requises(comp),
         )
+        # Derive des classements par categorie, jamais recalcule : c'est ce qui
+        # garantit qu'il ne pourra pas diverger d'eux (spec 010).
+        clubs = calculer_clubs(resultat, participants)
+        if clubs is not None:
+            resultat[clubs.groupe] = clubs
         duree = time.monotonic() - debut
         calcule_le = time.time()
         _cache[comp.id] = (calcule_le, resultat)

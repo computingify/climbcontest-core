@@ -50,6 +50,9 @@ def classement():
 
     def enrichir(ligne):
         d = ligne.to_dict()
+        # Une ligne de club porte deja son nom (`libelle`) et n'a pas de
+        # participant : `participant_id` vaut 0, qu'aucun identifiant SQLite ne
+        # prend. Elle traverse donc cet enrichissement sans etre ecrasee.
         d.update(noms.get(ligne.participant_id, {}))
         return d
 
