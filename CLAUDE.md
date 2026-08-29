@@ -15,6 +15,7 @@ fichier à lire.** Il est volontairement court : le détail est dans `docs/` et
 | Revenir à la version 2025-2026 en cas de pépin | [docs/plan-de-repli.md](docs/plan-de-repli.md) |
 | **Ce que le terrain impose** (participants à chaud, HelloAsso, format) | [docs/contraintes-metier.md](docs/contraintes-metier.md) |
 | Ce qu'on veut construire et dans quel ordre | [docs/roadmap.md](docs/roadmap.md) |
+| **L'état de l'app juge Android**, ce qui manquait et ce qui reste | [docs/inventaire-app-juge.md](docs/inventaire-app-juge.md) |
 | Comment on travaille (spec → plan → code) | [docs/workflow.md](docs/workflow.md) |
 | Comment les dépôts sont organisés | [docs/preparation-depots.md](docs/preparation-depots.md) |
 | La liste des specs | [docs/specs-index.md](docs/specs-index.md) |
