@@ -28,9 +28,11 @@ livrable seule.
 
 ## IT4 — Impression
 
-- [ ] `qr.py` — encodeur local, en SVG
-- [ ] `GET /admin/dossards` — lot et unité
-- [ ] Tests
+- [x] `qr.py` — QR local, en SVG. **Pas un encodeur maison** : j'en ai écrit un,
+      il produisait des matrices d'allure correcte que *aucun* décodeur ne
+      lisait. Remplacé par `segno` — Python pur, aucune dépendance
+- [x] `GET /admin/dossards` — lot, par catégorie, ou un seul
+- [x] Tests, dont le **décodage réel** par un décodeur indépendant
 
 ---
 

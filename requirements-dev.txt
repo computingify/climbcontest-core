@@ -4,3 +4,10 @@
 
 pytest==9.1.1
 pytest-timeout==2.4.0
+
+# Uniquement pour VERIFIER que les QR imprimes sont vraiment lisibles.
+# Un encodeur qui produit une matrice d'allure correcte mais indechiffrable
+# est exactement ce qui se decouvre le jour J, avec 120 dossards deja
+# imprimes. Ce decodeur est independant de l'encodeur : c'est tout l'interet.
+opencv-python-headless==5.0.0.93
+numpy==2.5.2
