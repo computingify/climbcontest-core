@@ -34,6 +34,11 @@ jobs:
       - name: L'application demarre-t-elle vraiment ?
         env:
           CLIMBCONTEST_SHEETS_ACTIF: "0"
+          # Depuis la spec 012, le mode strict est le defaut et une installation
+          # SANS cle est degradee a dessein -- c'est ce qui doit faire echouer un
+          # deploiement. Ici on demarre une installation correcte, donc elle a
+          # une cle. La configuration incoherente a son propre test juste apres.
+          CLIMBCONTEST_API_KEY: cle-de-ci
         run: |
           python -c "
           from climbcontest import creer_app
@@ -42,4 +47,23 @@ jobs:
               r = c.get('/health')
               assert r.status_code == 200, r.status_code
               print('/health ->', r.get_json())
+          "
+
+      # Le pendant : une installation en mode strict SANS cle doit se declarer
+      # degradee. C'est ce qui empeche l'agent de deploiement de mettre en
+      # production un serveur ou toutes les routes du juge repondent 503.
+      - name: Une installation sans cle se declare-t-elle degradee ?
+        env:
+          CLIMBCONTEST_SHEETS_ACTIF: "0"
+        run: |
+          python -c "
+          from climbcontest import creer_app
+          app = creer_app()
+          with app.test_client() as c:
+              r = c.get('/health')
+              assert r.status_code == 503, r.status_code
+              d = r.get_json()
+              assert d['status'] == 'degraded', d
+              assert 'CLIMBCONTEST_API_KEY' in d['cle_api'], d
+              print('sonde degradee comme attendu ->', d['cle_api'])
           "
