@@ -15,8 +15,14 @@ import logging
 from flask import Blueprint, g, jsonify, request
 
 from ..auth_session import exige_role, fermer, ouvrir, utilisateur_courant
-from ..comptes import ErreurCompte, verifier
-from ..contest import ErreurMetier, competition_active
+from ..comptes import ORGANISATEUR, ErreurCompte, verifier
+from ..extensions import db
+from ..models import SOURCE_MANUEL, Participant
+from ..contest import (
+    ErreurMetier, ajouter_participant, bloc_par_tag, competition_active,
+    enregistrer_reussite, participant_par_dossard, reaffecter_dossard,
+    supprimer_reussite,
+)
 from ..sheets.client import ErreurClasseur
 from ..sheets.importer import importer
 
@@ -77,6 +83,144 @@ def moi():
 # Dernier rapport, en memoire. C'est un confort de consultation, pas une donnee :
 # le perdre a un redemarrage est sans consequence, on relance l'import.
 _dernier_rapport: dict | None = None
+
+
+# --- Participants a chaud ---------------------------------------------------
+#
+# Le besoin qu'Adrien a decrit en premier : « nous pouvons avoir des ajouts de
+# participant quelques minutes avant le debut de la competition voire meme
+# alors que la competition a demarre ».
+
+@bp.get("/participants")
+@exige_role(ORGANISATEUR)
+def lister_participants():
+    """La liste, pour retrouver quelqu'un avant de le modifier."""
+    try:
+        comp = competition_active()
+    except ErreurMetier as e:
+        return jsonify({"success": False, "message": e.message}), e.code
+
+    q = (request.args.get("q") or "").strip().lower()
+    participants = Participant.query.filter_by(competition_id=comp.id).all()
+    if q:
+        participants = [p for p in participants
+                        if q in p.nom_complet.lower() or q == str(p.dossard or "")]
+
+    participants.sort(key=lambda p: (p.dossard is None, p.dossard or 0, p.nom))
+    return jsonify({
+        "success": True,
+        "participants": [{**p.to_dict(), "present": p.present} for p in participants],
+    }), 200
+
+
+@bp.post("/participants")
+@exige_role(ORGANISATEUR)
+def ajouter_participant_route():
+    """{"nom", "prenom", "club", "categorie", "dossard"} -> le participant cree."""
+    corps = _corps_objet()
+    if corps is None:
+        return jsonify({"success": False, "message": "Corps JSON attendu"}), 400
+    try:
+        p = ajouter_participant(
+            nom=corps.get("nom", ""), prenom=corps.get("prenom"),
+            club=corps.get("club"), categorie=corps.get("categorie"),
+            dossard=corps.get("dossard"),
+        )
+    except ErreurMetier as e:
+        return jsonify({"success": False, "message": e.message}), e.code
+
+    logger.info("participant ajoute par %s : %s", g.utilisateur.identifiant, p.nom_complet)
+    return jsonify({"success": True, "participant": p.to_dict()}), 201
+
+
+@bp.post("/participants/<int:participant_id>/dossard")
+@exige_role(ORGANISATEUR)
+def reaffecter_dossard_route(participant_id):
+    """Donne un dossard a quelqu'un, en reprenant celui d'un absent.
+
+    La regle metier est deja ecrite et testee (spec 002) : un dossard portant
+    des reussites ENREGISTREES ne peut pas changer de main. On l'expose, on ne
+    la reecrit pas.
+    """
+    corps = _corps_objet()
+    if corps is None or "dossard" not in corps:
+        return jsonify({"success": False, "message": "Champ « dossard » attendu"}), 400
+
+    p = db.session.get(Participant, participant_id)
+    if p is None:
+        return jsonify({"success": False, "message": "Participant inconnu"}), 404
+
+    try:
+        dossard = int(str(corps["dossard"]).strip())
+    except (TypeError, ValueError):
+        return jsonify({"success": False,
+                        "message": f"Dossard invalide : {corps['dossard']!r}"}), 400
+
+    try:
+        reaffecter_dossard(p, dossard)
+    except ErreurMetier as e:
+        return jsonify({"success": False, "message": e.message}), e.code
+
+    logger.info("dossard %s attribue a %s par %s",
+                dossard, p.nom_complet, g.utilisateur.identifiant)
+    return jsonify({"success": True, "participant": p.to_dict()}), 200
+
+
+# --- Saisie manuelle --------------------------------------------------------
+#
+# Un QR illisible, un telephone a plat, un juge qui a oublie d'envoyer. Sans
+# cette route, la reussite est perdue pour de bon -- et personne ne s'en apercoit
+# avant le depouillement.
+
+@bp.post("/reussites")
+@exige_role(ORGANISATEUR)
+def saisir_reussite():
+    """{"bib": "...", "bloc": "..."} -> enregistre une reussite a la main."""
+    corps = _corps_objet()
+    if corps is None:
+        return jsonify({"success": False, "message": "Corps JSON attendu"}), 400
+
+    try:
+        participant = participant_par_dossard(corps.get("bib"))
+        bloc = bloc_par_tag(corps.get("bloc"))
+    except ErreurMetier as e:
+        return jsonify({"success": False, "message": e.message}), e.code
+
+    reussite, nouvelle = enregistrer_reussite(
+        participant, bloc,
+        source=SOURCE_MANUEL,
+        saisie_par=g.utilisateur.identifiant,
+    )
+    logger.info("saisie manuelle par %s : %s sur %s%s",
+                g.utilisateur.identifiant, participant.nom_complet, bloc.tag,
+                "" if nouvelle else " (deja connue)")
+    return jsonify({
+        "success": True,
+        "nouvelle": nouvelle,
+        "reussite": {"id": reussite.id, "grimpeur": participant.nom_complet,
+                     "bloc": bloc.tag},
+    }), 201
+
+
+@bp.delete("/reussites/<int:reussite_id>")
+@exige_role(ORGANISATEUR)
+def supprimer_reussite_route(reussite_id):
+    """Corrige une saisie erronee. Journalise QUI, QUOI et QUAND avant d'effacer."""
+    try:
+        trace = supprimer_reussite(reussite_id, par=g.utilisateur.identifiant)
+    except ErreurMetier as e:
+        return jsonify({"success": False, "message": e.message}), e.code
+    return jsonify({"success": True, "supprimee": trace}), 200
+
+
+def _corps_objet():
+    """Le corps JSON s'il est bien un objet, sinon None.
+
+    Meme garde que sur les routes des juges : un corps qui n'est pas un objet
+    doit donner 400, jamais 500.
+    """
+    corps = request.get_json(silent=True)
+    return corps if isinstance(corps, dict) else None
 
 
 @bp.post("/import/sheet")

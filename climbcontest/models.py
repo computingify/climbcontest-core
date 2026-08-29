@@ -244,6 +244,13 @@ class Success(db.Model):
     dossard_scanne = Column(Integer)
     scanne_le = Column(DateTime)
 
+    # Qui a saisi, quand c'est une saisie manuelle. NULL pour un scan : le juge
+    # n'est pas identifie, et il n'y a aucune raison de le devenir. Ce qu'on
+    # veut tracer, c'est l'INTERVENTION HUMAINE sur les donnees -- le jour ou un
+    # score est conteste, savoir qu'une reussite a ete ajoutee a la main par
+    # untel a 14 h 32 est la seule chose qui permette de trancher.
+    saisie_par = Column(String(60))
+
     participant = relationship("Participant", back_populates="reussites")
     bloc = relationship("Bloc", back_populates="reussites")
 

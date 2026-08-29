@@ -239,6 +239,7 @@ COLONNES_AJOUTEES = {
     "success": {
         "dossard_scanne": "INTEGER",
         "scanne_le": "TIMESTAMP",
+        "saisie_par": "TEXT",
     },
 }
 
