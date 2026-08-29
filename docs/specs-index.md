@@ -12,6 +12,7 @@ méthode.
 | [005](../specs/005-admin-console/) | `admin-console` | ✅ **livrée** (29/08) | Console sur `/console` : comptes et rôles, participants à chaud, saisie manuelle, impression des dossards. Joignable depuis Internet, avec frein anti-force-brute |
 | [006](../specs/006-live-results-page/) | `live-results-page` | ✅ **livrée** (28/08) | La page projetée dans la salle et ouverte par les spectateurs. Deux modes, aucune dépendance externe, recherche toutes catégories |
 | [010](../specs/010-classement-club/) | `classement-club` | ✅ **livrée** (29/08) | Somme des scores de tous les grimpeurs du club, dérivée des classements par catégorie. Chaque grimpeur compte une fois, par sa catégorie |
+| [011](../specs/011-tracabilite-des-scans/) | `tracabilite-des-scans` | 📝 **rédigée** (29/08) — attend la porte 2 | Le journal complet des scans sur le téléphone, l'appareil et la référence client gardés côté serveur, et une page de contrôle qui dit si un scan précis est arrivé |
 
 ## Specs pressenties
 
