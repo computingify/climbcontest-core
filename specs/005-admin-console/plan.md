@@ -3,6 +3,11 @@
 Quatre itérations, dans l'ordre décidé par Adrien le 29/08. Chacune est
 livrable seule.
 
+> **Une brique manquait.** L'architecture prévoyait `templates/admin.html` — la
+> console elle-même. J'ai livré les routes JSON et marqué la spec « livrée »
+> sans elle. Un organisateur ne peut pas utiliser `curl` un dimanche matin.
+> Corrigé : voir IT5 ci-dessous.
+
 ## IT1 — Comptes et connexion
 
 - [x] `comptes.py` — créer, vérifier un mot de passe, attribuer des rôles
@@ -33,6 +38,18 @@ livrable seule.
       lisait. Remplacé par `segno` — Python pur, aucune dépendance
 - [x] `GET /admin/dossards` — lot, par catégorie, ou un seul
 - [x] Tests, dont le **décodage réel** par un décodeur indépendant
+
+## IT5 — La console elle-même
+
+- [x] `templates/admin.html` — connexion, participants, saisie, impression
+- [x] Servie sur `/console`, **sans** authentification : c'est la page qui
+      demande la connexion. Protéger le HTML n'apporterait rien — il ne contient
+      aucune donnée — et un `401` afficherait une erreur de navigateur au lieu
+      d'un écran de connexion
+- [x] Une session qui expire ramène à la connexion **en le disant**, plutôt que
+      de ressembler à une panne
+- [x] Parcours complet exercé dans un navigateur : connexion, ajout d'un
+      retardataire, saisie manuelle, doublon, dossard déjà pris, impression
 
 ---
 
