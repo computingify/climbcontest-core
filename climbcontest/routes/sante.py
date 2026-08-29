@@ -38,6 +38,12 @@ def health():
     degraded**. C'est ce qui doit declencher le retour arriere, pas ce qu'il
     faut cacher pour l'eviter.
 
+    Meme raisonnement pour la cle d'API (spec 012). En mode strict sans aucune
+    cle configuree, TOUTES les routes du juge repondent 503 : le service tourne,
+    mais il est inutilisable. Sans cette verification, l'agent de deploiement
+    verrait « ok », validerait la mise en production, et la panne se
+    decouvrirait quand vingt-cinq juges commenceraient a scanner.
+
     `reussites_en_attente` dit si le miroir vers le classeur suit. Un nombre qui
     monte sans redescendre = le classeur n'est plus alimente, mais AUCUNE donnee
     n'est perdue : tout est en base.
@@ -53,12 +59,22 @@ def health():
         corps["base"] = f"injoignable : {type(e).__name__}"
         code = 503
 
+    # Une configuration qui rend le service inutilisable doit se voir ici, et
+    # faire echouer le deploiement.
+    from ..auth import cles_acceptees
+    if current_app.config.get("API_KEY_STRICTE") and not cles_acceptees():
+        corps["status"] = "degraded"
+        corps["cle_api"] = ("aucune cle configuree alors que le mode strict est "
+                            "actif : poser CLIMBCONTEST_API_KEY, ou "
+                            "CLIMBCONTEST_API_KEY_STRICTE=0")
+        code = 503
+
     # ⚠️ Compteurs PAR WORKER, pas globaux. Avec 4 workers gunicorn, ce que
     # vous lisez ici est la vue d'un seul d'entre eux. Pour savoir si quelqu'un
     # appelle encore sans cle d'API -- la question qui decide du passage en mode
     # strict -- utiliser le journal, qui agrege tout :
     #   journalctl -u climbcontest --since today | grep -c "appel sans cle"
-    from ..auth import cles_acceptees, compteurs
+    from ..auth import compteurs
     from ..sheets.planificateur import est_actif
     # Le REGIME et le NOMBRE de cles, jamais les cles -- ni meme un prefixe :
     # un prefixe reduit l'espace de recherche sans rien apprendre a qui a acces
