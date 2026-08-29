@@ -193,8 +193,25 @@ class TestConsoleAdmin:
         page = client.get("/console").data.decode()
         for route in ("/admin/connexion", "/admin/deconnexion", "/admin/moi",
                       "/admin/participants", "/admin/reussites", "/admin/dossards",
-                      "/admin/comptes", "/admin/mon-mot-de-passe"):
+                      "/admin/comptes", "/admin/mon-mot-de-passe",
+                      "/admin/appareils", "/admin/reussites-tracees"):
             assert route in page, f"la console n'appelle pas {route}"
+
+    def test_l_onglet_appareils_est_la(self, client, jeu):
+        """Spec 011. Les routes existaient deja quand l'onglet a ete oublie une
+        premiere fois pour la spec 005 : ce test empeche la meme omission."""
+        page = client.get("/console").data.decode()
+        assert 'data-onglet="appareils"' in page
+        assert 'id="ongletAppareils"' in page
+        assert "chargerAppareils" in page
+
+    def test_le_telephone_muet_est_signale_visuellement(self, client, jeu):
+        """La seule information urgente de la page. La couleur ne suffit pas :
+        une bordure la double, parce que le rouge seul ne se voit pas par
+        tout le monde."""
+        page = client.get("/console").data.decode()
+        assert "tr.muet td" in page
+        assert "box-shadow: inset 3px 0 0 var(--alerte)" in page
 
     def test_elle_gere_la_session_expiree(self, client, jeu):
         """Une session qui expire en pleine saisie ne doit pas ressembler a une

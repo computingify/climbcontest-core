@@ -84,6 +84,17 @@
   .sans { color: var(--encre2); font-style: italic; }
 
   .aide { color: var(--encre2); font-size: 0.87rem; line-height: 1.55; margin: 0 0 16px; max-width: 62ch; }
+
+  /* Appareils (spec 011). Un telephone muet est la SEULE chose urgente de cette
+     page : presque toujours un juge bloque — batterie, wifi, application
+     fermee. Il doit ressortir sans qu'on ait a lire une colonne de chiffres,
+     d'ou la bordure a gauche en plus de la couleur du texte : le rouge seul ne
+     se voit pas par tout le monde. */
+  tr.muet td { background: rgba(224, 112, 95, 0.08); }
+  tr.muet td:first-child { box-shadow: inset 3px 0 0 var(--alerte); }
+  .silence { color: var(--alerte); font-weight: 600; }
+  .frais { color: var(--ok); }
+  .ref { font-family: var(--chiffre); color: var(--encre2); }
   .scroll { overflow-x: auto; }
 
   /* Connexion : plein ecran, rien d'autre a l'ecran. */
@@ -125,6 +136,7 @@
     <button data-onglet="participants" aria-pressed="true">Participants</button>
     <button data-onglet="saisie" aria-pressed="false">Saisie manuelle</button>
     <button data-onglet="dossards" aria-pressed="false">Dossards</button>
+    <button data-onglet="appareils" aria-pressed="false">Appareils</button>
     <button data-onglet="comptes" aria-pressed="false" id="btnOngletComptes" hidden>Comptes</button>
     <button data-onglet="moi" aria-pressed="false">Mon mot de passe</button>
     <button data-onglet="quitter" aria-pressed="false">Se déconnecter</button>
@@ -179,6 +191,33 @@
       </div>
       <button class="action" id="btnImprimer">Ouvrir la planche</button>
     </section>
+    <section id="ongletAppareils" hidden>
+      <h2>Les téléphones des juges</h2>
+      <p class="aide">Qui a envoyé quoi. Un téléphone <strong>muet depuis plus
+         de dix minutes</strong> ressort en rouge : c'est presque toujours un
+         juge bloqué — batterie, wifi, ou application fermée. Le nom est celui
+         que le juge a donné à son téléphone ; il désigne un poste, pas une
+         personne.</p>
+      <button class="action" id="btnRafraichirAppareils">Rafraîchir</button>
+      <div class="scroll"><table>
+        <thead><tr><th>Téléphone</th><th>Réussites</th><th>Dernier envoi</th><th>Identifiant</th></tr></thead>
+        <tbody id="corpsAppareils"><tr><td colspan="4" class="sans">Chargement…</td></tr></tbody>
+      </table></div>
+
+      <h2 style="margin-top:32px">Retrouver un scan</h2>
+      <p class="aide">Le juge lit les six caractères affichés à côté de son scan,
+         tu les tapes ici. La réponse est oui ou non — plus besoin de chercher
+         dans le classement.</p>
+      <div class="grille" style="max-width:420px">
+        <div><label for="aRef">Référence du scan</label><input id="aRef" placeholder="a1b2c3"></div>
+      </div>
+      <button class="action" id="btnChercherRef">Chercher</button>
+      <div class="scroll"><table>
+        <thead><tr><th>Grimpeur</th><th>Bloc</th><th>Heure</th><th>Téléphone</th><th>Référence</th></tr></thead>
+        <tbody id="corpsScans"></tbody>
+      </table></div>
+    </section>
+
     <section id="ongletComptes" hidden>
       <h2>Créer un compte</h2>
       <p class="aide">Pour un bénévole qui aidera le jour de la compétition.
@@ -324,9 +363,11 @@
       $("ongletParticipants").hidden = b.dataset.onglet !== "participants";
       $("ongletSaisie").hidden = b.dataset.onglet !== "saisie";
       $("ongletDossards").hidden = b.dataset.onglet !== "dossards";
+      $("ongletAppareils").hidden = b.dataset.onglet !== "appareils";
       $("ongletComptes").hidden = b.dataset.onglet !== "comptes";
       $("ongletMoi").hidden = b.dataset.onglet !== "moi";
       if (b.dataset.onglet === "comptes") chargerComptes();
+      if (b.dataset.onglet === "appareils") chargerAppareils();
       $("message").hidden = true;
     });
   });
@@ -439,6 +480,13 @@
 
   // --- Dossards -------------------------------------------------------------
 
+  $("btnRafraichirAppareils").addEventListener("click", chargerAppareils);
+  $("btnChercherRef").addEventListener("click", chercherRef);
+  $("aRef").addEventListener("keydown", function (e) {
+    // Le geste naturel : taper six caracteres et appuyer sur Entree.
+    if (e.key === "Enter") $("btnChercherRef").click();
+  });
+
   $("btnImprimer").addEventListener("click", function () {
     var un = $("dUnSeul").value.trim();
     var cat = $("dCategorie").value.trim();
@@ -449,6 +497,114 @@
   });
 
   // --- Comptes --------------------------------------------------------------
+
+  // --- Appareils (spec 011) -------------------------------------------------
+
+  function chargerAppareils() {
+    appeler("/admin/appareils").then(function (d) {
+      var corps = $("corpsAppareils");
+      corps.innerHTML = "";
+      if (!d.appareils.length) {
+        corps.appendChild(ligneVide(4,
+          "Aucun téléphone n'a encore envoyé de réussite."));
+        return;
+      }
+      d.appareils.forEach(function (a) { corps.appendChild(ligneAppareil(a)); });
+    }).catch(signaler);
+  }
+
+  function ligneVide(colonnes, texte) {
+    var tr = document.createElement("tr");
+    var td = document.createElement("td");
+    td.colSpan = colonnes;
+    td.className = "sans";
+    td.textContent = texte;
+    tr.appendChild(td);
+    return tr;
+  }
+
+  function ligneAppareil(a) {
+    var tr = document.createElement("tr");
+    if (a.silencieux) tr.className = "muet";
+
+    var nom = document.createElement("td");
+    nom.textContent = a.nom || "Sans nom";
+    if (!a.nom) nom.className = "sans";
+    tr.appendChild(nom);
+
+    var n = document.createElement("td");
+    n.className = "num";
+    n.textContent = a.reussites;
+    tr.appendChild(n);
+
+    var quand = document.createElement("td");
+    quand.textContent = depuis(a.silence_s) + (a.derniere_le ? " (" + heure(a.derniere_le) + ")" : "");
+    quand.className = a.silencieux ? "silence" : "frais";
+    tr.appendChild(quand);
+
+    var id = document.createElement("td");
+    id.className = "ref";
+    // Huit caracteres suffisent a distinguer vingt-cinq telephones, et c'est
+    // ce que l'application affiche dans ses reglages.
+    id.textContent = (a.id || "").slice(0, 8);
+    tr.appendChild(id);
+
+    return tr;
+  }
+
+  /** « il y a 3 min ». Un nombre de secondes ne se lit pas d'un coup d'oeil. */
+  function depuis(secondes) {
+    if (secondes === null || secondes === undefined) return "—";
+    if (secondes < 60) return "à l'instant";
+    var min = Math.floor(secondes / 60);
+    if (min < 60) return "il y a " + min + " min";
+    var h = Math.floor(min / 60);
+    return "il y a " + h + " h " + (min % 60) + " min";
+  }
+
+  function heure(iso) {
+    var d = new Date(iso);
+    return isNaN(d) ? iso : d.toLocaleTimeString("fr-FR",
+      { hour: "2-digit", minute: "2-digit" });
+  }
+
+  function chercherRef() {
+    var ref = $("aRef").value.trim();
+    if (!ref) { dire("Tape la référence lue sur le téléphone du juge.", "attention"); return; }
+
+    appeler("/admin/reussites-tracees?ref=" + encodeURIComponent(ref)).then(function (d) {
+      var corps = $("corpsScans");
+      corps.innerHTML = "";
+      if (!d.reussites.length) {
+        // Une reponse NETTE. « Rien trouve » et « je n'ai pas compris » ne
+        // doivent pas se ressembler quand quelqu'un cherche une reponse dans
+        // le feu de l'action.
+        corps.appendChild(ligneVide(5,
+          "Aucun scan avec cette référence n'est arrivé sur le serveur."));
+        dire("Ce scan n'est pas arrivé. Le juge doit le renvoyer depuis son téléphone.",
+             "attention");
+        return;
+      }
+      d.reussites.forEach(function (r) {
+        var tr = document.createElement("tr");
+        [r.grimpeur || "Dossard " + r.dossard,
+         r.bloc || "—",
+         heure(r.horodatage),
+         r.appareil_nom || (r.saisie_par ? "saisie de " + r.saisie_par : "—")
+        ].forEach(function (t) {
+          var td = document.createElement("td");
+          td.textContent = t;
+          tr.appendChild(td);
+        });
+        var celluleRef = document.createElement("td");
+        celluleRef.className = "ref";
+        celluleRef.textContent = (r.ref_client || "").slice(0, 8);
+        tr.appendChild(celluleRef);
+        corps.appendChild(tr);
+      });
+      dire("Trouvé : ce scan est bien arrivé sur le serveur.", "ok");
+    }).catch(signaler);
+  }
 
   function chargerComptes() {
     appeler("/admin/comptes").then(function (d) {
