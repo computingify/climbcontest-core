@@ -206,6 +206,58 @@ class TestLaFileHorsLigne:
         assert "RETRAIT_MAX_MS = 60_000" in politique
 
 
+class TestLaMiseAJourAtteintLesTelephones:
+    """Une PWA se met a jour toute seule -- a condition qu'on la laisse.
+
+    Trois pieges rencontres en developpant, et les trois auraient donne la meme
+    chose en production : publier un correctif et voir vingt-cinq telephones
+    continuer sur l'ancienne version, sans que personne ne comprenne pourquoi.
+    """
+
+    def test_les_fichiers_statiques_sont_revalides(self, client_sans_cle, app):
+        """Par defaut Flask les annonce cachables douze heures."""
+        assert app.config["SEND_FILE_MAX_AGE_DEFAULT"] == 0
+        r = client_sans_cle.get("/static/juge/juge.js")
+        assert "no-cache" in r.headers.get("Cache-Control", "")
+        # Un ETag reste envoye : la revalidation coute un 304 de quelques octets.
+        assert r.headers.get("ETag")
+
+    def test_le_catalogue_range_porte_un_marqueur_de_format(self):
+        """Un telephone peut recevoir un nouveau code en gardant un catalogue
+        range par l'ancien. Le serveur repondant 304 tant que la version ne
+        bouge pas, il ne serait JAMAIS remplace -- et le juge scannerait dans le
+        vide jusqu'a la competition suivante."""
+        cat = (STATIQUE / "catalogue.js").read_text(encoding="utf-8")
+        assert "export const FORMAT" in cat
+        assert "donnees.format !== FORMAT" in cat
+
+
+class TestLeCatalogueALaFormeDuServeur:
+    """⚠️ Le defaut le plus couteux de cette spec, et il n'a ete vu qu'en
+    parlant au VRAI serveur.
+
+    J'avais ecrit le module en supposant que `/api/v2/catalog` renvoyait des
+    dictionnaires dossard -> nom. Il renvoie des TABLEAUX d'objets. Le catalogue
+    local ne correspondait donc jamais, et chaque scan repassait par le reseau --
+    exactement ce que l'iteration pretendait supprimer. Mes tests d'alors
+    verifiaient ma classe contre ma propre supposition.
+    """
+
+    def test_la_route_renvoie_bien_des_tableaux(self, client, jeu):
+        """Le contrat, ecrit noir sur blanc : si le serveur change de forme, ce
+        test tombe AVANT que la PWA ne se taise en silence."""
+        d = client.get("/api/v2/catalog").get_json()
+        assert isinstance(d["participants"], list)
+        assert isinstance(d["blocs"], list)
+        assert {"dossard", "nom"} <= set(d["participants"][0])
+        assert "tag" in d["blocs"][0]
+
+    def test_la_pwa_lit_cette_forme_la(self):
+        cat = (STATIQUE / "catalogue.js").read_text(encoding="utf-8")
+        assert "depuisReponseServeur" in cat
+        assert "Array.isArray(corps.participants)" in cat
+
+
 class TestLaCleDeLaPwa:
 
     def test_elle_entre_dans_les_cles_acceptees(self):

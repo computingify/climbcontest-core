@@ -16,7 +16,7 @@ import {
   DUREE_MS, bailNeuf, peutPrendre,
 } from "../../climbcontest/static/juge/verrou.js";
 import {
-  Catalogue, PERIODE_MS, doitRafraichir,
+  Catalogue, FORMAT, PERIODE_MS, doitRafraichir,
 } from "../../climbcontest/static/juge/catalogue.js";
 
 // --- Le rythme --------------------------------------------------------------
@@ -131,6 +131,92 @@ test("un catalogue abime donne un catalogue VIDE, sans lever", () => {
   for (const abime of [null, "pas un objet", 42, { version: "x" }]) {
     assert.equal(Catalogue.depuisJson(abime).estVide, true);
   }
+});
+
+// --- La forme REELLE de la reponse du serveur -------------------------------
+//
+// ⚠️ Ces tests manquaient, et leur absence a coute cher : j'avais ecrit le
+// module en SUPPOSANT que le serveur envoyait des dictionnaires. Il envoie des
+// TABLEAUX d'objets. Le catalogue local ne correspondait donc jamais, et chaque
+// scan repassait par le reseau -- exactement ce que l'iteration pretendait
+// supprimer. Les tests d'alors verifiaient ma classe contre ma propre
+// supposition ; seul un appel au vrai serveur l'a montre.
+
+const REPONSE_SERVEUR = {
+  version: 7,
+  competition: { id: 1, nom: "Test" },
+  circuits: ["U11", "U13"],
+  participants: [
+    { id: 1, dossard: 1, nom: "Lecomte Elsa", club: "La Grimpe", categorie: "U13 H" },
+    { id: 2, dossard: 42, nom: "Dupont Lea", club: "Roc", categorie: "U15 F" },
+  ],
+  blocs: [
+    { id: 1, tag: "ZJ1", couleur: "Jaune", numero: 1, circuits: ["U13"] },
+    { id: 2, tag: "ZV3", couleur: "Vert", numero: 3, circuits: ["U15"] },
+  ],
+};
+
+test("la reponse du serveur donne dossard -> nom", () => {
+  const c = Catalogue.depuisReponseServeur(REPONSE_SERVEUR);
+  assert.equal(c.grimpeur("42"), "Dupont Lea");
+  assert.equal(c.grimpeur(42), "Dupont Lea", "un dossard numerique aussi");
+});
+
+test("la reponse du serveur donne tag -> tag", () => {
+  const c = Catalogue.depuisReponseServeur(REPONSE_SERVEUR);
+  assert.equal(c.bloc("ZV3"), "ZV3");
+  assert.equal(c.bloc("zv3"), "ZV3", "un QR peut porter des minuscules");
+});
+
+test("la version du serveur est reprise", () => {
+  assert.equal(Catalogue.depuisReponseServeur(REPONSE_SERVEUR).version, 7);
+});
+
+test("un participant SANS dossard n'entre pas dans la table", () => {
+  // Il existe : il est inscrit, il n'a pas encore son papier. Mais il n'a rien
+  // a faire dans une table indexee par dossard.
+  const c = Catalogue.depuisReponseServeur({
+    version: 1, participants: [{ id: 9, dossard: null, nom: "Sans Dossard" }], blocs: [],
+  });
+  assert.equal(c.estVide, true);
+});
+
+test("une reponse abimee donne un catalogue VIDE, sans lever", () => {
+  for (const abime of [null, "texte", 42, {}, { participants: "pas un tableau" },
+                       { participants: [null, 42, {}] }]) {
+    assert.equal(Catalogue.depuisReponseServeur(abime).estVide, true);
+  }
+});
+
+test("le catalogue du serveur se range puis se relit a l'identique", () => {
+  // Le format RANGE n'est pas celui du serveur : deux dictionnaires, pas deux
+  // tableaux. C'est cet aller-retour-la qui doit tenir.
+  const duServeur = Catalogue.depuisReponseServeur(REPONSE_SERVEUR);
+  const relu = Catalogue.depuisJson(duServeur.versJson());
+  assert.equal(relu.version, 7);
+  assert.equal(relu.grimpeur("42"), "Dupont Lea");
+  assert.equal(relu.bloc("zj1"), "ZJ1");
+});
+
+test("un catalogue range par une version anterieure est ignore", () => {
+  // ⚠️ Une PWA se met a jour toute seule : un telephone peut recevoir un
+  // nouveau code en gardant un catalogue range par l'ancien. Comme le serveur
+  // repond 304 tant que la version ne bouge pas, il ne serait JAMAIS remplace
+  // -- et le juge scannerait dans le vide jusqu'a la competition suivante.
+  const ancien = { version: 3, participants: { "42": "Dupont" }, blocs: {} };
+  assert.equal(Catalogue.depuisJson(ancien).estVide, true,
+               "sans marqueur de format, on repart de zero");
+});
+
+test("le marqueur de format voyage avec le catalogue range", () => {
+  const range = Catalogue.depuisReponseServeur(REPONSE_SERVEUR).versJson();
+  assert.equal(range.format, FORMAT);
+});
+
+test("un tableau relu comme un dictionnaire ne fait pas de degats", () => {
+  // Si un jour quelqu'un range la reponse brute par erreur, on veut un
+  // catalogue vide -- pas des entrees « 0 » -> [object Object].
+  assert.equal(Catalogue.depuisJson(REPONSE_SERVEUR).estVide, true);
 });
 
 test("un catalogue fait l'aller-retour par le stockage", () => {

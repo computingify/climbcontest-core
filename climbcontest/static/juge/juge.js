@@ -16,6 +16,8 @@ import { Api } from "./api.js";
 import { Catalogue, doitRafraichir } from "./catalogue.js";
 import { Expediteur } from "./expediteur.js";
 import { FileDeReussites } from "./file.js";
+import { ETATS, Historique, refCourte } from "./historique.js";
+import { identiteCourante, renommer } from "./identite.js";
 import { MAGASINS, MagasinIdb, reglages } from "./idb.js";
 import { doitEnvoyer } from "./politique.js";
 import { bailNeuf, identifiantDOnglet, peutPrendre } from "./verrou.js";
@@ -30,12 +32,15 @@ const PERIODE_PRESENCE_MS = 30_000;
 const etat = {
   dossard: null, grimpeur: null, bloc: null,
   envoiEnCours: false, enAttente: 0, refusees: 0,
+  garderGrimpeur: false, seulementNonArrives: false,
 };
 
 let api = null;
 let file = null;
 let expediteur = null;
 let catalogue = new Catalogue();
+let historique = null;
+let identite = { id: null, nom: null };
 let annulation = null;
 const moi = identifiantDOnglet();
 
@@ -229,16 +234,21 @@ async function envoyer() {
   etat.envoiEnCours = true;
   redessiner();
 
+  const reussite = {
+    ref: nouvelleRef(), bib: etat.dossard, bloc: etat.bloc,
+    at: new Date().toISOString(),
+  };
   try {
-    await file.ajouter({
-      ref: nouvelleRef(),
-      bib: etat.dossard,
-      bloc: etat.bloc,
-      at: new Date().toISOString(),
-    });
+    // L'ordre compte : la file d'abord. Elle porte la réussite ; le journal
+    // n'en garde qu'une trace. Si l'écriture du journal échouait, on perdrait
+    // une ligne d'historique, pas une réussite.
+    await file.ajouter(reussite);
+    await historique.noter(reussite).catch(() => {});
     dire("Validé", "ok");
     etat.envoiEnCours = false;
-    effacer();
+    // « Garder le grimpeur entre deux blocs » : seul le bloc repart à zéro,
+    // pour enchaîner les blocs d'un même grimpeur sans le rescanner.
+    if (etat.garderGrimpeur) { etat.bloc = null; redessiner(); } else effacer();
   } catch (e) {
     // Stockage plein, mode privé, base inaccessible. On ne dit surtout pas
     // « Validé » : ce serait mentir au juge.
@@ -291,6 +301,17 @@ async function vider({ forcer = false } = {}) {
   dernierContactMs = Date.now();
   voyant(bilan.aReussi ? "ok" : "ko");
   if (bilan.catalogueVersion !== null) versionServeurConnue = bilan.catalogueVersion;
+  // Le journal apprend le sort de chaque référence. Un refus l'emporte sur
+  // l'acquittement qui l'accompagne : une refusée est AUSSI acquittée — le
+  // serveur a statué — et afficher « arrivé » serait le contraire de la vérité.
+  if (bilan.acquittees) {
+    const refus = new Map((bilan.refusees || []).map((r) => [r.ref, r.message]));
+    for (const ref of bilan.acquittees) {
+      await historique.changerEtat(
+        ref, refus.has(ref) ? ETATS.refusee : ETATS.partie, refus.get(ref),
+      ).catch(() => {});
+    }
+  }
   if (bilan.refusees && bilan.refusees.length) {
     dire(bilan.refusees[0].message ||
          "Une réussite a été refusée. Va voir un organisateur.", "erreur");
@@ -303,7 +324,7 @@ async function rafraichirLeCatalogue() {
   dernierContactMs = Date.now();
   const r = await api.telechargerCatalogue(catalogue.version || null);
   if (r.etat === "recu") {
-    catalogue = Catalogue.depuisJson(r.catalogue);
+    catalogue = Catalogue.depuisReponseServeur(r.catalogue);
     versionServeurConnue = catalogue.version;
     await reglages.ecrire(CLE_CATALOGUE, catalogue.versJson());
     voyant("ok");
@@ -344,6 +365,169 @@ async function boucle() {
   if (doitCatalogue || doitSonder) await rafraichirLeCatalogue();
 }
 
+// --- Les écrans secondaires -------------------------------------------------
+
+function montrer(id) {
+  for (const ecran of document.querySelectorAll(".ecran")) {
+    ecran.hidden = ecran.id !== id;
+  }
+  $("principal").hidden = id !== null;
+  // La bande de file appartient a l'ecran principal : elle n'a rien a faire
+  // au-dessus des reglages, qui disent deja la meme chose en plus complet.
+  $("bandeFile").hidden = id !== null ||
+    (etat.enAttente === 0 && etat.refusees === 0);
+}
+
+async function ouvrirLesReglages() {
+  $("nomTelephone").value = identite.nom || "";
+  $("identifiantTelephone").textContent =
+    `Identifiant : ${String(identite.id || "").slice(0, 8)}`;
+  $("garderGrimpeur").checked = etat.garderGrimpeur;
+  $("adresseServeur").textContent = location.origin;
+  await rafraichirLesReglages();
+  montrer("ecranReglages");
+}
+
+async function rafraichirLesReglages() {
+  const enAttente = await file.nombreEnAttente();
+  const refusees = await file.nombreRefusees();
+
+  $("etatFile").textContent = enAttente > 0
+    ? `${enAttente} en attente` : "Tout est déjà envoyé";
+  $("toutEnvoyer").disabled = enAttente === 0;
+
+  $("ligneRefus").hidden = refusees === 0;
+  $("expliquerRefus").hidden = refusees === 0;
+  $("etatRefus").textContent = refusees === 1 ? "1 refusée" : `${refusees} refusées`;
+
+  const voyantClasses = [...$("voyant").classList];
+  $("etatServeur").textContent = voyantClasses.includes("ok") ? "Serveur joignable"
+    : voyantClasses.includes("ko") ? "Serveur injoignable" : "Connexion en cours";
+}
+
+/**
+ * Les réussites refusées, remises en file.
+ *
+ * Le geste du juge une fois qu'un organisateur a ajouté le participant
+ * manquant — le cas de loin le plus fréquent : « ce dossard n'existe pas
+ * ENCORE ». Sans ce bouton, ces réussites seraient perdues.
+ */
+async function renvoyerLesRefusees() {
+  const reprises = await expediteur.renvoyerLesRefusees(nouvelleRef);
+  for (const { ancienne, nouvelle } of reprises) {
+    await historique.reprendre(ancienne, nouvelle).catch(() => {});
+  }
+  dire(reprises.length
+    ? "Réussites refusées remises en file" : "Aucune réussite refusée", "ok");
+  // Le retrait repart de zéro : la cause du refus vient d'être traitée.
+  expediteur.echecsConsecutifs = 0;
+  dernierEnvoiMs = 0;
+  await vider({ forcer: true });
+  await rafraichirLesCompteurs();
+  await rafraichirLesReglages();
+}
+
+async function ouvrirMesScans() {
+  await dessinerLesScans();
+  montrer("ecranScans");
+}
+
+async function dessinerLesScans() {
+  const tous = await historique.tous();
+  const nonArrives = tous.filter((s) => s.etat !== ETATS.partie).length;
+
+  $("compteScans").textContent =
+    tous.length === 1 ? "1 scan" : `${tous.length} scans`;
+  const bouton = $("filtreNonArrives");
+  bouton.textContent = `Pas arrivés (${nonArrives})`;
+  bouton.classList.toggle("actif", etat.seulementNonArrives);
+
+  const affiches = (etat.seulementNonArrives
+    ? tous.filter((s) => s.etat !== ETATS.partie) : tous).slice().reverse();
+
+  const liste = $("listeScans");
+  liste.textContent = "";
+  if (!affiches.length) {
+    const vide = document.createElement("p");
+    vide.className = "vide";
+    // Jamais une page blanche : on dit ce qui va s'y passer.
+    vide.textContent = etat.seulementNonArrives
+      ? "Tout est arrivé sur le serveur."
+      : "Aucun scan pour l'instant. Les réussites que vous validez apparaîtront "
+        + "ici, avec leur état.";
+    liste.appendChild(vide);
+    return;
+  }
+  for (const scan of affiches) liste.appendChild(ligneDeScan(scan));
+}
+
+function ligneDeScan(scan) {
+  const [couleur, libelle] = scan.etat === ETATS.partie
+    ? ["var(--fait)", "Arrivé"]
+    : scan.etat === ETATS.refusee ? ["var(--alerte)", "Refusé"]
+                                  : ["var(--attention)", "En attente"];
+
+  const ligne = document.createElement("div");
+  ligne.className = "scan";
+
+  const point = document.createElement("span");
+  point.className = "point";
+  point.style.background = couleur;
+  ligne.appendChild(point);
+
+  const qui = document.createElement("div");
+  qui.className = "qui";
+  const nom = document.createElement("div");
+  nom.className = "nom";
+  // Le nom vient du catalogue COURANT : un scan d'une compétition passée
+  // n'en a plus, et montre son dossard. Le journal, lui, n'en garde aucun.
+  nom.textContent = catalogue.grimpeur(scan.bib) || `Dossard ${scan.bib}`;
+  qui.appendChild(nom);
+  const ou = document.createElement("div");
+  ou.className = "ou";
+  ou.textContent = `${scan.bloc} · ${heureLocale(scan.at)}`;
+  qui.appendChild(ou);
+  if (scan.motif && scan.etat === ETATS.refusee) {
+    const motif = document.createElement("div");
+    motif.className = "motif";
+    // Le motif dit quoi faire : « dossard inconnu » veut dire « demande à
+    // l'organisateur de l'ajouter ».
+    motif.textContent = scan.motif;
+    qui.appendChild(motif);
+  }
+  ligne.appendChild(qui);
+
+  const droite = document.createElement("div");
+  const etatTexte = document.createElement("div");
+  etatTexte.className = "etat";
+  etatTexte.style.color = couleur;
+  etatTexte.textContent = libelle;
+  droite.appendChild(etatTexte);
+  const ref = document.createElement("div");
+  ref.className = "mono";
+  // La référence courte : ce que le juge lit à voix haute quand l'organisateur
+  // la cherche dans la console.
+  ref.textContent = refCourte(scan.ref);
+  droite.appendChild(ref);
+  ligne.appendChild(droite);
+
+  return ligne;
+}
+
+/**
+ * « 2026-11-08T09:42:03Z » devient « 10:42 ».
+ *
+ * ⚠️ L'heure est stockée en UTC — c'est ce que le serveur attend. La couper à
+ * la main donnerait 09:42 à un juge qui a scanné à 10:42 : en novembre, la
+ * France est à UTC+1.
+ */
+function heureLocale(iso) {
+  const quand = new Date(iso);
+  return Number.isNaN(quand.getTime())
+    ? iso
+    : quand.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" });
+}
+
 // --- Démarrage --------------------------------------------------------------
 
 function proposerLInstallation() {
@@ -361,7 +545,8 @@ async function demarrer() {
   api = new Api({ jeton });
   file = new FileDeReussites(new MagasinIdb(MAGASINS.file),
                              new MagasinIdb(MAGASINS.refusees));
-  expediteur = new Expediteur(file, api);
+  historique = new Historique(new MagasinIdb(MAGASINS.historique));
+  expediteur = new Expediteur(file, api, { identite: () => identite });
 
   if (!jeton) {
     dire("Cette application a besoin du lien fourni par l'organisateur.", "attention");
@@ -369,6 +554,11 @@ async function demarrer() {
 
   try {
     catalogue = Catalogue.depuisJson(await reglages.lire(CLE_CATALOGUE));
+    identite = await identiteCourante(reglages);
+    etat.garderGrimpeur = (await reglages.lire("garder-grimpeur")) === true;
+    // Au démarrage, une fois : ce qui a plus de trente jours s'en va. Ne touche
+    // jamais à la file, donc ne peut pas perdre une réussite.
+    await historique.purger();
   } catch (e) {
     // Base inaccessible : on continue avec un catalogue vide. Chaque scan
     // passera par le réseau — dégradé, mais utilisable.
@@ -381,7 +571,31 @@ async function demarrer() {
   $("envoyer").addEventListener("click", envoyer);
   $("effacer").addEventListener("click", effacer);
   $("annulerScan").addEventListener("click", () => annulation && annulation.abort());
-  $("bandeFile").addEventListener("click", () => vider({ forcer: true }));
+  $("bandeFile").addEventListener("click", ouvrirLesReglages);
+
+  $("ouvrirReglages").addEventListener("click", ouvrirLesReglages);
+  for (const bouton of document.querySelectorAll("[data-ferme]")) {
+    bouton.addEventListener("click", () => montrer(null));
+  }
+  $("voirMesScans").addEventListener("click", ouvrirMesScans);
+  $("filtreNonArrives").addEventListener("click", () => {
+    etat.seulementNonArrives = !etat.seulementNonArrives;
+    dessinerLesScans();
+  });
+  $("nomTelephone").addEventListener("input", async (e) => {
+    identite = await renommer(reglages, e.target.value);
+  });
+  $("garderGrimpeur").addEventListener("change", async (e) => {
+    etat.garderGrimpeur = e.target.checked;
+    await reglages.ecrire("garder-grimpeur", etat.garderGrimpeur);
+  });
+  $("toutEnvoyer").addEventListener("click", async () => {
+    // Le bouton ne contourne pas le retrait exponentiel : appuyer en boucle sur
+    // un serveur éteint ne servirait à rien.
+    await vider({ forcer: true });
+    await rafraichirLesReglages();
+  });
+  $("renvoyerRefus").addEventListener("click", renvoyerLesRefusees);
 
   surNouveauLien();
   proposerLInstallation();

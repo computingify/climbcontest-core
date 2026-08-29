@@ -20,10 +20,10 @@ arrive trop vite, on s'arrête à la dernière terminée.
 
 ## IT3 — La parité
 
-- [ ] Journal de tous les scans, purge à 30 jours.
-- [ ] Identité d'appareil et nom.
-- [ ] Refusées conservées et renvoyables.
-- [ ] Réglages, voyant de connexion.
+- [x] Journal de tous les scans, purge à 30 jours.
+- [x] Identité d'appareil et nom.
+- [x] Refusées conservées et renvoyables.
+- [x] Réglages, voyant de connexion.
 
 ## IT4 — Installable
 

@@ -94,6 +94,18 @@ export class MagasinIdb {
   }
 
   /**
+   * Remplace la valeur d'une clé existante.
+   *
+   * `put` avec une clé explicite, ce qu'un magasin `autoIncrement` accepte : on
+   * met à jour une entrée sans lui faire perdre sa place, donc sans perdre
+   * l'ordre dans lequel le juge a scanné.
+   */
+  async remplacer(cle, valeur) {
+    const base = await ouvrir();
+    await attendre(transaction(base, this.nom, "readwrite").put(valeur, cle));
+  }
+
+  /**
    * Supprime plusieurs clés **dans une seule transaction**.
    *
    * C'est ce que le fichier d'acquittements de l'Android remplaçait faute de

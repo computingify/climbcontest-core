@@ -148,6 +148,10 @@ export class MagasinMemoire {
       .map(([cle, valeur]) => ({ cle, valeur }));
   }
 
+  async remplacer(cle, valeur) {
+    this.entrees.set(cle, valeur);
+  }
+
   async supprimer(cles) {
     for (const cle of cles) this.entrees.delete(cle);
   }
