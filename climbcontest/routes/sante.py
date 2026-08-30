@@ -87,6 +87,10 @@ def health():
         "pid": os.getpid(),
     }
     corps["miroir_actif"] = est_actif()
+    # La derniere plainte du miroir, pour diagnostiquer sans SSH. `null` quand
+    # tout va bien -- ou que le fil n'a pas encore essaye.
+    from ..sheets.planificateur import derniere_erreur
+    corps["miroir_derniere_erreur"] = derniere_erreur()
     corps["sauvegarde"] = _etat_sauvegarde()
     return jsonify(corps), code
 

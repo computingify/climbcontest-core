@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="theme-color" content="#0E1116">
+<meta name="theme-color" content="#0B0D11">
 <meta name="mobile-web-app-capable" content="yes">
 <!-- L'ancien nom reste : les iOS anterieurs a 17 ne connaissent que lui,
      et ce sont exactement les telephones des benevoles. -->
@@ -15,18 +15,32 @@
 <link rel="apple-touch-icon" href="/static/juge/icone-192.png">
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='7' fill='%232F6BB0'/><circle cx='16' cy='16' r='7' fill='%23EEF1F5'/></svg>">
 <style>
-  /* Les MEMES couleurs que l'application Android (ui/theme/Color.kt). Deux
-     clients, une seule identite : un juge qui passe d'un telephone a l'autre ne
-     doit pas avoir l'impression de changer d'outil.
+  /* Les MEMES couleurs que l'application Android (ui/theme/Color.kt), refonte
+     comprise. Deux clients, une seule identite : un juge qui passe d'un
+     telephone a l'autre ne doit pas avoir l'impression de changer d'outil.
 
-     Ici comme ailleurs, la couleur PORTE DE L'INFORMATION : vert = scanne,
-     gris = pas encore. Rien de decoratif. */
+     Ici comme ailleurs, la couleur PORTE DE L'INFORMATION : la teinte du
+     circuit prend l'ecran des que le bloc est scanne. Rien de decoratif. */
   :root {
-    --fond: #0E1116; --carte: #171B23; --carte2: #1E232D; --trait: #2B313D;
-    --encre: #EEF1F5; --encre2: #9AA4B4;
-    --fait: #4E9A5A; --vide: #39404E;
-    --bleu: #2F6BB0; --alerte: #E0705F; --attention: #E5B44A;
-    --police: system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+    --fond: #0B0D11;
+    --carte-faite: #1B2432; --carte-active: #161C26; --carte-attente: #101419;
+    --trait-fait: #2C3849; --trait-actif: #3E4B5E; --trait-attente: #1A2029;
+    --encre: #F2F5F9; --encre2: #6B7688; --encre3: #39424E;
+    --fait: #34C56A; --alerte: #F0554A; --attention: #E5B44A;
+    /* posees par juge.js quand un bloc est scanne ; les valeurs de repos
+       gardent l'ecran lisible sans couleur de circuit connue. */
+    --circuit: var(--encre); --encre-circuit: #0B0D11;
+    --police: "Archivo", system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+  }
+  /* Archivo, la police de l'application Android — une variable font, un seul
+     fichier pour toutes les graisses. Servie LOCALEMENT et mise en cache par
+     le service worker : la PWA doit s'habiller hors ligne aussi.
+     Licence OFL versee a cote (archivo-LICENCE.txt). */
+  @font-face {
+    font-family: "Archivo";
+    src: url("/static/juge/archivo.ttf") format("truetype");
+    font-weight: 100 900;
+    font-display: swap;
   }
   * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
   html, body { height: 100%; }
@@ -44,9 +58,8 @@
 
   header {
     display: flex; align-items: center; gap: 10px;
-    padding: 10px 16px; background: var(--carte);
+    padding: 14px 16px 6px; background: var(--fond);
   }
-  header .titre { font-weight: 700; font-size: 0.95rem; letter-spacing: -0.01em; }
   header .place { flex: 1; }
   #voyant { width: 22px; height: 22px; }
   #voyant.ok    { color: var(--fait); }
@@ -69,36 +82,92 @@
      Constate a l'ecran. */
   main[hidden] { display: none; }
 
+  /* Trois etapes numerotees, UNE SEULE active a la fois — la structure de la
+     refonte Android. L'etat « actif » n'est pas pose par le JS : il se deduit
+     en CSS, par voisinage — la carte bloc est active quand la carte grimpeur
+     est faite et qu'elle ne l'est pas. */
   .carte {
-    border: 0; width: 100%; text-align: left; font: inherit; color: inherit;
-    background: var(--vide); border-radius: 14px; padding: 14px 20px;
-    min-height: 96px; display: flex; flex-direction: column; justify-content: center;
-    cursor: pointer;
+    border: 1.5px solid var(--trait-attente); width: 100%; text-align: left;
+    font: inherit; color: inherit;
+    background: var(--carte-attente); border-radius: 22px; padding: 18px 20px;
+    min-height: 104px; display: flex; flex-direction: column; justify-content: center;
+    gap: 4px; cursor: pointer;
+    transition: background .25s ease, border-color .25s ease;
   }
-  .carte.fait { background: var(--fait); }
+  /* etape 1 active tant qu'elle n'est pas faite */
+  #carteGrimpeur:not(.fait) { background: var(--carte-active);
+                              border-color: var(--trait-actif); border-width: 2px; }
+  /* etape 2 active une fois la 1 faite */
+  #carteGrimpeur.fait ~ #carteBloc:not(.fait) {
+    background: var(--carte-active); border-color: var(--trait-actif);
+    border-width: 2px;
+  }
+  .carte.fait { background: var(--carte-faite); border-color: var(--trait-fait); }
+  /* la carte du bloc prend la couleur de SON circuit */
+  #carteBloc.fait { border-color: color-mix(in srgb, var(--circuit) 50%, transparent); }
+
   .carte .quoi {
-    font-size: 0.8rem; letter-spacing: 0.09em; text-transform: uppercase;
-    font-weight: 600; color: var(--encre2);
+    font-size: 0.72rem; letter-spacing: 0.2em; text-transform: uppercase;
+    font-weight: 700; color: var(--encre3);
+    display: flex; align-items: center; gap: 8px;
   }
-  .carte.fait .quoi { color: rgba(238,241,245,.78); }
+  /* le numero d'etape : l'ORDRE, que deux cartes identiques ne disaient pas */
+  .carte .quoi::before {
+    content: attr(data-n);
+    width: 19px; height: 19px; border-radius: 50%; flex: none;
+    display: inline-flex; align-items: center; justify-content: center;
+    font-size: 0.7rem; letter-spacing: 0; font-weight: 800;
+    background: #1E252F; color: #3C4652;
+  }
+  #carteGrimpeur:not(.fait) .quoi,
+  #carteGrimpeur.fait ~ #carteBloc:not(.fait) .quoi { color: var(--encre); }
+  #carteGrimpeur:not(.fait) .quoi::before,
+  #carteGrimpeur.fait ~ #carteBloc:not(.fait) .quoi::before {
+    background: var(--encre); color: var(--fond);
+  }
+  .carte.fait .quoi { color: var(--encre2); }
+  .carte.fait .quoi::before { background: #3A4759; color: var(--encre); }
+  #carteBloc.fait .quoi { color: var(--circuit); }
+  #carteBloc.fait .quoi::before { background: var(--circuit); color: var(--encre-circuit); }
+
   .carte .valeur {
-    font-size: 1.7rem; font-weight: 700; margin-top: 4px;
+    font-size: 1.85rem; font-weight: 800; letter-spacing: -0.01em;
     white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
   }
-  .carte .valeur.attente { font-size: 1.5rem; font-weight: 400; color: var(--encre2); }
-  .carte .detail { font-size: 0.95rem; color: rgba(238,241,245,.7); }
+  .carte .valeur.attente { font-size: 1.3rem; font-weight: 500; color: var(--encre); }
+  /* le tag du bloc en PASTILLE PLEINE de la couleur du circuit : c'est LUI
+     que le juge verifie */
+  #carteBloc.fait .valeur:not(.attente) {
+    align-self: flex-start; max-width: 100%;
+    background: var(--circuit); color: var(--encre-circuit);
+    border-radius: 12px; padding: 2px 14px;
+  }
+  .carte .detail { font-size: 0.9rem; color: var(--encre2); letter-spacing: 0.04em; }
+  #carteBloc.fait .detail { color: color-mix(in srgb, var(--circuit) 90%, transparent); }
 
   #envoyer {
-    width: 100%; height: 96px; border-radius: 14px; font: inherit;
-    font-size: 2.1rem; font-weight: 700; color: var(--encre);
-    background: var(--bleu); border: 0; cursor: pointer; margin-top: 10px;
+    width: 100%; height: 104px; border-radius: 22px; font: inherit;
+    font-size: 1.9rem; font-weight: 800; letter-spacing: 0.12em;
+    text-transform: uppercase; text-indent: 0.12em;
+    color: var(--encre-circuit);
+    background: var(--circuit); border: 0; cursor: pointer;
+    transition: background .25s ease;
   }
   /* Desactive, il ne doit PAS ressembler a une carte de scan a remplir : vide
      et cercle d'un trait, il se lit comme un emplacement qui attend. */
   #envoyer:disabled {
-    background: transparent; border: 1px solid var(--trait); color: var(--encre2);
-    cursor: default;
+    background: var(--carte-attente); border: 1.5px solid var(--trait-attente);
+    color: var(--encre3); cursor: default;
   }
+  /* Tant que le juge n'a pas appuye, le bouton pret RESPIRE — la meme
+     pulsation lente que sur Android : assez pour attirer l'oeil, assez
+     discrete pour deux cents validations par jour. */
+  #envoyer:not(:disabled) { animation: souffle 2.8s ease-in-out infinite; }
+  @keyframes souffle {
+    0%, 100% { transform: scale(1); box-shadow: 0 0 6px color-mix(in srgb, var(--circuit) 45%, transparent); }
+    50% { transform: scale(1.015); box-shadow: 0 0 26px color-mix(in srgb, var(--circuit) 45%, transparent); }
+  }
+  @media (prefers-reduced-motion: reduce) { #envoyer:not(:disabled) { animation: none } }
   #aide { text-align: center; color: var(--encre2); font-size: 0.9rem; }
   #effacer {
     background: none; border: 0; font: inherit; font-size: 1rem;
@@ -109,7 +178,7 @@
     position: fixed; left: 50%; transform: translateX(-50%);
     bottom: calc(24px + env(safe-area-inset-bottom));
     max-width: 90%; padding: 12px 18px; border-radius: 10px;
-    background: var(--carte2); border-left: 4px solid var(--trait);
+    background: var(--carte-active); border-left: 4px solid var(--trait-actif);
     font-size: 0.95rem; box-shadow: 0 6px 24px rgba(0,0,0,.45);
   }
   #message[hidden] { display: none; }
@@ -124,25 +193,25 @@
   #viseur[hidden] { display: none; }
   #viseur video { flex: 1; width: 100%; object-fit: cover; }
   #viseur .barre { padding: 14px 16px calc(14px + env(safe-area-inset-bottom));
-                   background: var(--carte); display: flex; align-items: center; gap: 12px; }
+                   background: var(--carte-faite); display: flex; align-items: center; gap: 12px; }
   #viseur .barre span { flex: 1; color: var(--encre2); font-size: 0.95rem; }
   #viseur button { font: inherit; font-size: 1rem; color: var(--encre);
-                   background: var(--vide); border: 0; border-radius: 10px;
+                   background: var(--carte-attente); border: 0; border-radius: 10px;
                    padding: 12px 20px; cursor: pointer; }
 
-  /* La file ne s'affiche que quand elle a quelque chose a dire. Toute la
-     bande est cliquable : elle declenche un envoi immediat, ce qu'un juge veut
-     faire en fin de competition avant d'eteindre son telephone. */
-  #bandeFile { display: flex; gap: 8px; padding: 8px 16px; background: var(--carte2);
-               cursor: pointer; }
+  /* La file vit DANS l'en-tete, sans fond propre : posee en bandeau, elle
+     poussait toute la mise en page vers le bas des qu'une reussite attendait
+     — l'ecran bougeait sous le pouce du juge. Meme lecon que sur Android.
+     Toute la zone reste cliquable : elle declenche un envoi immediat. */
+  #bandeFile { display: flex; gap: 8px; align-items: center; cursor: pointer; }
   #bandeFile[hidden] { display: none; }
   /* ⚠️ Ces classes s'appelaient `.attente` et `.refus`. `.attente` entrait
      alors en collision avec `.carte .valeur.attente`, qui marque une carte NON
      SCANNEE : le fond ambre de la pastille se retrouvait derriere le texte
      « A scanner », dans les deux cartes. Constate a l'ecran, invisible a la
      relecture. Deux choses differentes, deux noms differents. */
-  .pastille { font-size: 0.82rem; font-weight: 600; padding: 4px 9px;
-              border-radius: 8px; }
+  .pastille { font-size: 0.82rem; font-weight: 600; padding: 7px 11px;
+              border-radius: 999px; }
   .pastille[hidden] { display: none; }
   .pastilleAttente { color: var(--attention); background: rgba(229,180,74,.15); }
   /* Le rouge est reserve a ce qui demande une ACTION : une refusee ne repartira
@@ -154,7 +223,7 @@
      sortir de la PWA installee sur certains iOS. */
   .ecran[hidden] { display: none; }
   .barreEcran { display: flex; align-items: center; gap: 12px;
-                padding: 10px 16px; background: var(--carte); }
+                padding: 10px 16px; background: var(--carte-faite); }
   .barreEcran h2 { margin: 0; font-size: 1.15rem; font-weight: 700; flex: 1; }
   .retour { background: none; border: 0; color: var(--encre); font: inherit;
             font-size: 1.5rem; line-height: 1; padding: 4px 8px; cursor: pointer; }
@@ -162,7 +231,7 @@
   .section { margin: 16px; }
   .section > h3 { margin: 0 0 6px 4px; font-size: 0.75rem; text-transform: uppercase;
                   letter-spacing: 0.09em; color: var(--encre2); font-weight: 600; }
-  .bloc { background: var(--carte); border-radius: 14px; padding: 16px; }
+  .bloc { background: var(--carte-faite); border-radius: 14px; padding: 16px; }
   .bloc + .bloc { margin-top: 10px; }
   .ligne { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
   .ligne + .ligne { margin-top: 14px; }
@@ -170,26 +239,26 @@
                  margin: 6px 0 0; }
   .bloc input[type=text] {
     width: 100%; font: inherit; font-size: 1rem; color: var(--encre);
-    background: var(--vide); border: 1px solid var(--trait); border-radius: 10px;
+    background: var(--carte-attente); border: 1px solid var(--trait-actif); border-radius: 10px;
     padding: 12px 14px; -webkit-user-select: text; user-select: text;
   }
   .bloc label { display: block; font-size: 0.8rem; color: var(--encre2);
                 margin-bottom: 6px; }
   /* La case a cocher par defaut est blanche : sur un fond sombre, elle saute
      aux yeux plus que le reste de l'ecran, pour un reglage secondaire. */
-  .bloc input[type=checkbox] { accent-color: var(--bleu); }
-  .action { font: inherit; font-size: 0.95rem; font-weight: 600; color: #12141a;
-            background: var(--bleu); border: 0; border-radius: 10px;
+  .bloc input[type=checkbox] { accent-color: #3E8CF7; }
+  .action { font: inherit; font-size: 0.95rem; font-weight: 600; color: #F7F9FC;
+            background: #3E8CF7; border: 0; border-radius: 10px;
             padding: 11px 18px; cursor: pointer; white-space: nowrap; }
   .action:disabled { opacity: .45; cursor: default; }
   .mono { font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
           font-size: 0.8rem; color: var(--encre2); }
-  .lien { background: none; border: 0; color: var(--bleu); font: inherit;
+  .lien { background: none; border: 0; color: #3E8CF7; font: inherit;
           font-size: 1rem; padding: 12px 0; cursor: pointer; text-align: left; }
 
   /* « Mes scans ». */
   #listeScans { margin: 0 16px 24px; }
-  .scan { display: flex; align-items: center; gap: 12px; background: var(--carte);
+  .scan { display: flex; align-items: center; gap: 12px; background: var(--carte-faite);
           border-radius: 12px; padding: 12px 14px; margin-bottom: 8px; }
   .scan .point { width: 9px; height: 9px; border-radius: 50%; flex: none; }
   .scan .qui { flex: 1; min-width: 0; }
@@ -201,7 +270,7 @@
   .filtre { display: flex; align-items: center; justify-content: space-between;
             gap: 12px; margin: 12px 16px; color: var(--encre2); font-size: 0.88rem; }
   .filtre button { font: inherit; font-size: 0.85rem; color: var(--encre2);
-                   background: none; border: 1px solid var(--trait);
+                   background: none; border: 1px solid var(--trait-actif);
                    border-radius: 999px; padding: 7px 14px; cursor: pointer; }
   .filtre button.actif { color: var(--attention); border-color: var(--attention);
                          background: rgba(229,180,74,.15); }
@@ -209,7 +278,7 @@
           line-height: 1.6; }
 
   #installer { margin: 0 16px 12px; padding: 12px 14px; border-radius: 10px;
-               background: var(--carte2); color: var(--encre2); font-size: 0.88rem;
+               background: var(--carte-active); color: var(--encre2); font-size: 0.88rem;
                line-height: 1.5; }
   #installer[hidden] { display: none; }
 </style>
@@ -217,7 +286,14 @@
 <body>
 
 <header>
-  <span class="titre">ClimbContest</span>
+  <!-- Les pastilles a gauche, le voyant et les reglages a droite — le meme
+       rangement que l'Android depuis la refonte. Le titre « ClimbContest »
+       est parti : le juge sait quelle application il tient, la place revient
+       a ce qu'on touche. -->
+  <div id="bandeFile" hidden>
+    <span id="compteurRefus" class="pastille pastilleRefus" hidden></span>
+    <span id="compteurAttente" class="pastille pastilleAttente" hidden></span>
+  </div>
   <span class="place"></span>
   <!-- Le voyant de connexion, meme principe que sur l'Android : une icone de
        connexion sans fil, verte quand ca passe, BARREE et rouge sinon. Barree,
@@ -236,11 +312,6 @@
   </svg>
 </header>
 
-<div id="bandeFile" hidden>
-  <span id="compteurAttente" class="pastille pastilleAttente" hidden></span>
-  <span id="compteurRefus" class="pastille pastilleRefus" hidden></span>
-</div>
-
 <p id="installer" hidden>
   Ajoute cette page à ton écran d'accueil : elle s'ouvrira comme une
   application, et gardera tes scans même sans réseau.
@@ -248,14 +319,15 @@
 
 <main id="principal">
   <button class="carte" id="carteGrimpeur">
-    <span class="quoi">Grimpeur</span>
+    <span class="quoi" data-n="1">Grimpeur</span>
     <span class="valeur attente" id="valeurGrimpeur">À scanner</span>
     <span class="detail" id="detailGrimpeur"></span>
   </button>
 
   <button class="carte" id="carteBloc">
-    <span class="quoi">Bloc</span>
+    <span class="quoi" data-n="2">Bloc</span>
     <span class="valeur attente" id="valeurBloc">À scanner</span>
+    <span class="detail" id="detailBloc"></span>
   </button>
 
   <button id="envoyer" disabled>Envoyer</button>

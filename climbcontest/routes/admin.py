@@ -11,6 +11,7 @@ Caddyfile distingue deja /admin/* des autres surfaces : CrowdSec y reste actif,
 et l'exemption posee pour l'API des juges ne s'y applique pas.
 """
 import logging
+import os
 
 from flask import Blueprint, g, jsonify, render_template, request
 
@@ -437,13 +438,17 @@ def _corps_objet():
 
 
 @bp.post("/import/sheet")
-@exige_role()
+@exige_role(ORGANISATEUR)
 def importer_classeur():
     """Relit le classeur et met la base a jour.
 
     Sur COMMANDE, jamais dans le chemin d'une requete juge (risque R7). Un
     dossard inconnu scanne en boucle ne doit pas pouvoir declencher des lectures
     Google en rafale.
+
+    `ORGANISATEUR`, et plus seulement « connecte » (audit du 30/08) : un
+    reimport REECRIT la base et declenche une rafale d'appels Google. Aucun
+    compte sans role n'a de raison de pouvoir ca.
     """
     global _dernier_rapport
     try:
@@ -463,7 +468,7 @@ def importer_classeur():
 
 
 @bp.get("/import/rapport")
-@exige_role()
+@exige_role(ORGANISATEUR)
 def dernier_rapport():
     if _dernier_rapport is None:
         return jsonify({"success": True, "rapport": None,
@@ -472,6 +477,45 @@ def dernier_rapport():
 
 
 # --- Tracabilite : quel telephone a envoye quoi (spec 011) -------------------
+
+@bp.get("/lien-juge")
+@exige_role(ORGANISATEUR)
+def lien_juge():
+    """Le lien d'installation de l'application juge iPhone, et son QR.
+
+    C'est la reponse a « sur quel site je dois aller ? » (Adrien, 30/08) : la
+    spec 007 prevoyait un QR d'installation a afficher au mur, il n'existait
+    pas. Le benevole scanne ce QR avec l'appareil photo de son iPhone, ouvre le
+    lien, et la page range le jeton une fois pour toutes.
+
+    Le jeton vit dans le FRAGMENT (`#j=`) : il ne part ni dans les journaux du
+    serveur ni chez un intermediaire. Servi uniquement a un organisateur
+    connecte -- le lien se transfere ensuite comme une cle de salle : de la
+    main a la main.
+    """
+    from flask import current_app
+    cle = (os.environ.get("CLIMBCONTEST_API_KEY_PWA") or "").strip()
+    if not cle:
+        return jsonify({
+            "success": False,
+            "message": "Aucune cle PWA configuree : poser CLIMBCONTEST_API_KEY_PWA "
+                       "sur le serveur (voir docs/runbook-competition.md).",
+        }), 409
+
+    # Derriere Caddy, gunicorn voit du http : on force https partout sauf en
+    # developpement local. Pas de ProxyFix pour si peu.
+    hote = request.host
+    schema = "http" if hote.split(":")[0] in (
+        "localhost", "127.0.0.1", "10.0.2.2") else "https"
+    url = f"{schema}://{hote}/juge#j={cle}"
+    return jsonify({
+        "success": True,
+        "url": url,
+        # Le QR est plus grand que celui d'un dossard : il se scanne a un
+        # metre, affiche au mur, pas pose sur une table.
+        "qr": qr.svg(url, cote_mm=70.0),
+    }), 200
+
 
 @bp.get("/appareils")
 @exige_role(ORGANISATEUR)

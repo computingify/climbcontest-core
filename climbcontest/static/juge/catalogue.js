@@ -25,11 +25,18 @@
 export const FORMAT = 2;
 
 export class Catalogue {
-  constructor({ version = 0, participants = {}, blocs = {} } = {}) {
+  constructor({ version = 0, participants = {}, blocs = {}, couleurs = {} } = {}) {
     this.version = version;
     this.parDossard = new Map(Object.entries(participants));
     this.parTag = new Map(
       Object.entries(blocs).map(([tag, libelle]) => [tag.toUpperCase(), libelle]),
+    );
+    // tag → couleur de circuit (« Jaune », « Vert »…). Ajoutée pour porter la
+    // refonte visuelle : l'écran prend la couleur du bloc scanné, comme sur
+    // Android. Table SÉPARÉE de `parTag` pour que le contrat existant — et le
+    // catalogue déjà rangé sur les téléphones — ne bougent pas.
+    this.couleurParTag = new Map(
+      Object.entries(couleurs).map(([tag, c]) => [tag.toUpperCase(), c]),
     );
   }
 
@@ -42,6 +49,12 @@ export class Catalogue {
     return this.parDossard.get(String(dossard ?? "").trim()) ?? null;
   }
 
+  /** La couleur du circuit d'un bloc, ou null — jamais une erreur. */
+  couleurDuBloc(tag) {
+    if (typeof tag !== "string") return null;
+    return this.couleurParTag.get(tag.trim().toUpperCase()) ?? null;
+  }
+
   bloc(tag) {
     return this.parTag.get(String(tag ?? "").trim().toUpperCase()) ?? null;
   }
@@ -52,6 +65,7 @@ export class Catalogue {
       version: this.version,
       participants: Object.fromEntries(this.parDossard),
       blocs: Object.fromEntries(this.parTag),
+      couleurs: Object.fromEntries(this.couleurParTag),
     };
   }
 
@@ -69,6 +83,11 @@ export class Catalogue {
       version,
       participants: estUnDictionnaire(donnees.participants) ? donnees.participants : {},
       blocs: estUnDictionnaire(donnees.blocs) ? donnees.blocs : {},
+      // Tolérant : un catalogue rangé AVANT l'arrivée des couleurs n'en a
+      // pas, et il doit rester utilisable tel quel — même leçon que sur
+      // Android, où un catalogue jeté au premier champ manquant renvoyait
+      // tous les scans vers le réseau.
+      couleurs: estUnDictionnaire(donnees.couleurs) ? donnees.couleurs : {},
     });
   }
 
@@ -84,9 +103,11 @@ export class Catalogue {
    * ```
    *
    * Nous n'en gardons que deux tables de correspondance : dossard → nom et
-   * tag → tag. Le reste — club, catégorie, couleur, circuits — ne sert pas au
-   * geste du juge, et ne pas le garder évite d'entreposer des données de
-   * mineurs sur vingt-cinq téléphones de bénévoles.
+   * tag → tag, plus tag → couleur de circuit depuis la refonte visuelle — la
+   * couleur porte de l'information, ce n'est pas du décor. Le reste — club,
+   * catégorie, circuits — ne sert pas au geste du juge, et ne pas le garder
+   * évite d'entreposer des données de mineurs sur vingt-cinq téléphones de
+   * bénévoles.
    *
    * J'avais d'abord écrit ce module en supposant que le serveur envoyait déjà
    * des dictionnaires. Résultat : le catalogue local ne correspondait jamais, et
@@ -108,12 +129,18 @@ export class Catalogue {
       if (dossard && nom) participants[dossard] = nom;
     }
     const blocs = {};
+    const couleurs = {};
     for (const b of Array.isArray(corps.blocs) ? corps.blocs : []) {
       if (!b || typeof b !== "object") continue;
       const tag = typeof b.tag === "string" ? b.tag.trim() : "";
-      if (tag) blocs[tag.toUpperCase()] = tag;
+      if (!tag) continue;
+      blocs[tag.toUpperCase()] = tag;
+      if (typeof b.couleur === "string" && b.couleur.trim()) {
+        couleurs[tag.toUpperCase()] = b.couleur.trim();
+      }
     }
-    return new Catalogue({ version: Number(corps.version) || 0, participants, blocs });
+    return new Catalogue({ version: Number(corps.version) || 0, participants,
+                           blocs, couleurs });
   }
 }
 

@@ -137,6 +137,7 @@
     <button data-onglet="saisie" aria-pressed="false">Saisie manuelle</button>
     <button data-onglet="dossards" aria-pressed="false">Dossards</button>
     <button data-onglet="appareils" aria-pressed="false">Appareils</button>
+    <button data-onglet="appjuge" aria-pressed="false">App juge</button>
     <button data-onglet="comptes" aria-pressed="false" id="btnOngletComptes" hidden>Comptes</button>
     <button data-onglet="moi" aria-pressed="false">Mon mot de passe</button>
     <button data-onglet="quitter" aria-pressed="false">Se déconnecter</button>
@@ -216,6 +217,34 @@
         <thead><tr><th>Grimpeur</th><th>Bloc</th><th>Heure</th><th>Téléphone</th><th>Référence</th></tr></thead>
         <tbody id="corpsScans"></tbody>
       </table></div>
+    </section>
+
+    <section id="ongletAppJuge" hidden>
+      <h2>Installer l’application juge sur un iPhone</h2>
+      <p class="aide">
+        L’application des juges existe en deux formes : l’application
+        <strong>Android</strong> installée sur les téléphones du club, et une
+        <strong>application web</strong> pour les iPhone des bénévoles — rien à
+        télécharger, aucun magasin d’applications.
+      </p>
+      <div id="lienJugeIndisponible" hidden class="aide"></div>
+      <div id="lienJugeContenu" hidden>
+        <p><strong>À afficher au mur ou à faire passer de main en main :</strong></p>
+        <div id="lienJugeQr" style="background:#fff;display:inline-block;padding:12px;border-radius:8px"></div>
+        <p style="user-select:all;overflow-wrap:anywhere" id="lienJugeUrl" class="aide"></p>
+        <ol class="aide">
+          <li>Le bénévole scanne ce QR avec l’appareil photo de son iPhone
+              et ouvre le lien <strong>dans Safari</strong>.</li>
+          <li>Il touche <strong>Partager</strong> (le carré avec la flèche),
+              puis <strong>« Sur l’écran d’accueil »</strong>.</li>
+          <li>L’icône ClimbContest apparaît : l’application s’ouvre en plein
+              écran et fonctionne même sans réseau.</li>
+        </ol>
+        <p class="aide">⚠️ Ce lien contient la clé d’accès des juges : on le
+           donne comme on donne une clé de salle. Pour le révoquer, changer
+           <code>CLIMBCONTEST_API_KEY_PWA</code> sur le serveur.</p>
+      </div>
+      <p><button id="btnChargerLienJuge" type="button">Afficher le lien et le QR</button></p>
     </section>
 
     <section id="ongletComptes" hidden>
@@ -364,6 +393,7 @@
       $("ongletSaisie").hidden = b.dataset.onglet !== "saisie";
       $("ongletDossards").hidden = b.dataset.onglet !== "dossards";
       $("ongletAppareils").hidden = b.dataset.onglet !== "appareils";
+      $("ongletAppJuge").hidden = b.dataset.onglet !== "appjuge";
       $("ongletComptes").hidden = b.dataset.onglet !== "comptes";
       $("ongletMoi").hidden = b.dataset.onglet !== "moi";
       if (b.dataset.onglet === "comptes") chargerComptes();
@@ -481,6 +511,21 @@
   // --- Dossards -------------------------------------------------------------
 
   $("btnRafraichirAppareils").addEventListener("click", chargerAppareils);
+
+  // --- App juge (spec 007 : le QR d'installation, enfin reel) ---------------
+  $("btnChargerLienJuge").addEventListener("click", function () {
+    appeler("/admin/lien-juge").then(function (d) {
+      $("lienJugeQr").innerHTML = d.qr;
+      $("lienJugeUrl").textContent = d.url;
+      $("lienJugeContenu").hidden = false;
+      $("lienJugeIndisponible").hidden = true;
+      $("btnChargerLienJuge").hidden = true;
+    }).catch(function (e) {
+      $("lienJugeIndisponible").textContent = (e && e.message) ||
+        "Lien indisponible : la cle PWA n'est pas configuree sur le serveur.";
+      $("lienJugeIndisponible").hidden = false;
+    });
+  });
   $("btnChercherRef").addEventListener("click", chercherRef);
   $("aRef").addEventListener("keydown", function (e) {
     // Le geste naturel : taper six caracteres et appuyer sur Entree.

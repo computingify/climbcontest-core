@@ -20,8 +20,22 @@ logger = logging.getLogger(__name__)
 _fil: threading.Thread | None = None
 _verrou_demarrage = threading.Lock()
 
+# La derniere plainte du miroir, lisible par /health (audit du 30/08).
+#
+# Le 30/08, 714 reussites attendaient sur la VM et il a fallu OUVRIR UN SSH
+# pour apprendre pourquoi (« aucun classeur relie a cette competition »). La
+# cause etait deja dans une variable locale de la boucle -- elle etait juste
+# illisible de l'exterieur. On la range ici : /health la montre, et le
+# diagnostic se fait depuis n'importe ou.
+_derniere_erreur: str | None = None
+
+
+def derniere_erreur() -> str | None:
+    return _derniere_erreur
+
 
 def _boucle(app, periode: int, taille_lot: int) -> None:
+    global _derniere_erreur
     arret = app.extensions.setdefault("climbcontest_arret", threading.Event())
     logger.info("miroir : fil demarre (lot=%d, periode=%ds)", taille_lot, periode)
 
@@ -40,6 +54,7 @@ def _boucle(app, periode: int, taille_lot: int) -> None:
                 if derniere_plainte:
                     logger.info("miroir : ca repart")
                 derniere_plainte = None
+                _derniere_erreur = None
                 logger.info("miroir : %d envoyee(s), %d restante(s)",
                             r["envoyees"], r["restantes"])
             elif r["erreur"]:
@@ -54,8 +69,10 @@ def _boucle(app, periode: int, taille_lot: int) -> None:
                     logger.warning("miroir : %s (%d en attente)",
                                    r["erreur"], r["restantes"])
                     derniere_plainte = r["erreur"]
+                _derniere_erreur = r["erreur"]
             else:
                 derniere_plainte = None
+                _derniere_erreur = None
         except Exception:
             # Le fil ne doit JAMAIS mourir : s'il s'arrete, les reussites
             # s'accumulent en base sans que personne ne le voie -- sauf le

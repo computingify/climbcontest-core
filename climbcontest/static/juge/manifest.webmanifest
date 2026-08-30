@@ -6,8 +6,8 @@
   "scope": "/juge",
   "display": "standalone",
   "orientation": "portrait",
-  "background_color": "#0E1116",
-  "theme_color": "#0E1116",
+  "background_color": "#0B0D11",
+  "theme_color": "#0B0D11",
   "lang": "fr",
   "icons": [
     { "src": "/static/juge/icone-192.png", "sizes": "192x192", "type": "image/png" },

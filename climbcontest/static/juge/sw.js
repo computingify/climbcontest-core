@@ -20,7 +20,9 @@
  * C'est écrit dans le runbook.
  */
 
-const CACHE = "climbcontest-juge-v1";
+// v2 : la refonte visuelle (Archivo, couleurs de circuit). Changer ce nom
+// est ce qui fait qu'un iPhone deja installe jette l'ancienne coquille.
+const CACHE = "climbcontest-juge-v2";
 
 /**
  * Ce qu'on garde pour pouvoir démarrer sans réseau.
@@ -39,6 +41,8 @@ const COQUILLE = [
   "/static/juge/file.js",
   "/static/juge/idb.js",
   "/static/juge/catalogue.js",
+  "/static/juge/couleurs.js",
+  "/static/juge/archivo.ttf",
   "/static/juge/expediteur.js",
   "/static/juge/politique.js",
   "/static/juge/verrou.js",
