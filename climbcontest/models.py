@@ -31,6 +31,24 @@ SOURCE_CLASSEUR, SOURCE_MANUEL, SOURCE_HELLOASSO = "classeur", "manuel", "helloa
 SOURCE_SCAN = "scan"
 
 
+def prochaine_version_catalogue() -> int:
+    """Un numero de version de catalogue qui n'a jamais servi.
+
+    Un `max(...) + 1` sur TOUTES les competitions, et non un compteur remis a 1
+    a chaque edition. Voir le commentaire de `Competition.catalogue_version`
+    pour ce que la remise a 1 cassait.
+
+    Tolerant a une base pas encore creee : la valeur de repli est 1, ce qui est
+    le cas de la toute premiere competition.
+    """
+    from sqlalchemy import func
+    try:
+        maximum = db.session.query(func.max(Competition.catalogue_version)).scalar()
+    except Exception:                       # table absente : premier demarrage
+        return 1
+    return (maximum or 0) + 1
+
+
 class Competition(db.Model):
     """Une compétition — une journée, un classeur, un jeu de participants."""
 
@@ -48,7 +66,20 @@ class Competition(db.Model):
 
     # Incrémentée à chaque changement de participant ou de bloc. C'est ce qui
     # permet à l'application juge de ne retélécharger qu'un delta (spec 003).
-    catalogue_version = Column(Integer, nullable=False, default=1)
+    # ⚠️ Globalement croissante, JAMAIS repartie a 1 (correctif du 30/08).
+    #
+    # Les telephones valident leur catalogue avec un simple entier
+    # (`If-None-Match: "3"`). Tant que chaque competition repartait a 1, deux
+    # competitions differentes portaient le meme numero : un telephone ayant
+    # servi a une competition de test recevait un 304 sur la competition
+    # suivante, et gardait la liste de la premiere. Il affichait alors le nom
+    # d'un grimpeur de test pour un dossard bien reel -- et le nom affiche est
+    # le SEUL controle humain qu'a le juge avant de valider.
+    #
+    # Le defaut est calcule par `prochaine_version_catalogue()` a la creation :
+    # un numero jamais encore servi, donc jamais confondu.
+    catalogue_version = Column(Integer, nullable=False,
+                               default=lambda: prochaine_version_catalogue())
 
     # Options propres à l'édition : validation par couleur et sa variante.
     # JSON en texte : SQLite comme PostgreSQL, sans extension.

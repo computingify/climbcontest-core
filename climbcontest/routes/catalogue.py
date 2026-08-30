@@ -57,7 +57,12 @@ def catalogue():
     depuis = request.args.get("depuis", type=int)
     connue = request.headers.get("If-None-Match", "")
     a_jour = (
-        (depuis is not None and depuis >= version)
+        # ⚠️ `==`, et non `>=` (correctif du 30/08). Un client annoncant un
+        # numero PLUS GRAND que la version courante n'est pas a jour : il vient
+        # d'ailleurs -- d'une autre competition, ou d'une base restauree. Lui
+        # repondre 304 le laissait travailler sur une liste qui n'est pas celle
+        # de la competition en cours.
+        (depuis is not None and depuis == version)
         # Un cache peut envoyer plusieurs étiquettes, ou les préfixer par W/.
         or any(e.strip().lstrip("W/").strip() == etiquette
                for e in connue.split(",") if e.strip())

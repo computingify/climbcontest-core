@@ -34,10 +34,6 @@ qu'on ne met pas à jour le matin d'une compétition :
   d'unicité qui tranche, et la tentative perdante recommence.
 - **`GET /admin/referentiels`** : les catégories et les clubs connus de la
   compétition en cours, pour remplir ces listes.
-- **Navigation en tiroir** (burger à gauche, 240 px), à la place des huit
-  pastilles horizontales. Visible en permanence au-delà de 900 px, glissant
-  par-dessus en dessous, refermé par `Échap`, par le voile ou par le choix d'une
-  section.
 
 ### Modifié
 
@@ -47,7 +43,7 @@ qu'on ne met pas à jour le matin d'une compétition :
   annonay » → « CAF Annonay ») ; catégorie tout en majuscules et l'espace avant
   le genre rétabli (« U13F » → « U13 F »). L'import du classeur, lui, n'est
   **pas** reformaté : le classeur fait autorité sur ses lignes.
-- L'onglet « Dossards » choisit sa catégorie dans une liste, entrée vide =
+- La vue « Dossards » choisit sa catégorie dans une liste, entrée vide =
   toutes.
 
 ### Sécurité
@@ -57,6 +53,28 @@ qu'on ne met pas à jour le matin d'une compétition :
   numéro 3 était remplacé si le classeur apportait un jour un dossard 3 — et ses
   réussites, attachées à la ligne, changeaient de propriétaire sans que rien ne
   le dise. L'import refuse désormais, et le signale dans son rapport.
+
+## [0.8.1] — 2026-08-30
+
+### Corrigé
+
+- **Le catalogue d'une compétition n'est plus servi pour une autre.** Scénario
+  certain : on répète le jour J sur une compétition de test, puis on crée celle
+  de novembre — les téléphones de la répétition gardaient la liste de test.
+
+  Les téléphones valident leur catalogue avec un simple entier
+  (`If-None-Match: "3"`), et `catalogue_version` repartait à 1 à chaque
+  compétition : deux compétitions portaient le même numéro, et le serveur
+  répondait `304` sur une liste qui n'était pas la sienne.
+
+  Ce n'est pas une corruption de données — le serveur enregistre bien la
+  réussite sur la bonne compétition. C'est **le contrôle humain** qui saute :
+  le juge lit le nom affiché pour vérifier qu'il a le bon grimpeur, et il
+  lisait un nom de test pour un dossard bien réel.
+
+  `catalogue_version` devient globalement croissante (un numéro ne ressert
+  jamais) et `?depuis=N` exige `==` au lieu de `>=`. Rien à changer sur les
+  téléphones, et le `304` continue d'économiser les 15 ko de chaque sondage.
 
 ## [0.8.0] — 2026-08-30
 
