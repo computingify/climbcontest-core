@@ -558,14 +558,47 @@ function heureLocale(iso) {
 
 // --- Démarrage --------------------------------------------------------------
 
+// L'invite d'installation de Chrome Android, si le navigateur nous la donne.
+// On la RETIENT au lieu de la laisser partir : le bandeau devient alors un
+// vrai bouton qui ouvre l'invite native — un geste au lieu de trois.
+let inviteInstallation = null;
+window.addEventListener("beforeinstallprompt", (e) => {
+  e.preventDefault();
+  inviteInstallation = e;
+  proposerLInstallation();
+});
+
 function proposerLInstallation() {
   const installee = window.matchMedia("(display-mode: standalone)").matches ||
                     window.navigator.standalone === true;
-  // On ne le propose qu'aux iPhone : ailleurs le navigateur le propose seul.
-  // Et ce n'est pas cosmétique — iOS efface le stockage d'une PWA NON installée
-  // restée inutilisée, ce qui emporterait la file.
+  // iPhone ET Android (audit du 30/08 — le bandeau ne visait qu'iOS, un
+  // bénévole Android n'avait aucune indication). Installer n'est pas
+  // cosmétique : un navigateur efface le stockage d'un site peu visité, ce
+  // qui emporterait la file ; une PWA installée est protégée.
   const iOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
-  $("installer").hidden = installee || !iOS;
+  const android = /Android/.test(navigator.userAgent);
+  const bandeau = $("installer");
+  bandeau.hidden = installee || !(iOS || android);
+  if (bandeau.hidden) return;
+
+  if (inviteInstallation) {
+    // Chrome Android nous laisse déclencher l'invite : le bandeau devient
+    // un bouton.
+    bandeau.textContent = "Installer l'application sur ce téléphone — un appui suffit.";
+    bandeau.style.cursor = "pointer";
+    bandeau.onclick = async () => {
+      const invite = inviteInstallation;
+      inviteInstallation = null;
+      invite.prompt();
+      const choix = await invite.userChoice;
+      if (choix.outcome === "accepted") bandeau.hidden = true;
+    };
+  } else if (android) {
+    bandeau.textContent = "Ajoute cette page à ton écran d'accueil (menu ⋮ → " +
+      "« Ajouter à l'écran d'accueil ») : elle s'ouvrira comme une application, " +
+      "et gardera tes scans même sans réseau.";
+  }
+  // Sur iOS, le texte du bandeau écrit dans la page convient tel quel.
 }
 
 async function demarrer() {
