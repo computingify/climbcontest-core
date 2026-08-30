@@ -295,3 +295,41 @@ class TestPremierAdmin:
 
     def test_un_organisateur_ne_compte_pas_comme_admin(self, organisateur):
         assert comptes.existe_un_admin() is False
+
+
+class TestIdentiteALaConnexion:
+    """La connexion dit la MEME chose que /admin/moi.
+
+    Le defaut corrige : `/admin/moi` portait la competition active, la reponse
+    de connexion non. La console lit `etat.moi.competition` juste apres la
+    connexion -- elle affichait donc « aucune competition active » alors qu'une
+    competition l'etait, et ne se corrigeait qu'au rechargement de la page.
+
+    C'est le pire moment pour ce message. Le bandeau existe pour dire SUR QUOI
+    on agit ; un organisateur qui se connecte le matin de la competition lisait
+    exactement le contraire de la verite.
+    """
+
+    def test_la_connexion_porte_la_competition_active(self, client, admin, jeu):
+        r = client.post("/admin/connexion",
+                        json={"identifiant": "chef", "mot_de_passe": MDP})
+        assert r.status_code == 200
+        comp = r.get_json()["competition"]
+        assert comp is not None, "le bandeau afficherait « aucune competition active »"
+        assert comp["nom"] == jeu["competition"].nom
+
+    def test_connexion_et_moi_disent_la_meme_chose(self, client, admin, jeu):
+        """Deux reponses qui doivent coincider ne s'ecrivent pas deux fois :
+        c'est leur divergence qui a produit le defaut."""
+        a = client.post("/admin/connexion",
+                        json={"identifiant": "chef", "mot_de_passe": MDP}).get_json()
+        b = client.get("/admin/moi").get_json()
+        assert a == b
+
+    def test_sans_competition_active_le_champ_est_nul(self, client, admin, jeu):
+        """Et la, le bandeau a RAISON de le dire."""
+        jeu["competition"].active = False
+        db.session.commit()
+        r = client.post("/admin/connexion",
+                        json={"identifiant": "chef", "mot_de_passe": MDP})
+        assert r.get_json()["competition"] is None
