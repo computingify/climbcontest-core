@@ -1,5 +1,11 @@
 # 007 — L'application juge sur iPhone, sans payer de store
 
+> ⚠️ **Le transport du jeton a changé depuis.** Cette spec le fait voyager
+> dans le fragment (`#j=`) ; la [spec 014](../014-jeton-juge-dans-le-lien/)
+> le déplace dans la requête (`?j=`), parce qu'un fragment n'est pas
+> transmis à `start_url` du manifeste — donc l'application **installée**
+> démarrait sans jeton. Le fragment reste accepté.
+
 ## Résumé
 
 Un bénévole qui arrive avec un iPhone ne peut pas juger. L'application est

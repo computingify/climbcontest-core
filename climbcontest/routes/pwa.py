@@ -15,8 +15,11 @@ donne aux benevoles, et n'est jamais ecrit dans ces fichiers.
 """
 import logging
 
+from urllib.parse import quote
+
 from flask import (
-    Blueprint, current_app, make_response, render_template, send_from_directory,
+    Blueprint, current_app, make_response, render_template, request,
+    send_from_directory,
 )
 
 logger = logging.getLogger(__name__)
@@ -38,7 +41,11 @@ def application():
     worker (IT4) qui prendra en charge le fonctionnement hors ligne, avec une
     strategie explicite plutot qu'un cache navigateur qu'on ne controle pas.
     """
-    reponse = make_response(render_template("juge.html"))
+    # Le lien vers le manifeste porte le jeton (spec 014) : c'est CE
+    # manifeste-la que le navigateur lit au moment ou il propose d'installer,
+    # et c'est de la que l'application installee tirera son `start_url`.
+    reponse = make_response(render_template(
+        "juge.html", suffixe_manifeste=_suffixe(_jeton_demande())))
     reponse.headers["Cache-Control"] = "no-cache, must-revalidate"
     return reponse
 
@@ -75,8 +82,40 @@ def service_worker():
 
 @bp.get("/manifest.webmanifest")
 def manifeste():
-    return send_from_directory(_dossier(), "manifest.webmanifest",
-                               mimetype="application/manifest+json")
+    """Le manifeste, RENDU et non servi tel quel (spec 014).
+
+    Son `start_url` porte le jeton quand la page qui le lie en avait un. C'est
+    la piece qui corrige le defaut constate a l'installation : sans jeton dans
+    `start_url`, l'application lancee depuis son icone ouvre `/juge` nu et ne
+    peut retrouver sa cle que dans son stockage local -- lequel est cloisonne
+    sur iPhone, donc vide.
+
+    ⚠️ Le jeton n'est JAMAIS ecrit dans un fichier du depot : il arrive par la
+    requete et ressort dans la reponse. Les deux depots sont publics, la regle
+    « aucun secret committe » reste entiere.
+
+    Sans `?j=`, la reponse est exactement le manifeste d'avant. Il doit rester
+    valide et servable seul : un visiteur de passage, un robot d'indexation ou
+    un navigateur qui le demande sans contexte ne doivent rien voir d'anormal.
+    """
+    reponse = make_response(render_template("manifest.webmanifest",
+                                            depart=_depart(_jeton_demande())))
+    reponse.headers["Content-Type"] = "application/manifest+json"
+    return reponse
+
+
+def _jeton_demande() -> str:
+    return (request.args.get("j") or "").strip()
+
+
+def _depart(jeton: str) -> str:
+    """`start_url` : avec le jeton s'il y en a un, sinon la valeur d'origine."""
+    return f"/juge?j={quote(jeton, safe='')}" if jeton else "/juge"
+
+
+def _suffixe(jeton: str) -> str:
+    """Ce qu'on accroche a l'adresse du manifeste pour lui transmettre le jeton."""
+    return f"?j={quote(jeton, safe='')}" if jeton else ""
 
 
 def _dossier() -> str:

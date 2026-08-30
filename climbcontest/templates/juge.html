@@ -11,7 +11,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="ClimbContest">
 <title>Juge — ClimbContest</title>
-<link rel="manifest" href="/juge/manifest.webmanifest">
+<link rel="manifest" href="/juge/manifest.webmanifest{{ suffixe_manifeste }}">
 <link rel="apple-touch-icon" href="/static/juge/icone-192.png">
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='7' fill='%232F6BB0'/><circle cx='16' cy='16' r='7' fill='%23EEF1F5'/></svg>">
 <style>
@@ -311,6 +311,14 @@
     <path id="barreVoyant" d="M4.2 4.2 L19.8 19.8" />
   </svg>
 </header>
+
+<!-- Le filet (spec 014). Affiche UNIQUEMENT si l'application demarre sans
+     jeton : une installation faite avant la spec 014, ou un stockage vide.
+     Sans lui, le juge lit « cette application a besoin du lien fourni par
+     l'organisateur » et n'a aucun geste a sa portee. -->
+<p id="relier" hidden>
+  <button class="action" id="btnRelier" type="button">Scanner le QR de l’organisateur</button>
+</p>
 
 <p id="installer" hidden>
   Ajoute cette page à ton écran d'accueil : elle s'ouvrira comme une
