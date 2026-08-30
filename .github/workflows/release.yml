@@ -51,6 +51,14 @@ jobs:
         run: pytest -q
 
       - name: L'application demarre-t-elle ?
+        env:
+          # Les memes variables que tests.yml, et pour la meme raison : depuis
+          # la spec 012 le mode strict est le defaut, et une application SANS
+          # cle repond 503 a dessein. Sans elles, ce smoke test echouait des
+          # que le defaut strict a ete active -- constate sur la release
+          # v0.7.0, premiere taguee apres.
+          CLIMBCONTEST_SHEETS_ACTIF: "0"
+          CLIMBCONTEST_API_KEY: cle-de-ci
         run: |
           echo "${{ steps.version.outputs.tag }}" > VERSION
           python -c "
