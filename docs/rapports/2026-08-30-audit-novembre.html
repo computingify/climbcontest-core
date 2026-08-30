@@ -309,10 +309,13 @@ simulées de Google. C'est le cœur du système, et il est solide.</div>
 <span class="qui">Adrien</span> demandent un mot de passe ou une décision qui
 n'appartient qu'à toi.</p>
 <ul class="cocher">
-  <li><span class="qui">Adrien</span>Poser <code>CLIMBCONTEST_API_KEY</code> et
-      <code>CLIMBCONTEST_API_KEY_PWA</code> sur la VM — runbook
-      «&nbsp;Poser la clé d'API&nbsp;». Sans la première, tous les téléphones
-      reçoivent 503&nbsp;; sans la seconde, l'onglet App juge le dira.</li>
+  <li><span class="qui">Adrien</span>Côté clés, l'état constaté en production
+      le 30/08&nbsp;: <strong>une clé est déjà posée</strong>, mais le régime
+      est <em>toléré</em> (<code>/health</code> → <code>regime: "tolere"</code>).
+      Avant novembre&nbsp;: poser <code>CLIMBCONTEST_API_KEY_PWA</code> (sans
+      elle, l'onglet App juge le dira), puis passer en régime
+      <strong>strict</strong> une fois les 25 téléphones à jour — runbook
+      «&nbsp;Poser la clé d'API&nbsp;».</li>
   <li><span class="qui">Adrien</span>Recompiler l'application avec la clé
       (<code>~/.gradle/gradle.properties</code>, jamais le fichier du projet) et
       la mettre sur les 25 téléphones.</li>
