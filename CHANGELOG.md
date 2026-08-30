@@ -19,6 +19,14 @@ qu'on ne met pas à jour le matin d'une compétition :
 
 ## [Non publié]
 
+## [0.9.0] — 2026-08-30
+
+La console cesse de faire taper ce qui devrait être choisi. Le défaut qui a
+motivé cette version se lisait en production : 26 « U13 H » et **un** « U13 M ».
+Ce grimpeur était seul dans sa catégorie, donc premier d'un classement d'une
+personne, et absent du vrai « U13 H ». Un champ libre produit ça ; une liste ne
+le peut pas.
+
 ### Ajouté
 
 - **La console guide la saisie** (spec 013). Catégorie et club deviennent des
@@ -45,6 +53,16 @@ qu'on ne met pas à jour le matin d'une compétition :
   **pas** reformaté : le classeur fait autorité sur ses lignes.
 - La vue « Dossards » choisit sa catégorie dans une liste, entrée vide =
   toutes.
+
+### Corrigé
+
+- **La console sait sur quelle compétition elle agit dès la connexion.** Le
+  bandeau prévu pour dire *sur quoi on agit* affichait « aucune compétition
+  active » alors qu'une compétition l'était, et ne se corrigeait qu'au
+  rechargement de la page. `/admin/moi` portait la compétition, la réponse de
+  connexion non — deux réponses écrites séparément avaient divergé. C'est le
+  pire moment pour ce message : un organisateur qui se connecte le matin de la
+  compétition lisait l'exact contraire de la vérité.
 
 ### Sécurité
 
