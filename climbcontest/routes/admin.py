@@ -23,9 +23,10 @@ from .. import qr
 from ..extensions import db
 from ..models import SOURCE_MANUEL, Participant, Utilisateur
 from ..contest import (
-    ErreurMetier, ajouter_participant, appareils, bloc_par_tag,
-    competition_active, enregistrer_reussite, participant_par_dossard,
-    reaffecter_dossard, reussites_tracees, supprimer_reussite,
+    ErreurMetier, ajouter_participant, ajouter_participant_numerote, appareils,
+    bloc_par_tag, competition_active, enregistrer_reussite,
+    participant_par_dossard, reaffecter_dossard, reussites_tracees,
+    supprimer_reussite,
 )
 from ..sheets.client import ErreurClasseur
 from ..sheets.importer import importer
@@ -261,6 +262,44 @@ def changer_mon_mot_de_passe():
 # participant quelques minutes avant le debut de la competition voire meme
 # alors que la competition a demarre ».
 
+@bp.get("/referentiels")
+@exige_role(ORGANISATEUR)
+def referentiels():
+    """Les categories et les clubs deja connus de la competition en cours.
+
+    De quoi remplir les listes deroulantes de la console (spec 013). La liste
+    est **derivee, pas stockee** : c'est l'ensemble des valeurs distinctes
+    portees par les participants. Ajouter une categorie, c'est donc l'ecrire une
+    fois dans « Autre… » -- elle rejoint la liste des l'enregistrement. Aucune
+    table a tenir a jour, aucun ecran de gestion.
+
+    Un seul appel pour les deux listes : la console les charge ensemble, a
+    l'ouverture. Deux routes auraient fait deux allers-retours pour un geste.
+
+    Sans competition active : deux listes vides et `success: true`, **pas une
+    erreur**. Le formulaire doit rester utilisable -- « Autre… » suffit a creer
+    le tout premier participant.
+    """
+    try:
+        comp = competition_active()
+    except ErreurMetier:
+        return jsonify({"success": True, "categories": [], "clubs": []}), 200
+
+    def distinctes(colonne):
+        return sorted(
+            v for (v,) in db.session.query(colonne)
+            .filter(Participant.competition_id == comp.id, colonne.isnot(None))
+            .distinct()
+            if v and v.strip()
+        )
+
+    return jsonify({
+        "success": True,
+        "categories": distinctes(Participant.categorie),
+        "clubs": distinctes(Participant.club),
+    }), 200
+
+
 @bp.get("/participants")
 @exige_role(ORGANISATEUR)
 def lister_participants():
@@ -290,12 +329,21 @@ def ajouter_participant_route():
     corps = _corps_objet()
     if corps is None:
         return jsonify({"success": False, "message": "Corps JSON attendu"}), 400
+    # Le dossard n'est plus saisi (spec 013) : il est attribue. Un corps qui en
+    # porte un quand meme est honore -- la route reste compatible avec les
+    # appels existants, et avec ses propres tests.
     try:
-        p = ajouter_participant(
-            nom=corps.get("nom", ""), prenom=corps.get("prenom"),
-            club=corps.get("club"), categorie=corps.get("categorie"),
-            dossard=corps.get("dossard"),
-        )
+        if corps.get("dossard") in (None, ""):
+            p = ajouter_participant_numerote(
+                nom=corps.get("nom", ""), prenom=corps.get("prenom"),
+                club=corps.get("club"), categorie=corps.get("categorie"),
+            )
+        else:
+            p = ajouter_participant(
+                nom=corps.get("nom", ""), prenom=corps.get("prenom"),
+                club=corps.get("club"), categorie=corps.get("categorie"),
+                dossard=corps.get("dossard"),
+            )
     except ErreurMetier as e:
         return jsonify({"success": False, "message": e.message}), e.code
 

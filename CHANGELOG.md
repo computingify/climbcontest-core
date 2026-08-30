@@ -19,6 +19,45 @@ qu'on ne met pas à jour le matin d'une compétition :
 
 ## [Non publié]
 
+### Ajouté
+
+- **La console guide la saisie** (spec 013). Catégorie et club deviennent des
+  listes déroulantes, remplies avec ce que la compétition connaît déjà, et
+  terminées par « ＋ Autre… » pour une valeur inédite — qui rejoint la liste dès
+  l'enregistrement. La motivation est mesurée, pas théorique : la production
+  portait 26 « U13 H » et **un** « U13 M ». Ce grimpeur était seul dans sa
+  catégorie, donc premier d'un classement d'une personne.
+- **Le dossard est attribué, plus saisi.** Le serveur prend le premier numéro
+  **libre** — un trou dans la suite s'il y en a un. L'organisateur n'a plus à
+  savoir lesquels sont pris au moment où il a le moins de temps. Deux
+  inscriptions simultanées ne peuvent pas recevoir le même : c'est la contrainte
+  d'unicité qui tranche, et la tentative perdante recommence.
+- **`GET /admin/referentiels`** : les catégories et les clubs connus de la
+  compétition en cours, pour remplir ces listes.
+- **Navigation en tiroir** (burger à gauche, 240 px), à la place des huit
+  pastilles horizontales. Visible en permanence au-delà de 900 px, glissant
+  par-dessus en dessous, refermé par `Échap`, par le voile ou par le choix d'une
+  section.
+
+### Modifié
+
+- **Ce qui est tapé à la main est mis en forme avant d'être enregistré**, côté
+  serveur — donc y compris pour un appel direct à l'API. Nom et prénom en casse
+  stricte (« MARTIN » → « Martin ») ; club avec les sigles préservés (« CAF
+  annonay » → « CAF Annonay ») ; catégorie tout en majuscules et l'espace avant
+  le genre rétabli (« U13F » → « U13 F »). L'import du classeur, lui, n'est
+  **pas** reformaté : le classeur fait autorité sur ses lignes.
+- L'onglet « Dossards » choisit sa catégorie dans une liste, entrée vide =
+  toutes.
+
+### Sécurité
+
+- **L'import du classeur n'écrase plus un participant ajouté à la main.** Il
+  retrouvait les fiches *par leur dossard* : un inscrit sur place ayant reçu le
+  numéro 3 était remplacé si le classeur apportait un jour un dossard 3 — et ses
+  réussites, attachées à la ligne, changeaient de propriétaire sans que rien ne
+  le dise. L'import refuse désormais, et le signale dans son rapport.
+
 ## [0.7.0] — 2026-08-30
 
 L'audit de préparation de novembre, appliqué. Le détail : rapport

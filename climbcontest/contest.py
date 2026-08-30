@@ -9,6 +9,7 @@ from datetime import datetime
 from sqlalchemy import func
 from sqlalchemy.exc import IntegrityError
 
+from . import formatage
 from .extensions import db
 from .models import (
     Bloc, Competition, EN_COURS, Participant, ReaffectationDossard, SOURCE_MANUEL,
@@ -138,7 +139,10 @@ def ajouter_participant(nom: str, prenom: str | None = None,
     Le dossard est FACULTATIF : un inscrit qui n'est pas venu n'en a pas, et
     c'est precisement lui dont on reprendra le numero.
     """
-    nom = (nom or "").strip()
+    # Formate AVANT de tester le vide : « ,,, » n'est pas un nom, mais «   Jean »
+    # en est un. Spec 013 -- la mise en forme vit dans le metier, pas dans le
+    # navigateur, sinon le premier appel direct a l'API la contourne.
+    nom = formatage.nom(nom)
     if not nom:
         raise ErreurMetier("Le nom est obligatoire")
 
@@ -161,9 +165,9 @@ def ajouter_participant(nom: str, prenom: str | None = None,
     p = Participant(
         competition_id=comp.id,
         nom=nom,
-        prenom=(prenom or "").strip() or None,
-        club=(club or "").strip() or None,
-        categorie=(categorie or "").strip() or None,
+        prenom=formatage.nom(prenom),
+        club=formatage.club(club),
+        categorie=formatage.categorie(categorie),
         dossard=dossard,
         present=dossard is not None,
         source=source,
@@ -175,6 +179,82 @@ def ajouter_participant(nom: str, prenom: str | None = None,
     db.session.commit()
     logger.info("participant ajoute : %s (dossard %s)", p.nom_complet, dossard)
     return p
+
+
+def dossards_pris(comp: Competition) -> list[int]:
+    """Les dossards deja attribues dans cette competition, tries."""
+    return sorted(
+        d for (d,) in db.session.query(Participant.dossard)
+        .filter(Participant.competition_id == comp.id,
+                Participant.dossard.isnot(None))
+        if d is not None
+    )
+
+
+def prochain_dossard(comp: Competition) -> int:
+    """Le plus petit numero LIBRE. Un trou d'abord, sinon la suite.
+
+    Choix d'Adrien du 30/08 : « on ne prend que des emplacements de dossard
+    libre ». Avec 1, 2, 3, 7, 8 en base, on rend 4. Sans trou, 1..109 rend 110.
+
+    Sur cent vingt participants, c'est la lecture d'une colonne et une boucle :
+    le cout est nul, et l'algorithme se lit d'un coup d'oeil -- ce qui compte
+    davantage ici que la finesse.
+
+    ⚠️ Ce calcul ne garantit RIEN a lui seul : entre le moment ou il rend un
+    numero et celui ou la ligne est ecrite, une autre requete peut avoir pris le
+    meme. Ce qui protege, c'est la contrainte d'unicite en base, et la retente
+    de [ajouter_participant_numerote].
+    """
+    attendu = 1
+    for pris in dossards_pris(comp):
+        if pris > attendu:
+            break                       # trou trouve
+        if pris == attendu:
+            attendu += 1
+    return attendu
+
+
+def ajouter_participant_numerote(nom: str, prenom: str | None = None,
+                                 club: str | None = None,
+                                 categorie: str | None = None,
+                                 essais: int = 5) -> Participant:
+    """Ajoute un participant en lui attribuant le prochain dossard libre.
+
+    **La politique « toute inscription recoit un numero » est ici, pas dans
+    [ajouter_participant].** Celle-ci sait encore creer un inscrit SANS dossard,
+    et le modele de la spec 002 en depend : l'absent sans numero est precisement
+    celui dont on reprend le dossard.
+
+    Deux organisateurs qui inscrivent en meme temps calculent le meme « plus
+    petit numero libre ». C'est la contrainte `uq_dossard_competition` qui
+    tranche -- pas le calcul. On attrape les deux formes que prend ce conflit :
+
+    - `ErreurMetier(409)` : le controle d'occupation a vu l'autre arriver ;
+    - `IntegrityError` : l'autre est arrive entre le controle et le commit.
+
+    Au-dela de `essais` tentatives, ce n'est plus une course mais un defaut : il
+    doit remonter plutot qu'etre avale.
+    """
+    comp = competition_active()
+    derniere = None
+    for _ in range(essais):
+        numero = prochain_dossard(comp)
+        try:
+            return ajouter_participant(nom, prenom=prenom, club=club,
+                                       categorie=categorie, dossard=numero)
+        except ErreurMetier as e:
+            if e.code != 409:
+                raise                   # « nom obligatoire » : retenter n'y changerait rien
+            derniere = e
+        except IntegrityError as e:
+            db.session.rollback()
+            derniere = e
+        logger.warning("dossard %s pris pendant l'inscription, nouvelle tentative",
+                       numero)
+    raise ErreurMetier(
+        "Impossible d'attribuer un dossard : trop de saisies simultanees. "
+        "Reessaie dans un instant.", code=409) from derniere
 
 
 def reaffecter_dossard(participant: Participant, dossard: int) -> None:
