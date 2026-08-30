@@ -65,6 +65,19 @@ class Config:
     SEND_FILE_MAX_AGE_DEFAULT = 0
     SECRET_KEY = os.environ.get("CLIMBCONTEST_SECRET_KEY", "dev-non-secret")
 
+    # Le cookie de session de la console (audit du 30/08).
+    #
+    # Flask ne pose PAS `Secure` par defaut : le cookie d'un organisateur
+    # connecte partirait en clair si quelqu'un force http://. En production le
+    # site n'existe qu'en HTTPS derriere Caddy -- le cookie ne doit donc jamais
+    # voyager autrement. `CLIMBCONTEST_COOKIE_SECURE=0` reste possible pour un
+    # developpement local en http.
+    SESSION_COOKIE_SECURE = os.environ.get("CLIMBCONTEST_COOKIE_SECURE", "1") == "1"
+    SESSION_COOKIE_HTTPONLY = True     # le defaut de Flask, mais ecrit noir sur blanc
+    # `Lax` et pas `Strict` : la console est ouverte en suivant un lien, et un
+    # `Strict` couperait la session au premier clic depuis un message.
+    SESSION_COOKIE_SAMESITE = "Lax"
+
     # Cles d'API des juges (spec 012).
     #
     # Plusieurs cles acceptees en parallele, pour pouvoir en changer sans jour
@@ -123,3 +136,7 @@ class ConfigTest(Config):
     SQLALCHEMY_DATABASE_URI = "sqlite://"   # en mémoire
     SHEETS_ACTIF = False                    # aucun accès réseau dans les tests
     API_KEYS = ("cle-de-test",)
+    # Le client de test parle en http : un cookie `Secure` n'y reviendrait
+    # jamais, et TOUS les tests de session echoueraient pour une raison qui
+    # n'a rien a voir avec ce qu'ils testent.
+    SESSION_COOKIE_SECURE = False

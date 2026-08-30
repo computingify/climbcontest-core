@@ -14,6 +14,7 @@
 import { CLE_RANGEMENT, choisirJeton } from "./jeton.js";
 import { Api } from "./api.js";
 import { Catalogue, doitRafraichir } from "./catalogue.js";
+import { couleurDeCircuit, encreSur } from "./couleurs.js";
 import { Expediteur } from "./expediteur.js";
 import { FileDeReussites } from "./file.js";
 import { ETATS, Historique, refCourte } from "./historique.js";
@@ -31,6 +32,9 @@ const PERIODE_PRESENCE_MS = 30_000;
 
 const etat = {
   dossard: null, grimpeur: null, bloc: null,
+  // La couleur du circuit du bloc scanné (« Jaune », « Vert »…) : c'est elle
+  // qui teinte l'écran. `null` = teinte neutre.
+  couleurBloc: null,
   envoiEnCours: false, enAttente: 0, refusees: 0,
   garderGrimpeur: false, seulementNonArrives: false,
 };
@@ -137,6 +141,21 @@ function redessiner() {
   $("carteBloc").classList.toggle("fait", blocFait);
   $("valeurBloc").textContent = etat.bloc || "À scanner";
   $("valeurBloc").classList.toggle("attente", !blocFait);
+  $("detailBloc").textContent =
+    blocFait && etat.couleurBloc ? `Circuit ${etat.couleurBloc}` : "";
+
+  // La couleur du circuit prend l'écran dès que le bloc est scanné — le même
+  // principe que sur Android. Deux variables CSS suffisent : la teinte, et
+  // l'encre lisible dessus (jaune et craie demandent de l'encre sombre).
+  const teinte = blocFait ? couleurDeCircuit(etat.couleurBloc) : null;
+  const racine = document.documentElement.style;
+  if (teinte) {
+    racine.setProperty("--circuit", teinte);
+    racine.setProperty("--encre-circuit", encreSur(teinte));
+  } else {
+    racine.removeProperty("--circuit");
+    racine.removeProperty("--encre-circuit");
+  }
 
   const pret = grimpeurFait && blocFait && !etat.envoiEnCours;
   $("envoyer").disabled = !pret;
@@ -160,6 +179,7 @@ async function rafraichirLesCompteurs() {
 
 function effacer() {
   etat.dossard = etat.grimpeur = etat.bloc = null;
+  etat.couleurBloc = null;
   redessiner();
 }
 
@@ -215,7 +235,13 @@ async function scanner(quoi) {
 
 function retenir(quoi, code, libelle) {
   if (quoi === "grimpeur") { etat.dossard = code; etat.grimpeur = libelle; }
-  else { etat.bloc = libelle || code; }
+  else {
+    etat.bloc = libelle || code;
+    // La couleur du circuit : c'est elle qui donne sa couleur à l'écran,
+    // comme sur Android. `null` pour un bloc inconnu du catalogue — l'écran
+    // reste alors sur sa teinte neutre.
+    etat.couleurBloc = catalogue.couleurDuBloc(code);
+  }
   redessiner();
 }
 
@@ -248,7 +274,9 @@ async function envoyer() {
     etat.envoiEnCours = false;
     // « Garder le grimpeur entre deux blocs » : seul le bloc repart à zéro,
     // pour enchaîner les blocs d'un même grimpeur sans le rescanner.
-    if (etat.garderGrimpeur) { etat.bloc = null; redessiner(); } else effacer();
+    if (etat.garderGrimpeur) {
+      etat.bloc = null; etat.couleurBloc = null; redessiner();
+    } else effacer();
   } catch (e) {
     // Stockage plein, mode privé, base inaccessible. On ne dit surtout pas
     // « Validé » : ce serait mentir au juge.

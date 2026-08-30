@@ -46,14 +46,34 @@ Puis :
 4. **Le classeur est-il le bon ?** ⚠️ Point le plus souvent oublié.
    Vérifier que l'identifiant du classeur pointe sur **la** compétition à venir.
 
-5. **Un scan de bout en bout** avec un vrai téléphone et un vrai QR code.
+5. **Le jeton Google est-il sur la VM ?** ⚠️ Constaté absent à l'audit du
+   30/08 : `/opt/climbcontest/shared/secrets/` était **vide** — le miroir
+   n'aurait jamais écrit une ligne dans le classeur. Voir
+   [Poser le jeton Google](#poser-le-jeton-google) plus bas.
 
-6. **Instantané de secours**
+6. **Le miroir écrit-il vraiment ?** Saisir une réussite de test depuis la
+   console, attendre une minute, puis :
+   ```bash
+   curl -s https://climbcontest.adn-dev.fr/health | \
+     python3 -c "import sys,json; d=json.load(sys.stdin); \
+       print('en attente :', d['reussites_en_attente'], \
+             '| derniere erreur :', d['miroir_derniere_erreur'])"
+   ```
+   Attendu : `en attente : 0 | derniere erreur : None`. Une erreur qui reste
+   affichée dit **exactement** ce qui bloque (« aucun classeur relié… »,
+   « Aucun jeton Google… ») — plus besoin d'ouvrir un SSH pour le savoir.
+   Supprimer ensuite la réussite de test depuis la console.
+
+7. **Un scan de bout en bout** avec un vrai téléphone et un vrai QR code —
+   et un iPhone de bénévole via l'onglet **App juge** de la console
+   (le QR d'installation s'y trouve).
+
+8. **Instantané de secours**
    ```bash
    ssh root@192.168.0.21 'qm snapshot 110 prete-compet --description "Prete pour la competition"'
    ```
 
-7. **Éteindre**
+9. **Éteindre**
    ```bash
    climbcontest stop
    ```
@@ -224,6 +244,28 @@ climbcontest cloture
 
 ---
 
+## Poser le jeton Google
+
+À faire **une fois** (et à refaire si le jeton est révoqué). Sans lui, le
+miroir vers le classeur tourne mais n'écrit jamais — les réussites restent en
+base, `/health` montre `reussites_en_attente` qui monte et
+`miroir_derniere_erreur` qui dit pourquoi.
+
+Le jeton vit sur le Mac (`climbcontest-core/token.pickle`, hors dépôt). Le
+poser sur la VM, dans le dossier que les releases ne touchent jamais :
+
+```bash
+scp token.pickle adrien@192.168.0.32:/tmp/token.pickle
+ssh adrien@192.168.0.32 'sudo install -m 600 -o climbcontest -g climbcontest \
+  /tmp/token.pickle /opt/climbcontest/shared/secrets/token.pickle && rm /tmp/token.pickle'
+```
+
+Puis vérifier avec l'étape « Le miroir écrit-il vraiment ? » ci-dessus. Si le
+jeton est périmé et non rafraîchissable, refaire le consentement **depuis le
+Mac** (une machine avec navigateur) et re-poser le fichier.
+
+---
+
 ## Si tout est cassé : le plan de repli
 
 La version 2025-2026 tourne toujours sur Render et reste déployable en une
@@ -256,6 +298,19 @@ curl -s localhost:8000/health | python3 -m json.tool | grep -E 'status|regime|cl
 ```
 
 Attendu : `"status": "ok"`, `"regime": "strict"`, `"cles_acceptees": 1`.
+
+Pour les **iPhone des bénévoles** (PWA), poser aussi une clé distincte —
+c'est elle qui voyage dans le lien d'installation, la séparer permet de la
+révoquer sans toucher aux téléphones Android :
+
+```bash
+CLE_PWA=$(python3 -c 'import secrets; print(secrets.token_urlsafe(32))')
+echo "CLIMBCONTEST_API_KEY_PWA=$CLE_PWA" | sudo tee -a /opt/climbcontest/shared/secrets/env
+sudo systemctl restart climbcontest
+```
+
+Le lien et le QR d'installation apparaissent alors dans la console,
+onglet **App juge** (`cles_acceptees` passe à 2).
 
 ### 2. La lire une fois, pour l'application
 
