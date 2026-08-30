@@ -312,6 +312,14 @@
   </svg>
 </header>
 
+<!-- Le filet (spec 014). Affiche UNIQUEMENT si l'application demarre sans
+     jeton : une installation faite avant la spec 014, ou un stockage vide.
+     Sans lui, le juge lit « cette application a besoin du lien fourni par
+     l'organisateur » et n'a aucun geste a sa portee. -->
+<p id="relier" hidden>
+  <button class="action" id="btnRelier" type="button">Scanner le QR de l’organisateur</button>
+</p>
+
 <p id="installer" hidden>
   Ajoute cette page à ton écran d'accueil : elle s'ouvrira comme une
   application, et gardera tes scans même sans réseau.

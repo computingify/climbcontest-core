@@ -19,6 +19,42 @@ qu'on ne met pas à jour le matin d'une compétition :
 
 ## [Non publié]
 
+### Corrigé
+
+- **Le jeton du juge survit à l'installation de l'application** (spec 014).
+  Symptôme : l'application ajoutée à l'écran d'accueil affichait « cette
+  application a besoin du lien fourni par l'organisateur », alors qu'elle avait
+  été installée depuis le lien qui porte le jeton.
+
+  Deux causes, toutes deux dans notre code. L'adresse était nettoyée aussitôt
+  lue, donc « Sur l'écran d'accueil » capturait `/juge` sans jeton ; et
+  `start_url` du manifeste ne portait aucun jeton, donc l'application lancée
+  depuis son icône ne pouvait le retrouver que dans son stockage local — lequel
+  est **cloisonné sur iPhone**, séparé de Safari.
+
+  Le jeton passe donc du fragment (`#j=`) à la requête (`?j=`), et le manifeste
+  devient dynamique : son `start_url` porte le jeton. L'application le reçoit
+  dans son adresse **à chaque lancement, sur toutes les plateformes**, sans plus
+  dépendre d'un stockage qui peut être vidé ou cloisonné.
+
+  Les liens déjà distribués en `#j=` restent acceptés.
+
+### Ajouté
+
+- **Un bouton « Scanner le QR de l'organisateur »**, affiché uniquement quand
+  l'application démarre sans jeton. Une installation faite avant ce correctif ne
+  peut pas se réparer toute seule ; sans ce bouton, le juge lit un constat et
+  n'a aucun geste à sa portée.
+
+### Sécurité
+
+- ⚠️ **Le jeton voyage désormais dans une partie de l'adresse qui est
+  journalisée.** C'est le prix assumé du correctif ci-dessus, et il se paie sur
+  le proxy : **un filtre masquant le paramètre `j` dans le journal de `edge`
+  reste à poser** — il n'est pas dans ce dépôt, et doit accompagner le
+  déploiement. Rappel de proportion : ce jeton est affiché au mur en QR ; il
+  arrête un robot qui balaie Internet, pas quelqu'un présent dans la salle.
+
 ## [0.7.0] — 2026-08-30
 
 L'audit de préparation de novembre, appliqué. Le détail : rapport

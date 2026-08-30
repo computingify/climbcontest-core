@@ -10,7 +10,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 
-import { choisirJeton, jetonDeLaRequete, jetonDuFragment } from
+import { choisirJeton, jetonDUneAdresse, jetonDeLaRequete, jetonDuFragment } from
   "../../climbcontest/static/juge/jeton.js";
 
 // --- L'extraction ------------------------------------------------------------
@@ -106,4 +106,29 @@ test("le meme lien reouvert n'ecrit pas pour rien", () => {
 
 test("sans rien, on n'a pas de jeton", () => {
   assert.deepEqual(choisirJeton("", "", null), { jeton: null, aEcrire: false });
+});
+
+// --- Le filet : relire le jeton dans une adresse scannee ---------------------
+
+test("le jeton se lit dans une adresse complete", () => {
+  assert.equal(
+    jetonDUneAdresse("https://climbcontest.adn-dev.fr/juge?j=ABC123"), "ABC123");
+});
+
+test("le filet accepte aussi un ancien QR en fragment", () => {
+  assert.equal(
+    jetonDUneAdresse("https://climbcontest.adn-dev.fr/juge#j=ABC123"), "ABC123");
+});
+
+test("un QR de grimpeur ou de bloc n'est pas un lien", () => {
+  // Le cas reel de la meprise : le juge vise le mauvais QR. On doit le dire,
+  // pas planter ni ranger n'importe quoi comme jeton.
+  assert.equal(jetonDUneAdresse("ZJ6"), null);
+  assert.equal(jetonDUneAdresse("42"), null);
+});
+
+test("une adresse sans jeton ne donne rien", () => {
+  assert.equal(jetonDUneAdresse("https://climbcontest.adn-dev.fr/juge"), null);
+  assert.equal(jetonDUneAdresse(""), null);
+  assert.equal(jetonDUneAdresse(null), null);
 });

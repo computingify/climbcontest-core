@@ -357,3 +357,82 @@ class TestLaCleDeLaPwa:
     def test_une_cle_pwa_vide_n_ouvre_rien(self):
         from climbcontest.config import cles_depuis_environnement as lire
         assert lire({"CLIMBCONTEST_API_KEY_PWA": ""}) == ()
+
+
+class TestJetonDansLeLien:
+    """Le jeton survit a l'installation (spec 014).
+
+    Le defaut corrige : `start_url` valait « /juge » nu, donc l'application
+    lancee depuis son icone ne pouvait retrouver sa cle que dans son stockage
+    local. Sur iPhone, ce stockage est cloisonne -- separe de Safari : elle
+    demarrait vide et affichait « cette application a besoin du lien fourni par
+    l'organisateur ».
+    """
+
+    def test_le_manifeste_nu_est_inchange(self, client_sans_cle):
+        """Sans jeton, la reponse doit etre EXACTEMENT celle d'avant.
+
+        Un visiteur de passage, un robot d'indexation ou un navigateur qui
+        demande le manifeste sans contexte ne doivent rien voir d'anormal.
+        """
+        d = json.loads(client_sans_cle.get("/juge/manifest.webmanifest")
+                       .get_data(as_text=True))
+        assert d["start_url"] == "/juge"
+        assert d["scope"] == "/juge"
+
+    def test_le_jeton_entre_dans_start_url(self, client_sans_cle):
+        """Le coeur du correctif : c'est de la que l'application installee
+        tirera sa cle, a chaque lancement."""
+        d = json.loads(client_sans_cle.get("/juge/manifest.webmanifest?j=ABC123")
+                       .get_data(as_text=True))
+        assert d["start_url"] == "/juge?j=ABC123"
+
+    def test_le_scope_reste_nu(self, client_sans_cle):
+        """`scope` est le PERIMETRE de l'application, pas son point d'entree.
+
+        Porteur d'une requete, il restreindrait l'application a cette seule
+        adresse -- et la navigation sortirait du scope des le premier ecran.
+        """
+        d = json.loads(client_sans_cle.get("/juge/manifest.webmanifest?j=ABC123")
+                       .get_data(as_text=True))
+        assert d["scope"] == "/juge"
+
+    def test_un_jeton_vide_vaut_pas_de_jeton(self, client_sans_cle):
+        d = json.loads(client_sans_cle.get("/juge/manifest.webmanifest?j=")
+                       .get_data(as_text=True))
+        assert d["start_url"] == "/juge"
+
+    def test_le_jeton_est_echappe(self, client_sans_cle):
+        """Sans echappement, un `&` couperait l'adresse en deux parametres et le
+        jeton arriverait tronque -- l'application repondrait 401 sans dire
+        pourquoi."""
+        r = client_sans_cle.get("/juge/manifest.webmanifest?j=a b%26c")
+        d = json.loads(r.get_data(as_text=True))
+        assert d["start_url"] == "/juge?j=a%20b%26c"
+
+    def test_le_manifeste_reste_du_json_valide(self, client_sans_cle):
+        """Le gabarit est commente en Jinja : les commentaires doivent DISPARAITRE
+        au rendu, sinon le JSON est casse et l'installation echoue."""
+        r = client_sans_cle.get("/juge/manifest.webmanifest?j=ABC123")
+        assert "manifest" in r.headers["Content-Type"]
+        texte = r.get_data(as_text=True)
+        assert "{#" not in texte and "#}" not in texte
+        json.loads(texte)                      # leve si le rendu a casse le JSON
+
+    def test_la_coquille_transmet_le_jeton_au_manifeste(self, client_sans_cle):
+        """C'est CE manifeste-la que le navigateur lit quand il propose
+        d'installer. Sans le suffixe, il lirait le manifeste nu et
+        l'installation naitrait sans jeton."""
+        html = client_sans_cle.get("/juge?j=ABC123").get_data(as_text=True)
+        assert 'href="/juge/manifest.webmanifest?j=ABC123"' in html
+
+    def test_la_coquille_sans_jeton_lie_le_manifeste_nu(self, client_sans_cle):
+        html = client_sans_cle.get("/juge").get_data(as_text=True)
+        assert 'href="/juge/manifest.webmanifest"' in html
+
+    def test_le_service_worker_ne_met_pas_le_manifeste_en_cache(self, client_sans_cle):
+        """Mis en cache sous une URL fixe, il servirait le manifeste d'un AUTRE
+        jeton -- ou un manifeste nu a une application qui en attend un porteur."""
+        sw = client_sans_cle.get("/juge/sw.js").get_data(as_text=True)
+        debut = sw.index("const COQUILLE")
+        assert "manifest.webmanifest" not in sw[debut:sw.index("]", debut)]

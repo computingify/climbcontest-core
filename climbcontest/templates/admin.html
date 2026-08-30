@@ -6,290 +6,525 @@
 <title>Console — ClimbContest</title>
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='7' fill='%237A4F99'/><circle cx='16' cy='12' r='5' fill='%23EEF1F5'/><path d='M11 19h10l-2 8h-6z' fill='%23EEF1F5'/></svg>">
 <style>
-  /* Memes contraintes que la page de resultats : aucune dependance exterieure.
+  /* Memes contraintes que la page de resultats : AUCUNE dependance exterieure.
      Une console qu'on ouvre le matin d'une competition ne peut pas attendre un
-     CDN. Polices systeme, aucune bibliotheque, un seul fichier.
+     CDN, ni echouer parce que le wifi de la salle rame. Polices systeme,
+     aucune bibliotheque, un seul fichier.
 
-     Le mauve du circuit Mauve distingue la console de la page publique, qui est
-     en bleu : sur un ecran d'organisateur, on doit savoir en un coup d'oeil si
-     on regarde ce que voient les spectateurs ou ce qu'on peut modifier. */
+     Le mauve du circuit Mauve distingue la console de la page publique, qui
+     est en bleu : sur un ecran d'organisateur, on doit savoir en un coup
+     d'oeil si on regarde ce que voient les spectateurs, ou ce qu'on peut
+     modifier.
+
+     ⚠️ Refonte du 30/08. La navigation etait une rangee de SEPT pastilles
+     ajoutees au fil des specs -- « Saisie manuelle », « Dossards »,
+     « Appareils », « App juge », « Comptes », « Mon mot de passe »... Ca se
+     voyait : deux onglets parlaient des telephones des juges, et « retrouver
+     un scan » etait range sous « Appareils » alors qu'on y cherche une
+     REUSSITE. Quatre sections desormais, chacune avec une question claire :
+     qui grimpe, qu'est-ce qui a ete valide, quels telephones, et les reglages. */
   :root {
     --accent: #A87FC7;
-    --fond: #0E1116; --carte: #171B23; --carte2: #1E232D; --trait: #2B313D;
-    --encre: #EEF1F5; --encre2: #9AA4B4;
+    --accent-fonce: #7A4F99;
+    /* Les gris sont TIRES VERS LE MAUVE plutot que neutres : un gris pur a
+       cote d'un accent colore parait sale. Quelques points de teinte
+       suffisent, et l'ensemble se tient. */
+    --fond: #0D0F14;
+    --surface: #161922;
+    --surface2: #1D2130;
+    --surface3: #262B3B;
+    --trait: #2C3142;
+    --encre: #EFF0F5;
+    --encre2: #9A9FB4;
+    --encre3: #6A7089;
     --ok: #5FB073; --alerte: #E0705F; --attention: #E5B44A;
     --titre: system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
     --chiffre: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+    --ombre: 0 18px 48px rgba(0, 0, 0, 0.5);
+    --rayon: 14px;
+    /* La hauteur de la barre : le tiroir commence dessous, pour que le burger
+       reste visible et cliquable quand il est ouvert. */
+    --barre: 67px;
   }
   * { box-sizing: border-box; }
+  html, body { height: 100%; }
   body {
-    margin: 0; min-height: 100%; background: var(--fond); color: var(--encre);
-    font-family: var(--titre); -webkit-font-smoothing: antialiased;
+    margin: 0; background: var(--fond); color: var(--encre);
+    font-family: var(--titre); font-size: 15px; line-height: 1.55;
+    -webkit-font-smoothing: antialiased;
+  }
+  a { color: var(--accent); }
+
+  /* --- Connexion : plein ecran, rien d'autre a l'ecran -------------------- */
+  #connexion { max-width: 380px; margin: 0 auto; padding: 14vh 24px 40px; }
+  #connexion .marque {
+    display: flex; align-items: center; gap: 12px; margin-bottom: 26px;
+  }
+  #connexion .marque .pastille {
+    width: 40px; height: 40px; border-radius: 11px; flex: none;
+    background: linear-gradient(145deg, var(--accent), var(--accent-fonce));
+  }
+  #connexion h2 { margin: 0; font-size: 1.3rem; font-weight: 800; letter-spacing: -0.02em; }
+  #connexion .marque .sous { color: var(--encre2); font-size: 0.86rem; }
+  .carte-connexion {
+    background: var(--surface); border: 1px solid var(--trait);
+    border-radius: var(--rayon); padding: 22px;
   }
 
-  header {
-    display: flex; align-items: baseline; gap: 14px; flex-wrap: wrap;
-    padding: 16px 22px; border-bottom: 2px solid var(--accent);
-    background: linear-gradient(180deg, var(--carte), var(--fond));
+  /* --- L'ossature : barre fixe + tiroir ---------------------------------- */
+  /* ⚠️ La barre passe AU-DESSUS du tiroir et du voile. Sans ca, le tiroir
+     ouvert recouvrait le burger : le bouton qui venait d'ouvrir disparaissait,
+     et il ne restait que le voile pour refermer. Constate a l'ecran. */
+  .barre {
+    position: sticky; top: 0; z-index: 60;
+    display: flex; align-items: center; gap: 14px;
+    padding: 12px 18px;
+    background: rgba(13, 15, 20, 0.86);
+    backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
+    border-bottom: 1px solid var(--trait);
   }
-  h1 { margin: 0; font-size: 1.25rem; font-weight: 800; letter-spacing: -0.02em; }
-  #qui { margin-left: auto; color: var(--encre2); font-size: 0.9rem; }
-
-  nav { display: flex; gap: 8px; padding: 12px 22px; border-bottom: 1px solid var(--trait);
-        overflow-x: auto; }
-  nav button {
-    flex: 0 0 auto; cursor: pointer; font: inherit; font-size: 0.9rem; font-weight: 600;
-    background: var(--carte); color: var(--encre2);
-    border: 1px solid var(--trait); border-radius: 999px; padding: 7px 15px;
+  /* Le burger. Trois barres qui deviennent une croix -- le meme bouton ouvre
+     et ferme, donc il doit DIRE dans quel etat il est. */
+  .burger {
+    width: 42px; height: 42px; flex: none; cursor: pointer;
+    display: grid; place-items: center; gap: 0;
+    background: var(--surface2); border: 1px solid var(--trait);
+    border-radius: 11px; padding: 0;
   }
-  nav button[aria-pressed="true"] { background: var(--accent); color: #12141a; border-color: transparent; }
-  nav button:focus-visible, button:focus-visible, input:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .burger span {
+    grid-area: 1 / 1; width: 17px; height: 2px; border-radius: 2px;
+    background: var(--encre); transition: transform .22s ease, opacity .18s ease;
+  }
+  .burger span:nth-child(1) { transform: translateY(-5px); }
+  .burger span:nth-child(3) { transform: translateY(5px); }
+  .burger[aria-expanded="true"] span:nth-child(1) { transform: rotate(45deg); }
+  .burger[aria-expanded="true"] span:nth-child(2) { opacity: 0; }
+  .burger[aria-expanded="true"] span:nth-child(3) { transform: rotate(-45deg); }
 
-  main { padding: 20px 22px 60px; max-width: 1000px; }
-  section[hidden] { display: none; }
-  h2 { font-size: 1.1rem; margin: 0 0 14px; font-weight: 700; }
+  .barre .ou { min-width: 0; }
+  .barre .ou b {
+    display: block; font-size: 1.02rem; font-weight: 700; letter-spacing: -0.01em;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .barre .ou span { display: block; font-size: 0.78rem; color: var(--encre2); }
+  .barre .droite { margin-left: auto; display: flex; align-items: center; gap: 10px; }
+  .jeton {
+    font-size: 0.78rem; color: var(--encre2);
+    background: var(--surface2); border: 1px solid var(--trait);
+    border-radius: 999px; padding: 5px 12px; white-space: nowrap;
+  }
+  @media (max-width: 640px) { .jeton.optionnel { display: none; } }
 
-  .grille { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 10px; }
-  label { display: block; font-size: 0.8rem; color: var(--encre2); margin-bottom: 4px; }
+  /* Le tiroir. Il recouvre : la console n'est pas un tableau de bord qu'on
+     regarde en continu -- on l'ouvre, on fait UNE chose, on referme. */
+  .voile {
+    position: fixed; top: var(--barre); left: 0; right: 0; bottom: 0; z-index: 40; background: rgba(0, 0, 0, 0.55);
+    opacity: 0; pointer-events: none; transition: opacity .22s ease;
+  }
+  .voile.ouvert { opacity: 1; pointer-events: auto; }
+  .tiroir {
+    position: fixed; top: var(--barre); left: 0; bottom: 0; z-index: 50;
+    width: min(310px, 84vw); display: flex; flex-direction: column;
+    background: var(--surface); border-right: 1px solid var(--trait);
+    box-shadow: var(--ombre);
+    transform: translateX(-101%); transition: transform .24s cubic-bezier(.4, 0, .2, 1);
+  }
+  .tiroir.ouvert { transform: none; }
+  @media (prefers-reduced-motion: reduce) {
+    .tiroir, .voile, .burger span { transition: none; }
+  }
+  .tiroir nav { flex: 1; overflow-y: auto; padding: 14px 12px 6px; }
+  .tiroir .groupe {
+    font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.13em;
+    color: var(--encre3); font-weight: 700; padding: 14px 12px 6px;
+  }
+  .tiroir nav button {
+    display: flex; align-items: center; gap: 13px; width: 100%;
+    cursor: pointer; font: inherit; text-align: left;
+    background: transparent; color: var(--encre2); border: 0;
+    border-radius: 11px; padding: 11px 12px; margin-bottom: 2px;
+  }
+  .tiroir nav button:hover { background: var(--surface2); color: var(--encre); }
+  .tiroir nav button svg { width: 19px; height: 19px; flex: none; stroke-width: 1.9; }
+  .tiroir nav button .quoi { flex: 1; min-width: 0; }
+  .tiroir nav button .quoi b { display: block; font-weight: 600; font-size: 0.94rem; }
+  .tiroir nav button .quoi i {
+    display: block; font-style: normal; font-size: 0.76rem; color: var(--encre3);
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .tiroir nav button[aria-current="page"] {
+    background: color-mix(in srgb, var(--accent) 18%, transparent);
+    color: var(--encre);
+  }
+  .tiroir nav button[aria-current="page"] svg { color: var(--accent); }
+  .tiroir nav button[aria-current="page"] .quoi i { color: var(--encre2); }
+  .tiroir .pied { padding: 12px; border-top: 1px solid var(--trait); }
+  .tiroir .pied button {
+    display: flex; align-items: center; gap: 13px; width: 100%;
+    cursor: pointer; font: inherit; background: transparent;
+    color: var(--encre2); border: 0; border-radius: 11px; padding: 11px 12px;
+  }
+  .tiroir .pied button:hover { background: var(--surface2); color: var(--alerte); }
+  .tiroir .pied button svg { width: 19px; height: 19px; stroke-width: 1.9; }
+
+  /* --- Le contenu -------------------------------------------------------- */
+  main { padding: 24px 18px 80px; max-width: 940px; margin: 0 auto; }
+  .vue[hidden] { display: none; }
+  .titre-vue { margin: 0 0 20px; }
+  .titre-vue h1 {
+    margin: 0; font-size: 1.55rem; font-weight: 800; letter-spacing: -0.025em;
+  }
+  .titre-vue p { margin: 5px 0 0; color: var(--encre2); font-size: 0.92rem; max-width: 62ch; }
+
+  /* Les CARTES remplacent la suite de titres et de champs : chaque bloc dit
+     ce qu'il fait, et on voit ou il commence et ou il finit. */
+  .carte {
+    background: var(--surface); border: 1px solid var(--trait);
+    border-radius: var(--rayon); padding: 20px; margin-bottom: 16px;
+  }
+  .carte > h2 {
+    margin: 0 0 4px; font-size: 1.02rem; font-weight: 700; letter-spacing: -0.01em;
+  }
+  .carte > h2 + .aide { margin-top: 0; }
+  .aide { color: var(--encre2); font-size: 0.87rem; line-height: 1.55; margin: 0 0 16px; max-width: 64ch; }
+  .aide:last-child { margin-bottom: 0; }
+
+  .grille { display: grid; grid-template-columns: repeat(auto-fit, minmax(158px, 1fr)); gap: 12px; }
+  label { display: block; font-size: 0.78rem; color: var(--encre2); margin-bottom: 5px; font-weight: 500; }
   input, select {
     width: 100%; padding: 10px 12px; font: inherit;
-    background: var(--carte); color: var(--encre);
-    border: 1px solid var(--trait); border-radius: 8px;
+    background: var(--surface2); color: var(--encre);
+    border: 1px solid var(--trait); border-radius: 9px;
   }
+  input::placeholder { color: var(--encre3); }
+  input:focus, select:focus { border-color: var(--accent); }
   button.action {
-    cursor: pointer; font: inherit; font-weight: 600; margin-top: 12px;
-    background: var(--accent); color: #12141a; border: none;
-    border-radius: 8px; padding: 11px 20px;
+    cursor: pointer; font: inherit; font-weight: 600; margin-top: 14px;
+    background: var(--accent); color: #17111f; border: none;
+    border-radius: 9px; padding: 11px 20px;
   }
-  button.action:disabled { opacity: 0.5; cursor: not-allowed; }
+  button.action:hover { background: color-mix(in srgb, var(--accent) 88%, white); }
+  button.action:disabled { opacity: 0.45; cursor: not-allowed; }
+  button.secondaire {
+    cursor: pointer; font: inherit; font-weight: 600; margin-top: 14px;
+    background: var(--surface2); color: var(--encre);
+    border: 1px solid var(--trait); border-radius: 9px; padding: 10px 18px;
+  }
+  button.secondaire:hover { background: var(--surface3); }
   button.discret {
     cursor: pointer; font: inherit; font-size: 0.82rem;
     background: transparent; color: var(--alerte);
-    border: 1px solid var(--trait); border-radius: 6px; padding: 5px 10px;
+    border: 1px solid var(--trait); border-radius: 7px; padding: 5px 10px;
   }
+  button.discret:hover { border-color: var(--alerte); }
+  :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 
   #message {
-    margin: 14px 0; padding: 12px 16px; border-radius: 8px; font-size: 0.95rem;
-    border-left: 4px solid var(--trait); background: var(--carte2);
+    margin: 0 0 18px; padding: 12px 16px; border-radius: 10px; font-size: 0.93rem;
+    border-left: 4px solid var(--trait); background: var(--surface2);
   }
   #message[hidden] { display: none; }
   #message.ok { border-left-color: var(--ok); }
   #message.erreur { border-left-color: var(--alerte); }
   #message.attention { border-left-color: var(--attention); }
 
-  table { width: 100%; border-collapse: collapse; margin-top: 16px; font-size: 0.92rem; }
-  th, td { text-align: left; padding: 9px 10px; border-bottom: 1px solid var(--trait); }
-  th { font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--encre2); }
+  table { width: 100%; border-collapse: collapse; margin-top: 14px; font-size: 0.9rem; }
+  th, td { text-align: left; padding: 10px 10px; border-bottom: 1px solid var(--trait); }
+  th { font-size: 0.71rem; text-transform: uppercase; letter-spacing: 0.09em;
+       color: var(--encre3); font-weight: 700; }
+  tbody tr:last-child td { border-bottom: 0; }
   td.num { font-family: var(--chiffre); font-variant-numeric: tabular-nums; }
-  .sans { color: var(--encre2); font-style: italic; }
+  .sans { color: var(--encre3); font-style: italic; }
+  .scroll { overflow-x: auto; }
 
-  .aide { color: var(--encre2); font-size: 0.87rem; line-height: 1.55; margin: 0 0 16px; max-width: 62ch; }
-
-  /* Appareils (spec 011). Un telephone muet est la SEULE chose urgente de cette
-     page : presque toujours un juge bloque — batterie, wifi, application
-     fermee. Il doit ressortir sans qu'on ait a lire une colonne de chiffres,
-     d'ou la bordure a gauche en plus de la couleur du texte : le rouge seul ne
-     se voit pas par tout le monde. */
+  /* Appareils (spec 011). Un telephone muet est la SEULE chose urgente de
+     cette page : presque toujours un juge bloque -- batterie, wifi,
+     application fermee. Il doit ressortir sans qu'on ait a lire une colonne de
+     chiffres, d'ou la bordure a gauche EN PLUS de la couleur du texte : le
+     rouge seul ne se voit pas par tout le monde. */
   tr.muet td { background: rgba(224, 112, 95, 0.08); }
   tr.muet td:first-child { box-shadow: inset 3px 0 0 var(--alerte); }
   .silence { color: var(--alerte); font-weight: 600; }
   .frais { color: var(--ok); }
   .ref { font-family: var(--chiffre); color: var(--encre2); }
-  .scroll { overflow-x: auto; }
 
-  /* Connexion : plein ecran, rien d'autre a l'ecran. */
-  #connexion { max-width: 340px; margin: 12vh auto; padding: 0 22px; }
-  #connexion h2 { text-align: center; }
+  .qr-cadre { background: #fff; display: inline-block; padding: 14px; border-radius: 12px; }
+  ol.etapes { margin: 14px 0 0; padding-left: 20px; color: var(--encre2); font-size: 0.88rem; }
+  ol.etapes li { margin-bottom: 7px; }
+  ol.etapes strong { color: var(--encre); }
+  code { font-family: var(--chiffre); font-size: 0.85em; background: var(--surface2);
+         border-radius: 5px; padding: 1px 6px; }
 </style>
 </head>
 <body>
 
 <div id="connexion">
-  <h2>Console d'administration</h2>
-  <p class="aide">Réservée aux organisateurs. La page de résultats, elle, est
-     publique : <a href="/resultats" style="color:var(--accent)">/resultats</a>.</p>
-  <!-- Un vrai <form> : sans lui, les gestionnaires de mots de passe ignorent
-       le champ, et le navigateur previent en console. C'est aussi ce qui donne
-       la validation « Entree » gratuitement, sur mobile comme au clavier. -->
-  <form id="formConnexion">
+  <div class="marque">
+    <div class="pastille" aria-hidden="true"></div>
     <div>
-      <label for="identifiant">Identifiant</label>
-      <input id="identifiant" name="username" autocomplete="username" autocapitalize="none">
+      <h2>Console ClimbContest</h2>
+      <div class="sous">Réservée aux organisateurs</div>
     </div>
-    <div style="margin-top:12px">
-      <label for="motdepasse">Mot de passe</label>
-      <input id="motdepasse" name="password" type="password" autocomplete="current-password">
-    </div>
-    <button class="action" id="btnConnexion" type="submit" style="width:100%">Se connecter</button>
-  </form>
-  <div id="messageConnexion" hidden></div>
+  </div>
+  <div class="carte-connexion">
+    <!-- Un vrai <form> : sans lui, les gestionnaires de mots de passe ignorent
+         le champ, et le navigateur previent en console. C'est aussi ce qui
+         donne la validation « Entree » gratuitement, au clavier comme sur
+         mobile. -->
+    <form id="formConnexion">
+      <div>
+        <label for="identifiant">Identifiant</label>
+        <input id="identifiant" name="username" autocomplete="username" autocapitalize="none">
+      </div>
+      <div style="margin-top:14px">
+        <label for="motdepasse">Mot de passe</label>
+        <input id="motdepasse" name="password" type="password" autocomplete="current-password">
+      </div>
+      <button class="action" id="btnConnexion" type="submit" style="width:100%">Se connecter</button>
+    </form>
+    <div id="messageConnexion" hidden></div>
+  </div>
+  <p class="aide" style="margin-top:18px">La page de résultats, elle, est
+     publique : <a href="/resultats">/resultats</a>.</p>
 </div>
 
 <div id="console" hidden>
-  <header>
-    <h1>Console</h1>
-    <span id="competition"></span>
-    <span id="qui"></span>
-  </header>
 
-  <nav>
-    <button data-onglet="participants" aria-pressed="true">Participants</button>
-    <button data-onglet="saisie" aria-pressed="false">Saisie manuelle</button>
-    <button data-onglet="dossards" aria-pressed="false">Dossards</button>
-    <button data-onglet="appareils" aria-pressed="false">Appareils</button>
-    <button data-onglet="appjuge" aria-pressed="false">App juge</button>
-    <button data-onglet="comptes" aria-pressed="false" id="btnOngletComptes" hidden>Comptes</button>
-    <button data-onglet="moi" aria-pressed="false">Mon mot de passe</button>
-    <button data-onglet="quitter" aria-pressed="false">Se déconnecter</button>
-  </nav>
+  <div class="voile" id="voile" hidden></div>
+
+  <aside class="tiroir" id="tiroir" aria-label="Navigation">
+    <nav>
+      <div class="groupe">La compétition</div>
+      <button data-vue="participants" aria-current="page">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+        <span class="quoi"><b>Participants</b><i>Inscrire, chercher, imprimer</i></span>
+      </button>
+      <button data-vue="reussites">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><path d="m9 11 3 3L22 4"/></svg>
+        <span class="quoi"><b>Réussites</b><i>Saisir, retrouver un scan</i></span>
+      </button>
+
+      <div class="groupe">Les juges</div>
+      <button data-vue="telephones">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="2" width="14" height="20" rx="2"/><path d="M12 18h.01"/></svg>
+        <span class="quoi"><b>Téléphones</b><i>Installer l'app, suivre les envois</i></span>
+      </button>
+
+      <div class="groupe">Administration</div>
+      <button data-vue="reglages">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.6 1.65 1.65 0 0 0 10 3.09V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9c.14.36.4.66.74.86"/></svg>
+        <span class="quoi"><b>Réglages</b><i>Mon compte, les accès</i></span>
+      </button>
+    </nav>
+
+    <div class="pied">
+      <button id="btnQuitter">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="m16 17 5-5-5-5"/><path d="M21 12H9"/></svg>
+        <span class="quoi"><b>Se déconnecter</b></span>
+      </button>
+    </div>
+  </aside>
+
+  <div class="barre">
+    <button class="burger" id="burger" aria-expanded="false" aria-controls="tiroir" aria-label="Ouvrir le menu">
+      <span></span><span></span><span></span>
+    </button>
+    <div class="ou">
+      <b id="titreBarre">Participants</b>
+      <span id="competitionBarre"></span>
+    </div>
+    <div class="droite">
+      <span class="jeton optionnel" id="qui"></span>
+    </div>
+  </div>
 
   <main>
     <div id="message" hidden></div>
 
-    <section id="ongletParticipants">
-      <h2>Ajouter un participant</h2>
-      <p class="aide">Pour quelqu'un qui s'inscrit le matin, ou pendant la
-         compétition. Les téléphones des juges le verront en moins de vingt
-         secondes, sans rien faire.</p>
-      <div class="grille">
-        <div><label for="pNom">Nom *</label><input id="pNom"></div>
-        <div><label for="pPrenom">Prénom</label><input id="pPrenom"></div>
-        <div><label for="pClub">Club</label><input id="pClub"></div>
-        <div><label for="pCategorie">Catégorie</label><input id="pCategorie" placeholder="U13 F"></div>
-        <div><label for="pDossard">Dossard</label><input id="pDossard" inputmode="numeric" placeholder="laisser vide si absent"></div>
+    <!-- ================= Participants ================= -->
+    <section class="vue" id="vueParticipants">
+      <div class="titre-vue">
+        <h1>Participants</h1>
+        <p>Qui grimpe aujourd'hui. Un ajout ici est visible sur les téléphones
+           des juges en moins de vingt secondes, sans qu'ils touchent à rien.</p>
       </div>
-      <button class="action" id="btnAjouter">Ajouter</button>
 
-      <h2 style="margin-top:32px">Les participants</h2>
-      <input id="recherche" placeholder="Chercher un nom ou un dossard…" style="max-width:340px">
-      <div class="scroll"><table>
-        <thead><tr><th>Dossard</th><th>Nom</th><th>Club</th><th>Catégorie</th><th></th></tr></thead>
-        <tbody id="listeParticipants"></tbody>
-      </table></div>
-    </section>
-
-    <section id="ongletSaisie" hidden>
-      <h2>Saisir une réussite à la main</h2>
-      <p class="aide">Pour rattraper ce qui n'a pas pu être scanné : QR illisible,
-         téléphone à plat, envoi oublié. Elle comptera au classement
-         <strong>exactement comme un scan</strong>, et gardera la trace de qui
-         l'a saisie.</p>
-      <div class="grille" style="max-width:420px">
-        <div><label for="sDossard">Dossard</label><input id="sDossard" inputmode="numeric"></div>
-        <div><label for="sBloc">Bloc</label><input id="sBloc" placeholder="ZJ6"></div>
-      </div>
-      <button class="action" id="btnSaisir">Enregistrer</button>
-    </section>
-
-    <section id="ongletDossards" hidden>
-      <h2>Imprimer les dossards</h2>
-      <p class="aide">Des bandes à découper. Vérifie l'échelle d'impression :
-         <strong>100 %</strong>, sans « ajuster à la page », sinon les QR
-         sortiront trop petits.</p>
-      <div class="grille" style="max-width:420px">
-        <div><label for="dCategorie">Une catégorie (vide = toutes)</label><input id="dCategorie" placeholder="U13 F"></div>
-        <div><label for="dUnSeul">Ou un seul dossard</label><input id="dUnSeul" inputmode="numeric"></div>
-      </div>
-      <button class="action" id="btnImprimer">Ouvrir la planche</button>
-    </section>
-    <section id="ongletAppareils" hidden>
-      <h2>Les téléphones des juges</h2>
-      <p class="aide">Qui a envoyé quoi. Un téléphone <strong>muet depuis plus
-         de dix minutes</strong> ressort en rouge : c'est presque toujours un
-         juge bloqué — batterie, wifi, ou application fermée. Le nom est celui
-         que le juge a donné à son téléphone ; il désigne un poste, pas une
-         personne.</p>
-      <button class="action" id="btnRafraichirAppareils">Rafraîchir</button>
-      <div class="scroll"><table>
-        <thead><tr><th>Téléphone</th><th>Réussites</th><th>Dernier envoi</th><th>Identifiant</th></tr></thead>
-        <tbody id="corpsAppareils"><tr><td colspan="4" class="sans">Chargement…</td></tr></tbody>
-      </table></div>
-
-      <h2 style="margin-top:32px">Retrouver un scan</h2>
-      <p class="aide">Le juge lit les six caractères affichés à côté de son scan,
-         tu les tapes ici. La réponse est oui ou non — plus besoin de chercher
-         dans le classement.</p>
-      <div class="grille" style="max-width:420px">
-        <div><label for="aRef">Référence du scan</label><input id="aRef" placeholder="a1b2c3"></div>
-      </div>
-      <button class="action" id="btnChercherRef">Chercher</button>
-      <div class="scroll"><table>
-        <thead><tr><th>Grimpeur</th><th>Bloc</th><th>Heure</th><th>Téléphone</th><th>Référence</th></tr></thead>
-        <tbody id="corpsScans"></tbody>
-      </table></div>
-    </section>
-
-    <section id="ongletAppJuge" hidden>
-      <h2>Installer l’application juge sur un téléphone personnel</h2>
-      <p class="aide">
-        Les téléphones du club ont l’application Android. Pour le téléphone
-        <strong>personnel</strong> d’un bénévole — iPhone <em>ou</em> Android —
-        la même application existe en <strong>version web</strong> : rien à
-        télécharger, aucun magasin d’applications. Le QR ci-dessous sert aux
-        deux.
-      </p>
-      <div id="lienJugeIndisponible" hidden class="aide"></div>
-      <div id="lienJugeContenu" hidden>
-        <p><strong>À afficher au mur ou à faire passer de main en main :</strong></p>
-        <div id="lienJugeQr" style="background:#fff;display:inline-block;padding:12px;border-radius:8px"></div>
-        <p style="user-select:all;overflow-wrap:anywhere" id="lienJugeUrl" class="aide"></p>
-        <ol class="aide">
-          <li>Le bénévole scanne ce QR avec l’appareil photo de son téléphone
-              et ouvre le lien — <strong>Safari</strong> sur iPhone,
-              <strong>Chrome</strong> sur Android.</li>
-          <li><strong>iPhone :</strong> Partager (le carré avec la flèche) →
-              « Sur l’écran d’accueil ». <strong>Android :</strong> un appui
-              sur le bandeau « Installer l’application » de la page.</li>
-          <li>L’icône ClimbContest apparaît : l’application s’ouvre en plein
-              écran et fonctionne même sans réseau.</li>
-        </ol>
-        <p class="aide">⚠️ Ce lien contient la clé d’accès des juges : on le
-           donne comme on donne une clé de salle. Pour le révoquer, changer
-           <code>CLIMBCONTEST_API_KEY_PWA</code> sur le serveur.</p>
-      </div>
-      <p><button id="btnChargerLienJuge" type="button">Afficher le lien et le QR</button></p>
-    </section>
-
-    <section id="ongletComptes" hidden>
-      <h2>Créer un compte</h2>
-      <p class="aide">Pour un bénévole qui aidera le jour de la compétition.
-         Choisis un mot de passe et transmets-le de vive voix — il pourra le
-         changer lui-même ensuite.</p>
-      <div class="grille" style="max-width:640px">
-        <div><label for="cIdentifiant">Identifiant *</label><input id="cIdentifiant" autocapitalize="none"></div>
-        <div><label for="cNom">Nom affiché</label><input id="cNom"></div>
-        <div><label for="cMotDePasse">Mot de passe *</label><input id="cMotDePasse" type="password" autocomplete="new-password"></div>
-        <div><label for="cRole">Rôle</label>
-          <select id="cRole">
-            <option value="organisateur">Organisateur</option>
-            <option value="admin">Administrateur</option>
-          </select>
+      <div class="carte">
+        <h2>Ajouter un participant</h2>
+        <p class="aide">Pour quelqu'un qui s'inscrit le matin, ou pendant la
+           compétition.</p>
+        <div class="grille">
+          <div><label for="pNom">Nom *</label><input id="pNom"></div>
+          <div><label for="pPrenom">Prénom</label><input id="pPrenom"></div>
+          <div><label for="pClub">Club</label><input id="pClub"></div>
+          <div><label for="pCategorie">Catégorie</label><input id="pCategorie" placeholder="U13 F"></div>
+          <div><label for="pDossard">Dossard</label><input id="pDossard" inputmode="numeric" placeholder="vide si absent"></div>
         </div>
+        <button class="action" id="btnAjouter">Ajouter</button>
       </div>
-      <p class="aide" id="aideLongueur" style="margin-top:8px"></p>
-      <button class="action" id="btnCreerCompte">Créer le compte</button>
 
-      <h2 style="margin-top:32px">Les comptes</h2>
-      <div class="scroll"><table>
-        <thead><tr><th>Identifiant</th><th>Nom</th><th>Rôle</th><th>État</th><th></th></tr></thead>
-        <tbody id="listeComptes"></tbody>
-      </table></div>
+      <div class="carte">
+        <h2>La liste</h2>
+        <p class="aide">Le dossard se réaffecte à chaud — utile quand un
+           bracelet est perdu ou échangé.</p>
+        <input id="recherche" placeholder="Chercher un nom ou un dossard…" style="max-width:340px">
+        <div class="scroll"><table>
+          <thead><tr><th>Dossard</th><th>Nom</th><th>Club</th><th>Catégorie</th><th></th></tr></thead>
+          <tbody id="listeParticipants"></tbody>
+        </table></div>
+      </div>
+
+      <div class="carte">
+        <h2>Imprimer les dossards</h2>
+        <p class="aide">Des bandes à découper. Vérifie l'échelle d'impression :
+           <strong>100 %</strong>, sans « ajuster à la page », sinon les QR
+           sortiront trop petits pour être lus.</p>
+        <div class="grille" style="max-width:420px">
+          <div><label for="dCategorie">Une catégorie (vide = toutes)</label><input id="dCategorie" placeholder="U13 F"></div>
+          <div><label for="dUnSeul">Ou un seul dossard</label><input id="dUnSeul" inputmode="numeric"></div>
+        </div>
+        <button class="action" id="btnImprimer">Ouvrir la planche</button>
+      </div>
     </section>
 
-    <section id="ongletMoi" hidden>
-      <h2>Changer mon mot de passe</h2>
-      <p class="aide">L'ancien est demandé même si tu es déjà connecté : sinon,
-         un ordinateur laissé déverrouillé dans la salle suffirait à
-         s'approprier ton compte.</p>
-      <form id="formMonMdp" class="grille" style="max-width:420px">
-        <div><label for="mActuel">Mot de passe actuel</label><input id="mActuel" type="password" autocomplete="current-password"></div>
-        <div><label for="mNouveau">Nouveau mot de passe</label><input id="mNouveau" type="password" autocomplete="new-password"></div>
-      </form>
-      <button class="action" id="btnMonMdp">Changer</button>
+    <!-- ================= Réussites ================= -->
+    <section class="vue" id="vueReussites" hidden>
+      <div class="titre-vue">
+        <h1>Réussites</h1>
+        <p>Ce qui a été validé, et comment rattraper ce qui ne l'a pas été.</p>
+      </div>
+
+      <div class="carte">
+        <h2>Saisir une réussite à la main</h2>
+        <p class="aide">Pour rattraper ce qui n'a pas pu être scanné : QR
+           illisible, téléphone à plat, envoi oublié. Elle comptera au
+           classement <strong>exactement comme un scan</strong>, et gardera la
+           trace de qui l'a saisie.</p>
+        <div class="grille" style="max-width:420px">
+          <div><label for="sDossard">Dossard</label><input id="sDossard" inputmode="numeric"></div>
+          <div><label for="sBloc">Bloc</label><input id="sBloc" placeholder="ZJ6"></div>
+        </div>
+        <button class="action" id="btnSaisir">Enregistrer</button>
+      </div>
+
+      <div class="carte">
+        <h2>Retrouver un scan</h2>
+        <p class="aide">Le juge lit les six caractères affichés à côté de son
+           scan, tu les tapes ici. La réponse est oui ou non — plus besoin de
+           fouiller le classement.</p>
+        <div class="grille" style="max-width:420px">
+          <div><label for="aRef">Référence du scan</label><input id="aRef" placeholder="a1b2c3"></div>
+        </div>
+        <button class="action" id="btnChercherRef">Chercher</button>
+        <div class="scroll"><table>
+          <thead><tr><th>Grimpeur</th><th>Bloc</th><th>Heure</th><th>Téléphone</th><th>Référence</th></tr></thead>
+          <tbody id="corpsScans"></tbody>
+        </table></div>
+      </div>
+    </section>
+
+    <!-- ================= Téléphones ================= -->
+    <section class="vue" id="vueTelephones" hidden>
+      <div class="titre-vue">
+        <h1>Téléphones des juges</h1>
+        <p>Les bénévoles utilisent <strong>leur propre téléphone</strong>.
+           Voici comment ils installent l'application, et comment savoir si
+           chacune envoie toujours.</p>
+      </div>
+
+      <div class="carte">
+        <h2>Installer l'application juge</h2>
+        <p class="aide">Deux formes, <strong>exactement les mêmes fonctions</strong> :
+           la <strong>version web</strong> — recommandée, elle marche sur iPhone
+           comme sur Android, rien à télécharger — et l'<strong>application
+           Android</strong> du Play Store. Le QR ci-dessous installe la version
+           web.</p>
+        <div id="lienJugeIndisponible" hidden class="aide"></div>
+        <div id="lienJugeContenu" hidden>
+          <div class="qr-cadre" id="lienJugeQr"></div>
+          <p class="aide" style="user-select:all;overflow-wrap:anywhere;margin-top:12px" id="lienJugeUrl"></p>
+          <ol class="etapes">
+            <li>Le bénévole scanne ce QR avec l'appareil photo de son téléphone
+                et ouvre le lien — <strong>Safari</strong> sur iPhone,
+                <strong>Chrome</strong> sur Android.</li>
+            <li><strong>iPhone :</strong> Partager (le carré avec la flèche) →
+                « Sur l'écran d'accueil ». <strong>Android :</strong> un appui
+                sur le bandeau « Installer l'application » qu'affiche la page.</li>
+            <li>L'icône ClimbContest apparaît : l'application s'ouvre en plein
+                écran, garde les scans hors réseau, et se met à jour seule.</li>
+          </ol>
+          <p class="aide" style="margin-top:14px">⚠️ Ce lien contient la clé
+             d'accès des juges : on le donne comme on donne une clé de salle.
+             Pour le révoquer, changer <code>CLIMBCONTEST_API_KEY_PWA</code> sur
+             le serveur.</p>
+        </div>
+        <button class="secondaire" id="btnChargerLienJuge" type="button">Afficher le lien et le QR</button>
+      </div>
+
+      <div class="carte">
+        <h2>Qui envoie quoi</h2>
+        <p class="aide">Un téléphone <strong>muet depuis plus de dix
+           minutes</strong> ressort en rouge : c'est presque toujours un juge
+           bloqué — batterie, wifi, ou application fermée. Le nom est celui que
+           le juge a donné à son téléphone ; il désigne un poste, pas une
+           personne.</p>
+        <button class="secondaire" id="btnRafraichirAppareils" style="margin-top:0">Rafraîchir</button>
+        <div class="scroll"><table>
+          <thead><tr><th>Téléphone</th><th>Réussites</th><th>Dernier envoi</th><th>Identifiant</th></tr></thead>
+          <tbody id="corpsAppareils"><tr><td colspan="4" class="sans">Chargement…</td></tr></tbody>
+        </table></div>
+      </div>
+    </section>
+
+    <!-- ================= Réglages ================= -->
+    <section class="vue" id="vueReglages" hidden>
+      <div class="titre-vue">
+        <h1>Réglages</h1>
+        <p>Ton compte, et les accès des autres organisateurs.</p>
+      </div>
+
+      <div class="carte">
+        <h2>Changer mon mot de passe</h2>
+        <p class="aide">L'ancien est demandé même si tu es déjà connecté :
+           sinon, un ordinateur laissé déverrouillé dans la salle suffirait à
+           s'approprier ton compte.</p>
+        <form id="formMonMdp" class="grille" style="max-width:420px">
+          <div><label for="mActuel">Mot de passe actuel</label><input id="mActuel" type="password" autocomplete="current-password"></div>
+          <div><label for="mNouveau">Nouveau mot de passe</label><input id="mNouveau" type="password" autocomplete="new-password"></div>
+        </form>
+        <button class="action" id="btnMonMdp">Changer</button>
+      </div>
+
+      <!-- Reserve aux administrateurs. Le serveur refuse de toute facon (403) :
+           masquer evite d'offrir un bouton qui ne marche pas, ce n'est pas la
+           protection. -->
+      <div class="carte" id="blocComptes" hidden>
+        <h2>Créer un compte</h2>
+        <p class="aide">Pour un bénévole qui aidera le jour de la compétition.
+           Choisis un mot de passe et transmets-le de vive voix — il pourra le
+           changer lui-même ensuite.</p>
+        <div class="grille" style="max-width:640px">
+          <div><label for="cIdentifiant">Identifiant *</label><input id="cIdentifiant" autocapitalize="none"></div>
+          <div><label for="cNom">Nom affiché</label><input id="cNom"></div>
+          <div><label for="cMotDePasse">Mot de passe *</label><input id="cMotDePasse" type="password" autocomplete="new-password"></div>
+          <div><label for="cRole">Rôle</label>
+            <select id="cRole">
+              <option value="organisateur">Organisateur</option>
+              <option value="admin">Administrateur</option>
+            </select>
+          </div>
+        </div>
+        <p class="aide" id="aideLongueur" style="margin-top:10px"></p>
+        <button class="action" id="btnCreerCompte">Créer le compte</button>
+
+        <div class="scroll" style="margin-top:26px"><table>
+          <thead><tr><th>Identifiant</th><th>Nom</th><th>Rôle</th><th>État</th><th></th></tr></thead>
+          <tbody id="listeComptes"></tbody>
+        </table></div>
+      </div>
     </section>
   </main>
 </div>
-
 <script>
 (function () {
   "use strict";
@@ -359,11 +594,15 @@
     $("connexion").hidden = true;
     $("console").hidden = false;
     $("qui").textContent = etat.moi.identifiant + " · " + etat.moi.roles.join(", ");
-    // L'onglet « Comptes » n'apparait que pour un administrateur. Le serveur
-    // refuse de toute facon (403) -- masquer evite d'offrir un bouton qui ne
-    // marche pas, ce n'est pas la protection.
-    $("btnOngletComptes").hidden = etat.moi.roles.indexOf("admin") === -1;
-    chargerParticipants();
+    // Le bloc « Comptes » des reglages n'apparait que pour un administrateur.
+    // Le serveur refuse de toute facon (403) -- masquer evite d'offrir un
+    // formulaire qui ne marche pas, ce n'est pas la protection.
+    $("blocComptes").hidden = etat.moi.roles.indexOf("admin") === -1;
+    // Sur QUOI on agit. Sans ca, rien a l'ecran ne distingue la competition
+    // de novembre d'une competition de test restee active.
+    var comp = etat.moi.competition ? etat.moi.competition.nom : "aucune compétition active";
+    $("competitionBarre").textContent = comp;
+    montrerVue("participants");
   }
 
   $("formConnexion").addEventListener("submit", function (evenement) {
@@ -380,29 +619,70 @@
     });
   });
 
-  // --- Onglets --------------------------------------------------------------
+  // --- Le tiroir et les quatre vues -----------------------------------------
+  //
+  // Quatre vues, plus les sept onglets d'avant. Le regroupement suit les
+  // QUESTIONS qu'on se pose le jour J -- qui grimpe, qu'est-ce qui a ete
+  // valide, quels telephones, les reglages -- et non l'ordre dans lequel les
+  // specs ont ete livrees.
 
-  Array.prototype.forEach.call(document.querySelectorAll("nav button"), function (b) {
-    b.addEventListener("click", function () {
-      if (b.dataset.onglet === "quitter") {
-        appeler("/admin/deconnexion", { methode: "POST" }).catch(function () {})
-          .then(function () { etat.moi = null; montrerConnexion(); });
-        return;
-      }
-      Array.prototype.forEach.call(document.querySelectorAll("nav button"), function (x) {
-        x.setAttribute("aria-pressed", String(x === b));
-      });
-      $("ongletParticipants").hidden = b.dataset.onglet !== "participants";
-      $("ongletSaisie").hidden = b.dataset.onglet !== "saisie";
-      $("ongletDossards").hidden = b.dataset.onglet !== "dossards";
-      $("ongletAppareils").hidden = b.dataset.onglet !== "appareils";
-      $("ongletAppJuge").hidden = b.dataset.onglet !== "appjuge";
-      $("ongletComptes").hidden = b.dataset.onglet !== "comptes";
-      $("ongletMoi").hidden = b.dataset.onglet !== "moi";
-      if (b.dataset.onglet === "comptes") chargerComptes();
-      if (b.dataset.onglet === "appareils") chargerAppareils();
-      $("message").hidden = true;
+  var VUES = {
+    participants: { titre: "Participants",         charge: chargerParticipants },
+    reussites:    { titre: "Réussites",            charge: null },
+    telephones:   { titre: "Téléphones des juges", charge: chargerAppareils },
+    reglages:     { titre: "Réglages",             charge: chargerComptesSiAdmin }
+  };
+
+  function chargerComptesSiAdmin() {
+    if (etat.moi && etat.moi.roles.indexOf("admin") !== -1) chargerComptes();
+  }
+
+  function ouvrirTiroir(ouvert) {
+    $("tiroir").classList.toggle("ouvert", ouvert);
+    $("voile").classList.toggle("ouvert", ouvert);
+    $("voile").hidden = !ouvert;
+    $("burger").setAttribute("aria-expanded", String(ouvert));
+    $("burger").setAttribute("aria-label", ouvert ? "Fermer le menu" : "Ouvrir le menu");
+  }
+
+  function montrerVue(nom) {
+    Object.keys(VUES).forEach(function (cle) {
+      var section = $("vue" + cle.charAt(0).toUpperCase() + cle.slice(1));
+      if (section) section.hidden = cle !== nom;
     });
+    Array.prototype.forEach.call(document.querySelectorAll("[data-vue]"), function (b) {
+      if (b.dataset.vue === nom) b.setAttribute("aria-current", "page");
+      else b.removeAttribute("aria-current");
+    });
+    $("titreBarre").textContent = VUES[nom].titre;
+    $("message").hidden = true;
+    // La barre du haut porte le titre : sur mobile, c'est la SEULE chose qui
+    // dit ou l'on est une fois le tiroir referme.
+    window.scrollTo(0, 0);
+    if (VUES[nom].charge) VUES[nom].charge();
+  }
+
+  $("burger").addEventListener("click", function () {
+    ouvrirTiroir($("burger").getAttribute("aria-expanded") !== "true");
+  });
+  $("voile").addEventListener("click", function () { ouvrirTiroir(false); });
+  // Echap ferme : un tiroir qui recouvre l'ecran doit toujours avoir une
+  // sortie au clavier.
+  document.addEventListener("keydown", function (e) {
+    if (e.key === "Escape") ouvrirTiroir(false);
+  });
+
+  Array.prototype.forEach.call(document.querySelectorAll("[data-vue]"), function (b) {
+    b.addEventListener("click", function () {
+      montrerVue(b.dataset.vue);
+      ouvrirTiroir(false);
+    });
+  });
+
+  $("btnQuitter").addEventListener("click", function () {
+    ouvrirTiroir(false);
+    appeler("/admin/deconnexion", { methode: "POST" }).catch(function () {})
+      .then(function () { etat.moi = null; montrerConnexion(); });
   });
 
   // --- Participants ---------------------------------------------------------

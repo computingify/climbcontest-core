@@ -11,7 +11,7 @@
  * validé contre le catalogue local, et « Validé » s'affiche quand la réussite
  * est sur le téléphone.
  */
-import { CLE_RANGEMENT, choisirJeton } from "./jeton.js";
+import { CLE_RANGEMENT, choisirJeton, jetonDUneAdresse } from "./jeton.js";
 import { Api } from "./api.js";
 import { Catalogue, doitRafraichir } from "./catalogue.js";
 import { couleurDeCircuit, encreSur } from "./couleurs.js";
@@ -192,6 +192,46 @@ function effacer() {
   etat.dossard = etat.grimpeur = etat.bloc = null;
   etat.couleurBloc = null;
   redessiner();
+}
+
+// --- Se relier, quand l'automatique n'a pas marche --------------------------
+
+/**
+ * Le juge rescanne le QR affiche au mur, depuis l'application.
+ *
+ * Le cas vise : une installation faite AVANT la spec 014 garde un `start_url`
+ * sans jeton, et son stockage peut etre vide. L'automatique ne peut rien pour
+ * elle ; ce bouton, si.
+ *
+ * On recharge a l'adresse complete plutot que de poser le jeton et continuer :
+ * tout ce qui a demarre sans jeton -- l'expediteur, le catalogue -- repart
+ * ainsi d'un etat propre, sans qu'on ait a y penser un par un.
+ */
+async function relier() {
+  annulation = new AbortController();
+  $("consigne").textContent = "Vise le QR affiché par l’organisateur";
+  $("viseur").hidden = false;
+
+  let code = null;
+  try {
+    code = await lireUnQr($("flux"), annulation.signal);
+  } catch (e) {
+    dire(expliquerLErreurCamera(e), "erreur");
+    return;
+  } finally {
+    $("viseur").hidden = true;
+  }
+  if (!code) return;                       // annulé par le juge
+
+  const jeton = jetonDUneAdresse(code);
+  if (!jeton) {
+    // Un QR de grimpeur ou de bloc ne dit pas la meme chose qu'un QR illisible.
+    dire("Ce QR n’est pas le lien de l’organisateur. C’est celui affiché au " +
+         "mur pour installer l’application.", "erreur");
+    return;
+  }
+  try { localStorage.setItem(CLE_RANGEMENT, jeton); } catch { /* mode prive */ }
+  location.replace(code);
 }
 
 // --- Scanner ----------------------------------------------------------------
@@ -622,7 +662,11 @@ async function demarrer() {
 
   if (!jeton) {
     dire("Cette application a besoin du lien fourni par l'organisateur.", "attention");
+    // Et on donne le geste qui repare, plutot que de laisser sur un constat.
+    $("relier").hidden = false;
   }
+
+  $("btnRelier").addEventListener("click", relier);
 
   try {
     catalogue = Catalogue.depuisJson(await reglages.lire(CLE_CATALOGUE));

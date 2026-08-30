@@ -96,11 +96,17 @@ def moi():
     """Qui je suis, et ce que j'ai le droit de faire. La console s'en sert
     pour n'afficher que les boutons utilisables."""
     u = g.utilisateur
+    # La competition active accompagne l'identite : « le classeur est-il le
+    # bon ? » est le point le plus souvent oublie du runbook, et la console
+    # etait le seul endroit ou l'on agissait sans jamais voir SUR QUOI.
+    from ..models import Competition
+    active = Competition.query.filter_by(active=True).first()
     return jsonify({
         "success": True,
         "identifiant": u.identifiant,
         "nom_affiche": u.nom_affiche,
         "roles": sorted(r.role for r in u.roles),
+        "competition": {"id": active.id, "nom": active.nom} if active else None,
     }), 200
 
 # Dernier rapport, en memoire. C'est un confort de consultation, pas une donnee :

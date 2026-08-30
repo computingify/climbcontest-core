@@ -197,13 +197,26 @@ class TestConsoleAdmin:
                       "/admin/appareils", "/admin/reussites-tracees"):
             assert route in page, f"la console n'appelle pas {route}"
 
-    def test_l_onglet_appareils_est_la(self, client, jeu):
+    def test_le_suivi_des_telephones_est_la(self, client, jeu):
         """Spec 011. Les routes existaient deja quand l'onglet a ete oublie une
-        premiere fois pour la spec 005 : ce test empeche la meme omission."""
+        premiere fois pour la spec 005 : ce test empeche la meme omission.
+
+        La refonte du 30/08 a fondu « Appareils » et « App juge » dans une
+        seule vue « Telephones » -- les deux parlaient des memes appareils.
+        Le test suit le RENOMMAGE ; ce qu'il protege n'a pas change."""
         page = client.get("/console").data.decode()
-        assert 'data-onglet="appareils"' in page
-        assert 'id="ongletAppareils"' in page
+        assert 'data-vue="telephones"' in page
+        assert 'id="vueTelephones"' in page
         assert "chargerAppareils" in page
+
+    def test_les_quatre_vues_existent(self, client, jeu):
+        """Sept onglets ajoutes au fil des specs, regroupes en quatre. Chacune
+        doit exister ET etre atteignable depuis le tiroir."""
+        page = client.get("/console").data.decode()
+        for vue in ("participants", "reussites", "telephones", "reglages"):
+            assert f'data-vue="{vue}"' in page, f"le tiroir n'ouvre pas {vue}"
+            majuscule = vue[0].upper() + vue[1:]
+            assert f'id="vue{majuscule}"' in page, f"la vue {vue} n'existe pas"
 
     def test_le_telephone_muet_est_signale_visuellement(self, client, jeu):
         """La seule information urgente de la page. La couleur ne suffit pas :
@@ -219,14 +232,17 @@ class TestConsoleAdmin:
         page = client.get("/console").data.decode()
         assert "Session expir" in page
 
-    def test_l_onglet_comptes_est_masque_par_defaut(self, client, jeu):
-        """Il n'apparait que pour un administrateur.
+    def test_la_gestion_des_comptes_est_masquee_par_defaut(self, client, jeu):
+        """Elle n'apparait que pour un administrateur.
 
         Le serveur refuse de toute facon (403) : masquer evite d'offrir un
-        bouton qui ne marche pas, ce n'est pas la protection.
+        formulaire qui ne marche pas, ce n'est pas la protection.
+
+        Depuis la refonte du 30/08 c'est un BLOC de la vue « Reglages » et non
+        plus un onglet -- un organisateur non-admin y garde son mot de passe.
         """
         page = client.get("/console").data.decode()
-        assert 'id="btnOngletComptes"' in page and "hidden" in page
+        assert 'id="blocComptes" hidden' in page
 
     def test_une_faute_de_frappe_ne_deconnecte_pas(self, client, jeu):
         """Changer son mot de passe exige l'ancien, et se tromper repond 401 --

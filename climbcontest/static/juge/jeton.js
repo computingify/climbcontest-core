@@ -86,3 +86,28 @@ export function choisirJeton(requete, fragment, jetonRange) {
   if (nouveau) return { jeton: nouveau, aEcrire: nouveau !== jetonRange };
   return { jeton: jetonRange || null, aEcrire: false };
 }
+
+
+/**
+ * Le jeton contenu dans une adresse complete, telle que la rend un scan de QR.
+ *
+ * Le filet de la spec 014 : si l'application demarre sans jeton -- une
+ * installation faite avant cette spec, un stockage vide -- le juge rescanne le
+ * QR de l'organisateur DEPUIS l'application, au lieu de rester bloque sur un
+ * message. Ca ne remplace pas le correctif : ca evite l'impasse le jour J.
+ *
+ * Accepte les deux formes, `?j=` et `#j=`, pour la meme raison que
+ * [choisirJeton] : un ancien QR ne doit pas devenir un QR mort.
+ *
+ * `null` si le texte n'est pas une adresse, ou n'en porte pas.
+ */
+export function jetonDUneAdresse(texte) {
+  if (!texte) return null;
+  let adresse;
+  try {
+    adresse = new URL(String(texte).trim());
+  } catch {
+    return null;                      // un QR de grimpeur ou de bloc, pas un lien
+  }
+  return jetonDeLaRequete(adresse.search) || jetonDuFragment(adresse.hash);
+}

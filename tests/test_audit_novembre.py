@@ -82,16 +82,46 @@ class TestLienJuge:
         assert r.status_code == 409
         assert "CLIMBCONTEST_API_KEY_PWA" in r.get_json()["message"]
 
-    def test_le_lien_porte_le_jeton_en_fragment(self, client, app, jeu,
-                                                monkeypatch):
+    def test_le_lien_porte_le_jeton_en_requete(self, client, app, jeu,
+                                               monkeypatch):
+        """⚠️ Ce test verifiait l'INVERSE jusqu'a la spec 014, et le renversement
+        est delibere. Il faut donc dire pourquoi, sinon la prochaine relecture
+        le prendra pour une regression de securite.
+
+        L'argument d'origine tenait : un fragment n'est pas envoye au serveur,
+        donc le jeton ne pouvait pas finir dans un journal. Mais un fragment
+        n'est pas non plus transmis a `start_url` du manifeste -- donc
+        l'application INSTALLEE demarrait sans jeton, et ne pouvait le retrouver
+        que dans son stockage local. Sur iPhone, ce stockage est cloisonne :
+        elle demarrait vide, et affichait « cette application a besoin du lien
+        fourni par l'organisateur ». Le lien etait donc protege des journaux, et
+        inutilisable une fois installe.
+
+        La requete est portee par `start_url` : l'application recoit sa cle a
+        chaque lancement, sur toutes les plateformes. Le prix -- la presence
+        dans les journaux -- est paye par un filtre sur le proxy, qui masque le
+        parametre `j`.
+
+        Et la mesure du risque n'a pas change : ce jeton est AFFICHE AU MUR sous
+        forme de QR. Il arrete un robot qui balaie Internet, pas quelqu'un
+        present dans la salle.
+        """
         monkeypatch.setenv("CLIMBCONTEST_API_KEY_PWA", "jeton-pwa-de-test")
         c = _connecter(client, app, [comptes.ORGANISATEUR])
         d = c.get("/admin/lien-juge").get_json()
-        assert d["url"].endswith("/juge#j=jeton-pwa-de-test")
-        # Un fragment, jamais une query string : le jeton ne doit pas pouvoir
-        # finir dans un journal de serveur.
-        assert "?j=" not in d["url"]
+        assert d["url"].endswith("/juge?j=jeton-pwa-de-test")
+        assert "#j=" not in d["url"]
         assert "<svg" in d["qr"]
+
+    def test_un_jeton_a_caracteres_speciaux_est_echappe(self, client, app, jeu,
+                                                        monkeypatch):
+        """Sans echappement, un `&` dans la cle couperait l'adresse en deux
+        parametres : le jeton arriverait tronque et l'API repondrait 401, sans
+        que rien n'indique que la cle a ete coupee en route."""
+        monkeypatch.setenv("CLIMBCONTEST_API_KEY_PWA", "a&b c")
+        c = _connecter(client, app, [comptes.ORGANISATEUR])
+        d = c.get("/admin/lien-juge").get_json()
+        assert d["url"].endswith("/juge?j=a%26b%20c")
 
     def test_en_local_le_lien_reste_en_http(self, client, app, jeu, monkeypatch):
         # Le client de test parle a `localhost` : forcer https ici produirait
