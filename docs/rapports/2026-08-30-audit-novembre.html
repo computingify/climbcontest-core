@@ -316,9 +316,23 @@ n'appartient qu'à toi.</p>
       elle, l'onglet App juge le dira), puis passer en régime
       <strong>strict</strong> une fois les 25 téléphones à jour — runbook
       «&nbsp;Poser la clé d'API&nbsp;».</li>
-  <li><span class="qui">Adrien</span>Recompiler l'application avec la clé
-      (<code>~/.gradle/gradle.properties</code>, jamais le fichier du projet) et
-      la mettre sur les 25 téléphones.</li>
+  <li><span class="qui">Adrien</span><strong>Publier l'application Android.</strong>
+      ⚠️ Constat du 30/08 : <code>versionName 3.1.4</code> et
+      <code>versionCode 15</code> sont <em>exactement</em> ceux déjà publiés sur
+      le Play Store. Autrement dit, <strong>la refonte visuelle et la clé d'API
+      ne sont chez aucun juge</strong> — les bénévoles Android ont toujours
+      l'ancienne version, celle qui n'envoie pas de clé (d'où le régime
+      <em>toléré</em>). Il faut incrémenter les deux numéros, recompiler avec la
+      clé (<code>~/.gradle/gradle.properties</code>, jamais le fichier du
+      projet), publier, et laisser le temps de la revue Google puis de la
+      propagation.</li>
+  <li><span class="qui">Adrien</span><strong>Décision à prendre&nbsp;:
+      Play Store ou version web pour tout le monde&nbsp;?</strong> Depuis le
+      30/08 la version web s'installe aussi sur Android — un seul canal, aucune
+      revue, aucune propagation à attendre, et tous les juges sur la même
+      version le jour J. Les téléphones étant ceux des bénévoles, c'est le
+      chemin le plus court. Le Play Store reste préférable si l'on tient à une
+      vraie application native.</li>
   <li><span class="qui">Adrien</span>Poser <code>token.pickle</code> sur la VM —
       nouveau paragraphe du runbook. Puis vérifier
       <code>miroir_derniere_erreur</code> à <code>null</code> après une réussite

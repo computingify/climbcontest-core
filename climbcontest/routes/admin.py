@@ -12,6 +12,7 @@ et l'exemption posee pour l'API des juges ne s'y applique pas.
 """
 import logging
 import os
+from urllib.parse import quote
 
 from flask import Blueprint, g, jsonify, render_template, request
 
@@ -488,10 +489,21 @@ def lien_juge():
     pas. Le benevole scanne ce QR avec l'appareil photo de son iPhone, ouvre le
     lien, et la page range le jeton une fois pour toutes.
 
-    Le jeton vit dans le FRAGMENT (`#j=`) : il ne part ni dans les journaux du
-    serveur ni chez un intermediaire. Servi uniquement a un organisateur
-    connecte -- le lien se transfere ensuite comme une cle de salle : de la
-    main a la main.
+    Le jeton vit dans la REQUETE (`?j=`) depuis la spec 014. Il etait dans le
+    fragment (`#j=`), qui a l'avantage de ne pas partir dans les journaux --
+    mais un fragment n'est pas transmis a `start_url` du manifeste, donc
+    l'application INSTALLEE demarrait sans jeton. Sur iPhone, ou le stockage
+    d'une application de l'ecran d'accueil est cloisonne, elle ne pouvait pas le
+    retrouver : « cette application a besoin du lien fourni par l'organisateur ».
+
+    En requete, le jeton est porte par `start_url` et revient a chaque
+    lancement, sur toutes les plateformes. Le prix -- sa presence dans les
+    journaux -- est paye par un filtre sur le proxy, qui masque le parametre.
+
+    Les anciens liens en `#j=` restent acceptes par l'application.
+
+    Servi uniquement a un organisateur connecte -- le lien se transfere ensuite
+    comme une cle de salle : de la main a la main.
     """
     from flask import current_app
     cle = (os.environ.get("CLIMBCONTEST_API_KEY_PWA") or "").strip()
@@ -507,7 +519,7 @@ def lien_juge():
     hote = request.host
     schema = "http" if hote.split(":")[0] in (
         "localhost", "127.0.0.1", "10.0.2.2") else "https"
-    url = f"{schema}://{hote}/juge#j={cle}"
+    url = f"{schema}://{hote}/juge?j={quote(cle, safe='')}"
     return jsonify({
         "success": True,
         "url": url,

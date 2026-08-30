@@ -33,7 +33,11 @@ const CACHE = "climbcontest-juge-v2";
  */
 const COQUILLE = [
   "/juge",
-  "/juge/manifest.webmanifest",
+  // ⚠️ Le manifeste N'EST PAS ici, et c'est voulu (spec 014) : il varie selon
+  // le jeton. Mis en cache sous une URL fixe, il servirait le manifeste d'un
+  // autre jeton -- ou un manifeste nu a une application qui en attend un
+  // porteur. Il n'est lu qu'a l'installation et a la mise a jour, jamais
+  // pendant une competition : le mettre hors ligne n'apporte rien.
   "/static/juge/juge.js",
   "/static/juge/api.js",
   "/static/juge/jeton.js",

@@ -1,5 +1,5 @@
 /**
- * Le jeton de la PWA juge (spec 007), teste sur Node.
+ * Le jeton de la PWA juge (specs 007 et 014), teste sur Node.
  *
  * La logique qui compte est extraite dans des modules sans `document` ni
  * `fetch`, exactement comme `DecisionEnvoi` et `FileDeReussites` cote Android :
@@ -10,8 +10,10 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 
-import { choisirJeton, jetonDuFragment } from
+import { choisirJeton, jetonDeLaRequete, jetonDuFragment } from
   "../../climbcontest/static/juge/jeton.js";
+
+// --- L'extraction ------------------------------------------------------------
 
 test("un fragment porte le jeton", () => {
   assert.equal(jetonDuFragment("#j=abc123"), "abc123");
@@ -36,36 +38,72 @@ test("un jeton vide vaut absence de jeton", () => {
   assert.equal(jetonDuFragment("#j="), null);
 });
 
-test("le lien fournit le jeton la premiere fois", () => {
-  assert.deepEqual(choisirJeton("#j=abc", null),
+test("une requete porte le jeton (spec 014)", () => {
+  assert.equal(jetonDeLaRequete("?j=abc123"), "abc123");
+  assert.equal(jetonDeLaRequete("?autre=1&j=abc123"), "abc123");
+});
+
+test("pas de requete, pas de jeton", () => {
+  assert.equal(jetonDeLaRequete(""), null);
+  assert.equal(jetonDeLaRequete(undefined), null);
+  assert.equal(jetonDeLaRequete("?"), null);
+  assert.equal(jetonDeLaRequete("?j="), null);
+  assert.equal(jetonDeLaRequete("?autre=1"), null);
+});
+
+// --- Le choix ----------------------------------------------------------------
+//
+// La table du plan de la spec 014. Chaque ligne porte le cas reel qui l'a fait
+// ecrire ; la quatrieme est celle du defaut corrige.
+
+test("la requete fournit le jeton : le cas de start_url", () => {
+  assert.deepEqual(choisirJeton("?j=abc", "", null),
                    { jeton: "abc", aEcrire: true });
 });
 
+test("le fragment reste accepte : les liens deja distribues", () => {
+  assert.deepEqual(choisirJeton("", "#j=abc", null),
+                   { jeton: "abc", aEcrire: true });
+});
+
+test("la requete prime sur le fragment", () => {
+  assert.deepEqual(choisirJeton("?j=requete", "#j=fragment", null),
+                   { jeton: "requete", aEcrire: true });
+});
+
 /**
- * La regle qui compte. Ouvrir la PWA depuis l'ecran d'accueil se fait SANS
- * fragment : si l'absence effacait le jeton range, le juge serait bloque au
- * premier lancement de la journee, sans comprendre pourquoi.
+ * La regle qui compte, et le cas de tous les jours.
+ *
+ * Ouvrir la PWA depuis l'ecran d'accueil se fait sans rien dans l'adresse quand
+ * l'installation date d'avant la spec 014 : si cette absence effacait le jeton
+ * range, le juge serait bloque au premier lancement de la journee, sans
+ * comprendre pourquoi.
  */
-test("ouvrir sans fragment garde le jeton deja range", () => {
-  assert.deepEqual(choisirJeton("", "deja-la"),
+test("ouvrir sans rien garde le jeton deja range", () => {
+  assert.deepEqual(choisirJeton("", "", "deja-la"),
+                   { jeton: "deja-la", aEcrire: false });
+});
+
+test("une requete vide n'efface pas le jeton range", () => {
+  assert.deepEqual(choisirJeton("?j=", "", "deja-la"),
                    { jeton: "deja-la", aEcrire: false });
 });
 
 test("un fragment vide n'efface pas non plus", () => {
-  assert.deepEqual(choisirJeton("#j=", "deja-la"),
+  assert.deepEqual(choisirJeton("", "#j=", "deja-la"),
                    { jeton: "deja-la", aEcrire: false });
 });
 
 test("un nouveau lien remplace le jeton, pour remplacer une cle revoquee", () => {
-  assert.deepEqual(choisirJeton("#j=neuf", "vieux"),
+  assert.deepEqual(choisirJeton("?j=neuf", "", "vieux"),
                    { jeton: "neuf", aEcrire: true });
 });
 
 test("le meme lien reouvert n'ecrit pas pour rien", () => {
-  assert.deepEqual(choisirJeton("#j=pareil", "pareil"),
+  assert.deepEqual(choisirJeton("?j=pareil", "", "pareil"),
                    { jeton: "pareil", aEcrire: false });
 });
 
 test("sans rien, on n'a pas de jeton", () => {
-  assert.deepEqual(choisirJeton("", null), { jeton: null, aEcrire: false });
+  assert.deepEqual(choisirJeton("", "", null), { jeton: null, aEcrire: false });
 });

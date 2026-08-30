@@ -2,7 +2,14 @@
   "name": "ClimbContest — Juge",
   "short_name": "ClimbContest",
   "description": "Scanner les reussites d'une competition de bloc.",
-  "start_url": "/juge",
+  {#- Spec 014. `start_url` porte le jeton quand la page qui lie ce manifeste
+      en avait un : c'est ce qui fait qu'une application INSTALLEE recoit sa cle
+      dans son adresse a chaque lancement, sans dependre d'un stockage local que
+      l'iPhone cloisonne. Sans jeton, la valeur est celle d'avant : "/juge". -#}
+  "start_url": {{ depart | tojson }},
+  {#- `scope` reste NU, volontairement : c'est le perimetre de l'application,
+      pas son point d'entree. Un scope porteur d'une requete restreindrait
+      l'application a cette seule adresse. -#}
   "scope": "/juge",
   "display": "standalone",
   "orientation": "portrait",
