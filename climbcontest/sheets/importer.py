@@ -28,6 +28,7 @@ from dataclasses import dataclass, field
 from ..extensions import db
 from ..models import (
     Bloc, BlocCircuit, Circuit, Competition, Participant, SOURCE_CLASSEUR,
+    SOURCE_MANUEL,
 )
 from .client import ClasseurGoogle, ErreurClasseur
 
@@ -129,6 +130,20 @@ def importer_participants(comp: Competition, classeur, rapport: Rapport) -> None
                 f"Listes L{n} : « {nom_complet} » sans club (importe quand meme)")
 
         p = Participant.query.filter_by(competition_id=comp.id, dossard=dossard).first()
+        if p and p.source == SOURCE_MANUEL:
+            # ⚠️ Spec 013. Un participant ajoute A LA MAIN pendant la competition
+            # porte un dossard attribue par le serveur. Si le classeur apporte
+            # plus tard le MEME numero, l'ecraser remplacerait son nom, son club
+            # et sa categorie -- et ses reussites, attachees a la ligne,
+            # changeraient de proprietaire SANS QUE RIEN NE LE DISE.
+            #
+            # On refuse, et on le signale. Le rapport d'import existe pour ca :
+            # l'organisateur tranche, en connaissance de cause.
+            rapport.ignores.append(
+                f"Listes L{n} : le dossard {dossard} est deja porte par "
+                f"« {p.nom_complet} », ajoute a la main. Ligne du classeur "
+                f"ignoree -- verifier lequel des deux garde ce numero.")
+            continue
         if p:
             avant = (p.nom, p.prenom, p.club, p.categorie)
             p.nom, p.prenom, p.club, p.categorie = nom, prenom, club, categorie

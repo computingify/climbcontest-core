@@ -6,6 +6,7 @@ docs/technical/classeur-google.md.
 
 import pytest
 
+from climbcontest.extensions import db
 from climbcontest.models import Bloc, BlocCircuit, Circuit, Participant
 from climbcontest.sheets.client import ErreurClasseur
 from climbcontest.sheets.importer import importer
@@ -160,3 +161,51 @@ class TestStructureChangee:
             importer(competition, ClasseurFictif(plan=[entete]))
         assert "structure" in str(e.value).lower()
         assert Bloc.query.count() == 0
+
+
+class TestParticipantManuelProtege:
+    """Spec 013 : l'import n'ecrase jamais un participant ajoute a la main.
+
+    Le scenario : quelqu'un s'inscrit sur place et recoit le dossard 3. Plus
+    tard, un import du classeur apporte un dossard 3 -- une AUTRE personne.
+    Sans cette protection, la fiche est remplacee en silence, et les reussites
+    deja enregistrees sur le dossard 3 se retrouvent au nom du nouveau venu.
+    """
+
+    def test_le_classeur_n_ecrase_pas_une_inscription_manuelle(self, app, competition):
+        from climbcontest.contest import ajouter_participant_numerote
+        from climbcontest.sheets.importer import Rapport, importer_participants
+
+        sur_place = ajouter_participant_numerote("Surplace", club="La Grimpe")
+        assert sur_place.dossard == 1
+
+        class ClasseurFactice:
+            def lire(self, onglet, plage):
+                # colonnes F..K : nom complet, dossard, nom, prenom, club, categorie
+                return [["Autre Personne", "1", "Autre", "Personne", "CAF", "U13 H"]]
+
+        rapport = Rapport()
+        importer_participants(competition, ClasseurFactice(), rapport)
+        db.session.refresh(sur_place)
+
+        assert sur_place.nom == "Surplace", "la fiche manuelle a ete ecrasee"
+        assert rapport.participants_mis_a_jour == 0
+        assert any("ajoute a la main" in i for i in rapport.ignores), rapport.ignores
+
+    def test_une_ligne_du_classeur_reste_modifiable(self, app, competition):
+        """La protection ne vise QUE le manuel : l'import normal fonctionne."""
+        from climbcontest.models import SOURCE_CLASSEUR
+        from climbcontest.sheets.importer import Rapport, importer_participants
+
+        db.session.add(Participant(competition_id=competition.id, nom="Ancien",
+                                   dossard=5, source=SOURCE_CLASSEUR))
+        db.session.commit()
+
+        class ClasseurFactice:
+            def lire(self, onglet, plage):
+                return [["Nouveau Nom", "5", "Nouveau", "Nom", "La Grimpe", "U13 H"]]
+
+        rapport = Rapport()
+        importer_participants(competition, ClasseurFactice(), rapport)
+        assert rapport.participants_mis_a_jour == 1
+        assert Participant.query.filter_by(dossard=5).first().nom == "Nouveau"

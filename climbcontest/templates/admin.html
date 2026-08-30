@@ -352,13 +352,24 @@
       <div class="carte">
         <h2>Ajouter un participant</h2>
         <p class="aide">Pour quelqu'un qui s'inscrit le matin, ou pendant la
-           compétition.</p>
+           compétition. <strong>Le dossard est attribué automatiquement</strong>
+           — le premier numéro libre. Il s'affiche une fois l'ajout fait : c'est
+           celui-là qu'il faut imprimer.</p>
         <div class="grille">
           <div><label for="pNom">Nom *</label><input id="pNom"></div>
           <div><label for="pPrenom">Prénom</label><input id="pPrenom"></div>
-          <div><label for="pClub">Club</label><input id="pClub"></div>
-          <div><label for="pCategorie">Catégorie</label><input id="pCategorie" placeholder="U13 F"></div>
-          <div><label for="pDossard">Dossard</label><input id="pDossard" inputmode="numeric" placeholder="vide si absent"></div>
+          <div>
+            <label for="pClub">Club</label>
+            <select id="pClub" data-autre="pClubAutre"></select>
+            <input id="pClubAutre" hidden placeholder="Nom du club" style="margin-top:6px"
+                   aria-label="Nouveau club">
+          </div>
+          <div>
+            <label for="pCategorie">Catégorie</label>
+            <select id="pCategorie" data-autre="pCategorieAutre"></select>
+            <input id="pCategorieAutre" hidden placeholder="U13 F" style="margin-top:6px"
+                   aria-label="Nouvelle catégorie">
+          </div>
         </div>
         <button class="action" id="btnAjouter">Ajouter</button>
       </div>
@@ -380,7 +391,7 @@
            <strong>100 %</strong>, sans « ajuster à la page », sinon les QR
            sortiront trop petits pour être lus.</p>
         <div class="grille" style="max-width:420px">
-          <div><label for="dCategorie">Une catégorie (vide = toutes)</label><input id="dCategorie" placeholder="U13 F"></div>
+          <div><label for="dCategorie">Une catégorie (vide = toutes)</label><select id="dCategorie"></select></div>
           <div><label for="dUnSeul">Ou un seul dossard</label><input id="dUnSeul" inputmode="numeric"></div>
         </div>
         <button class="action" id="btnImprimer">Ouvrir la planche</button>
@@ -598,6 +609,7 @@
     // Le serveur refuse de toute facon (403) -- masquer evite d'offrir un
     // formulaire qui ne marche pas, ce n'est pas la protection.
     $("blocComptes").hidden = etat.moi.roles.indexOf("admin") === -1;
+    chargerReferentiels();
     // Sur QUOI on agit. Sans ca, rien a l'ecran ne distingue la competition
     // de novembre d'une competition de test restee active.
     var comp = etat.moi.competition ? etat.moi.competition.nom : "aucune compétition active";
@@ -687,6 +699,81 @@
 
   // --- Participants ---------------------------------------------------------
 
+  // --- Les listes deroulantes (spec 013) ------------------------------------
+  //
+  // Le probleme resolu ici se lisait en production le 30/08 : la base portait
+  // 26 « U13 H » et UN « U13 M ». Ce grimpeur etait seul dans sa categorie,
+  // donc premier d'un classement d'une personne. Un champ libre produit ce
+  // genre d'ecart ; une liste ne le peut pas.
+  //
+  // Un <select> et non un <input list=…> : le datalist fait les deux en un
+  // champ, mais il n'EMPECHE rien -- on y tape n'importe quoi sans s'en rendre
+  // compte, ce qui est exactement la facon dont « U13 M » est ne.
+
+  var AUTRE = "__autre__";      // aucune categorie ni aucun club ne s'appelle ainsi
+
+  function remplir(select, valeurs, libelleVide, avecAutre) {
+    var garde = select.value;
+    select.innerHTML = "";
+
+    var vide = document.createElement("option");
+    vide.value = "";
+    vide.textContent = libelleVide;
+    select.appendChild(vide);
+
+    valeurs.forEach(function (v) {
+      var o = document.createElement("option");
+      o.value = v;
+      o.textContent = v;
+      select.appendChild(o);
+    });
+
+    if (avecAutre) {
+      var autre = document.createElement("option");
+      autre.value = AUTRE;
+      autre.textContent = "\uFF0B Autre\u2026";
+      select.appendChild(autre);
+    }
+    // On repose le choix precedent s'il existe encore : recharger les listes
+    // apres un ajout ne doit pas vider le formulaire sous les doigts.
+    if (garde) select.value = garde;
+  }
+
+  /** La valeur retenue : celle de la liste, ou celle tapee dans « Autre… ». */
+  function valeurChoisie(select) {
+    if (select.value !== AUTRE) return select.value;
+    var champ = $(select.dataset.autre);
+    return champ ? champ.value : "";
+  }
+
+  /** Montre le champ libre quand « Autre… » est choisi, et lui donne le focus. */
+  function brancherAutre(select) {
+    select.addEventListener("change", function () {
+      var champ = $(select.dataset.autre);
+      if (!champ) return;
+      champ.hidden = select.value !== AUTRE;
+      if (!champ.hidden) champ.focus();
+      else champ.value = "";
+    });
+  }
+  brancherAutre($("pClub"));
+  brancherAutre($("pCategorie"));
+
+  function chargerReferentiels() {
+    return appeler("/admin/referentiels").then(function (d) {
+      remplir($("pClub"), d.clubs || [], "\u2014 aucun \u2014", true);
+      remplir($("pCategorie"), d.categories || [], "\u2014 aucune \u2014", true);
+      // Pas d'« Autre… » a l'impression : on imprime pour une categorie QUI
+      // EXISTE, pas pour une qu'on vient d'inventer.
+      remplir($("dCategorie"), d.categories || [], "Toutes les cat\u00e9gories", false);
+    }).catch(function () {
+      // Listes indisponibles : « Autre… » reste le chemin, le formulaire marche.
+      remplir($("pClub"), [], "\u2014 aucun \u2014", true);
+      remplir($("pCategorie"), [], "\u2014 aucune \u2014", true);
+      remplir($("dCategorie"), [], "Toutes les cat\u00e9gories", false);
+    });
+  }
+
   function chargerParticipants() {
     appeler("/admin/participants").then(function (d) {
       etat.participants = d.participants || [];
@@ -753,19 +840,33 @@
   $("recherche").addEventListener("input", dessinerParticipants);
 
   $("btnAjouter").addEventListener("click", function () {
-    var dossard = $("pDossard").value.trim();
+    // Aucun dossard n'est envoye : le serveur attribue le premier numero libre
+    // (spec 013). C'est lui qui sait lesquels sont pris, pas l'organisateur
+    // debout devant la file.
     appeler("/admin/participants", {
       methode: "POST",
       corps: {
         nom: $("pNom").value, prenom: $("pPrenom").value,
-        club: $("pClub").value, categorie: $("pCategorie").value,
-        dossard: dossard === "" ? null : dossard,
+        club: valeurChoisie($("pClub")),
+        categorie: valeurChoisie($("pCategorie")),
       },
     }).then(function (d) {
-      dire(d.participant.nom + " ajouté" +
-           (d.participant.dossard ? " avec le dossard " + d.participant.dossard : "") +
-           ". Les téléphones le verront dans quelques secondes.", "ok");
-      ["pNom", "pPrenom", "pDossard"].forEach(function (i) { $(i).value = ""; });
+      dire(d.participant.nom + " ajouté avec le dossard " +
+           d.participant.dossard + ". C'est celui-là qu'il faut imprimer — " +
+           "les téléphones le verront dans quelques secondes.", "ok");
+      ["pNom", "pPrenom"].forEach(function (i) { $(i).value = ""; });
+      ["pClubAutre", "pCategorieAutre"].forEach(function (i) {
+        $(i).value = ""; $(i).hidden = true;
+      });
+      // Une valeur inedite vient peut-etre d'entrer : les listes la connaissent
+      // des maintenant. On repose ensuite le club et la categorie qui viennent
+      // de servir -- laisser « Autre… » selectionne avec son champ vide et
+      // masque est un etat incoherent (le participant suivant partirait sans
+      // club), et les inscriptions arrivent par grappes.
+      chargerReferentiels().then(function () {
+        $("pClub").value = d.participant.club || "";
+        $("pCategorie").value = d.participant.categorie || "";
+      });
       chargerParticipants();
     }).catch(signaler);
   });
