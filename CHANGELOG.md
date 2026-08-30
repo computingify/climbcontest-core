@@ -19,6 +19,42 @@ qu'on ne met pas à jour le matin d'une compétition :
 
 ## [Non publié]
 
+## [0.7.0] — 2026-08-30
+
+L'audit de préparation de novembre, appliqué. Le détail : rapport
+`docs/rapports/2026-08-30-audit-novembre.html`.
+
+### Ajouté
+
+- **Console → onglet « App juge »** : le lien d'installation de l'application
+  iPhone et son QR à afficher au mur, avec le mode d'emploi en trois étapes.
+  Demande `CLIMBCONTEST_API_KEY_PWA` sur le serveur — la réponse le dit si
+  elle manque.
+- **`/health` → `miroir_derniere_erreur`** : la dernière plainte du miroir
+  Google Sheets, lisible sans SSH (« aucun classeur relié… », « Aucun jeton
+  Google… »).
+- **La PWA au niveau de la refonte Android** : étapes numérotées, couleurs de
+  circuit (le catalogue les porte désormais), police Archivo servie
+  localement, pastilles de file dans l'en-tête. Cache du service worker en v2 :
+  les téléphones déjà installés récupèrent la nouvelle coquille seuls.
+- `tools/load/charge_novembre.py` : le banc de charge du scénario de
+  novembre — à ne jamais pointer vers la production.
+
+### Sécurité
+
+- Le cookie de session de la console porte `Secure`, `HttpOnly` et
+  `SameSite=Lax` (`CLIMBCONTEST_COOKIE_SECURE=0` pour un développement en
+  http).
+- Le réimport du classeur exige le rôle organisateur.
+- Code d'authentification mort supprimé (`exige_cle_api_stricte`).
+
+### À savoir pour le jour J
+
+- Trois nouveaux gestes au runbook : **poser le jeton Google sur la VM**
+  (constaté absent — sans lui le classeur ne se remplit jamais), poser la
+  **clé PWA**, et vérifier que **le miroir écrit vraiment** avant la
+  compétition.
+
 ## [0.6.0] — 2026-08-29
 
 ### Ajouté
