@@ -56,11 +56,33 @@ class TestAjout:
         r = connecte.post("/api/v2/contest/climber/name", json={"id": "42"})
         assert r.status_code == 201, "un ajout a chaud doit etre scannable dans la seconde"
 
-    def test_un_participant_sans_dossard_est_accepte(self, connecte, jeu):
-        """L'inscrit qui n'est pas venu : c'est son numero qu'on reprendra."""
+    def test_sans_dossard_la_route_en_attribue_un(self, connecte, jeu):
+        """Spec 013 : le dossard n'est plus saisi, il est attribue.
+
+        Le jeu porte les dossards 1 et 2 (plus un inscrit sans numero) : le
+        prochain libre est donc 3.
+
+        ⚠️ Ce test REMPLACE `test_un_participant_sans_dossard_est_accepte`, qui
+        verifiait l'inverse. Le contrat de la ROUTE change ; celui de la
+        fonction metier, non -- voir `test_present_est_pose_si_un_dossard_est_donne`.
+        """
         r = connecte.post("/admin/participants", json={"nom": "Absent", "prenom": "Paul"})
         assert r.status_code == 201
-        assert r.get_json()["participant"]["dossard"] is None
+        assert r.get_json()["participant"]["dossard"] == 3
+
+    def test_les_champs_saisis_sont_formates(self, connecte, jeu):
+        """Critere A6 : le formatage tient meme sans passer par la console."""
+        r = connecte.post("/admin/participants", json={
+            "nom": "DUPONT", "prenom": "jean-luc",
+            "club": "CAF annonay", "categorie": "u13f",
+        })
+        assert r.status_code == 201
+        p = r.get_json()["participant"]
+        # `nom_complet` = nom puis prenom. « DUPONT » -> « Dupont » (casse
+        # stricte sur une personne), « jean-luc » -> « Jean-Luc ».
+        assert p["nom"] == "Dupont Jean-Luc"
+        assert p["club"] == "CAF Annonay"
+        assert p["categorie"] == "U13 F"
 
     def test_sans_nom_c_est_refuse(self, connecte, jeu):
         assert connecte.post("/admin/participants", json={"dossard": 42}).status_code == 400
@@ -187,3 +209,113 @@ class TestFonctionMetier:
     def test_sans_competition_active_c_est_refuse(self, app):
         with pytest.raises(ErreurMetier):
             ajouter_participant("Nouveau", dossard=1)
+
+
+class TestProchainDossard:
+    """L'attribution du numero (spec 013, decision d'Adrien du 30/08).
+
+    « On ne prend que des emplacements de dossard libre, et deux navigateurs ne
+    peuvent pas prendre le meme numero s'ils font une demande en meme temps. »
+    """
+
+    def test_le_premier_trou_est_comble(self, app, competition):
+        from climbcontest.contest import prochain_dossard
+        for numero in (1, 2, 3, 7, 8):
+            db.session.add(Participant(competition_id=competition.id,
+                                       nom=f"P{numero}", dossard=numero))
+        db.session.commit()
+        assert prochain_dossard(competition) == 4
+
+    def test_sans_trou_c_est_la_suite(self, app, competition):
+        from climbcontest.contest import prochain_dossard
+        for numero in range(1, 110):
+            db.session.add(Participant(competition_id=competition.id,
+                                       nom=f"P{numero}", dossard=numero))
+        db.session.commit()
+        assert prochain_dossard(competition) == 110
+
+    def test_base_vide_commence_a_un(self, app, competition):
+        from climbcontest.contest import prochain_dossard
+        assert prochain_dossard(competition) == 1
+
+    def test_les_sans_dossard_ne_comptent_pas(self, app, competition):
+        """Un inscrit sans numero ne bloque aucun emplacement."""
+        from climbcontest.contest import prochain_dossard
+        db.session.add(Participant(competition_id=competition.id, nom="Absent"))
+        db.session.commit()
+        assert prochain_dossard(competition) == 1
+
+    def test_deux_inscriptions_de_suite_ne_partagent_pas_le_numero(self, app, jeu):
+        from climbcontest.contest import ajouter_participant_numerote
+        a = ajouter_participant_numerote("Premier")
+        b = ajouter_participant_numerote("Second")
+        assert a.dossard != b.dossard
+        assert {a.dossard, b.dossard} == {3, 4}
+
+    def test_la_course_perdue_est_retentee(self, app, jeu, monkeypatch):
+        """Le cas des « 2 navigateurs en meme temps ».
+
+        On simule : le calcul rend d'abord un numero DEJA PRIS -- exactement ce
+        que voit le second navigateur qui a calcule avant que le premier
+        n'ecrive. La contrainte d'unicite refuse, et la retente doit aboutir.
+        """
+        from climbcontest import contest
+        vrai = contest.prochain_dossard
+        appels = {"n": 0}
+
+        def calcul_en_retard(comp):
+            appels["n"] += 1
+            return 1 if appels["n"] == 1 else vrai(comp)   # 1 est deja pris
+
+        monkeypatch.setattr(contest, "prochain_dossard", calcul_en_retard)
+        p = contest.ajouter_participant_numerote("Retardataire")
+        assert appels["n"] >= 2, "la premiere tentative aurait du echouer"
+        assert p.dossard == 3
+
+    def test_l_echec_repete_remonte(self, app, jeu, monkeypatch):
+        """Au-dela des essais, ce n'est plus une course mais un defaut."""
+        from climbcontest import contest
+        monkeypatch.setattr(contest, "prochain_dossard", lambda comp: 1)
+        with pytest.raises(ErreurMetier) as e:
+            contest.ajouter_participant_numerote("Malchanceux")
+        assert e.value.code == 409
+
+    def test_present_est_pose_par_l_attribution(self, app, jeu):
+        """Qui recoit un dossard est la : c'est quelqu'un devant le guichet."""
+        from climbcontest.contest import ajouter_participant_numerote
+        assert ajouter_participant_numerote("Venu").present is True
+
+
+class TestReferentiels:
+    """Les listes qui remplissent les menus deroulants (spec 013, IT3)."""
+
+    def test_les_valeurs_connues_sont_rendues(self, connecte, jeu):
+        d = connecte.get("/admin/referentiels").get_json()
+        assert d["success"] is True
+        assert d["categories"] == ["U11 F", "U11 H", "U13 H"]
+        assert d["clubs"] == ["La Grimpe", "Les Lezards"]
+
+    def test_pas_de_nul_dans_les_listes(self, connecte, jeu):
+        """L'inscrit « Absent » n'a pas de club : il ne doit pas creer un trou."""
+        d = connecte.get("/admin/referentiels").get_json()
+        assert None not in d["clubs"] and "" not in d["clubs"]
+
+    def test_une_valeur_inedite_rejoint_la_liste(self, connecte, jeu):
+        """C'est ca, « un moyen d'en ajouter » : l'ecrire une fois."""
+        connecte.post("/admin/participants",
+                      json={"nom": "Neuf", "club": "CAF annonay", "categorie": "u17f"})
+        d = connecte.get("/admin/referentiels").get_json()
+        assert "CAF Annonay" in d["clubs"]
+        assert "U17 F" in d["categories"]
+
+    def test_sans_competition_active_ce_n_est_pas_une_erreur(self, connecte, jeu):
+        """Le formulaire doit rester utilisable : « Autre… » suffit."""
+        jeu["competition"].active = False
+        db.session.commit()
+        d = connecte.get("/admin/referentiels").get_json()
+        assert d["success"] is True
+        assert d["categories"] == [] and d["clubs"] == []
+
+    def test_sans_session_c_est_refuse(self, client, app):
+        app.config["SECRET_KEY"] = "une-vraie-cle-de-test-suffisamment-longue"
+        assert client.get("/admin/referentiels").status_code == 401
