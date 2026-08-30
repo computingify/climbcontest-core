@@ -19,6 +19,25 @@ qu'on ne met pas à jour le matin d'une compétition :
 
 ## [Non publié]
 
+## [0.8.0] — 2026-08-30
+
+### Ajouté
+
+- **La console d'administration est refondue.** Sept onglets ajoutés au fil des
+  specs — et ça se voyait : *deux* parlaient des téléphones des juges, et
+  « retrouver un scan » était rangé sous « Appareils » alors qu'on y cherche une
+  réussite. Quatre vues désormais, groupées par la question qu'on se pose le
+  jour J : **Participants** (inscrire, chercher, imprimer), **Réussites**
+  (saisir, retrouver), **Téléphones** (installer l'app juge *et* suivre les
+  envois), **Réglages** (mon mot de passe, les comptes).
+
+  Navigation par burger et tiroir latéral, contenu en cartes, et la barre du
+  haut affiche **la compétition active** — « le classeur est-il le bon ? » est
+  le point le plus souvent oublié du runbook, et la console était le seul
+  endroit où l'on agissait sans jamais voir sur quoi.
+
+- `/admin/moi` renvoie la compétition active, pour l'afficher.
+
 ### Corrigé
 
 - **Le jeton du juge survit à l'installation de l'application** (spec 014).
