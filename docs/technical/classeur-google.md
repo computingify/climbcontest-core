@@ -176,26 +176,69 @@ Les couleurs de difficulté sont ordonnées (`Listes!A41:A46`) :
 Jaune  <  Vert  <  Bleu  <  Mauve  <  Rouge  <  Noir
 ```
 
-`Inter!DJ19` implémente la règle : **un grimpeur qui a réussi 100 % des blocs de
-deux couleurs plus difficiles se voit valider automatiquement tous les blocs des
-couleurs plus faciles.** L'onglet documente d'autres variantes prêtes à coller
-(une seule couleur au lieu de deux, variantes par genre) — le format est donc
-paramétrable d'une édition à l'autre.
+⚠️ **Relecture exhaustive du 30/08** (les ~213 000 formules des deux classeurs
+ont été extraites et dédupliquées par structure) : la formule réelle de
+`Inter!DJ19` est plus riche que le résumé ci-dessus ne le disait.
 
-> **À trancher** : reprend-on cette règle côté backend, et sous quelle variante ?
-> Si oui, elle doit être configurable par compétition.
+- **Un interrupteur PAR CATÉGORIE** : `Listes!D29:D38` (colonne « Valid dif
+  précé »). Vide = règle inactive pour cette catégorie. Constaté **vide
+  partout** dans les classeurs de novembre 2025 ET de mars 2026 — la règle n'a
+  jamais servi, et l'algorithme brut reproduit 196/196 résultats.
+- **Deux variantes PAR GENRE** (`Listes!A23`/`B23` = F/H) : réussir 100 % des
+  blocs d'une couleur valide en cascade les couleurs plus faciles, mais le
+  plafond de la cascade diffère — les **3** premières couleurs pour un genre,
+  les **2** premières pour l'autre.
+
+**Ce que fait le backend** (`classement._valider_par_couleur`) : une option par
+compétition (`options.validation_couleur = N`), inactive par défaut — N couleurs
+pleines valident tout ce qui est plus facile que la plus facile d'entre elles.
+**Ce n'est pas la même variante que le classeur.** Tant que la règle reste
+inactive des deux côtés (l'état réel), aucun écart possible. Si elle devait être
+activée pour une édition, il faudrait d'abord trancher la variante — et
+l'implémenter à l'identique des deux côtés, sous peine d'un classement affiché
+différent du classeur.
 
 ### La saisie manuelle
 
-`Inter!HJ19` lit l'onglet `Saisie manuelle` : un juge peut inscrire une réussite
-à la main, sans passer par l'application. C'est le mode papier de secours, et il
-compte dans le classement au même titre qu'un scan.
+`Inter!HJ19` lit l'onglet `Saisie manuelle` : une grille de fiches papier par
+grimpeur, cochable dans le classeur, qui compte au même titre qu'un scan.
+⚠️ **Ce terme n'existe que dans le classeur de mars 2026** — celui de novembre
+2025 additionne deux termes (`Import + couleur`), pas trois.
 
-> **À trancher** : l'équivalent côté backend serait une page d'arbitrage
-> permettant d'ajouter ou de retirer une réussite. Utile le jour J, mais c'est
-> aussi la seule route capable de fausser un classement — donc à protéger.
+**Tranché depuis la spec 005** : la console offre la saisie manuelle
+(`POST /admin/reussites`, source `manuel`, protégée par rôle), la réussite
+entre en base et le miroir la pose dans `Import` — le classeur la compte donc
+aussi. **La consigne d'exploitation qui en découle** : le jour J, on ne coche
+PLUS la grille du classeur. Une case cochée là-bas ne serait vue que par le
+classeur, jamais par la page de résultats — deux classements divergents.
 
 ---
+
+## 5 bis. Ce que la relecture exhaustive du 30/08 a classé
+
+L'extraction complète des formules (`~107 000` en novembre 2025, `~186 000` en
+mars 2026, dédupliquées à ~400 structures) confirme que **tout ce qui touche au
+classement est couvert** par le backend, et range le reste :
+
+| Mécanisme du classeur | Où | Verdict |
+| --- | --- | --- |
+| Valeur de bloc `1000/n`, sans arrondi intermédiaire | `Résultats!H2` | ✅ backend identique (196/196) |
+| Score `ROUND(Σ;0)`, rang `RANK` ex æquo partagé | `Résultats!DF/DG` | ✅ backend identique |
+| Rang de départage pour l'AFFICHAGE (`RANK+COUNTIF-1`) | `Résultats!DH` | ✅ équivalent (tri stable de la page) |
+| Filtre par circuit, scratch par circuit | `Inter!H19`, `Scratchs` | ✅ backend identique |
+| Validation par couleur | `Inter!DJ19` | ⚠️ inactive partout ; variantes divergentes si activée (§ 5) |
+| Saisie manuelle | `Inter!HJ19` (mars) | ✅ via la console (§ 5) |
+| Détection doublons / catégorie inconnue à l'inscription | `Listes!L2,C5` | ✅ rapport d'import du backend |
+| QR dossards et blocs (contenu : dossard nu, tag) | `QR Code` | ✅ généré localement (`qr.py`), même contenu |
+| Pourcentage de réussite par grimpeur, tranches <50/75/90 % | `Résultats!FN,FU,D143` | ➖ analyse interne, non repris (volontaire) |
+| Compteurs de réussites par bloc/catégorie | `Résultats!H140` | ➖ idem |
+| Podium de cérémonie, règle « Trop d'exæquo » affichée | `Podium!C1` | ➖ affichage manuel de cérémonie, le classeur reste l'outil |
+| `Stats` (classement filtrable), `Fiches` (impression) | mars 2026 | ➖ analyse / papier |
+| `XLSX` (normalisation des inscriptions importées) | mars 2026 | ➖ c'est l'amont : spec 008 (HelloAsso), non commencée |
+
+Les inventaires bruts (une ligne par structure de formule, avec exemple et
+nombre d'occurrences) ont été archivés le 30/08 ; l'outil d'extraction tient en
+80 lignes contre l'API `spreadsheets.get` en lecture seule.
 
 ## 6. Relire le classeur
 
