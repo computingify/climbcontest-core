@@ -19,6 +19,28 @@ qu'on ne met pas à jour le matin d'une compétition :
 
 ## [Non publié]
 
+## [0.8.1] — 2026-08-30
+
+### Corrigé
+
+- **Le catalogue d'une compétition n'est plus servi pour une autre.** Scénario
+  certain : on répète le jour J sur une compétition de test, puis on crée celle
+  de novembre — les téléphones de la répétition gardaient la liste de test.
+
+  Les téléphones valident leur catalogue avec un simple entier
+  (`If-None-Match: "3"`), et `catalogue_version` repartait à 1 à chaque
+  compétition : deux compétitions portaient le même numéro, et le serveur
+  répondait `304` sur une liste qui n'était pas la sienne.
+
+  Ce n'est pas une corruption de données — le serveur enregistre bien la
+  réussite sur la bonne compétition. C'est **le contrôle humain** qui saute :
+  le juge lit le nom affiché pour vérifier qu'il a le bon grimpeur, et il
+  lisait un nom de test pour un dossard bien réel.
+
+  `catalogue_version` devient globalement croissante (un numéro ne ressert
+  jamais) et `?depuis=N` exige `==` au lieu de `>=`. Rien à changer sur les
+  téléphones, et le `304` continue d'économiser les 15 ko de chaque sondage.
+
 ## [0.8.0] — 2026-08-30
 
 ### Ajouté
