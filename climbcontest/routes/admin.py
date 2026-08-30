@@ -78,8 +78,7 @@ def connexion():
     freinage.noter_reussite(adresse)
     ouvrir(u)
     logger.info("connexion de %s depuis %s", u.identifiant, adresse)
-    return jsonify({"success": True, "identifiant": u.identifiant,
-                    "roles": sorted(r.role for r in u.roles)}), 200
+    return jsonify(_identite(u)), 200
 
 
 @bp.post("/deconnexion")
@@ -91,24 +90,42 @@ def deconnexion():
     return jsonify({"success": True}), 200
 
 
+def _identite(u) -> dict:
+    """Ce que la console sait de l'utilisateur connecte.
+
+    ⚠️ UNE seule fonction pour `/admin/connexion` et `/admin/moi`, et c'est le
+    correctif : les deux reponses etaient ecrites separement, `/moi` a recu le
+    champ `competition` et la connexion ne l'a jamais eu. La console lit
+    `etat.moi.competition` juste apres la connexion -- elle affichait donc
+    « aucune competition active » alors qu'une competition l'etait, et ne se
+    corrigeait qu'au rechargement de la page.
+
+    C'est le pire moment pour ce message : un organisateur qui se connecte le
+    matin de la competition lit exactement le contraire de la verite, sur
+    l'ecran meme qui existe pour lui dire SUR QUOI il agit.
+
+    Deux reponses qui doivent dire la meme chose ne s'ecrivent pas deux fois.
+    """
+    from ..models import Competition
+    active = Competition.query.filter_by(active=True).first()
+    return {
+        "success": True,
+        "identifiant": u.identifiant,
+        "nom_affiche": u.nom_affiche,
+        "roles": sorted(r.role for r in u.roles),
+        # « Le classeur est-il le bon ? » est le point le plus souvent oublie du
+        # runbook, et la console etait le seul endroit ou l'on agissait sans
+        # jamais voir sur quoi.
+        "competition": {"id": active.id, "nom": active.nom} if active else None,
+    }
+
+
 @bp.get("/moi")
 @exige_role()
 def moi():
     """Qui je suis, et ce que j'ai le droit de faire. La console s'en sert
     pour n'afficher que les boutons utilisables."""
-    u = g.utilisateur
-    # La competition active accompagne l'identite : « le classeur est-il le
-    # bon ? » est le point le plus souvent oublie du runbook, et la console
-    # etait le seul endroit ou l'on agissait sans jamais voir SUR QUOI.
-    from ..models import Competition
-    active = Competition.query.filter_by(active=True).first()
-    return jsonify({
-        "success": True,
-        "identifiant": u.identifiant,
-        "nom_affiche": u.nom_affiche,
-        "roles": sorted(r.role for r in u.roles),
-        "competition": {"id": active.id, "nom": active.nom} if active else None,
-    }), 200
+    return jsonify(_identite(g.utilisateur)), 200
 
 # Dernier rapport, en memoire. C'est un confort de consultation, pas une donnee :
 # le perdre a un redemarrage est sans consequence, on relance l'import.
