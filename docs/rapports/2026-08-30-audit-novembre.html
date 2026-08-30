@@ -1,0 +1,361 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Audit de préparation — novembre 2026</title>
+<meta name="description" content="Le tour complet de ClimbContest avant la compétition de novembre 2026 : specs, tests, sécurité, Google Sheets, charge — constats, corrections, et ce qui reste.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,600;12..96,800&family=Newsreader:ital,opsz,wght@0,6..72,300;0,6..72,400;0,6..72,600;1,6..72,400&family=IBM+Plex+Mono:wght@400;600&display=swap">
+<style>
+  /* La même identité que le rapport du 28/08 : les six couleurs de circuit du
+     club, du plus facile au plus difficile — elles codent ici la gravité. */
+  :root {
+    --jaune: #C8901F; --vert: #4E9A5A; --bleu: #2F6BB0;
+    --mauve: #7A4F99; --rouge: #B33F33; --noir: #24252C;
+    --jaune-txt: #8A6109; --vert-txt: #357044; --bleu-txt: #2F6BB0;
+    --mauve-txt: #7A4F99; --rouge-txt: #B33F33;
+    --fond: #F3F4F7; --surface: #FFFFFF; --surface-2: #EAECF1;
+    --encre: #191C22; --encre-2: #545C6B; --trait: #D6DAE3;
+    --accent: var(--bleu); --accent-doux: #E4EDF8;
+    --serif: "Newsreader", Georgia, "Times New Roman", serif;
+    --grot: "Bricolage Grotesque", "Helvetica Neue", Arial, sans-serif;
+    --mono: "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, monospace;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --fond: #101319; --surface: #171B23; --surface-2: #1E232D;
+      --encre: #EEF1F5; --encre-2: #9AA4B4; --trait: #2B313D;
+      --accent-doux: #1A2634;
+      --jaune-txt: #D9A83E; --vert-txt: #6FBA7D; --bleu-txt: #6D9FD6;
+      --mauve-txt: #A97FC8; --rouge-txt: #D0685C;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--fond); color: var(--encre);
+    font-family: var(--serif); font-size: 1.06rem; line-height: 1.65;
+    -webkit-font-smoothing: antialiased;
+  }
+  .rail { height: 6px; display: flex; }
+  .rail span { flex: 1; }
+  header.page {
+    max-width: 880px; margin: 0 auto; padding: 56px 24px 12px;
+  }
+  .surtitre {
+    font-family: var(--grot); font-weight: 600; font-size: 0.8rem;
+    letter-spacing: 0.14em; text-transform: uppercase; color: var(--encre-2);
+  }
+  h1 {
+    font-family: var(--grot); font-weight: 800; font-size: clamp(1.9rem, 5vw, 2.9rem);
+    line-height: 1.12; letter-spacing: -0.015em; margin: 10px 0 14px;
+    text-wrap: balance;
+  }
+  .chapo { font-size: 1.15rem; color: var(--encre-2); max-width: 62ch; margin: 0; }
+  main { max-width: 880px; margin: 0 auto; padding: 8px 24px 80px; }
+  h2 {
+    font-family: var(--grot); font-weight: 800; font-size: 1.45rem;
+    letter-spacing: -0.01em; margin: 52px 0 6px; text-wrap: balance;
+  }
+  h2 .n {
+    color: var(--accent); font-variant-numeric: tabular-nums; margin-right: 8px;
+  }
+  h3 { font-family: var(--grot); font-weight: 600; font-size: 1.05rem; margin: 28px 0 4px; }
+  p { max-width: 68ch; }
+  code, .mono { font-family: var(--mono); font-size: 0.86em; }
+  code { background: var(--surface-2); border-radius: 5px; padding: 1px 6px; }
+  pre {
+    background: var(--surface-2); border-radius: 10px; padding: 14px 16px;
+    overflow-x: auto; font-family: var(--mono); font-size: 0.82rem; line-height: 1.6;
+  }
+  pre code { background: none; padding: 0; }
+  a { color: var(--bleu-txt); }
+
+  /* les chiffres d'ouverture */
+  .chiffres {
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 12px; margin: 30px 0 8px;
+  }
+  .chiffre {
+    background: var(--surface); border: 1px solid var(--trait);
+    border-radius: 12px; padding: 16px 18px;
+  }
+  .chiffre b {
+    display: block; font-family: var(--grot); font-weight: 800;
+    font-size: 1.7rem; letter-spacing: -0.02em; font-variant-numeric: tabular-nums;
+  }
+  .chiffre span { color: var(--encre-2); font-size: 0.92rem; }
+
+  table {
+    border-collapse: collapse; width: 100%; margin: 18px 0;
+    font-size: 0.95rem;
+  }
+  .defiler { overflow-x: auto; }
+  th {
+    font-family: var(--grot); font-weight: 600; font-size: 0.78rem;
+    text-transform: uppercase; letter-spacing: 0.09em; color: var(--encre-2);
+    text-align: left; padding: 8px 12px 8px 0; border-bottom: 2px solid var(--trait);
+  }
+  td { padding: 10px 12px 10px 0; border-bottom: 1px solid var(--trait);
+       vertical-align: top; }
+  td.num { font-family: var(--mono); font-size: 0.85rem; white-space: nowrap;
+           font-variant-numeric: tabular-nums; }
+
+  .pastille {
+    display: inline-block; font-family: var(--grot); font-weight: 600;
+    font-size: 0.74rem; letter-spacing: 0.05em; border-radius: 999px;
+    padding: 2px 10px; white-space: nowrap;
+  }
+  .p-rouge { color: var(--rouge-txt); background: color-mix(in srgb, var(--rouge) 14%, transparent); }
+  .p-jaune { color: var(--jaune-txt); background: color-mix(in srgb, var(--jaune) 16%, transparent); }
+  .p-bleu  { color: var(--bleu-txt);  background: color-mix(in srgb, var(--bleu) 13%, transparent); }
+  .p-vert  { color: var(--vert-txt);  background: color-mix(in srgb, var(--vert) 14%, transparent); }
+
+  .note {
+    background: var(--accent-doux); border-left: 4px solid var(--accent);
+    border-radius: 0 10px 10px 0; padding: 12px 18px; margin: 18px 0;
+    font-size: 0.98rem;
+  }
+  .note.alerte { border-left-color: var(--rouge); background: color-mix(in srgb, var(--rouge) 9%, var(--surface)); }
+
+  ul.cocher { list-style: none; padding-left: 0; }
+  ul.cocher li {
+    padding: 10px 0 10px 34px; position: relative; border-bottom: 1px solid var(--trait);
+    max-width: 72ch;
+  }
+  ul.cocher li::before {
+    content: ""; position: absolute; left: 4px; top: 15px;
+    width: 15px; height: 15px; border: 2px solid var(--encre-2); border-radius: 4px;
+  }
+  ul.cocher li.fait::before {
+    background: var(--vert); border-color: var(--vert);
+  }
+  ul.cocher li.fait::after {
+    content: "✓"; position: absolute; left: 7px; top: 9px; color: #fff;
+    font-size: 0.8rem; font-weight: 700;
+  }
+  .qui {
+    font-family: var(--grot); font-weight: 600; font-size: 0.72rem;
+    letter-spacing: 0.08em; text-transform: uppercase; color: var(--encre-2);
+    margin-right: 8px;
+  }
+  footer {
+    max-width: 880px; margin: 0 auto; padding: 0 24px 60px;
+    color: var(--encre-2); font-size: 0.9rem;
+  }
+</style>
+</head>
+<body>
+<div class="rail" aria-hidden="true">
+  <span style="background:var(--jaune)"></span><span style="background:var(--vert)"></span>
+  <span style="background:var(--bleu)"></span><span style="background:var(--mauve)"></span>
+  <span style="background:var(--rouge)"></span><span style="background:var(--noir)"></span>
+</div>
+
+<header class="page">
+  <p class="surtitre">ClimbContest · rapport d'audit · 30 août 2026</p>
+  <h1>Le tour complet avant novembre</h1>
+  <p class="chapo">Chaque fonctionnalité relue face à sa spec, la couverture de
+  tests complétée sur les deux dépôts, la sécurité resserrée, la chaîne Google
+  Sheets prouvée de bout en bout, et le serveur mis sous charge. Ce rapport dit
+  ce qui a été vérifié, ce qui a été corrigé <em>séance tenante</em>, et ce
+  qu'il reste à faire — avec qui.</p>
+
+  <div class="chiffres">
+    <div class="chiffre"><b>883</b><span>tests automatisés au vert
+      (580 Python + 115 JS + 188 Android)</span></div>
+    <div class="chiffre"><b>p95 &lt; 20 ms</b><span>sous 25 juges + 30
+      spectateurs, 0 erreur</span></div>
+    <div class="chiffre"><b>10 / 10</b><span>specs livrées re-testées,
+      8 trouvailles corrigées</span></div>
+  </div>
+</header>
+
+<main>
+<h2><span class="n">1</span>Périmètre et méthode</h2>
+<p>Le périmètre : tout ce qui servira en novembre — le backend
+(<code>climbcontest-core</code>, specs 001 à 007 et 010 à 012), l'application
+Android des juges, la PWA iPhone, la console d'administration, la page de
+résultats, le miroir Google Sheets et l'infrastructure de la VM 110. Les specs
+008 (import HelloAsso) et 009 (finales) ne sont pas commencées&nbsp;; elles ne
+sont pas dans le périmètre.</p>
+<p>La méthode est celle de toute la reprise&nbsp;: <strong>on ne croit pas une
+protection qu'on n'a pas vue tomber</strong>. Chaque durcissement ajouté ici a
+été vérifié en le retirant et en regardant son test échouer. Et on ne croit pas
+un rendu qu'on n'a pas regardé&nbsp;: chaque écran a été ouvert, piloté et
+capturé — c'est ce qui a trouvé ce que la relecture ne trouve jamais.</p>
+
+<h2><span class="n">2</span>Ce qui a été vérifié, chiffres à l'appui</h2>
+
+<h3>Les suites de tests, complétées</h3>
+<div class="defiler"><table>
+  <tr><th>Suite</th><th>Avant</th><th>Après</th><th>Ajouté par l'audit</th></tr>
+  <tr><td>Backend Python (<span class="mono">pytest</span>)</td>
+      <td class="num">562</td><td class="num">580</td>
+      <td>le fil du miroir Sheets (34&nbsp;%&nbsp;→ couvert), les rôles d'import,
+          les drapeaux de cookie, le lien d'installation iPhone</td></tr>
+  <tr><td>PWA JavaScript (<span class="mono">node --test</span>)</td>
+      <td class="num">107</td><td class="num">115</td>
+      <td>les couleurs de circuit, la relecture tolérante du catalogue</td></tr>
+  <tr><td>Android JVM (<span class="mono">gradlew test</span>)</td>
+      <td class="num">175</td><td class="num">188</td>
+      <td>MainViewModel (reset, journal, compteur), les couleurs
+          (contraste vérifié pour chaque circuit), le fichier tronqué</td></tr>
+</table></div>
+<p>Les tests de bout en bout existants (vrai gunicorn multi-workers, vraie base
+fichier, redémarrage en plein envoi) passent tous — ils font partie des 580.</p>
+
+<h3>La chaîne Google Sheets, prouvée sur un vrai classeur</h3>
+<p>La suite de tests coupe le réseau par principe. L'audit a donc joué la
+chaîne <em>complète</em> une fois, contre un classeur <strong>jetable créé pour
+l'occasion</strong> — jamais le vrai&nbsp;:</p>
+<pre><code>juge (HTTP + clé) → base → fil du miroir → API Google → classeur → relecture</code></pre>
+<p>Résultat&nbsp;: les trois réussites envoyées sont arrivées aux
+<strong>bonnes cellules</strong> de l'onglet Import (colonne = dossard + 3,
+ligne = n° de bloc + 1) en ~3 secondes, et <code>/health</code> est redescendu
+à zéro en attente. Le jeton OAuth du Mac se rafraîchit correctement.</p>
+<div class="note alerte"><strong>À supprimer à la main&nbsp;:</strong> trois
+classeurs d'essai nommés «&nbsp;ClimbContest — audit technique … (jetable)&nbsp;»
+ont été créés dans le Drive pendant l'audit (deux vides, un avec les 3 «&nbsp;A&nbsp;»
+de test). Le jeton n'a que le scope <code>spreadsheets</code>, pas
+<code>drive</code>&nbsp;: je ne peux pas les supprimer moi-même.</div>
+
+<h3>La charge du jour J, mesurée en local</h3>
+<p>Sur un gunicorn local à 4 workers — la configuration de la VM — avec l'outil
+versé dans le dépôt (<code>tools/load/charge_novembre.py</code>, à ne
+<strong>jamais</strong> pointer vers la production)&nbsp;:</p>
+<div class="defiler"><table>
+  <tr><th>Scénario</th><th>Volume</th><th>p50</th><th>p95</th><th>Max</th><th>Erreurs</th></tr>
+  <tr><td>Envois de lots (25 juges)</td><td class="num">566 lots</td>
+      <td class="num">8,0 ms</td><td class="num">19,2 ms</td><td class="num">97,5 ms</td><td class="num">0</td></tr>
+  <tr><td>Classement (30 spectateurs)</td><td class="num">1 092 requêtes</td>
+      <td class="num">4,3 ms</td><td class="num">12,5 ms</td><td class="num">75,9 ms</td><td class="num">0</td></tr>
+  <tr><td>Rafale de reprise — 25 téléphones vident 50 réussites <em>en même temps</em></td>
+      <td class="num">1 250 réussites</td>
+      <td class="num">253 ms</td><td class="num">325 ms</td><td class="num">338 ms</td><td class="num">0</td></tr>
+</table></div>
+<p>Intégrité après coup&nbsp;: <strong>1 565 réussites acceptées, 1 565 lignes en
+base, zéro doublon</strong>. SQLite en WAL absorbe très largement une
+compétition — la journée entière de novembre représente moins de charge que ces
+45 secondes de banc.</p>
+
+<h2><span class="n">3</span>Les trouvailles, et ce qui en a été fait</h2>
+<p>Classées par l'échelle du club — du jaune (mineur) au rouge (aurait gâché la
+journée). Tout ce qui suit est <strong>corrigé et fusionné</strong>
+(core&nbsp;#42, Android&nbsp;#11), sauf mention contraire.</p>
+<div class="defiler"><table>
+  <tr><th>Gravité</th><th>Constat</th><th>Correction</th></tr>
+  <tr><td><span class="pastille p-rouge">Rouge</span></td>
+      <td>Le <strong>jeton Google n'est pas sur la VM</strong> —
+          <code>/opt/climbcontest/shared/secrets/</code> est vide. Le jour J, le
+          miroir aurait tourné sans jamais écrire une ligne dans le classeur, et
+          rien ne l'aurait dit clairement.</td>
+      <td>Étape «&nbsp;Poser le jeton Google&nbsp;» ajoutée au runbook, plus une
+          vérification outillée «&nbsp;le miroir écrit-il vraiment&nbsp;?&nbsp;».
+          <em>Le geste lui-même reste à faire</em> (§&nbsp;4).</td></tr>
+  <tr><td><span class="pastille p-rouge">Rouge</span></td>
+      <td>Diagnostiquer le miroir demandait un SSH&nbsp;: 714 réussites en
+          attente sur la VM, et la cause («&nbsp;aucun classeur relié&nbsp;»)
+          n'était visible que dans le journal du service.</td>
+      <td><code>/health</code> expose <code>miroir_derniere_erreur</code>&nbsp;—
+          la dernière plainte du fil, lisible depuis n'importe où, testée.</td></tr>
+  <tr><td><span class="pastille p-bleu">Bleu</span></td>
+      <td>Le cookie de session de la console partait sans <code>Secure</code>
+          ni <code>SameSite</code> — Flask ne les pose pas seul.</td>
+      <td><code>Secure</code> + <code>HttpOnly</code> + <code>SameSite=Lax</code>
+          par défaut&nbsp;; <code>CLIMBCONTEST_COOKIE_SECURE=0</code> pour le
+          développement en http. Testé drapeau par drapeau.</td></tr>
+  <tr><td><span class="pastille p-bleu">Bleu</span></td>
+      <td>Un compte <em>sans aucun rôle</em> pouvait déclencher un réimport
+          complet du classeur — une réécriture de la base.</td>
+      <td>Rôle organisateur exigé sur les deux routes d'import. Défense en
+          profondeur&nbsp;: l'API de comptes refuse déjà les comptes sans rôle.</td></tr>
+  <tr><td><span class="pastille p-bleu">Bleu</span></td>
+      <td>Le QR d'installation iPhone prévu par la spec 007 («&nbsp;à afficher au
+          mur&nbsp;») n'existait pas — d'où la question légitime&nbsp;:
+          «&nbsp;sur quel site je dois aller&nbsp;?&nbsp;»</td>
+      <td>Onglet <strong>App juge</strong> dans la console&nbsp;: lien, QR de
+          70&nbsp;mm, mode d'emploi en trois étapes. Réponse explicite si la clé
+          PWA n'est pas configurée.</td></tr>
+  <tr><td><span class="pastille p-jaune">Jaune</span></td>
+      <td>La PWA iPhone montrait l'écran d'<em>avant</em> la refonte — celui
+          jugé «&nbsp;pas au niveau&nbsp;» côté Android.</td>
+      <td>Portage du langage visuel complet&nbsp;: étapes numérotées, couleurs
+          de circuit, Archivo, pastilles dans l'en-tête. La logique JS testée n'a
+          pas bougé&nbsp;; cache du service worker passé en v2.</td></tr>
+  <tr><td><span class="pastille p-jaune">Jaune</span></td>
+      <td>Du code d'authentification mort
+          (<code>exige_cle_api_stricte</code>, plus utilisé depuis la spec 005)
+          et le fil du miroir couvert à 34&nbsp;%.</td>
+      <td>Code mort supprimé&nbsp;; 8 tests sur le fil (plainte unique par
+          cause, «&nbsp;ça repart&nbsp;», survie aux exceptions).</td></tr>
+  <tr><td><span class="pastille p-jaune">Jaune</span></td>
+      <td>Divers&nbsp;: <code>ExampleUnitTest</code> du template Android, un
+          import mort, un lint Android préexistant qui échoue
+          (<code>PermissionImpliesUnsupportedChromeOsHardware</code>).</td>
+      <td>Scories supprimées. Le lint n'est pas dans la CI&nbsp;; règle à
+          traiter à l'occasion (une ligne de manifeste).</td></tr>
+</table></div>
+
+<div class="note"><strong>Ce que l'audit n'a pas trouvé&nbsp;:</strong> de
+perte de données possible sur le chemin d'une réussite. La chaîne
+file-sur-téléphone → lot idempotent → base-avant-réponse → miroir rejouable a
+résisté à tout ce qui a été tenté — redémarrages, rafales, doublons, pannes
+simulées de Google. C'est le cœur du système, et il est solide.</div>
+
+<h2><span class="n">4</span>Ce qui reste avant novembre</h2>
+<p>Dans l'ordre où le runbook les prend. Les gestes marqués
+<span class="qui">Adrien</span> demandent un mot de passe ou une décision qui
+n'appartient qu'à toi.</p>
+<ul class="cocher">
+  <li><span class="qui">Adrien</span>Poser <code>CLIMBCONTEST_API_KEY</code> et
+      <code>CLIMBCONTEST_API_KEY_PWA</code> sur la VM — runbook
+      «&nbsp;Poser la clé d'API&nbsp;». Sans la première, tous les téléphones
+      reçoivent 503&nbsp;; sans la seconde, l'onglet App juge le dira.</li>
+  <li><span class="qui">Adrien</span>Recompiler l'application avec la clé
+      (<code>~/.gradle/gradle.properties</code>, jamais le fichier du projet) et
+      la mettre sur les 25 téléphones.</li>
+  <li><span class="qui">Adrien</span>Poser <code>token.pickle</code> sur la VM —
+      nouveau paragraphe du runbook. Puis vérifier
+      <code>miroir_derniere_erreur</code> à <code>null</code> après une réussite
+      de test.</li>
+  <li><span class="qui">Adrien</span>Créer les comptes de la console sur la VM
+      (<code>flask creer-admin adrien</code>)&nbsp;: il n'en existe aucun en
+      production.</li>
+  <li><span class="qui">Adrien</span>Créer la compétition de novembre, la relier
+      à <strong>son</strong> classeur, vérifier l'import.</li>
+  <li><span class="qui">Adrien</span>Supprimer les trois classeurs jetables de
+      l'audit (voir §&nbsp;2).</li>
+  <li><span class="qui">Ensemble</span><strong>Le scan réel n'a jamais été
+      essayé</strong>&nbsp;: un vrai QR avec un vrai téléphone Android, et un
+      vrai iPhone pour la PWA (caméra + stockage Safari — aucun émulateur ne
+      couvre ça). C'est le plus gros risque restant, et il se lève en dix
+      minutes de test.</li>
+  <li><span class="qui">Adrien</span>Décisions en attente&nbsp;: la valeur de N
+      pour les finales (spec 009), et l'import HelloAsso (spec 008) si voulu
+      pour novembre.</li>
+  <li><span class="qui">Claude</span>Supprimer les prototypes morts du workspace
+      (<code>climbContestApp/</code>, <code>ClimbContestIos/</code>) — prévu de
+      longue date, rien d'urgent.</li>
+</ul>
+
+<h2><span class="n">5</span>Où tout se trouve</h2>
+<ul>
+  <li>Les corrections de cet audit&nbsp;: PR <a href="https://github.com/computingify/climbcontest-core/pull/42">core&nbsp;#42</a>
+      et <a href="https://github.com/computingify/ClimbContest/pull/11">Android&nbsp;#11</a>, fusionnées, CI verte.</li>
+  <li>Le banc de charge&nbsp;: <code>tools/load/charge_novembre.py</code>.</li>
+  <li>Le runbook complété&nbsp;: <code>docs/runbook-competition.md</code>.</li>
+  <li>La présentation pour les bénévoles&nbsp;:
+      <code>docs/rapports/2026-08-30-presentation-benevoles.html</code>.</li>
+</ul>
+</main>
+
+<footer>
+  Rapport établi le 30 août 2026, sur la base des dépôts publics
+  <span class="mono">climbcontest-core</span> et
+  <span class="mono">computingify/ClimbContest</span>. Aucune donnée personnelle
+  n'y figure&nbsp;; les noms visibles dans les captures sont fictifs.
+</footer>
+</body>
+</html>
