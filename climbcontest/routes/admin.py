@@ -22,13 +22,14 @@ from .. import comptes
 from ..comptes import ADMIN, ORGANISATEUR, ErreurCompte, verifier
 from .. import qr
 from ..extensions import db
-from ..models import SOURCE_MANUEL, Participant, Utilisateur
+from ..models import SOURCE_MANUEL, Competition, Participant, Utilisateur
 from ..contest import (
     ErreurMetier, ajouter_participant, ajouter_participant_numerote, appareils,
     bloc_par_tag, competition_active, enregistrer_reussite,
     participant_par_dossard, reaffecter_dossard, reussites_tracees,
     supprimer_reussite,
 )
+from ..sheets import parametrage
 from ..sheets.client import ErreurClasseur
 from ..sheets.importer import importer
 
@@ -546,6 +547,119 @@ def dernier_rapport():
         return jsonify({"success": True, "rapport": None,
                         "message": "Aucun import depuis le demarrage"}), 200
     return jsonify({"success": True, "rapport": _dernier_rapport}), 200
+
+
+# --- Le classeur Google (spec 015) ------------------------------------------
+#
+# `ADMIN` et pas `ORGANISATEUR` : ces quatre routes decident OU vont les donnees
+# et AVEC QUELLE identite Google. L'import, lui, reste organisateur — il ne fait
+# que relire ce qui est deja relie.
+
+
+@bp.get("/classeur")
+@exige_role(ADMIN)
+def classeur_etat():
+    """Ce que la console affiche : classeur relie, jeton, compteurs.
+
+    Aucun acces reseau : cette vue doit s'ouvrir meme quand Google est
+    injoignable ou qu'aucun jeton n'est pose — c'est precisement dans ces
+    moments-la qu'on vient la consulter.
+    """
+    comp = Competition.query.filter_by(active=True).first()
+    return jsonify({"success": True, **parametrage.etat(comp)}), 200
+
+
+@bp.post("/classeur/test")
+@exige_role(ADMIN)
+def classeur_test():
+    """Lecture seule, sur le classeur relie ou sur un lien qu'on envisage.
+
+    Pouvoir tester AVANT de relier est le seul moment ou l'on peut encore
+    s'apercevoir qu'on avait la mauvaise feuille.
+    """
+    corps = _corps_objet() or {}
+    comp = Competition.query.filter_by(active=True).first()
+    lien = str(corps.get("lien") or "").strip()
+
+    try:
+        if lien:
+            identifiant = parametrage.extraire_identifiant(lien)
+        else:
+            identifiant = (comp.spreadsheet_id or "").strip() if comp else ""
+            if not identifiant:
+                raise ErreurMetier(
+                    "Aucun classeur relie a cette competition : colle un lien "
+                    "pour l'essayer.", code=409)
+        rapport = parametrage.tester(identifiant, comp)
+    except ErreurMetier as e:
+        return jsonify({"success": False, "message": e.message}), e.code
+    except ErreurClasseur as e:
+        # 502 et pas 500 : la panne est chez Google (ou dans le partage de la
+        # feuille), pas dans le serveur. Le message de Google est repris tel
+        # quel — c'est lui qui dit « feuille introuvable » ou « acces refuse ».
+        logger.warning("test du classeur refuse : %s", e)
+        return jsonify({"success": False, "message": str(e)}), 502
+
+    return jsonify({"success": True, "rapport": rapport}), 200
+
+
+@bp.post("/classeur")
+@exige_role(ADMIN)
+def classeur_relier():
+    """{"lien": "...", "mode": "relier|rejouer|reinitialiser", "confirmation": "..."}"""
+    corps = _corps_objet()
+    if corps is None:
+        return jsonify({"success": False, "message": "Corps JSON attendu"}), 400
+
+    try:
+        comp = competition_active()
+        identifiant = parametrage.extraire_identifiant(str(corps.get("lien") or ""))
+        effets = parametrage.relier(
+            comp, identifiant,
+            mode=str(corps.get("mode") or parametrage.MODE_RELIER),
+            confirmation=str(corps.get("confirmation") or ""),
+        )
+    except ErreurMetier as e:
+        db.session.rollback()
+        return jsonify({"success": False, "message": e.message}), e.code
+    except ErreurClasseur as e:
+        # Le vidage du classeur a lieu AVANT toute suppression en base : si on
+        # passe ici, la base n'a pas bouge. On le dit, parce que c'est
+        # exactement la question que se pose celui qui lit le message.
+        db.session.rollback()
+        logger.warning("changement de classeur refuse : %s", e)
+        return jsonify({"success": False,
+                        "message": f"{e} — rien n'a ete modifie."}), 502
+
+    logger.info("%s a relie le classeur %s (mode %s)",
+                g.utilisateur.identifiant, identifiant, effets["mode"])
+    return jsonify({"success": True, "effets": effets,
+                    **parametrage.etat(comp)}), 200
+
+
+@bp.post("/classeur/jeton")
+@exige_role(ADMIN)
+def classeur_jeton():
+    """{"jeton": "<le JSON produit par tools/exporter_jeton.py>"}
+
+    Du JSON, jamais un pickle : voir `parametrage.poser_jeton`. Le jeton n'est
+    ni journalise, ni renvoye — seul son etat l'est.
+    """
+    corps = _corps_objet()
+    if corps is None:
+        return jsonify({"success": False, "message": "Corps JSON attendu"}), 400
+
+    try:
+        etat = parametrage.poser_jeton(str(corps.get("jeton") or ""))
+    except ErreurMetier as e:
+        return jsonify({"success": False, "message": e.message}), e.code
+    except OSError as e:
+        logger.exception("jeton non ecrit")
+        return jsonify({"success": False,
+                        "message": f"Ecriture du jeton impossible : {e}"}), 500
+
+    logger.info("%s a pose un nouveau jeton Google", g.utilisateur.identifiant)
+    return jsonify({"success": True, "jeton": etat}), 200
 
 
 # --- Tracabilite : quel telephone a envoye quoi (spec 011) -------------------
