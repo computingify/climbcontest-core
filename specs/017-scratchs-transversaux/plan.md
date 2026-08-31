@@ -42,6 +42,6 @@ micro, pas découverts devant le podium.
 
 | Suite | Résultat |
 | --- | --- |
-| `pytest` | **777 vert** |
+| `pytest` | **779 vert** |
 | `node --test tests/js` | 124 vert |
 | `tools/verify_ranking.py` | 196 conformes, 0 écart |

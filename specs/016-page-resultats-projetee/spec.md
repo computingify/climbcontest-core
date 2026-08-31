@@ -146,6 +146,37 @@ trois au plus), le podium en bandeau disparaît sous 900 px — trois cartes cô
 (`clamp()`) au lieu d'être figées. Sur téléphone, une seule colonne, un seul
 tableau : celui qu'on a choisi.
 
+## 3.8 Reprise du 31/08 (soir) — le podium, et un vrai tableau
+
+**Le podium prend la forme qu'on lui connaît** : le premier au centre et plus
+haut, le deuxième à gauche un peu en dessous, le troisième à droite plus bas
+encore, chacun sur son socle à la couleur de sa médaille. C'est la forme qu'on
+lit sans la lire.
+
+**Le classement en dessous devient un tableau**, et pas une pile de cartes.
+Adrien : « la présentation des résultats en dessous n'est vraiment pas
+terrible ». En regardant comment les services de résultats sportifs s'y prennent
+(IFSC, chronométrage de course, tables de classement), trois choses reviennent
+partout et manquaient toutes :
+
+| Ce qu'ils font | Pourquoi | Chez nous |
+| --- | --- | --- |
+| **Position + écart au leader** | « 1287 » ne dit rien seul ; « 1287, à −368 » dit la course. C'est la deuxième colonne de tout classement chronométré | colonne **Écart** |
+| **Un en-tête de colonnes** | sans lui, « 16 » et « −368 » sont deux nombres qu'il faut deviner | Rang · Grimpeur · Blocs · Écart · Score |
+| **Chiffres tabulaires, alignés à droite ; texte à gauche** | c'est ce qui permet de comparer deux nombres sans les lire | `font-variant-numeric: tabular-nums` partout |
+
+Et des **zébrures très peu saturées** plutôt que des cartes détachées : la
+littérature sur les tableaux est nuancée — le gain de vitesse est faible — mais
+la précision de lecture progresse, et sur un mur c'est la précision qui compte.
+Des colonnes alignées se parcourent à la verticale ; des cartes obligent à
+relire chaque ligne en entier.
+
+**Sur téléphone, le tableau se replie en deux lignes** : nom et score en grand,
+et « club · 13 blocs · −285 » en petit dessous. Les cinq colonnes coûtent près
+de 300 px de gabarit fixe — en dessous, il ne reste plus de place pour le nom,
+et c'est le nom qu'on vient lire. Aucune information n'est perdue, elle change
+de place.
+
 ## 4. Critères d'acceptation
 
 | # | Critère | Comment on le vérifie |
@@ -168,6 +199,9 @@ tableau : celui qu'on a choisi.
 | A16 | Toucher une catégorie l'affiche seule et relance le cycle à partir d'elle | Piloté : clic sur « U13 H » → 25 lignes, une seule table |
 | A17 | Le nombre de colonnes suit la largeur de la fenêtre | 1920 → 3, 1100 → 3, 900 → 2, 560 → 1 |
 | A18 | Sous 900 px, le podium en bandeau s'efface au profit de la liste | Capture 760 px |
+| A19 | Le podium est en **marches** : 1er au centre et plus haut, 2e à gauche, 3e à droite et plus bas | Capture 1920 |
+| A20 | Le classement porte un **en-tête de colonnes** et une colonne **Écart** | Capture + test de gabarit |
+| A21 | Sous 430 px de colonne, le tableau se replie en deux lignes sans rien perdre | Capture 390 px |
 
 ## 5. Ce qui reste hors périmètre
 

@@ -41,6 +41,8 @@
     --alerte: #B3352A;
     --ok: #1E7A45;
     --or: #C9971C; --argent: #7E8896; --bronze: #A8703C;
+    --encre3: #7B8494;
+    --zebre: #E9EDF3;                 /* zébrure : neutre et très peu saturée */
 
     --groupe: var(--c3);
     --titre: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
@@ -54,6 +56,7 @@
     --fond: #0B0F17; --carte: #161B24; --carte2: #1E2430; --trait: #2A313D;
     --encre: #F0F3F8; --encre2: #97A2B2; --alerte: #E0705F; --ok: #57D58D;
     --or: #E8B93C; --argent: #B9C2CF; --bronze: #C08150;
+    --encre3: #798398; --zebre: #12171F;
   }
 
   * { box-sizing: border-box; }
@@ -153,24 +156,51 @@
   }
   body.mur #attente { font-size: 1.35rem; padding: 18px 26px; }
 
-  /* Le podium en bandeau : trois cartes côte à côte, pleine largeur. Il n'existe
-     qu'en mode mur — sur un téléphone, il mangerait tout l'écran. */
-  #podium { flex: none; display: none; grid-template-columns: repeat(3, 1fr); gap: 18px;
-            height: clamp(132px, 19vh, 208px); }
+  /* Le podium, en MARCHES : le premier au centre et plus haut, le deuxième à
+     gauche, le troisième à droite et plus bas encore. C'est la forme qu'on
+     reconnaît sans la lire — demandée par Adrien le 31/08. Il n'existe qu'en
+     mode mur : sur un téléphone, il mangerait tout l'écran. */
+  #podium { flex: none; display: none; grid-template-columns: 1fr 1.12fr 1fr;
+            gap: 18px; align-items: end;
+            height: clamp(150px, 23vh, 250px); }
   body.mur #podium.visible { display: grid; }
+  /* La place dans la RANGÉE vient du rang affiché (1er au centre), la médaille
+     vient du rang réel : deux ex æquo en tête portent deux fois l'or. C'est la
+     MARCHE qui porte la position — voir `.marche.place-N` plus bas. */
   .pod {
-    display: grid; grid-template-columns: clamp(56px, 5.6vw, 100px) 1fr; column-gap: 18px; row-gap: 2px;
+    display: grid; grid-template-columns: clamp(56px, 5.6vw, 100px) 1fr;
+    column-gap: 18px; row-gap: 2px;
     align-items: center; align-content: center;   /* sinon les trois lignes se
        repartissent sur toute la hauteur de la carte, et le nom flotte tout en
        haut pendant que le score tombe tout en bas */
-    background: var(--carte); border-radius: 18px;
-    padding: 16px 22px; border-top: 9px solid var(--medaille);
+    background: var(--carte); border-radius: 18px 18px 0 0;
+    padding: 14px 22px 12px; border-top: 9px solid var(--medaille);
     box-shadow: 0 1px 0 rgba(14,20,32,.06);
+    /* `flex: 1` et pas `height: 100%` : la carte prend la place qui reste
+       APRÈS le socle. Avec la hauteur pleine, elle le poussait hors de la
+       marche et le podium redevenait trois cartes alignées. */
+    flex: 1;
   }
-  .pod { --medaille: var(--bronze); }
-  .pod.r1 { --medaille: var(--or); }
-  .pod.r2 { --medaille: var(--argent); }
-  .pod.r3 { --medaille: var(--bronze); }
+  /* Les marches. Hauteurs différentes : c'est ce qui fait lire « podium »
+     plutôt que « trois cartes ». */
+  .marche {
+    display: flex; flex-direction: column; justify-content: flex-end; min-width: 0;
+  }
+  .marche .socle {
+    height: 16px; border-radius: 0 0 6px 6px; background: var(--medaille);
+  }
+  .marche.place-1 { order: 2; padding-bottom: 52px; }
+  .marche.place-2 { order: 1; padding-bottom: 26px; }
+  .marche.place-3 { order: 3; padding-bottom: 0; }
+  /* Le socle est d'autant plus haut que la place est bonne : c'est lui qui
+     dessine la marche sous la carte. */
+  .marche.place-1 .socle { height: 30px; }
+  .marche.place-2 .socle { height: 20px; }
+  .marche.place-3 .socle { height: 12px; }
+  .marche, .pod { --medaille: var(--bronze); }
+  .marche.r1, .pod.r1 { --medaille: var(--or); }
+  .marche.r2, .pod.r2 { --medaille: var(--argent); }
+  .marche.r3, .pod.r3 { --medaille: var(--bronze); }
   .pod .place {
     grid-row: 1 / span 3; font-size: clamp(52px, 5.2vw, 96px); font-weight: 900; line-height: 1;
     color: var(--medaille); text-align: center; font-variant-numeric: tabular-nums;
@@ -179,10 +209,12 @@
               white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .pod .club { font-size: clamp(14px, 1.1vw, 20px); color: var(--encre2);
                white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .pod .chiffres { display: flex; align-items: baseline; gap: 12px; margin-top: 4px; }
+  .pod .chiffres { display: flex; align-items: baseline; gap: 12px; margin-top: 4px;
+                   flex-wrap: nowrap; white-space: nowrap; }
   .pod .score { font-size: clamp(32px, 3.2vw, 60px); font-weight: 900; line-height: 1;
                 font-variant-numeric: tabular-nums; }
   .pod .blocs { font-size: clamp(14px, 1.2vw, 22px); color: var(--encre2); }
+  .pod .ecart { font-size: clamp(14px, 1.2vw, 22px); color: var(--encre2); }
 
   /* La zone qui défile doucement quand le plateau déborde. */
   #defile { flex: 1; min-height: 0; overflow: hidden; }
@@ -203,34 +235,59 @@
   }
   body:not(.mur) #defile { overflow: visible; }
   #liste {
-    display: flex; flex-direction: column; gap: 7px;
+    display: flex; flex-direction: column; gap: 0;
     will-change: transform;
+    /* rang | grimpeur | blocs | écart | score */
+    --grille-ligne: 3.4em minmax(0, 1fr) 3.4em 4.4em 5.2em;
   }
+  #liste.d2 { --grille-ligne: 3.2em minmax(0, 1fr) 3.2em 4.2em 5em; }
+  #liste.d3 { --grille-ligne: 3em minmax(0, 1fr) 3em 4em 4.8em; }
+  #liste.d4 { --grille-ligne: 2.4em minmax(0, 1fr) 4.4em; }
   /* Le flux par LIGNES, et pas par colonnes. Le podium est une rangée (1, 2, 3
      de gauche à droite) : enchaîner sur des colonnes qui se lisent de haut en
      bas obligeait l'œil à changer de sens au milieu de l'écran. Maintenant tout
      se lit dans le même sens — 4, 5, 6 puis 7, 8, 9. */
   body.mur #liste {
     display: grid; grid-template-columns: repeat(var(--colonnes, 3), 1fr);
-    gap: 7px 18px; align-content: start;
+    gap: 0 26px; align-content: start;
   }
 
+  /* Un TABLEAU, pas une pile de cartes. C'est ce que font les services de
+     résultats sportifs, et pour une raison qui se mesure : des colonnes
+     alignées se parcourent à la verticale, des cartes obligent à relire chaque
+     ligne en entier. Zébrures très peu saturées (elles aident un peu la
+     précision de lecture sans faire de bruit), chiffres tabulaires, texte à
+     gauche et nombres à droite. */
+  .entete {
+    display: grid; align-items: end; gap: 12px;
+    grid-template-columns: var(--grille-ligne);
+    padding: 0 14px 6px; border-bottom: 2px solid var(--trait);
+    font-size: 0.68rem; letter-spacing: 0.1em; text-transform: uppercase;
+    font-weight: 700; color: var(--encre3, var(--encre2));
+  }
+  body.mur .entete { font-size: calc(var(--h, 64px) * .21); padding-bottom: 8px; }
+  .entete span:nth-child(1), .entete span:nth-child(3),
+  .entete span:nth-child(4), .entete span:nth-child(5) { text-align: right; }
+  .entete span:nth-child(1) { text-align: left; }
+
   .ligne {
-    display: grid; grid-template-columns: 3.2em 1fr auto; align-items: center; gap: 14px;
-    background: var(--carte); border-radius: 11px; padding: 10px 16px;
-    border-left: 5px solid transparent;
+    display: grid; grid-template-columns: var(--grille-ligne);
+    align-items: center; gap: 12px;
+    padding: 9px 14px; border-bottom: 1px solid var(--trait);
   }
-  body.mur .ligne {
-    height: var(--h, 64px); padding: 0 16px; gap: 12px;
-    grid-template-columns: calc(var(--h, 64px) * .95) 1fr auto;
-  }
-  .ligne.p1 { border-left-color: var(--or); background: var(--carte2); }
-  .ligne.p2 { border-left-color: var(--argent); background: var(--carte2); }
-  .ligne.p3 { border-left-color: var(--bronze); background: var(--carte2); }
+  .ligne:nth-of-type(even) { background: var(--zebre); }
+  body.mur .ligne { height: var(--h, 64px); padding: 0 14px; }
+
+  /* Le podium reste marqué dans le tableau — utile quand il n'y a pas de
+     bandeau (téléphone, fenêtre étroite). */
+  .ligne.p1, .ligne.p2, .ligne.p3 { background: var(--carte2); }
+  .ligne.p1 { box-shadow: inset 4px 0 0 var(--or); }
+  .ligne.p2 { box-shadow: inset 4px 0 0 var(--argent); }
+  .ligne.p3 { box-shadow: inset 4px 0 0 var(--bronze); }
 
   .rang { font-weight: 800; color: var(--encre2); text-align: right;
           font-variant-numeric: tabular-nums; font-size: 1.15rem; }
-  body.mur .rang { font-size: calc(var(--h, 64px) * .42); }
+  body.mur .rang { font-size: calc(var(--h, 64px) * .40); }
   .qui { min-width: 0; }
   .nom { font-weight: 700; font-size: 1.05rem;
          white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -238,12 +295,18 @@
   .club { color: var(--encre2); font-size: 0.8rem;
           white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   body.mur .club { font-size: calc(var(--h, 64px) * .21); }
-  .chiffres { text-align: right; }
   .score { font-weight: 800; font-size: 1.2rem; font-variant-numeric: tabular-nums;
-           line-height: 1.1; }
+           text-align: right; }
   body.mur .score { font-size: calc(var(--h, 64px) * .40); }
-  .blocs { color: var(--encre2); font-size: 0.75rem; }
-  body.mur .blocs { font-size: calc(var(--h, 64px) * .19); }
+  .blocs { color: var(--encre2); font-size: 0.9rem; text-align: right;
+           font-variant-numeric: tabular-nums; }
+  body.mur .blocs { font-size: calc(var(--h, 64px) * .28); }
+  /* L'écart au premier : la deuxième colonne que tout service de résultats
+     affiche, après la position. « 1287 » ne dit rien seul ; « 1287, à −368 »
+     dit la course. */
+  .ecart { color: var(--encre2); text-align: right; font-variant-numeric: tabular-nums;
+           font-size: 0.9rem; }
+  body.mur .ecart { font-size: calc(var(--h, 64px) * .28); }
 
   /* Une place gagnée ou perdue se VOIT : la flèche dit de combien, la ligne
      glisse jusqu'à sa nouvelle place, et celui qui monte pulse une fois. */
@@ -251,8 +314,10 @@
      plutôt que de tout tronquer. Dans l'ordre de ce qu'on peut perdre : le
      numéro de dossard (il est sur le dossard, justement), puis le club, puis
      le compte de blocs. Le nom et le score, jamais. */
-  #liste.d4 .blocs, #podium.serre .club { display: none; }
-  #liste.d4 .club, .club:empty { display: none; }
+  #liste.d4 .blocs, #liste.d4 .ecart, #podium.serre .club { display: none; }
+  .club:empty { display: none; }
+  /* En deux lignes, l'en-tête n'annonce plus que ce qui reste. */
+  #liste.d4 .entete span:nth-child(3), #liste.d4 .entete span:nth-child(4) { display: none; }
 
   .fleche { font-size: 0.62em; font-weight: 800; margin-left: 8px; }
   .monte { color: var(--ok); }
@@ -640,30 +705,47 @@
     return n;
   }
 
+  /** Une marche du podium : la carte, et le socle qui la surélève. */
   function noeudPodium() {
-    var n = div("pod");
+    var marche = div("marche");
+    var n = div("pod", marche);
     div("place", n);
     div("nom", n);
     div("club", n);
     var chiffres = div("chiffres", n);
     div("score", chiffres, "span");
     div("blocs", chiffres, "span");
-    return n;
+    div("ecart", chiffres, "span");
+    div("socle", marche);
+    return marche;
   }
 
+  /** Une ligne de tableau : rang | grimpeur | blocs | écart | score. */
   function noeudLigne() {
     var n = div("ligne");
     div("rang", n);
     var qui = div("qui", n);
     div("nom", qui);
     div("club", qui);
-    var chiffres = div("chiffres", n);
-    div("score", chiffres);
-    div("blocs", chiffres);
+    div("blocs", n);
+    div("ecart", n);
+    div("score", n);
     return n;
   }
 
-  function remplir(n, l, avecPodium) {
+  /** L'en-tête de colonnes. Une par colonne affichée : sans elle, « 16 » et
+   *  « −368 » sont deux nombres qu'on doit deviner. */
+  function noeudEntete() {
+    var n = div("entete");
+    ["Rang", "Grimpeur", "Blocs", "Écart", "Score"].forEach(function (mot) {
+      var s = document.createElement("span");
+      s.textContent = mot;
+      n.appendChild(s);
+    });
+    return n;
+  }
+
+  function remplir(n, l, avecPodium, tete) {
     var d = etat.deltas[l.cle];
     n.querySelector(".place, .rang").textContent = l.rang;
 
@@ -681,15 +763,38 @@
     // Densité 1 : tout. 2 : le dossard part (il est sur le dossard, justement).
     // 3 : le club part. 4 : la ligne entière part, et le compte de blocs avec.
     var appoint = [l.contexte];
-    if (etat.densite <= 2) appoint.push(l.club);
-    if (etat.densite <= 1 && l.dossard) appoint.push("n°" + l.dossard);
+    // Le club revient en densité 4 : la mise en deux lignes lui redonne la
+    // place que le tableau serré lui refusait. Un parent cherche le club.
+    if (etat.densite !== 3 || estPodium) appoint.push(l.club);
+    if ((etat.densite <= 1 || estPodium) && l.dossard) appoint.push("n°" + l.dossard);
+    if (etat.densite >= 4 && !estPodium) {
+      // Les colonnes ont disparu : leur contenu revient ici plutôt que d'être
+      // perdu. Une ligne de plus vaut mieux qu'une information de moins.
+      appoint.push(l.blocs + (l.blocs > 1 ? " blocs" : " bloc"));
+      var perdu = (tete || 0) - l.score;
+      if (perdu > 0) appoint.push("−" + perdu);
+    }
     n.querySelector(".club").textContent = appoint.filter(Boolean).join(" · ");
     n.querySelector(".score").textContent = l.score;
-    n.querySelector(".blocs").textContent = l.blocs + (l.blocs > 1 ? " blocs" : " bloc");
 
-    if (n.classList.contains("pod")) n.className = "pod r" + Math.min(3, l.rang);
-    else if (!avecPodium) n.className = "ligne";
-    else n.className = "ligne" + (l.rang <= 3 ? " p" + l.rang : "");
+    var estPodium = n.classList.contains("pod");
+    n.querySelector(".blocs").textContent = estPodium
+      ? l.blocs + (l.blocs > 1 ? " blocs" : " bloc")
+      : l.blocs;                       // en tableau, l'en-tête dit déjà « Blocs »
+
+    // L'écart au premier : ce que tout service de résultats affiche juste après
+    // la position. Le premier n'a pas d'écart — un « 0 » ferait croire à une
+    // égalité avec lui-même.
+    var ecart = n.querySelector(".ecart");
+    if (ecart) {
+      var retard = (tete || 0) - l.score;
+      // Sur une marche, le premier n'affiche rien du tout ; dans le tableau, un
+      // tiret garde la colonne alignée.
+      ecart.textContent = retard > 0 ? "−" + retard : (estPodium ? "" : "—");
+    }
+
+    if (estPodium) n.className = "pod r" + Math.min(3, l.rang);
+    else n.className = "ligne" + (l.rang <= 3 && !avecPodium ? " p" + l.rang : "");
 
     if (d > 0 && !sansMouvement()) {
       n.classList.remove("pulse"); void n.offsetWidth; n.classList.add("pulse");
@@ -698,41 +803,80 @@
 
   var LARGEUR_PODIUM = 900;      // en dessous, trois cartes côte à côte s'écrasent
 
+  /** Les en-têtes de colonnes : un par colonne affichée. */
+  function poserEntetes(nombre) {
+    var actuels = el.liste.querySelectorAll(".entete").length;
+    while (actuels > nombre) {
+      el.liste.removeChild(el.liste.querySelector(".entete"));
+      actuels--;
+    }
+    while (actuels < nombre) {
+      el.liste.insertBefore(noeudEntete(), el.liste.firstChild);
+      actuels++;
+    }
+    return nombre;
+  }
+
   function peindre(lignes, avecPodium) {
     var podium = MUR && avecPodium && lignes.length > 3
               && window.innerWidth >= LARGEUR_PODIUM;
     el.podium.classList.toggle("visible", podium);
+    el.podium.classList.toggle("serre", window.innerWidth < 1150);
+
+    // L'écart se mesure au premier : les lignes sont déjà triées par rang.
+    var meilleur = lignes.length ? lignes[0].score : 0;
 
     var tete = podium ? lignes.slice(0, 3) : [];
     var suite = podium ? lignes.slice(3) : lignes;
 
-    // Le podium
+    // Le podium, en marches. La position dans la rangée vient du RANG AFFICHÉ
+    // (premier au centre), pas du rang réel : deux ex æquo en tête occupent
+    // quand même le centre et la gauche, et portent tous deux l'or.
     tete.forEach(function (l, i) {
-      var n = etat.noeuds[l.cle];
-      if (!n || !n.classList.contains("pod")) { n = noeudPodium(); etat.noeuds[l.cle] = n; }
-      remplir(n, l, avecPodium);
-      if (el.podium.children[i] !== n) el.podium.insertBefore(n, el.podium.children[i] || null);
+      var marche = etat.noeuds[l.cle];
+      if (!marche || !marche.classList.contains("marche")) {
+        marche = noeudPodium();
+        etat.noeuds[l.cle] = marche;
+      }
+      marche.className = "marche place-" + (i + 1) + " r" + Math.min(3, l.rang);
+      remplir(marche.querySelector(".pod"), l, avecPodium, meilleur);
+      if (el.podium.children[i] !== marche) {
+        el.podium.insertBefore(marche, el.podium.children[i] || null);
+      }
     });
-    while (el.podium.children.length > tete.length) el.podium.removeChild(el.podium.lastChild);
+    while (el.podium.children.length > tete.length) {
+      el.podium.removeChild(el.podium.lastChild);
+    }
 
-    // Le reste
+    var colonnes = 1;
     if (MUR) {
-      var colonnes = colonnesPour(suite.length);
+      colonnes = colonnesPour(suite.length);
       el.liste.style.setProperty("--colonnes", colonnes);
       regler_densite(colonnes);
-      ajuster(suite.length, colonnes);
     } else {
       regler_densite(1);
     }
-    el.podium.classList.toggle("serre", window.innerWidth < 1150);
+
+    // Une en-tête par colonne : le flux se fait par lignes, les `colonnes`
+    // premiers éléments forment donc la première rangée.
+    var entetes = poserEntetes(suite.length ? colonnes : 0);
+    if (MUR) ajuster(suite.length, colonnes, entetes);
 
     suite.forEach(function (l, i) {
       var n = etat.noeuds[l.cle];
-      if (!n || n.classList.contains("pod")) { n = noeudLigne(); etat.noeuds[l.cle] = n; }
-      remplir(n, l, avecPodium);
-      if (el.liste.children[i] !== n) el.liste.insertBefore(n, el.liste.children[i] || null);
+      if (!n || !n.classList.contains("ligne")) {
+        n = noeudLigne();
+        etat.noeuds[l.cle] = n;
+      }
+      remplir(n, l, avecPodium, meilleur);
+      var place = entetes + i;
+      if (el.liste.children[place] !== n) {
+        el.liste.insertBefore(n, el.liste.children[place] || null);
+      }
     });
-    while (el.liste.children.length > suite.length) el.liste.removeChild(el.liste.lastChild);
+    while (el.liste.children.length > entetes + suite.length) {
+      el.liste.removeChild(el.liste.lastChild);
+    }
 
     // Les nœuds disparus (changement de groupe, recherche) sortent de la table.
     var vivants = {};
@@ -750,11 +894,11 @@
    */
   function colonnesPour(nombre) {
     var largeur = el.liste.clientWidth || window.innerWidth;
-    // 340 px par colonne : c'est la largeur en dessous de laquelle un nom
-    // commence à être tronqué. Au-dessus, on préfère TROIS colonnes serrées où
-    // tout le plateau se voit à deux colonnes larges qui obligent à défiler —
-    // sur un mur, ce qu'on ne voit pas n'existe pas.
-    var parLargeur = Math.max(1, Math.min(3, Math.floor(largeur / 340)));
+    // 430 px par colonne. Le tableau coûte ~300 px de gabarit fixe (rang,
+    // blocs, écart, score) : en dessous, il ne reste plus de place pour un nom,
+    // et c'est le nom qu'on vient lire. Mieux vaut deux colonnes lisibles que
+    // trois colonnes de « Nieuv… ».
+    var parLargeur = Math.max(1, Math.min(3, Math.floor(largeur / 430)));
     var parNombre = nombre > 12 ? 3 : nombre > 4 ? 2 : 1;
     return Math.min(parLargeur, parNombre);
   }
@@ -768,13 +912,15 @@
    */
   function regler_densite(colonnes) {
     var largeur = (el.liste.clientWidth - (colonnes - 1) * 18) / colonnes;
-    etat.densite = largeur >= 420 ? 1 : largeur >= 330 ? 2 : largeur >= 250 ? 3 : 4;
+    etat.densite = largeur >= 520 ? 1 : largeur >= 470 ? 2 : largeur >= 430 ? 3 : 4;
     for (var n = 1; n <= 4; n++) el.liste.classList.toggle("d" + n, n === etat.densite);
   }
 
   /** La hauteur d'une ligne, pour que la catégorie ENTIÈRE tienne à l'écran. */
-  function ajuster(nombre, colonnes) {
-    var lignes = Math.max(1, Math.ceil(nombre / colonnes));
+  function ajuster(nombre, colonnes, entetes) {
+    // La rangée d'en-têtes prend sa place : sans ça, la dernière ligne passe
+    // sous le bord de l'écran.
+    var lignes = Math.max(1, Math.ceil(nombre / colonnes)) + (entetes ? 0.55 : 0);
     var style = getComputedStyle(el.defile);
     // clientHeight INCLUT le rembourrage : sans cette soustraction, les
     // dernières lignes passent sous le bord de l'écran.

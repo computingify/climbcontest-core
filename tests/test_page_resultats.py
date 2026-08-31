@@ -221,6 +221,22 @@ class TestFaitePourEtreProjetee:
         assert "etat.densite" in page
         assert "#liste.d4 .blocs" in page
 
+    def test_le_podium_est_en_marches(self, client, jeu):
+        """Premier au centre et plus haut, deuxième à gauche, troisième à droite
+        et plus bas — la forme qu'on lit sans la lire."""
+        page = client.get("/").data.decode()
+        assert ".marche.place-1 { order: 2;" in page
+        assert ".marche.place-2 { order: 1;" in page
+        assert ".marche.place-3 { order: 3;" in page
+
+    def test_le_classement_est_un_tableau(self, client, jeu):
+        """Ce que font les services de résultats sportifs : un en-tête de
+        colonnes, l'écart au premier, des chiffres tabulaires alignés."""
+        page = client.get("/").data.decode()
+        assert '"Rang", "Grimpeur", "Blocs", "Écart", "Score"' in page
+        assert "tabular-nums" in page
+        assert "function noeudEntete(" in page
+
     def test_les_scratchs_defilent_sur_le_mur(self, client, jeu):
         page = client.get("/").data.decode()
         assert '"categorie", "circuit", "scratch"' in page

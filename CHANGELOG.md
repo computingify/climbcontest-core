@@ -38,6 +38,21 @@ qu'on ne met pas à jour le matin d'une compétition :
 
 ### Modifié
 
+- **Le podium a la forme d'un podium** : le premier au centre et plus haut, le
+  deuxième à gauche un peu en dessous, le troisième à droite plus bas encore,
+  chacun sur son socle à la couleur de sa médaille.
+- **Le classement devient un tableau.** En regardant comment les services de
+  résultats sportifs présentent les leurs, trois choses reviennent partout et
+  manquaient toutes : la colonne **Écart au premier** (« 1287 » ne dit rien
+  seul ; « 1287, à −368 » dit la course), un **en-tête de colonnes** (sans lui,
+  « 16 » et « −368 » sont deux nombres à deviner), et des **chiffres tabulaires
+  alignés à droite** avec le texte à gauche. Les cartes détachées cèdent la
+  place à des zébrures très peu saturées : des colonnes alignées se parcourent à
+  la verticale, des cartes obligent à relire chaque ligne en entier.
+- **Sur téléphone, le tableau se replie en deux lignes** — nom et score en
+  grand, « club · 13 blocs · −285 » en dessous. Les cinq colonnes coûtent près
+  de 300 px de gabarit : en dessous, il ne restait plus de place pour le nom, et
+  c'est le nom qu'on vient lire.
 - **Le classement se lit dans un seul sens.** Le podium est une rangée — 1, 2, 3
   de gauche à droite — et le reste enchaînait sur des colonnes lues de haut en
   bas : l'œil changeait de sens au milieu de l'écran. Les rangs se remplissent
