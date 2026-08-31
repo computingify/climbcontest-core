@@ -102,6 +102,30 @@ Onglet `Listes`, à partir de la ligne 2 :
 
 C'est exactement ce que fait `GoogleSheet.update_google_sheet()`. ✅
 
+#### La grille s'agrandit toute seule (spec 015)
+
+L'API Google **refuse** une écriture hors de la grille existante :
+
+```
+Range ('Import'!DZ12) exceeds grid limits. Max rows: 1000, max columns: 120
+```
+
+Le cas arrive pour de vrai : la spec 013 attribue au participant inscrit **à
+chaud** le premier dossard libre, et ce numéro sort sans difficulté de la
+largeur préparée dans la feuille. Le miroir ne marquant rien comme synchronisé
+en cas d'échec (spec 002), **une seule réussite de ce genre bloquait son lot et
+tous les suivants, indéfiniment** — la grille ne s'agrandit jamais seule.
+
+`ClasseurGoogle.marquer_reussites()` appelle donc `agrandir_si_besoin()` avant
+d'écrire : lecture de `gridProperties` (mise en cache), et `updateSheetProperties`
+**uniquement** si la grille est trop petite, avec cinq lignes/colonnes de marge.
+
+⚠️ **Agrandir la grille ne fait pas entrer le grimpeur dans les formules.**
+Le classeur est écrit pour 120 grimpeurs et 50 blocs (`Résultats!H19:DC138`) :
+au-delà, la réussite est bien posée dans `Import`, mais le classeur ne la compte
+pas. C'est la page de résultats du **serveur** qui fait foi. La console le dit,
+avec les deux chiffres, au moment de « Tester l'accès ».
+
 ---
 
 ## 4. L'algorithme de classement
@@ -239,6 +263,35 @@ classement est couvert** par le backend, et range le reste :
 Les inventaires bruts (une ligne par structure de formule, avec exemple et
 nombre d'occurrences) ont été archivés le 30/08 ; l'outil d'extraction tient en
 80 lignes contre l'API `spreadsheets.get` en lecture seule.
+
+## 5 ter. Le jeton et le lien, réglés depuis la console (spec 015)
+
+**Le lien.** `Competition.spreadsheet_id` porte l'identifiant, une compétition à
+la fois. Il s'écrit depuis `/console` → **Classeur**, avec trois modes de
+bascule (relier seulement / même compétition, autre feuille / nouvelle
+compétition). Le détail est dans [la spec](../../specs/015-classeur-parametrable/).
+
+**Le jeton.** Trois formes, lues dans cet ordre :
+
+| Fichier | Contenu | Posé par |
+| --- | --- | --- |
+| `token.json` | le JSON de `Credentials.to_json()` | **la console**, ou `tools/exporter_jeton.py` + `scp` |
+| `token.pickle` | l'objet `Credentials` sérialisé | `scp` (chemin historique) |
+| `token.base64` | le même, en base64 | repli pour un hébergement sans fichier binaire |
+
+Cherchés dans `DOSSIER_SECRETS`, puis `CLIMBCONTEST_SECRETS_DIR`, puis le
+répertoire courant.
+
+La console n'accepte **que** le JSON : recevoir un pickle par HTTP ferait
+appeler `pickle.loads()` sur du contenu venu du réseau, et une session
+d'administrateur volée deviendrait une exécution de code sur la VM.
+`tools/exporter_jeton.py` convertit un `token.pickle` existant, sur le Mac.
+
+Un jeton rafraîchi est **réécrit** dans `token.json` : sans ça, chaque
+redémarrage du service repart d'un jeton périmé et redemande un rafraîchissement
+à Google.
+
+---
 
 ## 6. Relire le classeur
 

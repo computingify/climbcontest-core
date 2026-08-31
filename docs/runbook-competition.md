@@ -44,7 +44,17 @@ Puis :
    téléphone resté sur l'ancienne recevra un 401 sur chaque envoi.
 
 4. **Le classeur est-il le bon ?** ⚠️ Point le plus souvent oublié.
-   Vérifier que l'identifiant du classeur pointe sur **la** compétition à venir.
+   Depuis la spec 015, ça se voit et ça se change **depuis la console** :
+   `/console` → menu → **Classeur**. La carte du haut dit sur quel classeur
+   pointe la compétition active, et « Tester l'accès » le lit pour de vrai —
+   titre, onglets, taille de la grille. Plus besoin de SSH ni de SQL.
+
+   Trois modes au moment de relier, à choisir en connaissance de cause :
+   **relier seulement** (rien d'autre ne bouge), **même compétition, autre
+   feuille** (toutes les réussites déjà enregistrées repartent vers la nouvelle
+   feuille), **nouvelle compétition** (efface les données du serveur *et* vide
+   la matrice `Import` de la nouvelle feuille — confirmation `EFFACER` exigée,
+   refusé si la compétition est `en_cours`).
 
 5. **Le jeton Google est-il sur la VM ?** ⚠️ Constaté absent à l'audit du
    30/08 : `/opt/climbcontest/shared/secrets/` était **vide** — le miroir
@@ -251,14 +261,41 @@ miroir vers le classeur tourne mais n'écrit jamais — les réussites restent e
 base, `/health` montre `reussites_en_attente` qui monte et
 `miroir_derniere_erreur` qui dit pourquoi.
 
-Le jeton vit sur le Mac (`climbcontest-core/token.pickle`, hors dépôt). Le
-poser sur la VM, dans le dossier que les releases ne touchent jamais :
+Le jeton vit sur le Mac (`climbcontest-core/token.pickle`, hors dépôt).
+
+### Depuis la console (spec 015) — le chemin normal
+
+Sur le Mac, convertir le jeton en JSON :
+
+```bash
+python3 tools/exporter_jeton.py            # cherche token.pickle dans le dossier courant
+```
+
+Puis coller la sortie dans `/console` → **Classeur** → « Jeton Google ». Le
+serveur l'écrit dans `/opt/climbcontest/shared/secrets/token.json`, en `0600`,
+et garde le précédent en `.precedent`. La carte du haut affiche aussitôt l'état
+du jeton et sa date d'expiration.
+
+⚠️ Ce JSON est un **secret** : il ouvre le compte Google du classeur. Il ne se
+commit pas, ne se colle pas dans une conversation, et le fichier temporaire qui
+le porte se supprime.
+
+**Pourquoi du JSON et pas le `token.pickle` directement** : le serveur ferait
+`pickle.loads()` sur un contenu venu du réseau, et une session d'administrateur
+volée deviendrait une exécution de code sur la VM. Le JSON porte la même
+information et n'est que des données.
+
+### Par `scp` — toujours valable
 
 ```bash
 scp token.pickle adrien@192.168.0.32:/tmp/token.pickle
 ssh adrien@192.168.0.32 'sudo install -m 600 -o climbcontest -g climbcontest \
   /tmp/token.pickle /opt/climbcontest/shared/secrets/token.pickle && rm /tmp/token.pickle'
 ```
+
+Le serveur lit `token.json`, puis `token.pickle`, puis `token.base64` — dans cet
+ordre. Un `token.json` posé depuis la console **passe donc devant** un
+`token.pickle` existant.
 
 Puis vérifier avec l'étape « Le miroir écrit-il vraiment ? » ci-dessus. Si le
 jeton est périmé et non rafraîchissable, refaire le consentement **depuis le

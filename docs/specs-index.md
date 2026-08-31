@@ -17,6 +17,7 @@ méthode.
 | [012](../specs/012-cle-api-juges/) | `cle-api-juges` | ✅ **livrée** (29/08) | L'application envoie sa clé, le serveur l'exige. Mode strict par défaut, plusieurs clés acceptées pour en changer sans coupure. Le plan de repli porte l'étape qui rouvre l'API au gel `V3.1.4` |
 | [013](../specs/013-console-saisie-guidee/) | `console-saisie-guidee` | 🟡 **codée, en attente de relecture** (30/08) | Catégorie et club en listes déroulantes, formatage serveur de ce qui est saisi, dossard attribué automatiquement. La navigation en tiroir de la spec est arrivée autrement, par la refonte livrée en 0.8.0 |
 | [014](../specs/014-jeton-juge-dans-le-lien/) | `jeton-juge-dans-le-lien` | 🟡 **codée, en attente de relecture** (30/08) — ⚠️ reste l'essai sur un vrai iPhone, et le filtre de journal sur `edge` | Le jeton du juge survit à l'installation : il passe dans la requête et le manifeste devient dynamique, pour que `start_url` le porte à chaque lancement |
+| [015](../specs/015-classeur-parametrable/) | `classeur-parametrable` | 🟡 **codée, en attente de relecture** (31/08) | Le classeur se règle depuis la console : lien, test d'accès en lecture seule, jeton Google en JSON, et trois modes de bascule. La grille de l'onglet `Import` s'agrandit toute seule quand un dossard attribué à chaud sort de sa largeur |
 
 ## Specs pressenties
 
