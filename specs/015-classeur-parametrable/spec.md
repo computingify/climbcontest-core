@@ -61,6 +61,7 @@ porte quatre gestes :
 | Geste | Ce qu'il fait |
 | --- | --- |
 | **Voir** | Le classeur relié à la compétition active, son titre, l'état du jeton |
+| **Ouvrir** | Un bouton vers la feuille elle-même — « suis-je sur la bonne ? » se vérifie en l'ouvrant, pas en comparant deux identifiants de 44 caractères à l'œil |
 | **Tester** | Lecture seule : titre, onglets présents, taille de la grille `Import`, dossards prévus |
 | **Relier** | Coller un lien Google Sheets (ou un identifiant nu) → il devient celui de la compétition active |
 | **Poser le jeton** | Coller le JSON d'identifiants Google → écrit dans le dossier des secrets |

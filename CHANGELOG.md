@@ -24,7 +24,10 @@ qu'on ne met pas à jour le matin d'une compétition :
 - **Le classeur se règle depuis la console** (spec 015). Une vue « Classeur »,
   réservée aux administrateurs : sur quel classeur pointe la compétition, l'état
   du jeton, un test d'accès en **lecture seule** (titre, onglets, taille de la
-  grille), et le champ où coller le lien d'une autre feuille. Jusqu'ici, changer
+  grille), un bouton **« Ouvrir le classeur »** vers la feuille elle-même — on
+  vérifie qu'on est sur la bonne en l'ouvrant, pas en comparant deux
+  identifiants de quarante-quatre caractères à l'œil — et le champ où coller le
+  lien d'une autre feuille. Jusqu'ici, changer
   de classeur demandait un accès SSH à la VM et une requête SQL sur la base de
   production — le genre de geste qu'on finit par faire à 23 h la veille.
 - **Trois modes de bascule, choisis à l'écran** : *relier seulement* (rien

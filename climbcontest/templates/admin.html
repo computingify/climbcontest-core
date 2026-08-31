@@ -236,12 +236,15 @@
   }
   button.action:hover { background: color-mix(in srgb, var(--accent) 88%, white); }
   button.action:disabled { opacity: 0.45; cursor: not-allowed; }
-  button.secondaire {
+  button.secondaire, a.secondaire {
     cursor: pointer; font: inherit; font-weight: 600; margin-top: 14px;
     background: var(--surface2); color: var(--encre);
     border: 1px solid var(--trait); border-radius: 9px; padding: 10px 18px;
   }
-  button.secondaire:hover { background: var(--surface3); }
+  /* Le lien vers le classeur porte l'allure d'un bouton : c'est une ACTION,
+     au meme titre que « Tester » ou « Importer ». */
+  a.secondaire { display: inline-block; text-decoration: none; }
+  button.secondaire:hover, a.secondaire:hover { background: var(--surface3); }
   button.discret {
     cursor: pointer; font: inherit; font-size: 0.82rem;
     background: transparent; color: var(--alerte);
@@ -544,6 +547,8 @@
            taille de sa grille, sans rien y écrire.</p>
         <dl class="etat" id="etatClasseur"></dl>
         <div style="display:flex;gap:10px;flex-wrap:wrap">
+          <a class="secondaire" id="ouvrirClasseur" target="_blank" rel="noopener"
+             hidden>Ouvrir le classeur ↗</a>
           <button class="secondaire" id="btnTesterClasseur">Tester l'accès</button>
           <button class="secondaire" id="btnImporterClasseur">Importer le classeur</button>
         </div>
@@ -1343,6 +1348,12 @@
     var dl = $("etatClasseur");
     dl.innerHTML = "";
 
+    // « Sur quelle feuille suis-je branche ? » se verifie en L'OUVRANT, pas en
+    // comparant deux identifiants de quarante-quatre caracteres a l'oeil.
+    var ouvrir = $("ouvrirClasseur");
+    ouvrir.hidden = !(d.classeur && d.classeur.relie);
+    if (!ouvrir.hidden) ouvrir.href = d.classeur.url;
+
     if (!d.competition) {
       ligneEtat(dl, "Compétition", "aucune compétition active", "manque");
       return;
@@ -1389,7 +1400,7 @@
     var dl = document.createElement("dl");
     dl.className = "etat";
     dl.style.marginTop = "16px";
-    ligneEtat(dl, "Titre", rapport.titre || "(sans titre)");
+    ligneEtat(dl, "Titre", lienVers(rapport.url, rapport.titre || "(sans titre)"));
     ligneEtat(dl, "Onglets", rapport.onglets.join(", "));
     if (rapport.grille) {
       ligneEtat(dl, "Onglet Import", rapport.grille.lignes + " lignes × "
