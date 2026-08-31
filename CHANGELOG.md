@@ -19,6 +19,19 @@ qu'on ne met pas à jour le matin d'une compétition :
 
 ## [Non publié]
 
+### Corrigé
+
+- **Une petite catégorie ne laisse plus les trois quarts du mur vides.** Constaté
+  en production juste après la 0.10.0, sur la compétition de test : trois
+  grimpeurs, trois lignes collées en haut de l'écran, et le reste blanc — ça se
+  lit comme un écran cassé, pas comme une petite catégorie. Le plateau est
+  maintenant **centré** quand il ne remplit pas la hauteur (jamais quand il
+  déborde : le défilement doit partir du haut), les lignes ont droit à plus de
+  hauteur en dessous de six, et le nombre de colonnes suit vraiment l'effectif —
+  un seul grimpeur occupait une demi-largeur parce que les deux branches du
+  calcul étaient identiques.
+- **« 1 grimpeurs »** devient « 1 grimpeur ». En 25 px sur un mur, ça se voit.
+
 ## [0.10.0] — 2026-08-31
 
 Deux écrans repris, et pour la même raison : ce qu'on ne peut pas faire sans

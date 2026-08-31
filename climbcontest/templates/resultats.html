@@ -172,6 +172,12 @@
 
   /* La zone qui défile doucement quand le plateau déborde. */
   #defile { flex: 1; min-height: 0; overflow: hidden; }
+  /* Et qui CENTRE quand il ne la remplit pas. Vu en production le 31/08 sur la
+     compétition de test : trois grimpeurs, trois lignes collées en haut, et
+     les trois quarts du mur vides — ça se lit comme un écran cassé, pas comme
+     une petite catégorie. Jamais quand ça déborde : le défilement doit partir
+     du haut. */
+  body.mur #defile.centre { display: flex; flex-direction: column; justify-content: center; }
   body:not(.mur) #defile { overflow: visible; }
   #liste {
     display: flex; flex-direction: column; gap: 7px;
@@ -310,6 +316,9 @@
   var TYPES_MUR = ["categorie", "circuit"];
 
   var MIN_H = 44, MAX_H = 124;        // hauteur d'une ligne, en mode mur
+  // Sous ce nombre de lignes, on s'autorise plus grand : mieux vaut six lignes
+  // hautes et lisibles de loin qu'un ruban de six lignes perdu sur un mur.
+  var PEU_DE_LIGNES = 6, MAX_H_PEU = 168;
 
   var etat = {
     classements: [],           // dernier classement CONNU. Jamais vidé sur erreur.
@@ -494,7 +503,7 @@
                  contexte: null };
       });
       titreTexte = libelleDe(groupe);
-      compteTexte = lignes.length + " grimpeurs";
+      compteTexte = lignes.length + (lignes.length > 1 ? " grimpeurs" : " grimpeur");
     }
 
     el.titre.textContent = titreTexte;
@@ -508,7 +517,8 @@
     el.attente.hidden = !toutAZero;
     if (toutAZero) {
       el.attente.textContent = "En attente des premières réussites — "
-        + lignes.length + " grimpeurs inscrits, aucun bloc validé pour l'instant.";
+        + lignes.length + (lignes.length > 1 ? " grimpeurs inscrits" : " grimpeur inscrit")
+        + ", aucun bloc validé pour l'instant.";
     }
 
     if (!lignes.length) {
@@ -655,7 +665,7 @@
 
     // Le reste
     if (MUR) {
-      var colonnes = suite.length > 26 ? 3 : suite.length > 12 ? 3 : 2;
+      var colonnes = suite.length > 12 ? 3 : suite.length > 4 ? 2 : 1;
       el.liste.style.setProperty("--colonnes", colonnes);
       ajuster(suite.length, colonnes);
       el.liste.style.gridTemplateRows = "repeat(" + Math.ceil(suite.length / colonnes) + ", auto)";
@@ -686,16 +696,23 @@
     var dispo = el.defile.clientHeight
               - parseFloat(style.paddingTop) - parseFloat(style.paddingBottom);
     var h = Math.floor((dispo - (lignes - 1) * 7) / lignes);
-    el.liste.style.setProperty("--h", Math.max(MIN_H, Math.min(MAX_H, h)) + "px");
+    var plafond = lignes <= PEU_DE_LIGNES ? MAX_H_PEU : MAX_H;
+    el.liste.style.setProperty("--h", Math.max(MIN_H, Math.min(plafond, h)) + "px");
   }
 
   /** Quand le plateau déborde malgré tout, il DÉFILE — doucement, en boucle. */
   function programmerDefilement() {
     if (etat.animationDefilement) { etat.animationDefilement.cancel(); etat.animationDefilement = null; }
     el.liste.style.transform = "none";
-    if (!MUR || sansMouvement()) return;
+    if (!MUR) { el.defile.classList.remove("centre"); return; }
+    if (sansMouvement()) {
+      el.defile.classList.toggle(
+        "centre", el.liste.scrollHeight - el.defile.clientHeight <= 8);
+      return;
+    }
 
     var trop = el.liste.scrollHeight - el.defile.clientHeight;
+    el.defile.classList.toggle("centre", trop <= 8);
     if (trop <= 8) return;
 
     // ~110 px par seconde : la vitesse à laquelle on lit une liste sans la
