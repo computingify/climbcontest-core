@@ -1,8 +1,15 @@
 """Les pages HTML, par opposition aux routes qui rendent du JSON.
 
-Un blueprint a part, sans prefixe : la page de resultats doit vivre a la racine
-(`/resultats`), pas sous `/api/public`. C'est cette adresse qui est ouverte par
-les spectateurs, exemptee de CrowdSec et mise en cache 5 s par Caddy.
+Un blueprint a part, sans prefixe : la page de resultats vit a la RACINE, pas
+sous `/api/public`. C'est cette adresse qui est ouverte par les spectateurs,
+exemptee de CrowdSec et mise en cache 5 s par Caddy.
+
+⚠️ `/resultats` a ete SUPPRIMEE (spec 016). Les deux adresses servaient la meme
+vue : `climbcontest.adn-dev.fr` menait deja au meme endroit. Un doublon d'URL
+finit toujours par diverger dans les tetes -- « la page de resultats » et « la
+racine » devenaient deux choses alors qu'il n'y en a qu'une. Les alias
+`resultats.maison.adn-dev.fr` et la regle `@public path /resultats` du proxy ont
+ete retires le meme jour.
 """
 import logging
 
@@ -28,7 +35,6 @@ def console():
     return render_template("admin.html")
 
 
-@bp.get("/resultats")
 @bp.get("/")
 def resultats():
     """La page que les spectateurs ouvrent, et qu'on projette dans la salle.
@@ -41,7 +47,9 @@ def resultats():
 
     `?mur` bascule en mode grand ecran : rotation automatique des categories,
     grande echelle, aucun bouton. L'ecran de la salle est accroche en hauteur ;
-    personne ne le touchera de la journee.
+    personne ne le touchera de la journee. `?mur&sombre` pour une salle qu'on
+    peut assombrir -- le defaut est CLAIR depuis la spec 016, parce qu'un
+    videoprojecteur ajoute de la lumiere sur un mur et n'en retire pas.
 
     Aucune authentification, et c'est le but. Elle ne fait que lire, et
     n'affiche que ce qui est deja public : nom, club, categorie, score, rang et

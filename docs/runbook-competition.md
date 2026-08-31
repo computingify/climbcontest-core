@@ -90,6 +90,23 @@ Puis :
 
 ---
 
+## L'écran de la salle
+
+L'adresse à projeter : **`https://climbcontest.adn-dev.fr/?mur`**
+
+Elle tourne seule toute la journée — podium, catégorie entière à l'écran,
+rotation d'une catégorie à l'autre, et les changements de place qui glissent
+avec leur flèche. Personne n'a besoin d'y toucher.
+
+| Variante | Quand |
+| --- | --- |
+| `/?mur` | le cas normal : **fond clair**, fait pour un vidéoprojecteur |
+| `/?mur&sombre` | écran LED, ou salle qu'on peut vraiment assombrir |
+| `/?mur&rotation=30` | forcer la durée d'un écran, en secondes |
+| `/` | ce que voient les parents sur leur téléphone : recherche par nom ou dossard |
+
+⚠️ `/resultats` **n'existe plus** (spec 016) : c'était un doublon de la racine.
+
 ## Le matin du jour J
 
 ```bash

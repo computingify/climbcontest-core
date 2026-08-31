@@ -9,191 +9,268 @@
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='7' fill='%232F6BB0'/><circle cx='16' cy='12' r='5' fill='%23EEF1F5'/><path d='M11 19h10l-2 8h-6z' fill='%23EEF1F5'/></svg>">
 <style>
   /* ---------------------------------------------------------------------
-     Identité tirée du sujet : les six couleurs de circuit du club, dans
-     leur ordre de difficulté. Chaque catégorie en reçoit une, ce qui rend
-     un changement de catégorie visible à cinq mètres AVANT d'être lu.
+     Spec 016 — cette page est faite pour être PROJETÉE.
 
-     Aucune police téléchargée, aucune bibliothèque : une page projetée
-     pendant une compétition ne peut pas dépendre d'un service extérieur.
-     Si la box Internet tombe à 10 h, l'écran de la salle doit continuer.
+     Le fond est CLAIR par défaut, et ce n'est pas une question de goût : un
+     vidéoprojecteur ajoute de la lumière sur un mur, il n'en retire pas. Un
+     fond sombre n'est pas « sombre », c'est du mur non éclairé — et dans une
+     salle d'escalade qu'on ne peut pas plonger dans le noir, le contraste
+     s'effondre. `?sombre` reste là pour un écran LED ou une salle obscure.
+
+     Les six couleurs de circuit du club servent d'identité : chaque groupe en
+     reçoit une, ce qui rend un changement de catégorie visible à cinq mètres
+     AVANT d'être lu.
+
+     Aucune police téléchargée, aucune bibliothèque, aucune requête sortante :
+     si la box Internet tombe à 10 h, l'écran de la salle continue.
      --------------------------------------------------------------------- */
   :root {
-    --c1: #C8901F;  /* Jaune */
-    --c2: #4E9A5A;  /* Vert  */
-    --c3: #2F6BB0;  /* Bleu  */
-    --c4: #7A4F99;  /* Mauve */
-    --c5: #B33F33;  /* Rouge */
-    --c6: #5A6070;  /* Noir, éclairci pour rester lisible sur fond sombre */
+    --c1: #B8860B;  /* Jaune  */
+    --c2: #2F7D46;  /* Vert   */
+    --c3: #2F6BB0;  /* Bleu   */
+    --c4: #6C4292;  /* Mauve  */
+    --c5: #B33F33;  /* Rouge  */
+    --c6: #3C4453;  /* Noir   */
 
-    --fond: #0E1116;
-    --carte: #171B23;
-    --carte2: #1E232D;
-    --trait: #2B313D;
-    --encre: #EEF1F5;
-    --encre2: #9AA4B4;
-    --alerte: #E0705F;
+    --fond: #F1F4F8;
+    --carte: #FFFFFF;
+    --carte2: #E9EDF3;
+    --trait: #D8DEE7;
+    --encre: #0E1420;
+    --encre2: #5A6472;
+    --alerte: #B3352A;
+    --ok: #1E7A45;
+    --or: #C9971C; --argent: #7E8896; --bronze: #A8703C;
 
-    --accent: var(--c3);
-
+    --groupe: var(--c3);
     --titre: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
     --chiffre: ui-monospace, "SF Mono", "Cascadia Mono", Menlo, Consolas, monospace;
   }
 
-  * { box-sizing: border-box; }
+  /* Le mode sombre reste atteignable : ?sombre */
+  body.sombre {
+    --c1: #E0A93B; --c2: #57B073; --c3: #5C9BE0; --c4: #A97FD0;
+    --c5: #E0705F; --c6: #96A0B2;
+    --fond: #0B0F17; --carte: #161B24; --carte2: #1E2430; --trait: #2A313D;
+    --encre: #F0F3F8; --encre2: #97A2B2; --alerte: #E0705F; --ok: #57D58D;
+    --or: #E8B93C; --argent: #B9C2CF; --bronze: #C08150;
+  }
 
+  * { box-sizing: border-box; }
   html, body {
     margin: 0; height: 100%;
     background: var(--fond); color: var(--encre);
-    font-family: var(--titre);
-    -webkit-font-smoothing: antialiased;
+    font-family: var(--titre); -webkit-font-smoothing: antialiased;
   }
+  body { display: flex; flex-direction: column; overflow: hidden; }
+  body:not(.mur) { overflow-y: auto; overflow-x: hidden; }
 
-  body { display: flex; flex-direction: column; }
+  /* ---- La barre de rotation (mur) ---- */
+  .barre-haut { height: 8px; background: var(--trait); flex: none; display: none; }
+  body.mur .barre-haut { display: block; }
+  #progression { height: 100%; width: 0; background: var(--groupe); }
 
   /* ---- Bandeau ---- */
   header {
-    display: flex; align-items: baseline; gap: 16px; flex-wrap: wrap;
-    padding: 18px 24px 14px;
-    border-bottom: 2px solid var(--accent);
-    background: linear-gradient(180deg, var(--carte), var(--fond));
+    flex: none; display: flex; align-items: center; gap: 18px;
+    padding: 14px 24px 12px; border-bottom: 1px solid var(--trait);
   }
-  h1 {
-    margin: 0; font-size: clamp(1.1rem, 2.2vw, 1.6rem);
-    font-weight: 800; letter-spacing: -0.02em;
-  }
-  #competition { color: var(--encre2); font-size: 0.95rem; }
-  #fraicheur {
-    margin-left: auto; font-family: var(--chiffre); font-size: 0.85rem;
-    color: var(--encre2); white-space: nowrap;
-  }
-  #fraicheur.perime { color: var(--alerte); font-weight: 600; }
+  .logo { height: 46px; width: auto; flex: none; }
+  body.mur .logo { height: 66px; }
 
-  /* ---- Barre de catégories (mode spectateur) ---- */
+  .titre-groupe {
+    display: flex; align-items: center; gap: 14px; min-width: 0;
+    font-size: clamp(1.4rem, 3vw, 2rem); font-weight: 900; letter-spacing: -0.03em;
+    color: var(--groupe); line-height: 1;
+  }
+  body.mur .titre-groupe { font-size: 62px; }
+  .titre-groupe .pastille {
+    width: 12px; height: 1em; border-radius: 4px; background: var(--groupe); flex: none;
+  }
+  body.mur .titre-groupe .pastille { width: 18px; }
+  #compte { color: var(--encre2); font-weight: 600; font-size: 0.95rem; white-space: nowrap; }
+  body.mur #compte { font-size: 25px; }
+
+  .droite { margin-left: auto; text-align: right; min-width: 0; }
+  #competition { font-weight: 800; font-size: 1rem; }
+  body.mur #competition { font-size: 28px; }
+  .meta {
+    color: var(--encre2); font-size: 0.78rem; margin-top: 2px;
+    font-variant-numeric: tabular-nums; white-space: nowrap;
+  }
+  body.mur .meta { font-size: 19px; margin-top: 4px; }
+  .meta .perime { color: var(--alerte); font-weight: 700; }
+  #suivant { color: var(--encre2); font-size: 0.78rem; margin-top: 2px; display: none; }
+  body.mur #suivant { display: block; font-size: 20px; }
+
+  /* ---- Barre de catégories et recherche (spectateur) ---- */
   #barre {
-    display: flex; gap: 8px; overflow-x: auto; padding: 12px 24px;
-    border-bottom: 1px solid var(--trait);
+    flex: none; display: flex; gap: 8px; overflow-x: auto;
+    padding: 12px 24px; border-bottom: 1px solid var(--trait);
   }
   #barre button {
     flex: 0 0 auto; cursor: pointer;
     background: var(--carte); color: var(--encre2);
     border: 1px solid var(--trait); border-radius: 999px;
     padding: 7px 15px; font: inherit; font-size: 0.9rem; font-weight: 600;
-    border-left: 4px solid var(--groupe, var(--trait));
+    border-left: 4px solid var(--teinte, var(--trait));
   }
   #barre button[aria-pressed="true"] {
-    background: var(--groupe, var(--accent)); color: #0E1116; border-color: transparent;
+    background: var(--teinte, var(--groupe)); color: #fff; border-color: transparent;
   }
   #barre button:focus-visible { outline: 2px solid var(--encre); outline-offset: 2px; }
-
   #recherche {
-    margin: 12px 24px 0; padding: 11px 14px; width: calc(100% - 48px); max-width: 420px;
+    flex: none; margin: 12px 24px 0; padding: 11px 14px;
+    width: calc(100% - 48px); max-width: 420px;
     background: var(--carte); color: var(--encre);
     border: 1px solid var(--trait); border-radius: 10px; font: inherit;
   }
   #recherche::placeholder { color: var(--encre2); }
-  #recherche:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
-
-  /* ---- Le classement ---- */
-  main { flex: 1; overflow-y: auto; padding: 16px 24px 32px; }
-
-  #titreGroupe {
-    display: flex; align-items: center; gap: 12px;
-    margin: 6px 0 14px; font-size: clamp(1.3rem, 3vw, 2rem); font-weight: 800;
-    letter-spacing: -0.02em;
-  }
-  #titreGroupe::before {
-    content: ""; width: 10px; height: 1.1em; border-radius: 3px;
-    background: var(--groupe, var(--accent));
-  }
-  #titreGroupe span {
-    color: var(--encre2); font-size: 0.55em; font-weight: 500;
-    margin-left: 0.6em;      /* sans quoi « U11 F » et « 24 grimpeurs » se collent */
-  }
-
-  ol { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
-
-  li {
-    display: grid;
-    grid-template-columns: 3.2em 1fr auto;
-    align-items: center; gap: 14px;
-    background: var(--carte); border-radius: 10px;
-    padding: 11px 16px;
-    border-left: 4px solid transparent;
-    /* Le rafraîchissement est « en douceur » : on ne fait pas sauter les
-       lignes, on les laisse glisser. Une réussite tardive peut faire
-       BAISSER un score sans que le grimpeur ait rien fait -- projeté sur un
-       mur, un mouvement brutal se lirait comme un bug. */
-    transition: background 400ms ease, border-color 400ms ease;
-  }
-  li.podium { background: var(--carte2); border-left-color: var(--groupe, var(--accent)); }
-
-  .rang {
-    font-family: var(--chiffre); font-size: 1.15em; font-weight: 600;
-    color: var(--encre2); text-align: right; font-variant-numeric: tabular-nums;
-  }
-  li.podium .rang { color: var(--groupe, var(--accent)); font-size: 1.4em; }
-
-  .qui { min-width: 0; }
-  .nom {
-    font-weight: 600; font-size: 1.05em;
-    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-  }
-  .club {
-    color: var(--encre2); font-size: 0.82em;
-    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-  }
-
-  .score {
-    font-family: var(--chiffre); font-size: 1.25em; font-weight: 600;
-    font-variant-numeric: tabular-nums; text-align: right;
-  }
-  .blocs { color: var(--encre2); font-size: 0.75em; font-weight: 400; }
-
-  #message {
-    text-align: center; color: var(--encre2);
-    padding: 60px 24px; font-size: 1.1rem; line-height: 1.6;
-  }
-  #message strong { color: var(--encre); display: block; font-size: 1.3rem; margin-bottom: 8px; }
-
-  /* Avant le premier scan, tout le monde est a zero. Le classement est juste,
-     mais projete sur un mur pendant la premiere demi-heure il se lit comme un
-     ecran casse. On le dit, et on garde la liste : voir les inscrits affiches
-     rassure sur le fait que le systeme tourne. */
-  #attente {
-    background: var(--carte2); border-left: 4px solid var(--groupe, var(--accent));
-    border-radius: 0 10px 10px 0; padding: 12px 18px; margin-bottom: 14px;
-    color: var(--encre2); font-size: 0.95em;
-  }
-  body.mur #attente { font-size: 1.3rem; padding: 18px 26px; }
-
-  /* ---- Mode mur : lu a 5 metres, personne ne touche l'ecran ---- */
   body.mur #barre, body.mur #recherche { display: none; }
 
-  /* `rem` se calcule sur la RACINE, pas sur `body` : agrandir `body` ne
-     changeait rien aux tailles exprimees en rem. Un nom sortait a 27 px la ou
-     il en faut ~40 pour etre lu a cinq metres sur un ecran 1080p. */
-  html:has(body.mur) { font-size: 24px; }
-  body.mur { font-size: 1rem; }
-  body.mur h1 { font-size: 2rem; }
-  body.mur #fraicheur { font-size: 1.1rem; }
-  body.mur #titreGroupe { font-size: clamp(2rem, 5vw, 3.4rem); }
-  body.mur li { padding: 14px 22px; gap: 20px; grid-template-columns: 2.6em 1fr auto; }
-  body.mur .nom { font-size: 1.75rem; }
-  body.mur .club { font-size: 1rem; }
-  body.mur .score { font-size: 2rem; }
-  body.mur .rang { font-size: 1.8rem; }
-  body.mur li.podium .rang { font-size: 2.2rem; }
-  body.mur main { padding: 20px 40px; }
+  /* ---- Le classement ---- */
+  main { flex: 1; min-height: 0; display: flex; flex-direction: column;
+         padding: 14px 24px 22px; gap: 14px; }
+  body.mur main { padding: 16px 32px 22px; }
 
-  @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+  #attente {
+    flex: none; background: var(--carte2); border-left: 5px solid var(--groupe);
+    border-radius: 0 10px 10px 0; padding: 12px 18px; color: var(--encre2);
+  }
+  body.mur #attente { font-size: 1.35rem; padding: 18px 26px; }
+
+  /* Le podium en bandeau : trois cartes côte à côte, pleine largeur. Il n'existe
+     qu'en mode mur — sur un téléphone, il mangerait tout l'écran. */
+  #podium { flex: none; display: none; grid-template-columns: repeat(3, 1fr); gap: 18px;
+            height: clamp(132px, 19vh, 208px); }
+  body.mur #podium.visible { display: grid; }
+  .pod {
+    display: grid; grid-template-columns: 92px 1fr; column-gap: 18px; row-gap: 2px;
+    align-items: center; align-content: center;   /* sinon les trois lignes se
+       repartissent sur toute la hauteur de la carte, et le nom flotte tout en
+       haut pendant que le score tombe tout en bas */
+    background: var(--carte); border-radius: 18px;
+    padding: 16px 22px; border-top: 9px solid var(--medaille);
+    box-shadow: 0 1px 0 rgba(14,20,32,.06);
+  }
+  .pod { --medaille: var(--bronze); }
+  .pod.r1 { --medaille: var(--or); }
+  .pod.r2 { --medaille: var(--argent); }
+  .pod.r3 { --medaille: var(--bronze); }
+  .pod .place {
+    grid-row: 1 / span 3; font-size: 96px; font-weight: 900; line-height: 1;
+    color: var(--medaille); text-align: center; font-variant-numeric: tabular-nums;
+  }
+  .pod .nom { font-size: 40px; font-weight: 800; letter-spacing: -0.02em;
+              white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .pod .club { font-size: 20px; color: var(--encre2);
+               white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .pod .chiffres { display: flex; align-items: baseline; gap: 12px; margin-top: 4px; }
+  .pod .score { font-size: 60px; font-weight: 900; line-height: 1;
+                font-variant-numeric: tabular-nums; }
+  .pod .blocs { font-size: 22px; color: var(--encre2); }
+
+  /* La zone qui défile doucement quand le plateau déborde. */
+  #defile { flex: 1; min-height: 0; overflow: hidden; }
+  body:not(.mur) #defile { overflow: visible; }
+  #liste {
+    display: flex; flex-direction: column; gap: 7px;
+    will-change: transform;
+  }
+  body.mur #liste {
+    display: grid; grid-template-columns: repeat(var(--colonnes, 3), 1fr);
+    grid-auto-flow: column; gap: 7px 18px; align-content: start;
+  }
+
+  .ligne {
+    display: grid; grid-template-columns: 3.2em 1fr auto; align-items: center; gap: 14px;
+    background: var(--carte); border-radius: 11px; padding: 10px 16px;
+    border-left: 5px solid transparent;
+  }
+  body.mur .ligne {
+    height: var(--h, 64px); padding: 0 16px; gap: 12px;
+    grid-template-columns: calc(var(--h, 64px) * .95) 1fr auto;
+  }
+  .ligne.p1 { border-left-color: var(--or); background: var(--carte2); }
+  .ligne.p2 { border-left-color: var(--argent); background: var(--carte2); }
+  .ligne.p3 { border-left-color: var(--bronze); background: var(--carte2); }
+
+  .rang { font-weight: 800; color: var(--encre2); text-align: right;
+          font-variant-numeric: tabular-nums; font-size: 1.15rem; }
+  body.mur .rang { font-size: calc(var(--h, 64px) * .42); }
+  .qui { min-width: 0; }
+  .nom { font-weight: 700; font-size: 1.05rem;
+         white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  body.mur .nom { font-size: calc(var(--h, 64px) * .38); }
+  .club { color: var(--encre2); font-size: 0.8rem;
+          white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  body.mur .club { font-size: calc(var(--h, 64px) * .21); }
+  .chiffres { text-align: right; }
+  .score { font-weight: 800; font-size: 1.2rem; font-variant-numeric: tabular-nums;
+           line-height: 1.1; }
+  body.mur .score { font-size: calc(var(--h, 64px) * .40); }
+  .blocs { color: var(--encre2); font-size: 0.75rem; }
+  body.mur .blocs { font-size: calc(var(--h, 64px) * .19); }
+
+  /* Une place gagnée ou perdue se VOIT : la flèche dit de combien, la ligne
+     glisse jusqu'à sa nouvelle place, et celui qui monte pulse une fois. */
+  .fleche { font-size: 0.62em; font-weight: 800; margin-left: 8px; }
+  .monte { color: var(--ok); }
+  .descend { color: var(--alerte); }
+  .pulse { animation: pulse 1600ms ease-out; }
+  @keyframes pulse {
+    0%   { background: color-mix(in srgb, var(--groupe) 30%, var(--carte)); }
+    100% { background: var(--carte); }
+  }
+
+  #message { text-align: center; color: var(--encre2); padding: 50px 24px;
+             font-size: 1.05rem; line-height: 1.6; }
+  /* Vide, il mangeait quand meme 130 px de haut -- soit deux lignes de
+     classement volees a l'ecran projete, en permanence. */
+  #message:empty { display: none; }
+  #message strong { color: var(--encre); display: block; font-size: 1.3rem;
+                    margin-bottom: 8px; }
+  body.mur #message { font-size: 1.6rem; }
+  body.mur #message strong { font-size: 2.2rem; }
+
+  /* Le telephone d'un parent, tenu a bout de bras. Le bandeau du mode mur y
+     deborde : il passe en deux lignes plutot que de rogner le nom de la
+     competition ou de pousser une barre de defilement horizontale. */
+  @media (max-width: 680px) {
+    header { flex-wrap: wrap; gap: 8px 12px; padding: 12px 16px 10px; }
+    .logo { height: 34px; }
+    .titre-groupe { font-size: 1.5rem; }
+    #compte { font-size: 0.85rem; }
+    .droite { width: 100%; margin-left: 0; text-align: left; }
+    #competition { font-size: 0.95rem; }
+    .meta { white-space: normal; }
+    #barre { padding: 10px 16px; }
+    #recherche { margin: 10px 16px 0; width: calc(100% - 32px); }
+    main { padding: 12px 16px 24px; }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    * { animation: none !important; transition: none !important; }
+  }
 </style>
 </head>
 <body>
 
+<div class="barre-haut"><div id="progression"></div></div>
+
 <header>
-  <h1>Résultats</h1>
-  <span id="competition"></span>
-  <span id="fraicheur">chargement…</span>
+  <img class="logo" src="/static/logo-club.png" alt="" aria-hidden="true">
+  <div class="titre-groupe"><span class="pastille"></span><span id="titreGroupe">Résultats</span></div>
+  <span id="compte"></span>
+  <div class="droite">
+    <div id="competition"></div>
+    <div class="meta">
+      <span id="horloge"></span>
+      <span id="fraicheur">chargement…</span>
+      <span id="reussites"></span>
+    </div>
+    <div id="suivant"></div>
+  </div>
 </header>
 
 <div id="barre" role="group" aria-label="Catégories"></div>
@@ -201,9 +278,9 @@
        autocomplete="off" aria-label="Chercher un grimpeur">
 
 <main>
-  <div id="titreGroupe" hidden></div>
   <div id="attente" hidden></div>
-  <ol id="classement"></ol>
+  <div id="podium"></div>
+  <div id="defile"><div id="liste"></div></div>
   <div id="message"></div>
 </main>
 
@@ -215,37 +292,86 @@
   // ce qui rend un changement de catégorie visible avant d'être lu.
   var COULEURS = ["var(--c1)","var(--c2)","var(--c3)","var(--c4)","var(--c5)","var(--c6)"];
 
-  var MUR = location.search.indexOf("mur") !== -1;
-  var PERIODE_MS = 15000;      // rafraîchissement
-  var ROTATION_MS = 20000;     // mode mur : durée d'affichage d'une catégorie
+  var params = new URLSearchParams(location.search);
+  var MUR = params.has("mur");
+  var SOMBRE = params.has("sombre");
+
+  var PERIODE_MS = 15000;      // rafraîchissement des données
   var PERIME_MS = 60000;       // au-delà, l'âge passe en rouge
+  // La rotation suit la TAILLE du plateau : le temps de lecture doit suivre ce
+  // qu'il y a à lire. Une catégorie de 8 ne mérite pas les 30 s d'une de 26.
+  var ROTATION_BASE_MS = 8000, ROTATION_PAR_GRIMPEUR_MS = 550;
+  var ROTATION_MIN_MS = 12000, ROTATION_MAX_MS = 35000;
+  var ROTATION_FIXE_MS = parseFloat(params.get("rotation")) * 1000 || null;
+
+  // Le mode mur ne montre que les classements SPORTIFS : catégories et
+  // circuits. Le cumul par club reste consultable sur téléphone — il bouge peu
+  // et n'a pas sa place dans une boucle qu'on regarde toute la journée.
+  var TYPES_MUR = ["categorie", "circuit"];
+
+  var MIN_H = 44, MAX_H = 124;        // hauteur d'une ligne, en mode mur
 
   var etat = {
     classements: [],           // dernier classement CONNU. Jamais vidé sur erreur.
     competition: null,
-    calculeLe: null,           // horodatage serveur, en secondes
-    ageServeurS: 0,            // âge du calcul AU MOMENT où le serveur a répondu
-    recuA: null,               // heure locale de réception
+    reussites: null,
+    calculeLe: null,
+    ageServeurS: 0,
+    recuA: null,
     groupe: null,
     enPanne: false,
+    messageMetier: null,
+    noeuds: {},                // participant -> élément, pour ANIMER au lieu de recréer
+    rangs: {},                 // groupe -> { participant: rang } du rendu précédent
+    deltas: {},
+    minuteurRotation: null,
+    animationDefilement: null,
   };
 
   var el = {
     barre: document.getElementById("barre"),
     recherche: document.getElementById("recherche"),
     titre: document.getElementById("titreGroupe"),
+    compte: document.getElementById("compte"),
     attente: document.getElementById("attente"),
-    liste: document.getElementById("classement"),
+    podium: document.getElementById("podium"),
+    defile: document.getElementById("defile"),
+    liste: document.getElementById("liste"),
     message: document.getElementById("message"),
     fraicheur: document.getElementById("fraicheur"),
+    horloge: document.getElementById("horloge"),
+    reussites: document.getElementById("reussites"),
     competition: document.getElementById("competition"),
+    suivant: document.getElementById("suivant"),
+    progression: document.getElementById("progression"),
   };
 
   if (MUR) document.body.classList.add("mur");
+  if (SOMBRE) document.body.classList.add("sombre");
+
+  function sansMouvement() {
+    return window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  }
+
+  // --- Les groupes ----------------------------------------------------------
+
+  function groupesVisibles() {
+    if (!MUR) return etat.classements;
+    return etat.classements.filter(function (c) {
+      return TYPES_MUR.indexOf(c.type) !== -1;
+    });
+  }
 
   function couleurDe(nomGroupe) {
     var i = etat.classements.findIndex(function (c) { return c.groupe === nomGroupe; });
     return COULEURS[(i < 0 ? 0 : i) % COULEURS.length];
+  }
+
+  function libelleDe(c) {
+    // « U13 » est un CIRCUIT : filles et garçons ensemble. Sans l'étiquette, il
+    // se confond avec la catégorie « U13 F » qu'on vient d'afficher.
+    return c.type === "circuit" ? c.groupe + " scratch"
+         : c.type === "club" ? "Clubs" : c.groupe;
   }
 
   // --- Récupération ---------------------------------------------------------
@@ -260,12 +386,14 @@
       .then(function (d) {
         etat.classements = d.classements || [];
         etat.competition = d.competition || null;
+        etat.reussites = typeof d.reussites === "number" ? d.reussites : null;
         etat.calculeLe = d.calcule_le || null;
         etat.ageServeurS = typeof d.age_s === "number" ? d.age_s : 0;
         etat.recuA = Date.now();
         etat.enPanne = false;
         etat.messageMetier = null;
-        if (!etat.groupe && etat.classements.length) etat.groupe = etat.classements[0].groupe;
+        var visibles = groupesVisibles();
+        if (!etat.groupe && visibles.length) etat.groupe = visibles[0].groupe;
         dessiner();
       })
       .catch(function (e) {
@@ -278,10 +406,46 @@
       });
   }
 
+  // --- L'âge, l'heure, le compteur -----------------------------------------
+
+  function majMeta() {
+    var maintenant = new Date();
+    el.horloge.textContent = maintenant.getHours() + "h"
+      + String(maintenant.getMinutes()).padStart(2, "0");
+
+    if (etat.recuA === null) {
+      el.fraicheur.textContent = etat.enPanne ? "· serveur injoignable" : "· chargement…";
+    } else {
+      var age = (etat.ageServeurS * 1000) + (Date.now() - etat.recuA);
+      var s = Math.round(age / 1000);
+      var texte = s < 20 ? "à l'instant"
+                : s < 90 ? "il y a " + s + " s"
+                : "il y a " + Math.round(s / 60) + " min";
+      el.fraicheur.textContent = "· calculé " + texte;
+      el.fraicheur.className = age > PERIME_MS || etat.enPanne ? "perime" : "";
+      if (etat.enPanne) el.fraicheur.textContent = "· serveur injoignable, dernier classement " + texte;
+    }
+
+    el.reussites.textContent = etat.reussites === null ? ""
+      : "· " + etat.reussites.toLocaleString("fr-FR") + " blocs validés aujourd'hui";
+  }
+
   // --- Rendu ----------------------------------------------------------------
 
+  function afficherMessage(titre, detail) {
+    el.podium.classList.remove("visible");
+    el.liste.innerHTML = "";
+    etat.noeuds = {};
+    el.attente.hidden = true;
+    el.message.innerHTML = "";
+    var t = document.createElement("strong");
+    t.textContent = titre;
+    el.message.appendChild(t);
+    el.message.appendChild(document.createTextNode(detail));
+  }
+
   function dessiner() {
-    majFraicheur();
+    majMeta();
     el.competition.textContent = etat.competition ? etat.competition.nom : "";
 
     if (etat.messageMetier) {
@@ -293,58 +457,53 @@
         etat.enPanne ? "La page réessaie toutes les 15 secondes."
                      : "Le classement s'affichera dès la première réussite enregistrée.");
     }
+    el.message.textContent = "";
 
-    var groupe = etat.classements.find(function (c) { return c.groupe === etat.groupe; })
-              || etat.classements[0];
+    var visibles = groupesVisibles();
+    var groupe = visibles.find(function (c) { return c.groupe === etat.groupe; })
+              || visibles[0] || etat.classements[0];
     etat.groupe = groupe.groupe;
     document.documentElement.style.setProperty("--groupe", couleurDe(groupe.groupe));
 
-    dessinerBarre();
+    if (!MUR) dessinerBarre();
 
-    var q = el.recherche.value.trim().toLowerCase();
+    var q = MUR ? "" : el.recherche.value.trim().toLowerCase();
     var lignes, titreTexte, compteTexte;
 
     if (q) {
-      // La recherche traverse TOUTES les categories, pas seulement celle
-      // affichee. Un parent qui cherche son enfant ne connait pas forcement sa
-      // categorie -- c'est meme le cas le plus frequent, et une recherche qui
-      // ne trouve rien parce qu'on regardait le mauvais onglet serait pire que
-      // pas de recherche du tout.
+      // La recherche traverse TOUTES les catégories : un parent qui cherche son
+      // enfant ne connaît pas forcément sa catégorie — c'est même le cas le
+      // plus fréquent.
       lignes = [];
       etat.classements.forEach(function (c) {
         (c.lignes || []).forEach(function (l) {
           if ((l.nom || "").toLowerCase().indexOf(q) !== -1
               || String(l.dossard || "").indexOf(q) !== -1) {
-            // On copie pour porter la categorie sans toucher aux donnees.
-            // Un grimpeur figure dans DEUX classements : sa categorie
-            // (« U13 F ») et son circuit, le « scratch » (« U13 »), ou il est
-            // classe avec les filles et les garcons ensemble. Les deux lignes
-            // sont justes et leurs rangs different -- mais sans etiquette elles
-            // passent pour un doublon.
-            lignes.push({ rang: l.rang, score: l.score, blocs: l.blocs, nom: l.nom,
-                          club: l.club, dossard: l.dossard,
-                          groupe: c.type === "circuit" ? c.groupe + " scratch" : c.groupe });
+            lignes.push({ cle: c.groupe + "-" + l.participant_id, rang: l.rang,
+                          score: l.score, blocs: l.blocs, nom: l.nom, club: l.club,
+                          dossard: l.dossard, contexte: libelleDe(c) });
           }
         });
       });
       titreTexte = "Recherche";
       compteTexte = lignes.length + (lignes.length > 1 ? " résultats" : " résultat");
     } else {
-      lignes = groupe.lignes || [];
-      titreTexte = groupe.groupe;
+      lignes = (groupe.lignes || []).map(function (l) {
+        return { cle: String(l.participant_id), rang: l.rang, score: l.score,
+                 blocs: l.blocs, nom: l.nom, club: l.club, dossard: l.dossard,
+                 contexte: null };
+      });
+      titreTexte = libelleDe(groupe);
       compteTexte = lignes.length + " grimpeurs";
     }
 
-    el.titre.hidden = false;
-    el.titre.innerHTML = "";
-    el.titre.appendChild(document.createTextNode(titreTexte));
-    var compte = document.createElement("span");
-    compte.textContent = compteTexte;
-    el.titre.appendChild(compte);
+    el.titre.textContent = titreTexte;
+    el.compte.textContent = compteTexte;
+    el.suivant.textContent = MUR ? prochainLibelle(visibles, groupe) : "";
 
-    // Personne n'a encore rien reussi : on l'annonce au lieu de laisser croire
-    // a un classement fige. La liste reste affichee -- voir les inscrits
-    // rassure sur le fait que le systeme tourne.
+    // Personne n'a encore rien réussi : on l'annonce au lieu de laisser croire
+    // à un classement figé. La liste reste affichée — voir les inscrits
+    // rassure sur le fait que le système tourne.
     var toutAZero = lignes.length > 0 && lignes.every(function (l) { return !l.score; });
     el.attente.hidden = !toutAZero;
     if (toutAZero) {
@@ -353,117 +512,293 @@
     }
 
     if (!lignes.length) {
-      el.attente.hidden = true;
+      el.podium.classList.remove("visible");
       el.liste.innerHTML = "";
+      etat.noeuds = {};
       return afficherMessage("Aucun grimpeur trouvé",
         q ? "Aucun nom ni dossard ne correspond à « " + q + " », dans aucune catégorie."
           : "Ce classement est vide pour l'instant.");
     }
 
-    el.message.textContent = "";
-    el.liste.innerHTML = "";
-    lignes.forEach(function (l) { el.liste.appendChild(ligne(l)); });
+    calculerDeltas(titreTexte, lignes);
+    var avant = positions();
+    peindre(lignes, !q);
+    glisser(avant);
+    programmerDefilement();
   }
 
-  function ligne(l) {
-    var li = document.createElement("li");
-    if (l.rang <= 3 && !el.recherche.value.trim()) li.className = "podium";
-
-    var rang = document.createElement("div");
-    rang.className = "rang";
-    rang.textContent = l.rang;
-
-    var qui = document.createElement("div");
-    qui.className = "qui";
-    var nom = document.createElement("div");
-    nom.className = "nom";
-    // textContent, jamais innerHTML : les noms viennent de la base.
-    nom.textContent = l.nom || ("Dossard " + l.dossard);
-    var club = document.createElement("div");
-    club.className = "club";
-    // En recherche, la categorie est l'information la plus utile : c'est elle
-    // que le parent ne connaissait pas.
-    club.textContent = [l.groupe, l.club, l.dossard ? "n°" + l.dossard : null]
-      .filter(Boolean).join(" · ");
-    qui.appendChild(nom); qui.appendChild(club);
-
-    var score = document.createElement("div");
-    score.className = "score";
-    score.textContent = l.score;
-    var blocs = document.createElement("div");
-    blocs.className = "blocs";
-    blocs.textContent = l.blocs + (l.blocs > 1 ? " blocs" : " bloc");
-    score.appendChild(document.createElement("br"));
-    score.appendChild(blocs);
-
-    li.appendChild(rang); li.appendChild(qui); li.appendChild(score);
-    return li;
+  function prochainLibelle(visibles, groupe) {
+    if (visibles.length < 2) return "";
+    var i = visibles.findIndex(function (c) { return c.groupe === groupe.groupe; });
+    return "ensuite : " + libelleDe(visibles[(i + 1) % visibles.length]);
   }
+
+  // --- Les places gagnées ou perdues ---------------------------------------
+
+  function calculerDeltas(cle, lignes) {
+    var avant = etat.rangs[cle] || null;
+    var apres = {};
+    etat.deltas = {};
+    lignes.forEach(function (l) {
+      apres[l.cle] = l.rang;
+      if (avant && avant[l.cle] && avant[l.cle] !== l.rang) {
+        etat.deltas[l.cle] = avant[l.cle] - l.rang;   // > 0 : il MONTE
+      }
+    });
+    etat.rangs[cle] = apres;
+  }
+
+  // --- L'animation : on déplace les lignes, on ne les recrée pas -----------
+
+  function positions() {
+    var p = {};
+    Object.keys(etat.noeuds).forEach(function (cle) {
+      var n = etat.noeuds[cle];
+      if (n && n.isConnected) p[cle] = n.getBoundingClientRect();
+    });
+    return p;
+  }
+
+  function glisser(avant) {
+    if (sansMouvement()) return;
+    Object.keys(etat.noeuds).forEach(function (cle) {
+      var n = etat.noeuds[cle], a = avant[cle];
+      if (!n || !a || !n.isConnected) return;
+      var b = n.getBoundingClientRect();
+      var dx = a.left - b.left, dy = a.top - b.top;
+      if (Math.abs(dx) < 1 && Math.abs(dy) < 1) return;
+      n.animate([{ transform: "translate(" + dx + "px," + dy + "px)" },
+                 { transform: "none" }],
+                { duration: 650, easing: "cubic-bezier(.22,.75,.2,1)" });
+    });
+  }
+
+  /** Un `div` de classe donnée, rattaché si on lui donne un parent.
+   *
+   * Les squelettes sont construits élément par élément, jamais par
+   * `innerHTML` — même avec un littéral sans donnée. La règle « innerHTML ne
+   * sert QU'À VIDER » se vérifie alors d'un coup d'œil, et un test la tient :
+   * une règle qu'on ne peut pas vérifier mécaniquement finit contournée.
+   */
+  function div(classe, parent, balise) {
+    var n = document.createElement(balise || "div");
+    n.className = classe;
+    if (parent) parent.appendChild(n);
+    return n;
+  }
+
+  function noeudPodium() {
+    var n = div("pod");
+    div("place", n);
+    div("nom", n);
+    div("club", n);
+    var chiffres = div("chiffres", n);
+    div("score", chiffres, "span");
+    div("blocs", chiffres, "span");
+    return n;
+  }
+
+  function noeudLigne() {
+    var n = div("ligne");
+    div("rang", n);
+    var qui = div("qui", n);
+    div("nom", qui);
+    div("club", qui);
+    var chiffres = div("chiffres", n);
+    div("score", chiffres);
+    div("blocs", chiffres);
+    return n;
+  }
+
+  function remplir(n, l, avecPodium) {
+    var d = etat.deltas[l.cle];
+    n.querySelector(".place, .rang").textContent = l.rang;
+
+    var nom = n.querySelector(".nom");
+    nom.textContent = l.nom || ("Dossard " + l.dossard);   // textContent, jamais innerHTML
+    if (d) {
+      var f = document.createElement("span");
+      f.className = "fleche " + (d > 0 ? "monte" : "descend");
+      f.textContent = (d > 0 ? " ▲" : " ▼") + Math.abs(d);
+      nom.appendChild(f);
+    }
+
+    n.querySelector(".club").textContent =
+      [l.contexte, l.club, l.dossard ? "n°" + l.dossard : null].filter(Boolean).join(" · ");
+    n.querySelector(".score").textContent = l.score;
+    n.querySelector(".blocs").textContent = l.blocs + (l.blocs > 1 ? " blocs" : " bloc");
+
+    if (n.classList.contains("pod")) n.className = "pod r" + Math.min(3, l.rang);
+    else if (!avecPodium) n.className = "ligne";
+    else n.className = "ligne" + (l.rang <= 3 ? " p" + l.rang : "");
+
+    if (d > 0 && !sansMouvement()) {
+      n.classList.remove("pulse"); void n.offsetWidth; n.classList.add("pulse");
+    }
+  }
+
+  function peindre(lignes, avecPodium) {
+    var podium = MUR && avecPodium && lignes.length > 3;
+    el.podium.classList.toggle("visible", podium);
+
+    var tete = podium ? lignes.slice(0, 3) : [];
+    var suite = podium ? lignes.slice(3) : lignes;
+
+    // Le podium
+    tete.forEach(function (l, i) {
+      var n = etat.noeuds[l.cle];
+      if (!n || !n.classList.contains("pod")) { n = noeudPodium(); etat.noeuds[l.cle] = n; }
+      remplir(n, l, avecPodium);
+      if (el.podium.children[i] !== n) el.podium.insertBefore(n, el.podium.children[i] || null);
+    });
+    while (el.podium.children.length > tete.length) el.podium.removeChild(el.podium.lastChild);
+
+    // Le reste
+    if (MUR) {
+      var colonnes = suite.length > 26 ? 3 : suite.length > 12 ? 3 : 2;
+      el.liste.style.setProperty("--colonnes", colonnes);
+      ajuster(suite.length, colonnes);
+      el.liste.style.gridTemplateRows = "repeat(" + Math.ceil(suite.length / colonnes) + ", auto)";
+    }
+
+    suite.forEach(function (l, i) {
+      var n = etat.noeuds[l.cle];
+      if (!n || n.classList.contains("pod")) { n = noeudLigne(); etat.noeuds[l.cle] = n; }
+      remplir(n, l, avecPodium);
+      if (el.liste.children[i] !== n) el.liste.insertBefore(n, el.liste.children[i] || null);
+    });
+    while (el.liste.children.length > suite.length) el.liste.removeChild(el.liste.lastChild);
+
+    // Les nœuds disparus (changement de groupe, recherche) sortent de la table.
+    var vivants = {};
+    lignes.forEach(function (l) { vivants[l.cle] = true; });
+    Object.keys(etat.noeuds).forEach(function (cle) {
+      if (!vivants[cle]) delete etat.noeuds[cle];
+    });
+  }
+
+  /** La hauteur d'une ligne, pour que la catégorie ENTIÈRE tienne à l'écran. */
+  function ajuster(nombre, colonnes) {
+    var lignes = Math.max(1, Math.ceil(nombre / colonnes));
+    var style = getComputedStyle(el.defile);
+    // clientHeight INCLUT le rembourrage : sans cette soustraction, les
+    // dernières lignes passent sous le bord de l'écran.
+    var dispo = el.defile.clientHeight
+              - parseFloat(style.paddingTop) - parseFloat(style.paddingBottom);
+    var h = Math.floor((dispo - (lignes - 1) * 7) / lignes);
+    el.liste.style.setProperty("--h", Math.max(MIN_H, Math.min(MAX_H, h)) + "px");
+  }
+
+  /** Quand le plateau déborde malgré tout, il DÉFILE — doucement, en boucle. */
+  function programmerDefilement() {
+    if (etat.animationDefilement) { etat.animationDefilement.cancel(); etat.animationDefilement = null; }
+    el.liste.style.transform = "none";
+    if (!MUR || sansMouvement()) return;
+
+    var trop = el.liste.scrollHeight - el.defile.clientHeight;
+    if (trop <= 8) return;
+
+    // ~110 px par seconde : la vitesse à laquelle on lit une liste sans la
+    // suivre des yeux. Avec deux pauses, en haut et en bas.
+    var course = Math.max(6000, (trop / 110) * 1000);
+    var duree = course * 2 + 6000;
+    etat.animationDefilement = el.liste.animate([
+      { transform: "translateY(0)",             offset: 0 },
+      { transform: "translateY(0)",             offset: 3000 / duree },
+      { transform: "translateY(" + (-trop) + "px)", offset: (3000 + course) / duree },
+      { transform: "translateY(" + (-trop) + "px)", offset: (6000 + course) / duree },
+      { transform: "translateY(0)",             offset: 1 },
+    ], { duration: duree, iterations: Infinity, easing: "ease-in-out" });
+  }
+
+  // --- La rotation (mode mur) ----------------------------------------------
+
+  function dureeRotation(groupe) {
+    if (ROTATION_FIXE_MS) return ROTATION_FIXE_MS;
+    var n = groupe && groupe.lignes ? groupe.lignes.length : 0;
+    return Math.max(ROTATION_MIN_MS,
+           Math.min(ROTATION_MAX_MS, ROTATION_BASE_MS + n * ROTATION_PAR_GRIMPEUR_MS));
+  }
+
+  function programmerRotation() {
+    if (!MUR) return;
+    clearTimeout(etat.minuteurRotation);
+    var visibles = groupesVisibles();
+    if (visibles.length < 2) { el.progression.style.width = "0%"; return; }
+
+    var groupe = visibles.find(function (c) { return c.groupe === etat.groupe; }) || visibles[0];
+    var duree = dureeRotation(groupe);
+
+    el.progression.style.transition = "none";
+    el.progression.style.width = "0%";
+    void el.progression.offsetWidth;
+    el.progression.style.transition = "width " + duree + "ms linear";
+    el.progression.style.width = "100%";
+
+    etat.minuteurRotation = setTimeout(function () {
+      var v = groupesVisibles();
+      var i = v.findIndex(function (c) { return c.groupe === etat.groupe; });
+      etat.groupe = v[(i + 1) % v.length].groupe;
+      // Un changement de catégorie n'est pas un mouvement de classement : on
+      // repart de zéro plutôt que de faire voler les lignes d'un groupe à
+      // l'autre.
+      etat.noeuds = {};
+      etat.deltas = {};
+      el.podium.innerHTML = "";
+      el.liste.innerHTML = "";
+      dessiner();
+      programmerRotation();
+    }, duree);
+  }
+
+  // --- La barre de catégories (spectateur) ---------------------------------
 
   function dessinerBarre() {
-    // Une seule catégorie : pas de sélecteur, il ne servirait à rien.
-    if (etat.classements.length < 2) { el.barre.innerHTML = ""; return; }
-    if (el.barre.childElementCount === etat.classements.length) {
+    var groupes = etat.classements;
+    if (groupes.length < 2) { el.barre.innerHTML = ""; return; }
+    if (el.barre.childElementCount === groupes.length) {
       Array.prototype.forEach.call(el.barre.children, function (b) {
         b.setAttribute("aria-pressed", String(b.dataset.groupe === etat.groupe));
       });
       return;
     }
     el.barre.innerHTML = "";
-    etat.classements.forEach(function (c, i) {
+    groupes.forEach(function (c, i) {
       var b = document.createElement("button");
       b.type = "button";
-      b.textContent = c.groupe;
+      b.textContent = libelleDe(c);
       b.dataset.groupe = c.groupe;
-      b.style.setProperty("--groupe", COULEURS[i % COULEURS.length]);
+      b.style.setProperty("--teinte", COULEURS[i % COULEURS.length]);
       b.setAttribute("aria-pressed", String(c.groupe === etat.groupe));
-      b.addEventListener("click", function () { etat.groupe = c.groupe; dessiner(); });
+      b.addEventListener("click", function () {
+        etat.groupe = c.groupe;
+        etat.noeuds = {};
+        el.liste.innerHTML = "";
+        dessiner();
+      });
       el.barre.appendChild(b);
     });
   }
 
-  function afficherMessage(titre, detail) {
-    el.titre.hidden = true;
-    el.attente.hidden = true;
+  el.recherche.addEventListener("input", function () {
+    etat.noeuds = {};
     el.liste.innerHTML = "";
-    el.message.innerHTML = "";
-    var t = document.createElement("strong");
-    t.textContent = titre;
-    el.message.appendChild(t);
-    el.message.appendChild(document.createTextNode(detail));
-  }
+    dessiner();
+  });
 
-  function majFraicheur() {
-    if (!etat.recuA) { el.fraicheur.textContent = "chargement…"; return; }
-    // L'age vrai = ce que le serveur avait deja + ce qui s'est ecoule depuis.
-    // Mesurer depuis la seule reception afficherait « il y a 1 s » pour un
-    // classement que le cache garde depuis 5 s.
-    var age = Math.round(etat.ageServeurS + (Date.now() - etat.recuA) / 1000);
-    var texte = age < 5 ? "à l'instant" : "il y a " + age + " s";
-    el.fraicheur.textContent = etat.enPanne
-      ? "hors ligne — dernier classement " + texte
-      : "calculé " + texte;
-    el.fraicheur.classList.toggle("perime", etat.enPanne || age * 1000 > PERIME_MS);
-  }
+  // Redimensionnement : la hauteur des lignes et le défilement en dépendent.
+  var minuteurTaille;
+  window.addEventListener("resize", function () {
+    clearTimeout(minuteurTaille);
+    minuteurTaille = setTimeout(dessiner, 250);
+  });
 
-  // --- Boucles --------------------------------------------------------------
-
-  el.recherche.addEventListener("input", dessiner);
+  // --- Démarrage ------------------------------------------------------------
 
   charger();
   setInterval(charger, PERIODE_MS);
-  setInterval(majFraicheur, 1000);
-
-  if (MUR) {
-    // La rotation ne s'arrête jamais et n'attend aucune interaction :
-    // l'écran est accroché en hauteur, personne ne le touchera de la journée.
-    setInterval(function () {
-      if (etat.classements.length < 2) return;
-      var i = etat.classements.findIndex(function (c) { return c.groupe === etat.groupe; });
-      etat.groupe = etat.classements[(i + 1) % etat.classements.length].groupe;
-      dessiner();
-    }, ROTATION_MS);
-  }
+  setInterval(majMeta, 5000);
+  if (MUR) setTimeout(programmerRotation, 1200);
 })();
 </script>
 </body>

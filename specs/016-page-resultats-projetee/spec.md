@@ -1,6 +1,7 @@
 # Spec 016 — La page de résultats, faite pour être projetée
 
-> **Statut : rédigée, en attente de validation (porte 2).**
+> **Statut : codée, en attente de relecture (31/08/2026).** Maquettes montrées,
+> direction **A** retenue par Adrien, avec défilement doux du reste du plateau.
 > Demandée par Adrien le 31/08/2026 : « elle est trop moche et pas assez
 > wahou », « quand des participants changent de place il faut une animation »,
 > « ça va être projeté via un vidéoprojecteur, il faut que ce soit bien
@@ -147,21 +148,27 @@ dernier. Le doublon disparaît quand même : il n'existe plus qu'une seule page.
   donnée que `/api/public/classement` ne porte pas, il rejoint la liste des
   décisions ci-dessous plutôt que d'être ajouté en douce.
 
-## 6. Décisions à prendre — trois maquettes
+## 6. Les décisions, prises le 31/08
 
-Trois directions visuelles sont proposées, mêmes données, même résolution. Le
-choix d'Adrien fixe l'implémentation :
+Trois directions visuelles ont été maquettées, mêmes données, même résolution
+(`maquettes/`) :
 
 | | Direction | Ce qu'elle privilégie |
 | --- | --- | --- |
-| **A** | **Podium + colonnes**, fond clair | La hiérarchie : le top 3 en grand à gauche, le reste en deux colonnes |
-| **B** | **Grille deux colonnes**, fond clair | La densité et la régularité : tout le monde à la même taille, un vrai tableau de score |
-| **C** | **Sombre premium**, fond nuit | Le spectacle, pour une salle qu'on peut assombrir ou un écran LED |
+| **A** ✅ | **Podium en bandeau**, fond clair | **Retenue.** Le top 3 en grand sur toute la largeur, le reste en colonnes — et il **défile doucement** quand il déborde |
+| **B** | **Grille deux colonnes**, fond clair | La densité : tout le monde à la même taille |
+| **C** | **Sombre premium**, fond nuit | Le spectacle, pour un écran LED ou une salle obscure — devenu `?sombre` |
 
-Autres questions ouvertes :
+Et les quatre questions ouvertes, tranchées le même jour :
 
-1. **Le logo du club** dans le bandeau : je l'ajoute (il existe en PNG dans le
-   dossier de travail) ou on reste sur le titre seul ?
-2. **La durée de rotation** : 20 s par écran, ou plus lent (30 s) ?
-3. **Le classement club** : dans la rotation, ou seulement en fin de journée ?
-4. **`/resultats`** : redirection 308 (proposé) ou vraie suppression en 404 ?
+| Question | Décision |
+| --- | --- |
+| Durée de rotation | **Proportionnelle au plateau** : 8 s + 0,55 s par grimpeur, entre 12 et 35 s |
+| Bandeau | **Logo du club**, **compteur de blocs validés du jour**, **heure et fraîcheur du calcul** |
+| Classement club | **Hors rotation** — il reste consultable sur téléphone |
+| `/resultats` | **Suppression franche (404)**, et retrait des doublons sur `maison.adn-dev.fr` |
+
+Le § 3.6 ci-dessus décrivait une redirection 308 ; c'est la suppression qui a
+été retenue. Les alias `resultats.maison.adn-dev.fr` et `classement.maison…`
+ont été retirés du portail interne le même jour, sans quoi le doublon aurait
+simplement changé d'endroit.

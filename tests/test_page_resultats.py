@@ -12,10 +12,20 @@ import pytest
 
 class TestServie:
 
-    def test_resultats_repond_du_html(self, client, jeu):
-        r = client.get("/resultats")
+    def test_la_page_repond_du_html(self, client, jeu):
+        r = client.get("/")
         assert r.status_code == 200
         assert r.headers["Content-Type"].startswith("text/html")
+
+    def test_resultats_n_existe_plus(self, client, jeu):
+        """Spec 016. Les deux adresses servaient la MEME vue : un doublon d'URL
+        finit toujours par diverger dans les tetes. La racine reste la seule.
+
+        Retire le meme jour du proxy (`@public path`) et du portail interne
+        (`resultats.maison.adn-dev.fr`), sans quoi le doublon aurait survecu
+        ailleurs.
+        """
+        assert client.get("/resultats").status_code == 404
 
     def test_la_racine_sert_la_page_pas_un_json(self, client, jeu):
         """Un visiteur qui tape l'adresse du service doit voir le classement."""
@@ -25,7 +35,7 @@ class TestServie:
 
     def test_le_mode_mur_sert_la_meme_page(self, client, jeu):
         """Le mode est choisi par la page, pas par le serveur : un seul fichier."""
-        assert client.get("/resultats?mur").data == client.get("/resultats").data
+        assert client.get("/?mur").data == client.get("/").data
 
     def test_servie_meme_sans_competition_active(self, client, app):
         """C'est la PAGE qui gere le cas, pas le serveur.
@@ -33,7 +43,7 @@ class TestServie:
         Repondre 409 ici afficherait une erreur de navigateur au lieu d'un
         message lisible.
         """
-        assert client.get("/resultats").status_code == 200
+        assert client.get("/").status_code == 200
 
 
 class TestAucuneDependanceExterieure:
@@ -51,20 +61,20 @@ class TestAucuneDependanceExterieure:
     NAMESPACE_SVG = "http://www.w3.org/2000/svg"
 
     def test_aucune_url_externe(self, client, jeu):
-        page = client.get("/resultats").data.decode()
+        page = client.get("/").data.decode()
         externes = [u for u in re.findall(r'https?://[^\s"\'<>)]+', page)
                     if u != self.NAMESPACE_SVG]
         assert not externes, f"la page charge des ressources externes : {externes}"
 
     def test_aucune_balise_qui_va_chercher_quelque_chose_dehors(self, client, jeu):
-        page = client.get("/resultats").data.decode()
+        page = client.get("/").data.decode()
         for balise in re.findall(r"<(?:script|link|img|iframe)[^>]*>", page):
             for url in re.findall(r'(?:src|href)\s*=\s*["\']([^"\']+)', balise):
                 assert url.startswith("data:") or url.startswith("/"), \
                     f"ressource distante : {url}"
 
     def test_aucune_police_telechargee(self, client, jeu):
-        page = client.get("/resultats").data.decode()
+        page = client.get("/").data.decode()
         assert "@font-face" not in page
         assert "fonts.googleapis" not in page
 
@@ -81,13 +91,13 @@ class TestSecuriteDeLaPage:
         from climbcontest.contest import enregistrer_reussite
         enregistrer_reussite(jeu["participants"][0], jeu["blocs"][0])
 
-        page = client.get("/resultats").data.decode()
+        page = client.get("/").data.decode()
 
         assert "Dupont" not in page, "aucun nom ne doit figurer dans le HTML servi"
 
     def test_les_noms_sont_inseres_par_textContent(self, client, jeu):
         """Les noms viennent de la base : jamais d'innerHTML sur eux."""
-        page = client.get("/resultats").data.decode()
+        page = client.get("/").data.decode()
         assert "nom.textContent" in page
 
         # innerHTML ne doit servir qu'a VIDER un conteneur, jamais a injecter
@@ -104,7 +114,8 @@ class TestSecuriteDeLaPage:
 class TestContratAvecLApi:
     """La page consomme des champs precis. S'ils changent, elle casse en silence."""
 
-    @pytest.mark.parametrize("champ", ["classements", "competition", "calcule_le"])
+    @pytest.mark.parametrize("champ",
+                             ["classements", "competition", "calcule_le", "reussites"])
     def test_la_reponse_porte_les_champs_racine_attendus(self, client, jeu, champ):
         assert champ in client.get("/api/public/classement").get_json()
 
@@ -125,9 +136,57 @@ class TestContratAvecLApi:
     def test_la_page_utilise_bien_ces_champs(self, client, jeu):
         """Le pendant du test precedent : si la page cessait de les lire, le
         contrat ci-dessus ne protegerait plus rien."""
-        page = client.get("/resultats").data.decode()
+        page = client.get("/").data.decode()
         for champ in ("l.rang", "l.score", "l.blocs", "l.nom", "l.dossard"):
             assert champ in page, f"la page ne lit pas {champ}"
+
+
+class TestFaitePourEtreProjetee:
+    """Spec 016. Le reste — le rendu, le mouvement — se verifie dans un
+    navigateur ; ces tests-la protegent les mecanismes qu'un oubli ferait
+    disparaitre en silence."""
+
+    def test_le_logo_du_club_est_servi_par_nous(self, client, jeu):
+        page = client.get("/").data.decode()
+        assert "/static/logo-club.png" in page
+
+    def test_le_logo_existe_vraiment(self, client, jeu):
+        """Un 404 sur le logo se verrait sur le mur, pas dans les tests."""
+        r = client.get("/static/logo-club.png")
+        assert r.status_code == 200
+        assert r.data[:4] == b"\x89PNG"
+
+    def test_les_lignes_sont_reutilisees_pas_recreees(self, client, jeu):
+        """C'est la condition du mouvement : on n'anime pas ce qu'on detruit.
+
+        La version precedente faisait `liste.innerHTML = ""` a chaque
+        rafraichissement -- aucune animation n'etait possible.
+        """
+        page = client.get("/").data.decode()
+        assert "etat.noeuds" in page
+        assert ".animate(" in page, "la page doit deplacer les lignes (FLIP)"
+
+    def test_le_fond_est_clair_par_defaut(self, client, jeu):
+        """Un videoprojecteur AJOUTE de la lumiere : un fond sombre, c'est du
+        mur non eclaire. Le sombre reste atteignable par ?sombre."""
+        page = client.get("/").data.decode()
+        debut = page.index(":root {")
+        assert "--fond: #F1F4F8;" in page[debut:debut + 800]
+        assert "body.sombre" in page
+
+    def test_la_rotation_couvre_categories_et_circuits(self, client, jeu):
+        page = client.get("/").data.decode()
+        assert '"categorie", "circuit"' in page
+        assert "programmerRotation" in page
+
+    def test_le_plateau_qui_deborde_defile(self, client, jeu):
+        page = client.get("/").data.decode()
+        assert "programmerDefilement" in page
+
+    def test_le_mouvement_se_coupe_si_l_utilisateur_le_demande(self, client, jeu):
+        page = client.get("/").data.decode()
+        assert "prefers-reduced-motion" in page
+        assert "sansMouvement" in page
 
 
 class TestAvantLaPremiereReussite:
@@ -146,7 +205,7 @@ class TestAvantLaPremiereReussite:
         assert all(l["score"] == 0 for l in lignes)
 
     def test_la_page_prevoit_ce_cas(self, client, jeu):
-        page = client.get("/resultats").data.decode()
+        page = client.get("/").data.decode()
         assert "toutAZero" in page, "la page doit distinguer « rien encore » de « fige »"
         assert "En attente des premi" in page
 
