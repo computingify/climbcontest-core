@@ -191,13 +191,44 @@
 
   .grille { display: grid; grid-template-columns: repeat(auto-fit, minmax(158px, 1fr)); gap: 12px; }
   label { display: block; font-size: 0.78rem; color: var(--encre2); margin-bottom: 5px; font-weight: 500; }
-  input, select {
+  input, select, textarea {
     width: 100%; padding: 10px 12px; font: inherit;
     background: var(--surface2); color: var(--encre);
     border: 1px solid var(--trait); border-radius: 9px;
   }
-  input::placeholder { color: var(--encre3); }
-  input:focus, select:focus { border-color: var(--accent); }
+  textarea { font-family: var(--chiffre); font-size: 0.82rem; resize: vertical;
+             min-height: 96px; }
+  input::placeholder, textarea::placeholder { color: var(--encre3); }
+  input:focus, select:focus, textarea:focus { border-color: var(--accent); }
+
+  /* L'etat du classeur : deux colonnes, libelle a gauche, valeur a droite.
+     Le jour ou quelqu'un se demande « mais ou partent les reussites ? », la
+     reponse doit tenir en un coup d'oeil, sans lire une phrase. */
+  dl.etat { margin: 0 0 4px; display: grid; grid-template-columns: max-content 1fr;
+            gap: 8px 18px; font-size: 0.9rem; align-items: baseline; }
+  dl.etat dt { color: var(--encre3); font-size: 0.78rem; text-transform: uppercase;
+               letter-spacing: 0.08em; font-weight: 700; }
+  dl.etat dd { margin: 0; overflow-wrap: anywhere; }
+  dl.etat dd a { color: var(--accent); }
+  .bon { color: var(--ok); }
+  .manque { color: var(--alerte); font-weight: 600; }
+
+  /* Les trois modes de bascule. Chacun porte SA phrase : le mode destructeur ne
+     doit pas se choisir parce qu'on a lu trop vite un mot de trois lettres. */
+  fieldset.choix { border: 0; padding: 0; margin: 18px 0 0; }
+  fieldset.choix legend { padding: 0; font-size: 0.78rem; color: var(--encre2);
+                          font-weight: 500; margin-bottom: 8px; }
+  fieldset.choix label {
+    display: flex; gap: 10px; align-items: flex-start; margin-bottom: 8px;
+    padding: 11px 13px; border: 1px solid var(--trait); border-radius: 10px;
+    background: var(--surface2); cursor: pointer; font-size: 0.88rem;
+    color: var(--encre); text-transform: none; letter-spacing: normal;
+  }
+  fieldset.choix label:has(input:checked) { border-color: var(--accent); }
+  fieldset.choix label.danger:has(input:checked) { border-color: var(--alerte); }
+  fieldset.choix input { width: auto; margin: 3px 0 0; flex: none; }
+  fieldset.choix b { display: block; font-weight: 600; }
+  fieldset.choix i { font-style: normal; color: var(--encre2); font-size: 0.84rem; }
   button.action {
     cursor: pointer; font: inherit; font-weight: 600; margin-top: 14px;
     background: var(--accent); color: #17111f; border: none;
@@ -219,9 +250,15 @@
   button.discret:hover { border-color: var(--alerte); }
   :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 
+  /* COLLANT sous la barre. Constate en pilotant la console : un bouton en bas
+     d'une vue longue -- « Poser le jeton », « Creer le compte » -- affichait sa
+     reponse tout en haut, hors de l'ecran. On cliquait, et il ne se passait
+     visiblement RIEN. Le message suit maintenant le regard. */
   #message {
+    position: sticky; top: calc(var(--barre) + 10px); z-index: 30;
     margin: 0 0 18px; padding: 12px 16px; border-radius: 10px; font-size: 0.93rem;
     border-left: 4px solid var(--trait); background: var(--surface2);
+    box-shadow: var(--ombre);
   }
   #message[hidden] { display: none; }
   #message.ok { border-left-color: var(--ok); }
@@ -311,6 +348,10 @@
       </button>
 
       <div class="groupe">Administration</div>
+      <button data-vue="classeur" id="navClasseur" hidden>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18"/><path d="M9 21V9"/></svg>
+        <span class="quoi"><b>Classeur</b><i>La feuille Google et son jeton</i></span>
+      </button>
       <button data-vue="reglages">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.6 1.65 1.65 0 0 0 10 3.09V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9c.14.36.4.66.74.86"/></svg>
         <span class="quoi"><b>Réglages</b><i>Mon compte, les accès</i></span>
@@ -487,6 +528,97 @@
       </div>
     </section>
 
+    <!-- ================= Classeur (spec 015) ================= -->
+    <section class="vue" id="vueClasseur" hidden>
+      <div class="titre-vue">
+        <h1>Classeur Google</h1>
+        <p>Où partent les réussites, et avec quelle identité. C'est le réglage
+           qu'on oublie d'une édition à l'autre — il se fait ici, plus en SSH
+           sur le serveur.</p>
+      </div>
+
+      <div class="carte">
+        <h2>Où vont les réussites</h2>
+        <p class="aide">L'état réel, en direct. « Tester l'accès » ne fait que
+           <strong>lire</strong> : il dit le titre du classeur, ses onglets et la
+           taille de sa grille, sans rien y écrire.</p>
+        <dl class="etat" id="etatClasseur"></dl>
+        <div style="display:flex;gap:10px;flex-wrap:wrap">
+          <button class="secondaire" id="btnTesterClasseur">Tester l'accès</button>
+          <button class="secondaire" id="btnImporterClasseur">Importer le classeur</button>
+        </div>
+        <p class="aide" style="margin:14px 0 0">« Importer » relit les onglets
+           <strong>Listes</strong> et <strong>Plan</strong> et met la base à
+           jour : les grimpeurs, les blocs et les circuits. C'est le geste qui
+           suit un changement de feuille. Il n'écrit rien dans le classeur, et
+           il ne touche pas aux participants ajoutés à la main.</p>
+        <div id="rapportClasseur" hidden></div>
+      </div>
+
+      <div class="carte">
+        <h2>Relier un autre classeur</h2>
+        <p class="aide">Ouvre la feuille dans le navigateur et colle son adresse.
+           <strong>Elle doit être partagée</strong> avec le compte Google du
+           jeton, sinon rien ne pourra y être écrit.</p>
+        <label for="lienClasseur">Lien du classeur</label>
+        <input id="lienClasseur" autocapitalize="none" spellcheck="false"
+               placeholder="docs.google.com/spreadsheets/d/…/edit (colle l'adresse complète)">
+
+        <fieldset class="choix">
+          <legend>Et les données déjà enregistrées ?</legend>
+          <label>
+            <input type="radio" name="modeClasseur" value="relier" checked>
+            <span class="quoi"><b>Relier seulement</b>
+              <i>Rien d'autre ne bouge. Les nouvelles réussites partiront vers
+                 cette feuille ; les anciennes restent où elles sont.</i></span>
+          </label>
+          <label>
+            <input type="radio" name="modeClasseur" value="rejouer">
+            <span class="quoi"><b>Même compétition, autre feuille</b>
+              <i>Rien n'est effacé : <strong>toutes</strong> les réussites déjà
+                 enregistrées sont renvoyées vers la nouvelle feuille, dans les
+                 minutes qui suivent.</i></span>
+          </label>
+          <label class="danger">
+            <input type="radio" name="modeClasseur" value="reinitialiser">
+            <span class="quoi"><b>Nouvelle compétition — tout effacer</b>
+              <i>Efface les participants, les blocs et les réussites du serveur,
+                 <strong>et</strong> vide la matrice de l'onglet Import de la
+                 nouvelle feuille. Sans retour possible.</i></span>
+          </label>
+        </fieldset>
+
+        <div id="blocConfirmation" hidden style="margin-top:14px">
+          <label for="confirmationClasseur">Écris <code>EFFACER</code> pour confirmer</label>
+          <input id="confirmationClasseur" autocapitalize="characters"
+                 spellcheck="false" style="max-width:260px" placeholder="EFFACER">
+          <p class="aide" style="margin-top:10px">La feuille vidée est la
+             <strong>nouvelle</strong>, jamais celle qu'on quitte. Les en-têtes
+             (dossards en ligne 1, numéros de blocs en colonne A) sont
+             conservés.</p>
+        </div>
+
+        <button class="action" id="btnRelier">Enregistrer</button>
+      </div>
+
+      <div class="carte">
+        <h2>Jeton Google</h2>
+        <p class="aide">Sans jeton, le serveur n'a aucune identité pour écrire :
+           les réussites s'empilent en attente et n'arrivent jamais. Produis-le
+           sur ton Mac, là où le jeton existe déjà :</p>
+        <p class="aide"><code>python3 tools/exporter_jeton.py</code> — puis colle
+           sa sortie ci-dessous.</p>
+        <label for="jetonJson">Le JSON du jeton</label>
+        <textarea id="jetonJson" spellcheck="false" autocapitalize="none"
+                  placeholder='{"token": "ya29…", "refresh_token": "1//…", "client_id": "…", "client_secret": "…"}'></textarea>
+        <p class="aide" style="margin-top:12px">⚠️ Ce texte est un
+           <strong>secret</strong>, comme un mot de passe : il ouvre le compte
+           Google du classeur. L'ancien jeton est conservé côté serveur, au cas
+           où celui-ci serait le mauvais.</p>
+        <button class="action" id="btnPoserJeton">Poser le jeton</button>
+      </div>
+    </section>
+
     <!-- ================= Réglages ================= -->
     <section class="vue" id="vueReglages" hidden>
       <div class="titre-vue">
@@ -609,6 +741,10 @@
     // Le serveur refuse de toute facon (403) -- masquer evite d'offrir un
     // formulaire qui ne marche pas, ce n'est pas la protection.
     $("blocComptes").hidden = etat.moi.roles.indexOf("admin") === -1;
+    // Meme regle pour le classeur : les quatre routes sont reservees a un
+    // administrateur, le serveur repond 403 aux autres. Masquer l'entree evite
+    // d'offrir un ecran qui ne repondrait que des refus.
+    $("navClasseur").hidden = etat.moi.roles.indexOf("admin") === -1;
     chargerReferentiels();
     // Sur QUOI on agit. Sans ca, rien a l'ecran ne distingue la competition
     // de novembre d'une competition de test restee active.
@@ -642,6 +778,7 @@
     participants: { titre: "Participants",         charge: chargerParticipants },
     reussites:    { titre: "Réussites",            charge: null },
     telephones:   { titre: "Téléphones des juges", charge: chargerAppareils },
+    classeur:     { titre: "Classeur Google",      charge: chargerClasseur },
     reglages:     { titre: "Réglages",             charge: chargerComptesSiAdmin }
   };
 
@@ -1172,6 +1309,228 @@
   $("formMonMdp").addEventListener("submit", function (e) {
     e.preventDefault();
     $("btnMonMdp").click();
+  });
+
+  // --- Classeur Google (spec 015) -------------------------------------------
+  //
+  // Tout ce qui s'affiche ici vient soit de la base, soit de GOOGLE (le titre
+  // du classeur, ses onglets). C'est donc du texte qu'on ne maitrise pas : il
+  // est pose avec textContent, jamais avec innerHTML. Renommer une feuille
+  // « <script>… » ne doit rien pouvoir faire d'autre que s'afficher.
+
+  function ligneEtat(dl, libelle, valeur, classe) {
+    var dt = document.createElement("dt");
+    dt.textContent = libelle;
+    var dd = document.createElement("dd");
+    if (valeur instanceof Node) dd.appendChild(valeur);
+    else dd.textContent = valeur;
+    if (classe) dd.className = classe;
+    dl.appendChild(dt);
+    dl.appendChild(dd);
+  }
+
+  function lienVers(url, texte) {
+    var a = document.createElement("a");
+    a.href = url;
+    a.target = "_blank";
+    a.rel = "noopener";
+    a.textContent = texte;
+    return a;
+  }
+
+  function peindreClasseur(d) {
+    etat.classeur = d;
+    var dl = $("etatClasseur");
+    dl.innerHTML = "";
+
+    if (!d.competition) {
+      ligneEtat(dl, "Compétition", "aucune compétition active", "manque");
+      return;
+    }
+    ligneEtat(dl, "Compétition", d.competition.nom + " (" + d.competition.statut + ")");
+
+    if (d.classeur.relie) {
+      ligneEtat(dl, "Classeur", lienVers(d.classeur.url, d.classeur.identifiant));
+    } else {
+      ligneEtat(dl, "Classeur", "aucun classeur relié — les réussites attendent "
+                                + "en base, rien n'est perdu", "manque");
+    }
+
+    var jeton = d.jeton;
+    if (!jeton.present) {
+      ligneEtat(dl, "Jeton", "absent — aucune écriture n'est possible", "manque");
+    } else if (jeton.valide === false) {
+      ligneEtat(dl, "Jeton", jeton.message || "invalide", "manque");
+    } else {
+      var texte = "posé (" + jeton.source + ")";
+      if (jeton.expire_le) texte += ", jeton d'accès valable jusqu'au " + jeton.expire_le;
+      ligneEtat(dl, "Jeton", texte, "bon");
+    }
+
+    var c = d.compteurs;
+    ligneEtat(dl, "Réussites", c.reussites + " au total, " + c.reussites_en_attente
+                               + " en attente d'envoi",
+              c.reussites_en_attente > 0 ? "" : "bon");
+    ligneEtat(dl, "Inscrits", c.participants + " participant(s), " + c.blocs
+                              + " bloc(s), dossard le plus haut : "
+                              + (c.dossard_max === null ? "aucun" : c.dossard_max));
+  }
+
+  function chargerClasseur() {
+    $("rapportClasseur").hidden = true;
+    appeler("/admin/classeur").then(peindreClasseur).catch(signaler);
+  }
+
+  function peindreRapport(rapport) {
+    var bloc = $("rapportClasseur");
+    bloc.innerHTML = "";
+    bloc.hidden = false;
+
+    var dl = document.createElement("dl");
+    dl.className = "etat";
+    dl.style.marginTop = "16px";
+    ligneEtat(dl, "Titre", rapport.titre || "(sans titre)");
+    ligneEtat(dl, "Onglets", rapport.onglets.join(", "));
+    if (rapport.grille) {
+      ligneEtat(dl, "Onglet Import", rapport.grille.lignes + " lignes × "
+                    + rapport.grille.colonnes + " colonnes — dossards jusqu'à "
+                    + rapport.dossard_max_sans_agrandir
+                    + " sans agrandissement (au-delà, la feuille est élargie "
+                    + "automatiquement)");
+    }
+    bloc.appendChild(dl);
+
+    rapport.avertissements.forEach(function (texte) {
+      var p = document.createElement("p");
+      p.className = "aide";
+      p.style.cssText = "margin-top:14px;border-left:4px solid var(--attention);"
+                      + "padding-left:12px";
+      p.textContent = texte;
+      bloc.appendChild(p);
+    });
+  }
+
+  $("btnTesterClasseur").addEventListener("click", function () {
+    var bouton = this;
+    bouton.disabled = true;
+    appeler("/admin/classeur/test", {
+      methode: "POST", corps: { lien: $("lienClasseur").value },
+    }).then(function (d) {
+      peindreRapport(d.rapport);
+      dire("Classeur joignable : « " + d.rapport.titre + " ».", "ok");
+    }).catch(signaler).then(function () { bouton.disabled = false; });
+  });
+
+  $("btnImporterClasseur").addEventListener("click", function () {
+    var bouton = this;
+    bouton.disabled = true;
+    appeler("/admin/import/sheet", { methode: "POST" }).then(function (d) {
+      peindreImport(d.rapport);
+      dire("Classeur importé : " + d.rapport.resume, "ok");
+      // Les compteurs de la carte du haut viennent de changer.
+      appeler("/admin/classeur").then(peindreClasseur).catch(signaler);
+    }).catch(signaler).then(function () { bouton.disabled = false; });
+  });
+
+  function peindreImport(rapport) {
+    var bloc = $("rapportClasseur");
+    bloc.innerHTML = "";
+    bloc.hidden = false;
+
+    var dl = document.createElement("dl");
+    dl.className = "etat";
+    dl.style.marginTop = "16px";
+    ligneEtat(dl, "Participants", rapport.participants.crees + " créé(s), "
+                  + rapport.participants.mis_a_jour + " mis à jour");
+    ligneEtat(dl, "Blocs", rapport.blocs.crees + " créé(s), "
+                  + rapport.blocs.mis_a_jour + " mis à jour, "
+                  + rapport.circuits_crees + " circuit(s) créé(s)");
+    bloc.appendChild(dl);
+
+    // Les lignes ignorees sont la moitie du travail : un import muet qui perd
+    // un grimpeur est exactement ce qui se passait avant la spec 002.
+    [["Ignoré", rapport.ignores, "var(--alerte)"],
+     ["Averti", rapport.avertissements, "var(--attention)"]].forEach(function (paire) {
+      paire[1].forEach(function (texte) {
+        var p = document.createElement("p");
+        p.className = "aide";
+        p.style.cssText = "margin-top:10px;border-left:4px solid " + paire[2]
+                        + ";padding-left:12px";
+        p.textContent = texte;
+        bloc.appendChild(p);
+      });
+    });
+  }
+
+  function modeClasseur() {
+    var coche = document.querySelector("input[name=modeClasseur]:checked");
+    return coche ? coche.value : "relier";
+  }
+
+  Array.prototype.forEach.call(
+    document.querySelectorAll("input[name=modeClasseur]"), function (radio) {
+      radio.addEventListener("change", function () {
+        // Le champ de confirmation n'apparait QUE pour le mode destructeur :
+        // le voir en permanence banaliserait le geste.
+        $("blocConfirmation").hidden = modeClasseur() !== "reinitialiser";
+      });
+    });
+
+  function resumeEffets(effets) {
+    if (effets.mode === "rejouer") {
+      return "Classeur relié. " + effets.reussites_reprogrammees
+             + " réussite(s) vont être renvoyées vers cette feuille — compte "
+             + "une minute, puis vérifie « en attente » ci-dessus.";
+    }
+    if (effets.mode === "reinitialiser") {
+      var e = effets.efface || {};
+      return "Tout est reparti de zéro : " + (e.participants || 0)
+             + " participant(s), " + (e.blocs || 0) + " bloc(s) et "
+             + (e.reussites || 0) + " réussite(s) effacés, matrice Import vidée. "
+             + "Importe le classeur pour repeupler la base.";
+    }
+    return "Classeur relié. Les prochaines réussites partiront vers cette feuille.";
+  }
+
+  $("btnRelier").addEventListener("click", function () {
+    var mode = modeClasseur();
+    if (mode === "reinitialiser" && !window.confirm(
+        "Effacer les participants, les blocs et les réussites du serveur, "
+        + "et vider la matrice Import de la NOUVELLE feuille ?\n\n"
+        + "C'est sans retour.")) return;
+
+    var bouton = this;
+    bouton.disabled = true;
+    appeler("/admin/classeur", {
+      methode: "POST",
+      corps: { lien: $("lienClasseur").value, mode: mode,
+               confirmation: $("confirmationClasseur").value },
+    }).then(function (d) {
+      peindreClasseur(d);
+      $("lienClasseur").value = "";
+      $("confirmationClasseur").value = "";
+      $("rapportClasseur").hidden = true;
+      dire(resumeEffets(d.effets), "ok");
+      // La barre du haut dit sur QUOI on agit : elle ne doit pas rester sur
+      // l'ancienne verite.
+      if (etat.moi && etat.moi.competition && d.competition) {
+        $("competitionBarre").textContent = d.competition.nom;
+      }
+    }).catch(signaler).then(function () { bouton.disabled = false; });
+  });
+
+  $("btnPoserJeton").addEventListener("click", function () {
+    var bouton = this;
+    bouton.disabled = true;
+    appeler("/admin/classeur/jeton", {
+      methode: "POST", corps: { jeton: $("jetonJson").value },
+    }).then(function () {
+      // Un secret ne reste pas affiche a l'ecran d'une salle de competition.
+      $("jetonJson").value = "";
+      dire("Jeton posé. Teste l'accès pour vérifier qu'il ouvre bien le classeur.",
+           "ok");
+      chargerClasseur();
+    }).catch(signaler).then(function () { bouton.disabled = false; });
   });
 
   // --- Demarrage ------------------------------------------------------------

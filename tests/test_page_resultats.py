@@ -194,7 +194,12 @@ class TestConsoleAdmin:
         for route in ("/admin/connexion", "/admin/deconnexion", "/admin/moi",
                       "/admin/participants", "/admin/reussites", "/admin/dossards",
                       "/admin/comptes", "/admin/mon-mot-de-passe",
-                      "/admin/appareils", "/admin/reussites-tracees"):
+                      "/admin/appareils", "/admin/reussites-tracees",
+                      # Spec 015 : le classeur se regle depuis la console,
+                      # et l'import -- dont la route existait depuis la spec
+                      # 002 -- y a enfin un bouton.
+                      "/admin/classeur", "/admin/classeur/test",
+                      "/admin/classeur/jeton", "/admin/import/sheet"):
             assert route in page, f"la console n'appelle pas {route}"
 
     def test_le_suivi_des_telephones_est_la(self, client, jeu):
