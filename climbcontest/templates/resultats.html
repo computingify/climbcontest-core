@@ -40,7 +40,9 @@
     --encre2: #5A6472;
     --alerte: #B3352A;
     --ok: #1E7A45;
-    --or: #C9971C; --argent: #7E8896; --bronze: #A8703C;
+    --or: #EFB61E;        --or-encre: #A87A00;      /* jaune franc */
+    --argent: #B6BFCA;    --argent-encre: #6C7684;  /* gris neutre */
+    --bronze: #C4703A;    --bronze-encre: #8A4820;  /* cuivre */
     --encre3: #7B8494;
     --zebre: #E9EDF3;                 /* zébrure : neutre et très peu saturée */
 
@@ -55,7 +57,9 @@
     --c5: #E0705F; --c6: #96A0B2;
     --fond: #0B0F17; --carte: #161B24; --carte2: #1E2430; --trait: #2A313D;
     --encre: #F0F3F8; --encre2: #97A2B2; --alerte: #E0705F; --ok: #57D58D;
-    --or: #E8B93C; --argent: #B9C2CF; --bronze: #C08150;
+    --or: #F0C13F;        --or-encre: #F0C13F;
+    --argent: #C3CBD7;    --argent-encre: #C3CBD7;
+    --bronze: #D08B52;    --bronze-encre: #D08B52;
     --encre3: #798398; --zebre: #12171F;
   }
 
@@ -197,13 +201,20 @@
   .marche.place-1 .socle { height: 30px; }
   .marche.place-2 .socle { height: 20px; }
   .marche.place-3 .socle { height: 12px; }
-  .marche, .pod { --medaille: var(--bronze); }
-  .marche.r1, .pod.r1 { --medaille: var(--or); }
-  .marche.r2, .pod.r2 { --medaille: var(--argent); }
-  .marche.r3, .pod.r3 { --medaille: var(--bronze); }
+  /* La médaille suit la MARCHE, pas le rang : la marche du milieu est en argent,
+     celle de droite en bronze. Deux ex æquo en tête gardent leur « 1 » affiché —
+     c'est le chiffre qui dit la vérité sportive, la couleur dit la marche.
+     (Correction demandée par Adrien : « le 2 sur le podium c'est l'argent et ça
+     devrait être gris ».) */
+  .marche.place-1, .marche.place-1 .pod { --medaille: var(--or);
+                                          --medaille-encre: var(--or-encre); }
+  .marche.place-2, .marche.place-2 .pod { --medaille: var(--argent);
+                                          --medaille-encre: var(--argent-encre); }
+  .marche.place-3, .marche.place-3 .pod { --medaille: var(--bronze);
+                                          --medaille-encre: var(--bronze-encre); }
   .pod .place {
     grid-row: 1 / span 3; font-size: clamp(52px, 5.2vw, 96px); font-weight: 900; line-height: 1;
-    color: var(--medaille); text-align: center; font-variant-numeric: tabular-nums;
+    color: var(--medaille-encre); text-align: center; font-variant-numeric: tabular-nums;
   }
   .pod .nom { font-size: clamp(24px, 2.2vw, 40px); font-weight: 800; letter-spacing: -0.02em;
               white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -251,6 +262,9 @@
     display: grid; grid-template-columns: repeat(var(--colonnes, 3), 1fr);
     gap: 0 26px; align-content: start;
   }
+  /* Une seule colonne : on la borne, sinon le nom et le score se retrouvent aux
+     deux extrémités d'un mur de deux mètres. */
+  body.mur.sens-large #liste { max-width: 1150px; margin: 0 auto; width: 100%; }
 
   /* Un TABLEAU, pas une pile de cartes. C'est ce que font les services de
      résultats sportifs, et pour une raison qui se mesure : des colonnes
@@ -281,9 +295,9 @@
   /* Le podium reste marqué dans le tableau — utile quand il n'y a pas de
      bandeau (téléphone, fenêtre étroite). */
   .ligne.p1, .ligne.p2, .ligne.p3 { background: var(--carte2); }
-  .ligne.p1 { box-shadow: inset 4px 0 0 var(--or); }
-  .ligne.p2 { box-shadow: inset 4px 0 0 var(--argent); }
-  .ligne.p3 { box-shadow: inset 4px 0 0 var(--bronze); }
+  .ligne.p1 { box-shadow: inset 5px 0 0 var(--or); }
+  .ligne.p2 { box-shadow: inset 5px 0 0 var(--argent); }
+  .ligne.p3 { box-shadow: inset 5px 0 0 var(--bronze); }
 
   .rang { font-weight: 800; color: var(--encre2); text-align: right;
           font-variant-numeric: tabular-nums; font-size: 1.15rem; }
@@ -409,6 +423,11 @@
   var params = new URLSearchParams(location.search);
   var MUR = params.has("mur");
   var SOMBRE = params.has("sombre");
+  // Trois mises en page à comparer (proposition du 31/08) :
+  //   colonnes — les rangs descendent chaque colonne, comme une liste
+  //   lignes   — les rangs se suivent de gauche à droite
+  //   large    — une seule colonne, lignes hautes, le reste défile
+  var SENS = params.get("sens") || "colonnes";
 
   var PERIODE_MS = 15000;      // rafraîchissement des données
   var PERIME_MS = 60000;       // au-delà, l'âge passe en rouge
@@ -423,7 +442,9 @@
   // peu et n'a pas sa place dans une boucle qu'on regarde toute la journée.
   var TYPES_MUR = ["categorie", "circuit", "scratch"];
 
-  var MIN_H = 44, MAX_H = 124;        // hauteur d'une ligne, en mode mur
+  // Hauteur d'une ligne, en mode mur. En « large », on assume d'en montrer
+  // moins : c'est le principe de la proposition.
+  var MIN_H = 44, MAX_H = 124;
   // Sous ce nombre de lignes, on s'autorise plus grand : mieux vaut six lignes
   // hautes et lisibles de loin qu'un ruban de six lignes perdu sur un mur.
   var PEU_DE_LIGNES = 6, MAX_H_PEU = 168;
@@ -437,6 +458,7 @@
     recuA: null,
     groupe: null,
     densite: 1,                // 1 = tout tient ; 4 = nom et score seulement
+    entetes: [],               // les rangées d'en-tête, réutilisées
     enPanne: false,
     messageMetier: null,
     noeuds: {},                // participant -> élément, pour ANIMER au lieu de recréer
@@ -464,6 +486,7 @@
   };
 
   if (MUR) document.body.classList.add("mur");
+  document.body.classList.add("sens-" + SENS);
   if (SOMBRE) document.body.classList.add("sombre");
 
   function sansMouvement() {
@@ -803,18 +826,47 @@
 
   var LARGEUR_PODIUM = 900;      // en dessous, trois cartes côte à côte s'écrasent
 
-  /** Les en-têtes de colonnes : un par colonne affichée. */
-  function poserEntetes(nombre) {
-    var actuels = el.liste.querySelectorAll(".entete").length;
-    while (actuels > nombre) {
-      el.liste.removeChild(el.liste.querySelector(".entete"));
-      actuels--;
+  /** L'ordre des enfants de la liste : en-têtes et lignes, agencés selon le
+   *  sens de lecture choisi. C'est ici, et nulle part ailleurs, que se décide
+   *  « on lit en colonnes » ou « on lit en lignes ». */
+  function agencer(suite, colonnes) {
+    var enfants = [];
+    if (!MUR || SENS === "large" || colonnes < 2) {
+      el.liste.style.gridAutoFlow = "row";
+      el.liste.style.gridTemplateRows = "";
+      if (MUR) enfants.push({ entete: true });
+      else enfants.push({ entete: true });
+      suite.forEach(function (l) { enfants.push({ ligne: l }); });
+      return enfants;
     }
-    while (actuels < nombre) {
-      el.liste.insertBefore(noeudEntete(), el.liste.firstChild);
-      actuels++;
+
+    if (SENS === "lignes") {
+      el.liste.style.gridAutoFlow = "row";
+      el.liste.style.gridTemplateRows = "";
+      for (var c = 0; c < colonnes; c++) enfants.push({ entete: true });
+      suite.forEach(function (l) { enfants.push({ ligne: l }); });
+      return enfants;
     }
-    return nombre;
+
+    // En colonnes : chaque colonne est une tranche continue du classement, et
+    // son en-tête annonce la tranche — « 4 → 10 ». Sans ça, rien ne dit dans
+    // quel sens on lit.
+    var parColonne = Math.ceil(suite.length / colonnes);
+    el.liste.style.gridAutoFlow = "column";
+    el.liste.style.gridTemplateRows = "repeat(" + (parColonne + 1) + ", auto)";
+    for (var i = 0; i < colonnes; i++) {
+      var tranche = suite.slice(i * parColonne, (i + 1) * parColonne);
+      if (!tranche.length) continue;
+      enfants.push({ entete: true, de: tranche[0].rang,
+                     a: tranche[tranche.length - 1].rang });
+      tranche.forEach(function (l) { enfants.push({ ligne: l }); });
+    }
+    return enfants;
+  }
+
+  function majEntete(n, item) {
+    var rang = n.querySelector("span");
+    rang.textContent = item.de ? item.de + " → " + item.a : "Rang";
   }
 
   function peindre(lignes, avecPodium) {
@@ -857,24 +909,34 @@
       regler_densite(1);
     }
 
-    // Une en-tête par colonne : le flux se fait par lignes, les `colonnes`
-    // premiers éléments forment donc la première rangée.
-    var entetes = poserEntetes(suite.length ? colonnes : 0);
-    if (MUR) ajuster(suite.length, colonnes, entetes);
+    var enfants = suite.length ? agencer(suite, colonnes) : [];
+    if (MUR) {
+      var parColonne = SENS === "colonnes" && colonnes > 1
+        ? Math.ceil(suite.length / colonnes)
+        : Math.ceil(suite.length / colonnes);
+      ajuster(parColonne, 1, true);
+    }
 
-    suite.forEach(function (l, i) {
-      var n = etat.noeuds[l.cle];
-      if (!n || !n.classList.contains("ligne")) {
-        n = noeudLigne();
-        etat.noeuds[l.cle] = n;
+    var utilisees = 0;
+    enfants.forEach(function (item, index) {
+      var n;
+      if (item.entete) {
+        n = etat.entetes[utilisees] || (etat.entetes[utilisees] = noeudEntete());
+        utilisees++;
+        majEntete(n, item);
+      } else {
+        n = etat.noeuds[item.ligne.cle];
+        if (!n || !n.classList.contains("ligne")) {
+          n = noeudLigne();
+          etat.noeuds[item.ligne.cle] = n;
+        }
+        remplir(n, item.ligne, avecPodium, meilleur);
       }
-      remplir(n, l, avecPodium, meilleur);
-      var place = entetes + i;
-      if (el.liste.children[place] !== n) {
-        el.liste.insertBefore(n, el.liste.children[place] || null);
+      if (el.liste.children[index] !== n) {
+        el.liste.insertBefore(n, el.liste.children[index] || null);
       }
     });
-    while (el.liste.children.length > entetes + suite.length) {
+    while (el.liste.children.length > enfants.length) {
       el.liste.removeChild(el.liste.lastChild);
     }
 
@@ -899,6 +961,7 @@
     // et c'est le nom qu'on vient lire. Mieux vaut deux colonnes lisibles que
     // trois colonnes de « Nieuv… ».
     var parLargeur = Math.max(1, Math.min(3, Math.floor(largeur / 430)));
+    if (SENS === "large") return 1;
     var parNombre = nombre > 12 ? 3 : nombre > 4 ? 2 : 1;
     return Math.min(parLargeur, parNombre);
   }
@@ -920,15 +983,16 @@
   function ajuster(nombre, colonnes, entetes) {
     // La rangée d'en-têtes prend sa place : sans ça, la dernière ligne passe
     // sous le bord de l'écran.
-    var lignes = Math.max(1, Math.ceil(nombre / colonnes)) + (entetes ? 0.55 : 0);
+    var lignes = Math.max(1, Math.ceil(nombre / colonnes)) + (entetes ? 0.75 : 0);
     var style = getComputedStyle(el.defile);
     // clientHeight INCLUT le rembourrage : sans cette soustraction, les
     // dernières lignes passent sous le bord de l'écran.
     var dispo = el.defile.clientHeight
               - parseFloat(style.paddingTop) - parseFloat(style.paddingBottom);
     var h = Math.floor((dispo - (lignes - 1) * 7) / lignes);
+    var plancher = SENS === "large" ? 74 : MIN_H;
     var plafond = lignes <= PEU_DE_LIGNES ? MAX_H_PEU : MAX_H;
-    el.liste.style.setProperty("--h", Math.max(MIN_H, Math.min(plafond, h)) + "px");
+    el.liste.style.setProperty("--h", Math.max(plancher, Math.min(plafond, h)) + "px");
   }
 
   /** Quand le plateau déborde malgré tout, il DÉFILE — doucement, en boucle. */

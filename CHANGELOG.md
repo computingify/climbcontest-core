@@ -38,6 +38,18 @@ qu'on ne met pas à jour le matin d'une compétition :
 
 ### Modifié
 
+- **Les couleurs du podium sont refaites.** La marche du milieu est en **argent
+  gris**, celle de droite en **cuivre**, et l'or est un jaune franc qui ne se
+  confond plus avec le bronze. La médaille suit désormais la **marche** et non
+  le rang : deux ex æquo en tête gardent leur « 1 » affiché — c'est le chiffre
+  qui dit la vérité sportive, la couleur dit la marche. Chaque médaille a deux
+  valeurs, un aplat vif pour le socle et une encre plus sombre pour le chiffre,
+  sans quoi un or assez vif pour se distinguer du bronze devient illisible.
+- **Le classement se lit en colonnes**, et chaque colonne annonce sa tranche
+  (« 4 → 10 »). La lecture en lignes, essayée d'abord, obligeait à balayer de
+  gauche à droite pour suivre des rangs qui, eux, descendent. Deux autres mises
+  en page restent atteignables par l'adresse pour comparer : `?sens=lignes` et
+  `?sens=large` (une seule colonne, lignes hautes, le reste défile).
 - **Le podium a la forme d'un podium** : le premier au centre et plus haut, le
   deuxième à gauche un peu en dessous, le troisième à droite plus bas encore,
   chacun sur son socle à la couleur de sa médaille.

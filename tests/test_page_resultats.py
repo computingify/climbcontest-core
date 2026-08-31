@@ -199,12 +199,16 @@ class TestFaitePourEtreProjetee:
         assert "function jauger(" in page
         assert 'id="progression"' not in page, "l'ancienne barre du haut a disparu"
 
-    def test_le_classement_se_lit_dans_un_seul_sens(self, client, jeu):
-        """Le podium est une rangée (1, 2, 3 de gauche à droite) : enchaîner sur
-        des colonnes lues de haut en bas obligeait l'œil à changer de sens au
-        milieu de l'écran."""
+    def test_le_sens_de_lecture_est_un_choix_et_le_defaut_est_colonnes(self, client, jeu):
+        """Adrien, 31/08 : « le classement en ligne n'est vraiment pas lisible,
+        en colonne ce serait mieux ». Les rangs descendent donc chaque colonne,
+        et chaque colonne annonce sa tranche (« 4 → 10 ») — sans quoi rien ne
+        dit dans quel sens on lit. Les deux autres mises en page restent
+        atteignables par l'adresse, pour comparer."""
         page = client.get("/").data.decode()
-        assert "grid-auto-flow: column" not in page
+        assert 'params.get("sens") || "colonnes"' in page
+        assert "function agencer(" in page
+        assert "function majEntete(" in page
 
     def test_les_colonnes_suivent_la_largeur(self, client, jeu):
         page = client.get("/").data.decode()
