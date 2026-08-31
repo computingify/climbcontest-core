@@ -38,6 +38,10 @@ qu'on ne met pas à jour le matin d'une compétition :
 
 ### Modifié
 
+- **Les ex æquo partagent leur marche.** Deux premiers à égalité sont côte à
+  côte, au même niveau, sur le même socle et avec la même médaille — une marche
+  porte un groupe de grimpeurs, pas un grimpeur. Il n'y a alors pas de deuxième
+  marche : c'est ce que dit le classement.
 - **Les couleurs du podium sont refaites.** La marche du milieu est en **argent
   gris**, celle de droite en **cuivre**, et l'or est un jaune franc qui ne se
   confond plus avec le bronze. La médaille suit désormais la **marche** et non

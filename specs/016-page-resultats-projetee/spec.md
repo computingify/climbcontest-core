@@ -202,6 +202,9 @@ de place.
 | A19 | Le podium est en **marches** : 1er au centre et plus haut, 2e à gauche, 3e à droite et plus bas | Capture 1920 |
 | A20 | Le classement porte un **en-tête de colonnes** et une colonne **Écart** | Capture + test de gabarit |
 | A21 | Sous 430 px de colonne, le tableau se replie en deux lignes sans rien perdre | Capture 390 px |
+| A22 | Le classement se lit **en colonnes**, chaque colonne annonçant sa tranche | Capture 1920 |
+| A23 | Les **ex æquo partagent leur marche** : même niveau, même socle, même médaille | Capture d'une catégorie à deux premiers |
+| A24 | Or, argent et bronze se distinguent au premier coup d'œil | Capture |
 
 ## 5. Ce qui reste hors périmètre
 

@@ -164,10 +164,26 @@
      gauche, le troisième à droite et plus bas encore. C'est la forme qu'on
      reconnaît sans la lire — demandée par Adrien le 31/08. Il n'existe qu'en
      mode mur : sur un téléphone, il mangerait tout l'écran. */
-  #podium { flex: none; display: none; grid-template-columns: 1fr 1.12fr 1fr;
-            gap: 18px; align-items: end;
+  #podium { flex: none; display: none; gap: 20px; align-items: end;
             height: clamp(150px, 23vh, 250px); }
-  body.mur #podium.visible { display: grid; }
+  body.mur #podium.visible { display: flex; }
+
+  /* UNE MARCHE PAR RANG, et les ex æquo la partagent — ils sont à égalité, ils
+     doivent être au même niveau (Adrien, 31/08). La marche porte donc un
+     GROUPE de cartes, pas une carte. */
+  .groupe {
+    display: flex; flex-direction: column; justify-content: flex-end;
+    flex: 1 1 0; min-width: 0;
+  }
+  .groupe .cartes { display: flex; gap: 10px; min-width: 0; align-items: stretch; }
+  .groupe .cartes > .pod { flex: 1 1 0; min-width: 0; }
+  .groupe .socle { border-radius: 0 0 6px 6px; background: var(--medaille); }
+  .groupe.place-1 { order: 2; padding-bottom: 52px; flex-grow: 1.15; }
+  .groupe.place-2 { order: 1; padding-bottom: 26px; }
+  .groupe.place-3 { order: 3; padding-bottom: 0; }
+  .groupe.place-1 .socle { height: 30px; }
+  .groupe.place-2 .socle { height: 20px; }
+  .groupe.place-3 .socle { height: 12px; }
   /* La place dans la RANGÉE vient du rang affiché (1er au centre), la médaille
      vient du rang réel : deux ex æquo en tête portent deux fois l'or. C'est la
      MARCHE qui porte la position — voir `.marche.place-N` plus bas. */
@@ -185,33 +201,20 @@
        marche et le podium redevenait trois cartes alignées. */
     flex: 1;
   }
-  /* Les marches. Hauteurs différentes : c'est ce qui fait lire « podium »
-     plutôt que « trois cartes ». */
-  .marche {
-    display: flex; flex-direction: column; justify-content: flex-end; min-width: 0;
-  }
-  .marche .socle {
-    height: 16px; border-radius: 0 0 6px 6px; background: var(--medaille);
-  }
-  .marche.place-1 { order: 2; padding-bottom: 52px; }
-  .marche.place-2 { order: 1; padding-bottom: 26px; }
-  .marche.place-3 { order: 3; padding-bottom: 0; }
-  /* Le socle est d'autant plus haut que la place est bonne : c'est lui qui
-     dessine la marche sous la carte. */
-  .marche.place-1 .socle { height: 30px; }
-  .marche.place-2 .socle { height: 20px; }
-  .marche.place-3 .socle { height: 12px; }
-  /* La médaille suit la MARCHE, pas le rang : la marche du milieu est en argent,
-     celle de droite en bronze. Deux ex æquo en tête gardent leur « 1 » affiché —
-     c'est le chiffre qui dit la vérité sportive, la couleur dit la marche.
-     (Correction demandée par Adrien : « le 2 sur le podium c'est l'argent et ça
-     devrait être gris ».) */
-  .marche.place-1, .marche.place-1 .pod { --medaille: var(--or);
-                                          --medaille-encre: var(--or-encre); }
-  .marche.place-2, .marche.place-2 .pod { --medaille: var(--argent);
-                                          --medaille-encre: var(--argent-encre); }
-  .marche.place-3, .marche.place-3 .pod { --medaille: var(--bronze);
-                                          --medaille-encre: var(--bronze-encre); }
+
+  /* La médaille suit le RANG : une marche = un rang = une couleur. Deux
+     premiers ex æquo partagent la marche dorée, et il n'y a pas de deuxième
+     marche ce jour-là. C'est la vérité sportive, et c'est lisible.
+     Ce qui était vraiment en cause dans « le 2 devrait être gris », c'était la
+     palette : l'argent tirait sur le bleu et l'or sur le bronze. */
+  .groupe, .groupe .pod { --medaille: var(--bronze);
+                          --medaille-encre: var(--bronze-encre); }
+  .groupe.r1, .groupe.r1 .pod { --medaille: var(--or);
+                                --medaille-encre: var(--or-encre); }
+  .groupe.r2, .groupe.r2 .pod { --medaille: var(--argent);
+                                --medaille-encre: var(--argent-encre); }
+  .groupe.r3, .groupe.r3 .pod { --medaille: var(--bronze);
+                                --medaille-encre: var(--bronze-encre); }
   .pod .place {
     grid-row: 1 / span 3; font-size: clamp(52px, 5.2vw, 96px); font-weight: 900; line-height: 1;
     color: var(--medaille-encre); text-align: center; font-variant-numeric: tabular-nums;
@@ -262,9 +265,6 @@
     display: grid; grid-template-columns: repeat(var(--colonnes, 3), 1fr);
     gap: 0 26px; align-content: start;
   }
-  /* Une seule colonne : on la borne, sinon le nom et le score se retrouvent aux
-     deux extrémités d'un mur de deux mètres. */
-  body.mur.sens-large #liste { max-width: 1150px; margin: 0 auto; width: 100%; }
 
   /* Un TABLEAU, pas une pile de cartes. C'est ce que font les services de
      résultats sportifs, et pour une raison qui se mesure : des colonnes
@@ -423,11 +423,6 @@
   var params = new URLSearchParams(location.search);
   var MUR = params.has("mur");
   var SOMBRE = params.has("sombre");
-  // Trois mises en page à comparer (proposition du 31/08) :
-  //   colonnes — les rangs descendent chaque colonne, comme une liste
-  //   lignes   — les rangs se suivent de gauche à droite
-  //   large    — une seule colonne, lignes hautes, le reste défile
-  var SENS = params.get("sens") || "colonnes";
 
   var PERIODE_MS = 15000;      // rafraîchissement des données
   var PERIME_MS = 60000;       // au-delà, l'âge passe en rouge
@@ -459,6 +454,7 @@
     groupe: null,
     densite: 1,                // 1 = tout tient ; 4 = nom et score seulement
     entetes: [],               // les rangées d'en-tête, réutilisées
+    groupes: [],               // les marches du podium, réutilisées
     enPanne: false,
     messageMetier: null,
     noeuds: {},                // participant -> élément, pour ANIMER au lieu de recréer
@@ -486,7 +482,6 @@
   };
 
   if (MUR) document.body.classList.add("mur");
-  document.body.classList.add("sens-" + SENS);
   if (SOMBRE) document.body.classList.add("sombre");
 
   function sansMouvement() {
@@ -728,10 +723,9 @@
     return n;
   }
 
-  /** Une marche du podium : la carte, et le socle qui la surélève. */
+  /** Une carte de podium. */
   function noeudPodium() {
-    var marche = div("marche");
-    var n = div("pod", marche);
+    var n = div("pod");
     div("place", n);
     div("nom", n);
     div("club", n);
@@ -739,8 +733,15 @@
     div("score", chiffres, "span");
     div("blocs", chiffres, "span");
     div("ecart", chiffres, "span");
-    div("socle", marche);
-    return marche;
+    return n;
+  }
+
+  /** Une marche : les cartes d'un même rang, et le socle qui les porte. */
+  function noeudGroupe() {
+    var g = div("groupe");
+    div("cartes", g);
+    div("socle", g);
+    return g;
   }
 
   /** Une ligne de tableau : rang | grimpeur | blocs | écart | score. */
@@ -816,7 +817,7 @@
       ecart.textContent = retard > 0 ? "−" + retard : (estPodium ? "" : "—");
     }
 
-    if (estPodium) n.className = "pod r" + Math.min(3, l.rang);
+    if (estPodium) n.className = "pod";
     else n.className = "ligne" + (l.rang <= 3 && !avecPodium ? " p" + l.rang : "");
 
     if (d > 0 && !sansMouvement()) {
@@ -831,26 +832,17 @@
    *  « on lit en colonnes » ou « on lit en lignes ». */
   function agencer(suite, colonnes) {
     var enfants = [];
-    if (!MUR || SENS === "large" || colonnes < 2) {
+    if (!MUR || colonnes < 2) {
       el.liste.style.gridAutoFlow = "row";
       el.liste.style.gridTemplateRows = "";
-      if (MUR) enfants.push({ entete: true });
-      else enfants.push({ entete: true });
+      enfants.push({ entete: true });
       suite.forEach(function (l) { enfants.push({ ligne: l }); });
       return enfants;
     }
 
-    if (SENS === "lignes") {
-      el.liste.style.gridAutoFlow = "row";
-      el.liste.style.gridTemplateRows = "";
-      for (var c = 0; c < colonnes; c++) enfants.push({ entete: true });
-      suite.forEach(function (l) { enfants.push({ ligne: l }); });
-      return enfants;
-    }
-
-    // En colonnes : chaque colonne est une tranche continue du classement, et
-    // son en-tête annonce la tranche — « 4 → 10 ». Sans ça, rien ne dit dans
-    // quel sens on lit.
+    // Chaque colonne est une tranche CONTINUE du classement, et son en-tête
+    // annonce la tranche — « 4 → 10 ». Les rangs descendent, l'œil descend avec
+    // eux ; et sans l'annonce, rien ne dirait dans quel sens lire.
     var parColonne = Math.ceil(suite.length / colonnes);
     el.liste.style.gridAutoFlow = "column";
     el.liste.style.gridTemplateRows = "repeat(" + (parColonne + 1) + ", auto)";
@@ -878,25 +870,50 @@
     // L'écart se mesure au premier : les lignes sont déjà triées par rang.
     var meilleur = lignes.length ? lignes[0].score : 0;
 
-    var tete = podium ? lignes.slice(0, 3) : [];
-    var suite = podium ? lignes.slice(3) : lignes;
+    // Le podium prend TOUS ceux qui sont dans les trois premiers rangs, ex æquo
+    // compris : ils sont à égalité, ils doivent être au même niveau. Au-delà de
+    // six cartes, la marche devient illisible et tout repasse au tableau.
+    var surLePodium = lignes.filter(function (l) { return l.rang <= 3; });
+    if (surLePodium.length > 6 || surLePodium.length >= lignes.length) surLePodium = [];
+    podium = podium && surLePodium.length > 0;
+    el.podium.classList.toggle("visible", podium);
 
-    // Le podium, en marches. La position dans la rangée vient du RANG AFFICHÉ
-    // (premier au centre), pas du rang réel : deux ex æquo en tête occupent
-    // quand même le centre et la gauche, et portent tous deux l'or.
-    tete.forEach(function (l, i) {
-      var marche = etat.noeuds[l.cle];
-      if (!marche || !marche.classList.contains("marche")) {
-        marche = noeudPodium();
-        etat.noeuds[l.cle] = marche;
+    var tete = podium ? surLePodium : [];
+    var suite = podium ? lignes.slice(tete.length) : lignes;
+
+    // Une marche par RANG : le premier au centre et plus haut, le deuxième à
+    // gauche, le troisième à droite et plus bas. Les ex æquo partagent leur
+    // marche — même hauteur, même médaille.
+    var marches = [];
+    tete.forEach(function (l) {
+      var derniere = marches[marches.length - 1];
+      if (derniere && derniere.rang === l.rang) derniere.lignes.push(l);
+      else marches.push({ rang: l.rang, lignes: [l] });
+    });
+
+    marches.forEach(function (m, i) {
+      var g = etat.groupes[i] || (etat.groupes[i] = noeudGroupe());
+      g.className = "groupe place-" + Math.min(3, m.rang) + " r" + Math.min(3, m.rang);
+      var cartes = g.querySelector(".cartes");
+      m.lignes.forEach(function (l, j) {
+        var carte = etat.noeuds[l.cle];
+        if (!carte || !carte.classList.contains("pod")) {
+          carte = noeudPodium();
+          etat.noeuds[l.cle] = carte;
+        }
+        remplir(carte, l, avecPodium, meilleur);
+        if (cartes.children[j] !== carte) {
+          cartes.insertBefore(carte, cartes.children[j] || null);
+        }
+      });
+      while (cartes.children.length > m.lignes.length) {
+        cartes.removeChild(cartes.lastChild);
       }
-      marche.className = "marche place-" + (i + 1) + " r" + Math.min(3, l.rang);
-      remplir(marche.querySelector(".pod"), l, avecPodium, meilleur);
-      if (el.podium.children[i] !== marche) {
-        el.podium.insertBefore(marche, el.podium.children[i] || null);
+      if (el.podium.children[i] !== g) {
+        el.podium.insertBefore(g, el.podium.children[i] || null);
       }
     });
-    while (el.podium.children.length > tete.length) {
+    while (el.podium.children.length > marches.length) {
       el.podium.removeChild(el.podium.lastChild);
     }
 
@@ -911,10 +928,7 @@
 
     var enfants = suite.length ? agencer(suite, colonnes) : [];
     if (MUR) {
-      var parColonne = SENS === "colonnes" && colonnes > 1
-        ? Math.ceil(suite.length / colonnes)
-        : Math.ceil(suite.length / colonnes);
-      ajuster(parColonne, 1, true);
+      ajuster(Math.ceil(suite.length / colonnes), 1, true);
     }
 
     var utilisees = 0;
@@ -961,7 +975,6 @@
     // et c'est le nom qu'on vient lire. Mieux vaut deux colonnes lisibles que
     // trois colonnes de « Nieuv… ».
     var parLargeur = Math.max(1, Math.min(3, Math.floor(largeur / 430)));
-    if (SENS === "large") return 1;
     var parNombre = nombre > 12 ? 3 : nombre > 4 ? 2 : 1;
     return Math.min(parLargeur, parNombre);
   }
@@ -990,9 +1003,8 @@
     var dispo = el.defile.clientHeight
               - parseFloat(style.paddingTop) - parseFloat(style.paddingBottom);
     var h = Math.floor((dispo - (lignes - 1) * 7) / lignes);
-    var plancher = SENS === "large" ? 74 : MIN_H;
     var plafond = lignes <= PEU_DE_LIGNES ? MAX_H_PEU : MAX_H;
-    el.liste.style.setProperty("--h", Math.max(plancher, Math.min(plafond, h)) + "px");
+    el.liste.style.setProperty("--h", Math.max(MIN_H, Math.min(plafond, h)) + "px");
   }
 
   /** Quand le plateau déborde malgré tout, il DÉFILE — doucement, en boucle. */
