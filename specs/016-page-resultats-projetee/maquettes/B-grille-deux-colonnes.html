@@ -1,0 +1,321 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<title>Maquette B — Grille deux colonnes</title>
+<style>
+  :root {
+    --teinte: #2F6BB0;
+    --fond: #FBFAF7;
+    --carte: #FFFFFF;
+    --bande: #F1EFE9;
+    --encre: #14181F;
+    --encre2: #626B78;
+    --trait: #E2DFD7;
+    --or: #C9971C; --argent: #8A94A3; --bronze: #A8703C;
+    --titre: system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; background: var(--fond); color: var(--encre);
+               font-family: var(--titre); overflow: hidden; }
+  body { display: flex; flex-direction: column; }
+
+  header { background: var(--teinte); color: #fff; padding: 20px 44px 18px;
+           display: flex; align-items: baseline; gap: 26px; }
+  header .cat { font-size: 76px; font-weight: 900; letter-spacing: -0.035em; line-height: .95; }
+  header .compte { font-size: 28px; font-weight: 600; opacity: .85; }
+  header .droite { margin-left: auto; text-align: right; }
+  header .comp { font-size: 28px; font-weight: 700; }
+  header .suivant { font-size: 21px; opacity: .85; margin-top: 4px; }
+  .barre-haut { height: 7px; background: rgba(255,255,255,.28); }
+  #progression { height: 100%; width: 0; background: #fff; }
+
+  #scene { flex: 1; display: grid; grid-template-columns: 1fr 1fr; grid-auto-flow: column;
+           gap: 10px 30px; padding: 22px 44px 30px; align-content: start; min-height: 0; }
+  #scene.entre { animation: entree 520ms cubic-bezier(.2,.7,.2,1); }
+  @keyframes entree { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: none; } }
+
+  /* Tout est proportionnel a --h, calculee pour que la categorie ENTIERE
+     tienne : c'est la taille du texte qui s'adapte au plateau, jamais le
+     plateau qu'on rogne. */
+  .rang {
+    display: grid; grid-template-columns: calc(var(--h) * 1.05) 1fr auto; align-items: center;
+    gap: 18px; height: var(--h);
+    background: var(--carte); border: 1px solid var(--trait); border-radius: 14px;
+    padding: 0 22px;
+  }
+  .rang .place { font-size: calc(var(--h) * .50); font-weight: 900; text-align: center;
+                 color: var(--encre2); font-variant-numeric: tabular-nums; }
+  .rang .nom { font-size: calc(var(--h) * .42); font-weight: 800; letter-spacing: -0.015em;
+               white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .rang .club { font-size: calc(var(--h) * .22); color: var(--encre2); margin-top: 2px;
+                white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .rang .score { font-size: calc(var(--h) * .50); font-weight: 900;
+                 font-variant-numeric: tabular-nums; line-height: 1; text-align: right; }
+  .rang .blocs { font-size: calc(var(--h) * .21); color: var(--encre2); text-align: right;
+                 margin-top: 2px; }
+
+  .rang.p1 { background: color-mix(in srgb, var(--or) 16%, white); border-color: var(--or); }
+  .rang.p2 { background: color-mix(in srgb, var(--argent) 16%, white); border-color: var(--argent); }
+  .rang.p3 { background: color-mix(in srgb, var(--bronze) 16%, white); border-color: var(--bronze); }
+  .rang.p1 .place { color: var(--or); } .rang.p2 .place { color: var(--argent); }
+  .rang.p3 .place { color: var(--bronze); }
+  .rang.p1 .nom, .rang.p2 .nom, .rang.p3 .nom { font-size: calc(var(--h) * .46); }
+
+  .fleche { font-size: .6em; font-weight: 800; margin-left: 12px; }
+  .monte { color: #1E7A45; } .descend { color: #B33F33; }
+  .pulse { animation: pulse 1600ms ease-out; }
+  @keyframes pulse {
+    0% { background: color-mix(in srgb, var(--teinte) 30%, white); }
+    100% { background: var(--carte); }
+  }
+  .maquette { position: fixed; right: 12px; bottom: 8px; font-size: 13px; color: var(--encre2);
+              letter-spacing: .08em; text-transform: uppercase; }
+  @media (prefers-reduced-motion: reduce) { * { animation: none !important; } }
+</style>
+</head>
+<body>
+<header>
+  <div class="cat" id="titre">U11 F</div>
+  <div class="compte" id="compte"></div>
+  <div class="droite">
+    <div class="comp">Compétition de novembre 2026</div>
+    <div class="suivant" id="suivant"></div>
+  </div>
+</header>
+<div class="barre-haut"><div id="progression"></div></div>
+<div id="scene"></div>
+  <div class="maquette">MAQUETTE — noms et scores fictifs</div>
+
+<script>
+(function () {
+  "use strict";
+
+  // ---- Donnees FICTIVES, uniquement pour la maquette --------------------
+  var PRENOMS_F = ["Lea","Emma","Jade","Louise","Alice","Chloe","Lina","Rose","Anna","Mila",
+                   "Julia","Zoe","Nina","Ambre","Eva","Manon","Iris","Sarah","Clara","Lou",
+                   "Romane","Elsa","Maya","Alix","Nour"];
+  var PRENOMS_H = ["Gabriel","Raphael","Leo","Louis","Lucas","Adam","Arthur","Hugo","Jules","Maël",
+                   "Sacha","Noah","Paul","Nathan","Tom","Ethan","Timeo","Marius","Eliott","Aaron",
+                   "Robin","Malo","Sohan","Camille","Isaac"];
+  var NOMS = ["Faure","Perrin","Bastide","Auffret","Nieuviarts","Lecomte","Chareyre","Dumas",
+              "Blachon","Ravel","Seytier","Mounier","Chapelle","Vernet","Gonnet","Deloche",
+              "Reynaud","Charrier","Vialle","Fombonne","Astier","Rey","Barou","Jouve","Marion"];
+  var CLUBS = ["Annonay Escalade","Vertic'Ardeche","Les Lezards Vagabonds","La Grimpe",
+               "Roc Altitude","CAF Valence"];
+  var CATEGORIES = [
+    { nom: "U11 F", teinte: "#C8901F", n: 24 },
+    { nom: "U11 H", teinte: "#4E9A5A", n: 25 },
+    { nom: "U13 F", teinte: "#2F6BB0", n: 25 },
+    { nom: "U13 H", teinte: "#7A4F99", n: 26 },
+    { nom: "U15 F", teinte: "#B33F33", n: 22 },
+    { nom: "U15 scratch", teinte: "#20808D", n: 25 }
+  ];
+
+  function fabriquer(cat, graine) {
+    var prenoms = cat.nom.indexOf("F") > 0 ? PRENOMS_F : PRENOMS_H;
+    var alea = graine;
+    function suivant() { alea = (alea * 1103515245 + 12345) % 2147483648; return alea / 2147483648; }
+    var lignes = [];
+    for (var i = 0; i < cat.n; i++) {
+      var blocs = 3 + Math.floor(suivant() * 16);
+      lignes.push({
+        id: cat.nom + "-" + i,
+        nom: NOMS[Math.floor(suivant() * NOMS.length)] + " " + prenoms[i % prenoms.length],
+        club: CLUBS[Math.floor(suivant() * CLUBS.length)],
+        dossard: 10 + i + Math.floor(suivant() * 3),
+        blocs: blocs,
+        score: Math.round(blocs * (70 + suivant() * 45))
+      });
+    }
+    return lignes;
+  }
+
+  function classer(lignes) {
+    var tries = lignes.slice().sort(function (a, b) { return b.score - a.score; });
+    var rang = 0, precedent = null;
+    tries.forEach(function (l, i) {
+      if (l.score !== precedent) { rang = i + 1; precedent = l.score; }
+      l.rang = rang;               // ex aequo : meme rang, comme le classeur
+    });
+    return tries;
+  }
+
+
+  // ---- Le moteur commun : rotation, simulation, animation FLIP ----------
+  var ROTATION_MS = 20000;         // duree d'un ecran
+  var MAJ_MS = 4200;               // une "reussite" arrive
+  var etat = { cat: 0, lignes: [], noeuds: {}, deltas: {}, page: 0, pages: 1 };
+
+  function categorie() { return CATEGORIES[etat.cat]; }
+
+  function positions() {
+    var p = {};
+    Object.keys(etat.noeuds).forEach(function (id) {
+      var el = etat.noeuds[id];
+      if (el && el.isConnected) p[id] = el.getBoundingClientRect();
+    });
+    return p;
+  }
+
+  function glisser(avant) {
+    Object.keys(etat.noeuds).forEach(function (id) {
+      var el = etat.noeuds[id], a = avant[id];
+      if (!el || !a || !el.isConnected) return;
+      var b = el.getBoundingClientRect();
+      var dx = a.left - b.left, dy = a.top - b.top;
+      if (Math.abs(dx) < 1 && Math.abs(dy) < 1) return;
+      if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+      el.animate(
+        [{ transform: "translate(" + dx + "px," + dy + "px)" }, { transform: "none" }],
+        { duration: 700, easing: "cubic-bezier(.22,.75,.2,1)" });
+    });
+  }
+
+  function simuler() {
+    // Deux ou trois grimpeurs valident un bloc : c'est ce qui fait bouger le
+    // classement, donc ce qu'il faut voir.
+    var avant = {};
+    etat.lignes.forEach(function (l) { avant[l.id] = l.rang; });
+    var combien = 2 + Math.floor(Math.random() * 2);
+    for (var i = 0; i < combien; i++) {
+      var l = etat.lignes[Math.floor(Math.random() * etat.lignes.length)];
+      l.blocs += 1;
+      l.score += 60 + Math.floor(Math.random() * 70);
+    }
+    etat.lignes = classer(etat.lignes);
+    etat.deltas = {};
+    etat.lignes.forEach(function (l) {
+      var d = avant[l.id] - l.rang;
+      if (d) etat.deltas[l.id] = d;
+    });
+    var p = positions();
+    peindre();
+    glisser(p);
+    setTimeout(function () { etat.deltas = {}; peindre(); }, 5200);
+  }
+
+  function tourner() {
+    // Une categorie trop grande pour un ecran est PAGINEE, jamais rognee :
+    // on affiche « 1/2 », puis « 2/2 », dans le rythme de la rotation.
+    if (etat.page + 1 < etat.pages) {
+      etat.page += 1;
+      etat.noeuds = {};
+      peindre();
+      relancerBarre();
+      return;
+    }
+    etat.page = 0;
+    etat.cat = (etat.cat + 1) % CATEGORIES.length;
+    etat.noeuds = {};
+    etat.deltas = {};
+    etat.lignes = classer(fabriquer(categorie(), 7919 + etat.cat * 104729));
+    document.documentElement.style.setProperty("--teinte", categorie().teinte);
+    var scene = document.getElementById("scene");
+    scene.classList.remove("entre");
+    void scene.offsetWidth;
+    scene.classList.add("entre");
+    peindre();
+    relancerBarre();
+  }
+
+  function relancerBarre() {
+    var barre = document.getElementById("progression");
+    if (!barre) return;
+    barre.style.transition = "none";
+    barre.style.width = "0%";
+    void barre.offsetWidth;
+    barre.style.transition = "width " + ROTATION_MS + "ms linear";
+    barre.style.width = "100%";
+  }
+
+  // Les lignes s'adaptent a la place, jamais l'inverse : une categorie de 25
+  // grimpeurs doit tenir en entier, sinon la moitie du plateau ne se voit pas.
+  var MIN_H = 46, MAX_H = 118;
+
+  function hauteurUtile(zone) {
+    // clientHeight INCLUT le rembourrage : sans cette soustraction, les
+    // dernieres lignes passent sous le bord de l'ecran. Vu en pilotant la
+    // maquette B, ou les rangs 12 et 24 etaient coupes.
+    var s = getComputedStyle(zone);
+    return zone.clientHeight - parseFloat(s.paddingTop) - parseFloat(s.paddingBottom);
+  }
+
+  function ajuster(zone, nombre, colonnes, gap) {
+    var lignes = Math.max(1, Math.ceil(nombre / colonnes));
+    var h = Math.floor((hauteurUtile(zone) - (lignes - 1) * gap) / lignes);
+    h = Math.max(MIN_H, Math.min(MAX_H, h));
+    zone.style.setProperty("--h", h + "px");
+    return lignes;
+  }
+
+  function capacite(zone, colonnes, gap) {
+    return colonnes * Math.max(1, Math.floor((hauteurUtile(zone) + gap) / (MIN_H + gap)));
+  }
+
+  function demarrer() {
+    etat.page = 0;
+    etat.lignes = classer(fabriquer(categorie(), 7919));
+    document.documentElement.style.setProperty("--teinte", categorie().teinte);
+    peindre();
+    relancerBarre();
+    setInterval(simuler, MAJ_MS);
+    setInterval(tourner, ROTATION_MS);
+  }
+
+
+  function noeud(l) {
+    var el = document.createElement("div");
+    el.className = "rang";
+    el.dataset.id = l.id;
+    el.innerHTML = '<div class="place"></div><div><div class="nom"></div>'
+                 + '<div class="club"></div></div>'
+                 + '<div><div class="score"></div><div class="blocs"></div></div>';
+    return el;
+  }
+
+  function peindre() {
+    var scene = document.getElementById("scene");
+    var place = capacite(scene, 2, 10);
+    etat.pages = Math.max(1, Math.ceil(etat.lignes.length / place));
+    var visibles = etat.lignes.slice(etat.page * place, etat.page * place + place);
+
+    document.getElementById("titre").textContent = categorie().nom
+      + (etat.pages > 1 ? "  " + (etat.page + 1) + "/" + etat.pages : "");
+    document.getElementById("compte").textContent = etat.lignes.length + " grimpeurs";
+    document.getElementById("suivant").textContent =
+      "ensuite : " + (etat.page + 1 < etat.pages
+        ? categorie().nom + " (suite)"
+        : CATEGORIES[(etat.cat + 1) % CATEGORIES.length].nom);
+
+    ajuster(scene, visibles.length, 2, 10);
+    scene.style.gridTemplateRows = "repeat(" + Math.ceil(visibles.length / 2) + ", auto)";
+
+    visibles.forEach(function (l, i) {
+      var el = etat.noeuds[l.id];
+      if (!el) { el = noeud(l); etat.noeuds[l.id] = el; }
+      el.className = "rang" + (l.rang <= 3 ? " p" + l.rang : "");
+      var d = etat.deltas[l.id];
+      el.querySelector(".place").textContent = l.rang;
+      var nom = el.querySelector(".nom");
+      nom.textContent = l.nom;
+      if (d) {
+        var f = document.createElement("span");
+        f.className = "fleche " + (d > 0 ? "monte" : "descend");
+        f.textContent = (d > 0 ? "▲ " : "▼ ") + Math.abs(d);
+        nom.appendChild(f);
+      }
+      el.querySelector(".club").textContent = l.club + " · n°" + l.dossard;
+      el.querySelector(".score").textContent = l.score;
+      el.querySelector(".blocs").textContent = l.blocs + " blocs";
+      if (d > 0) { el.classList.remove("pulse"); void el.offsetWidth; el.classList.add("pulse"); }
+      if (scene.children[i] !== el) scene.insertBefore(el, scene.children[i] || null);
+    });
+    while (scene.children.length > visibles.length) scene.removeChild(scene.lastChild);
+  }
+
+  demarrer();
+})();
+</script>
+</body>
+</html>

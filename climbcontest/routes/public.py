@@ -42,7 +42,7 @@ def classement():
         choisis = tous
 
     # Les noms, en une seule requete plutot qu'une par ligne.
-    from ..models import Participant
+    from ..models import Participant, Success
     noms = {
         p.id: {"nom": p.nom_complet, "club": p.club, "categorie": p.categorie}
         for p in Participant.query.filter_by(competition_id=comp.id).all()
@@ -56,9 +56,20 @@ def classement():
         d.update(noms.get(ligne.participant_id, {}))
         return d
 
+    # Le compteur de la journee (spec 016). Il monte tout au long de la
+    # competition, y compris quand un classement ne bouge pas : c'est ce qui
+    # dit, sur un ecran projete, que le systeme VIT. Un COUNT indexe sur une
+    # base de quelques milliers de lignes -- et la reponse est de toute facon
+    # mise en cache 5 s par le proxy.
+    reussites = (
+        Success.query.join(Participant, Success.participant_id == Participant.id)
+        .filter(Participant.competition_id == comp.id).count()
+    )
+
     return jsonify({
         "competition": {"id": comp.id, "nom": comp.nom, "statut": comp.statut},
         "calcule_le": calcule_le,
+        "reussites": reussites,
         # L'AGE du calcul, vu par le serveur. Sans lui, la page ne pourrait que
         # mesurer depuis sa propre reception -- et afficherait « calcule il y a
         # 1 s » pour un classement que le cache garde depuis 5 s. Le client ne

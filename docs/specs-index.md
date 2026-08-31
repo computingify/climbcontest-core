@@ -18,6 +18,7 @@ méthode.
 | [013](../specs/013-console-saisie-guidee/) | `console-saisie-guidee` | 🟡 **codée, en attente de relecture** (30/08) | Catégorie et club en listes déroulantes, formatage serveur de ce qui est saisi, dossard attribué automatiquement. La navigation en tiroir de la spec est arrivée autrement, par la refonte livrée en 0.8.0 |
 | [014](../specs/014-jeton-juge-dans-le-lien/) | `jeton-juge-dans-le-lien` | 🟡 **codée, en attente de relecture** (30/08) — ⚠️ reste l'essai sur un vrai iPhone, et le filtre de journal sur `edge` | Le jeton du juge survit à l'installation : il passe dans la requête et le manifeste devient dynamique, pour que `start_url` le porte à chaque lancement |
 | [015](../specs/015-classeur-parametrable/) | `classeur-parametrable` | 🟡 **codée, en attente de relecture** (31/08) | Le classeur se règle depuis la console : lien, test d'accès en lecture seule, jeton Google en JSON, et trois modes de bascule. La grille de l'onglet `Import` s'agrandit toute seule quand un dossard attribué à chaud sort de sa largeur |
+| [016](../specs/016-page-resultats-projetee/) | `page-resultats-projetee` | 🟡 **codée, en attente de relecture** (31/08) | La page faite pour être projetée : fond clair, la catégorie entière à l'écran, les changements de place qui glissent avec leur flèche, rotation proportionnelle au plateau. `/resultats` supprimée au profit de la racine |
 
 ## Specs pressenties
 

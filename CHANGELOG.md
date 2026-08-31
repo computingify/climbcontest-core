@@ -19,7 +19,45 @@ qu'on ne met pas à jour le matin d'une compétition :
 
 ## [Non publié]
 
+## [0.10.0] — 2026-08-31
+
+Deux écrans repris, et pour la même raison : ce qu'on ne peut pas faire sans
+terminal SSH le jour d'une compétition ne se fera pas. Le classeur Google se
+règle maintenant depuis la console ; la page de résultats est faite pour être
+projetée, et montre enfin toute une catégorie.
+
 ### Ajouté
+
+- **La page de résultats est refaite pour être projetée** (spec 016). Mesuré sur
+  l'ancienne, en 1920×1080 : **six grimpeurs et demi visibles sur vingt-quatre**,
+  les dix-sept autres sous la ligne de flottaison d'un écran accroché en hauteur
+  que personne ne fera défiler. Désormais la catégorie **entière** tient à
+  l'écran — podium en bandeau, le reste en colonnes dont la taille s'adapte au
+  plateau — et quand ça déborde vraiment, ça **défile doucement** au lieu de
+  couper.
+- **Un changement de place se voit.** La ligne **glisse** jusqu'à sa nouvelle
+  position, porte `▲3` ou `▼1`, et celui qui monte pulse une fois. Techniquement,
+  les lignes sont devenues persistantes : l'ancienne page les détruisait et les
+  recréait à chaque rafraîchissement — on n'anime pas ce qu'on détruit.
+- **Le fond est clair**, et ce n'est pas une question de goût : un
+  vidéoprojecteur **ajoute** de la lumière sur un mur, il n'en retire pas. Un
+  fond sombre, c'est du mur non éclairé — dans une salle qu'on ne peut pas
+  plonger dans le noir, le contraste s'effondre. `?mur&sombre` reste là pour un
+  écran LED.
+- **La rotation devient un vrai mode** : elle suit la taille du plateau (8 s +
+  0,55 s par grimpeur, entre 12 et 35 s), montre une barre de progression et
+  annonce la catégorie suivante. Réglable par `?mur&rotation=25`.
+- **Le bandeau porte le logo du club**, l'heure, la fraîcheur du calcul et le
+  nombre de blocs validés depuis le matin — un compteur qui monte dit que le
+  système vit, même quand un classement ne bouge pas.
+
+### Supprimé
+
+- **`/resultats` n'existe plus** (404). Les deux adresses servaient la même vue :
+  `climbcontest.adn-dev.fr` menait déjà au même endroit, et un doublon d'URL
+  finit toujours par diverger dans les têtes. Retiré le même jour du proxy
+  (`@public path`) et du portail interne — `resultats.maison.adn-dev.fr` et
+  `classement.maison.adn-dev.fr` ne répondent plus, la tuile en double a disparu.
 
 - **Le classeur se règle depuis la console** (spec 015). Une vue « Classeur »,
   réservée aux administrateurs : sur quel classeur pointe la compétition, l'état
@@ -726,7 +764,8 @@ livrer — spec 001, itération 3.
 - Les données et les secrets vivent dans `shared/`, hors des releases : un
   déploiement ou un retour arrière ne peut pas les toucher.
 
-[Non publié]: https://github.com/computingify/climbcontest-core/compare/v0.6.0...HEAD
+[Non publié]: https://github.com/computingify/climbcontest-core/compare/v0.10.0...HEAD
+[0.10.0]: https://github.com/computingify/climbcontest-core/releases/tag/v0.10.0
 [0.6.0]: https://github.com/computingify/climbcontest-core/releases/tag/v0.6.0
 [0.5.1]: https://github.com/computingify/climbcontest-core/releases/tag/v0.5.1
 [0.5.0]: https://github.com/computingify/climbcontest-core/releases/tag/v0.5.0

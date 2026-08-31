@@ -1,5 +1,12 @@
 # 006 — La page de résultats
 
+> **⚠️ Reprise par la [spec 016](../016-page-resultats-projetee/) le 31/08/2026.**
+> Ce qui tient toujours : les deux modes, le refus de vider la page sur une
+> erreur réseau, l'absence totale de dépendance externe. Ce qui a changé : le
+> fond (clair), la mise en page (podium + colonnes, toute la catégorie à
+> l'écran), le mouvement (les lignes glissent), la rotation (proportionnelle),
+> et l'adresse `/resultats`, **supprimée** au profit de la racine.
+
 ## Résumé
 
 Le moteur de classement (spec 004) et ses routes publiques sont livrés. Il ne
