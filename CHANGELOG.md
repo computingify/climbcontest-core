@@ -19,6 +19,13 @@ qu'on ne met pas à jour le matin d'une compétition :
 
 ## [Non publié]
 
+## [0.10.0] — 2026-08-31
+
+Deux écrans repris, et pour la même raison : ce qu'on ne peut pas faire sans
+terminal SSH le jour d'une compétition ne se fera pas. Le classeur Google se
+règle maintenant depuis la console ; la page de résultats est faite pour être
+projetée, et montre enfin toute une catégorie.
+
 ### Ajouté
 
 - **La page de résultats est refaite pour être projetée** (spec 016). Mesuré sur
@@ -757,7 +764,8 @@ livrer — spec 001, itération 3.
 - Les données et les secrets vivent dans `shared/`, hors des releases : un
   déploiement ou un retour arrière ne peut pas les toucher.
 
-[Non publié]: https://github.com/computingify/climbcontest-core/compare/v0.6.0...HEAD
+[Non publié]: https://github.com/computingify/climbcontest-core/compare/v0.10.0...HEAD
+[0.10.0]: https://github.com/computingify/climbcontest-core/releases/tag/v0.10.0
 [0.6.0]: https://github.com/computingify/climbcontest-core/releases/tag/v0.6.0
 [0.5.1]: https://github.com/computingify/climbcontest-core/releases/tag/v0.5.1
 [0.5.0]: https://github.com/computingify/climbcontest-core/releases/tag/v0.5.0
