@@ -163,12 +163,12 @@
   qu'il reste à faire — avec qui.</p>
 
   <div class="chiffres">
-    <div class="chiffre"><b>883</b><span>tests automatisés au vert
-      (580 Python + 115 JS + 188 Android)</span></div>
+    <div class="chiffre"><b>915</b><span>tests automatisés au vert
+      (597 Python + 124 JS + 194 Android)</span></div>
     <div class="chiffre"><b>p95 &lt; 20 ms</b><span>sous 25 juges + 30
       spectateurs, 0 erreur</span></div>
-    <div class="chiffre"><b>10 / 10</b><span>specs livrées re-testées,
-      8 trouvailles corrigées</span></div>
+    <div class="chiffre"><b>11</b><span>défauts trouvés et corrigés,
+      sur 10 specs relues</span></div>
   </div>
 </header>
 
@@ -192,14 +192,14 @@ capturé — c'est ce qui a trouvé ce que la relecture ne trouve jamais.</p>
 <div class="defiler"><table>
   <tr><th>Suite</th><th>Avant</th><th>Après</th><th>Ajouté par l'audit</th></tr>
   <tr><td>Backend Python (<span class="mono">pytest</span>)</td>
-      <td class="num">562</td><td class="num">580</td>
+      <td class="num">562</td><td class="num">597</td>
       <td>le fil du miroir Sheets (34&nbsp;%&nbsp;→ couvert), les rôles d'import,
           les drapeaux de cookie, le lien d'installation iPhone</td></tr>
   <tr><td>PWA JavaScript (<span class="mono">node --test</span>)</td>
-      <td class="num">107</td><td class="num">115</td>
+      <td class="num">107</td><td class="num">124</td>
       <td>les couleurs de circuit, la relecture tolérante du catalogue</td></tr>
   <tr><td>Android JVM (<span class="mono">gradlew test</span>)</td>
-      <td class="num">175</td><td class="num">188</td>
+      <td class="num">175</td><td class="num">194</td>
       <td>MainViewModel (reset, journal, compteur), les couleurs
           (contraste vérifié pour chaque circuit), le fichier tronqué</td></tr>
 </table></div>
