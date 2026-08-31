@@ -304,6 +304,60 @@ file-sur-téléphone → lot idempotent → base-avant-réponse → miroir rejou
 résisté à tout ce qui a été tenté — redémarrages, rafales, doublons, pannes
 simulées de Google. C'est le cœur du système, et il est solide.</div>
 
+<h2><span class="n">3 bis</span>Deuxième passe — la fraîcheur du catalogue</h2>
+<p>Question d'Adrien le 30/08 : «&nbsp;que se passe-t-il si on ajoute un
+participant alors que les juges ont démarré&nbsp;?&nbsp;» La réponse mesurée en
+production, en ajoutant vraiment des participants pendant qu'un téléphone
+tournait&nbsp;:</p>
+<div class="defiler"><table>
+  <tr><th>Situation</th><th>Délai constaté</th></tr>
+  <tr><td>Téléphone allumé et connecté</td>
+      <td class="num">11 s, sans que le juge touche à rien</td></tr>
+  <tr><td>Ajout pendant une coupure réseau</td>
+      <td class="num">12 s après le retour du réseau</td></tr>
+  <tr><td>Le juge scanne le nouveau dossard</td>
+      <td class="num">immédiat — repli serveur</td></tr>
+</table></div>
+<p>Le mécanisme était déjà en place et se recouvre à quatre niveaux&nbsp;:
+compteur de version, <strong>version renvoyée dans chaque réponse d'envoi de
+lot</strong> (le téléphone apprend son retard sans requête de plus), sondage
+périodique, et repli au scan. Mais cette relecture a trouvé
+<strong>trois défauts</strong>, tous corrigés et déployés&nbsp;:</p>
+<div class="defiler"><table>
+  <tr><th>Gravité</th><th>Constat</th><th>Correction</th></tr>
+  <tr><td><span class="pastille p-rouge">Rouge</span></td>
+      <td>Le <strong>catalogue d'une compétition servi pour une autre</strong>.
+          Les numéros de version repartaient à 1 par compétition&nbsp;: un
+          téléphone ayant servi à la répétition recevait un <code>304</code> sur
+          la compétition suivante et gardait la liste de test. Reproduit&nbsp;:
+          il affichait «&nbsp;Réglette Test&nbsp;» pour un dossard bien réel.
+          Ce n'est pas une corruption de données — c'est <strong>le contrôle
+          humain</strong> qui saute, le juge lisant le nom pour vérifier qu'il a
+          le bon grimpeur.</td>
+      <td>Version globalement croissante, jamais réutilisée&nbsp;;
+          <code>?depuis=</code> exige l'égalité. <strong>v0.8.1</strong></td></tr>
+  <tr><td><span class="pastille p-jaune">Jaune</span></td>
+      <td><strong>Tempête de requêtes sans aucune panne.</strong> Un catalogue
+          légitimement vide — compétition créée le matin, participants pas
+          encore saisis — rendait la condition de rafraîchissement vraie en
+          permanence&nbsp;: 25 téléphones × 1 requête/seconde sur un serveur en
+          parfaite santé, pendant tout le briefing.</td>
+      <td>Plancher de 5 s + retrait après échec. Mesuré&nbsp;: 5 tentatives en
+          90 s au lieu de ~90. <strong>Android</strong></td></tr>
+  <tr><td><span class="pastille p-jaune">Jaune</span></td>
+      <td>Le repli au scan téléchargeait 15 ko <em>avant</em> de rendre la main,
+          pour une couleur de circuit qui n'arrivait qu'au scan suivant de toute
+          façon. Écran muet pendant deux allers-retours.</td>
+      <td>Le scan signale, la boucle de fond télécharge.
+          <strong>Android</strong></td></tr>
+</table></div>
+<div class="note alerte"><strong>La limite qui reste&nbsp;:</strong> un juge
+<strong>hors réseau</strong> ne peut pas valider un participant ajouté pendant
+sa coupure — il lit «&nbsp;Serveur injoignable&nbsp;». Trois choses doivent
+coïncider (coupure <em>et</em> inscription pendant la coupure <em>et</em> ce
+grimpeur qui passe), et le rattrapage existe&nbsp;: la saisie manuelle dans la
+console compte comme un scan.</div>
+
 <h2><span class="n">4</span>Ce qui reste avant novembre</h2>
 <p>Dans l'ordre où le runbook les prend. Les gestes marqués
 <span class="qui">Adrien</span> demandent un mot de passe ou une décision qui
