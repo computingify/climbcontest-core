@@ -77,6 +77,13 @@ peut jamais y être committé**.
 
 - **Langue** : specs et documentation en français ; code, identifiants, commits
   et branches en anglais.
+- **Accents** : **aucun dans les littéraux de chaîne Python** — les messages
+  d'erreur, les journaux et les réponses JSON restent en ASCII (`competition`,
+  `reussite`, `ete modifie`). Les guillemets `« »` et les points de suspension,
+  eux, sont utilisés. Les commentaires, les docstrings, les gabarits HTML, le
+  JavaScript et les outils de `tools/` sont en français accentué, sans réserve.
+  La règle n'était écrite nulle part et se déduisait du code : elle est ici pour
+  qu'on n'ait plus à la deviner.
 - **Backend** : Python 3.13 sur la VM, Flask, SQLAlchemy, **SQLite**. Le choix de
   SQLite est mesuré, pas subi — voir
   [banc-base-de-donnees.md](docs/technical/banc-base-de-donnees.md). PostgreSQL a

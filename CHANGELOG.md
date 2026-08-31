@@ -19,6 +19,53 @@ qu'on ne met pas à jour le matin d'une compétition :
 
 ## [Non publié]
 
+### Ajouté
+
+- **Le classeur se règle depuis la console** (spec 015). Une vue « Classeur »,
+  réservée aux administrateurs : sur quel classeur pointe la compétition, l'état
+  du jeton, un test d'accès en **lecture seule** (titre, onglets, taille de la
+  grille), un bouton **« Ouvrir le classeur »** vers la feuille elle-même — on
+  vérifie qu'on est sur la bonne en l'ouvrant, pas en comparant deux
+  identifiants de quarante-quatre caractères à l'œil — et le champ où coller le
+  lien d'une autre feuille. Jusqu'ici, changer
+  de classeur demandait un accès SSH à la VM et une requête SQL sur la base de
+  production — le genre de geste qu'on finit par faire à 23 h la veille.
+- **Trois modes de bascule, choisis à l'écran** : *relier seulement* (rien
+  d'autre ne bouge), *même compétition, autre feuille* (toutes les réussites
+  déjà enregistrées repartent vers la nouvelle feuille), *nouvelle compétition*
+  (efface participants, blocs et réussites du serveur **et** vide la matrice
+  `Import` de la nouvelle feuille). Le mode destructeur exige `EFFACER` frappé à
+  la main, est refusé pendant une compétition `en_cours`, et vide le classeur
+  **avant** de toucher la base : si Google refuse, rien n'est détruit.
+- **Un bouton « Importer le classeur »**, enfin. La route existait depuis la
+  spec 002, testée et protégée par rôle, mais **aucun écran ne l'appelait** :
+  relier une feuille ne menait nulle part. Le rapport d'import s'affiche avec
+  ses lignes ignorées — un import muet qui perd un grimpeur est exactement ce
+  qu'on ne veut pas.
+- **Le jeton Google se pose depuis la console**, au format JSON
+  (`tools/exporter_jeton.py` convertit le `token.pickle` existant). Écrit en
+  `0600`, le précédent conservé. `token.json` est lu **avant** `token.pickle` et
+  `token.base64`, qui restent acceptés : les installations en place ne bougent
+  pas. La console n'accepte **pas** de pickle — le serveur ferait
+  `pickle.loads()` sur du contenu venu du réseau.
+
+### Corrigé
+
+- **Un dossard au-delà de la largeur du classeur ne bloque plus le miroir.**
+  L'API Google refuse une écriture hors grille (« exceeds grid limits ») ; le
+  miroir, qui ne marque rien comme synchronisé en cas d'échec, retentait
+  **indéfiniment** — une seule réussite bloquait son lot et tous les suivants.
+  La feuille est maintenant élargie avant l'écriture, lignes comme colonnes,
+  avec cinq de marge. Le cas n'a rien de théorique : un participant inscrit à
+  chaud reçoit le premier dossard libre, qui sort vite de la largeur préparée.
+  ⚠️ Les formules du classeur, elles, restent écrites pour 120 grimpeurs : la
+  console le dit au moment du test.
+- **Un jeton rafraîchi est réécrit** dans `token.json` : chaque redémarrage
+  repartait sinon d'un jeton périmé et redemandait un rafraîchissement à Google.
+- **Le message de retour de la console reste visible.** Il est désormais collant
+  sous la barre du haut : un bouton en bas d'une vue longue affichait sa réponse
+  hors de l'écran, et on croyait qu'il ne s'était rien passé.
+
 ## [0.9.0] — 2026-08-30
 
 La console cesse de faire taper ce qui devrait être choisi. Le défaut qui a
