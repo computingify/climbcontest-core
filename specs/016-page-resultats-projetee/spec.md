@@ -121,6 +121,31 @@ dernier. Le doublon disparaît quand même : il n'existe plus qu'une seule page.
 `@public path` du Caddyfile de `edge`, et les mentions dans les specs 001 et
 006.
 
+## 3.7 Reprise du 31/08 (après la mise en service)
+
+Trois retours d'Adrien, tous vérifiés à l'écran :
+
+**« Ce n'est pas logique : on voit les 3 premiers en ligne puis le reste en
+colonne. »** Il a raison — le podium est une rangée qui se lit de gauche à
+droite, et le classement enchaînait sur des colonnes qui se lisent de haut en
+bas. L'œil changeait de sens au milieu de l'écran. Le classement se remplit
+maintenant **par lignes** : 4, 5, 6, puis 7, 8, 9. Un seul sens de lecture.
+
+**« La liste des catégories en haut, avec un truc pour voir le défilement. »**
+La barre de catégories, qui n'existait que sur téléphone, est désormais **la
+même dans les deux modes** — et la jauge de rotation vit **dans la pastille de
+la catégorie affichée** plutôt que dans un filet en haut de l'écran que
+personne ne reliait à rien. Sur le mur, elle dit où on en est dans le cycle ;
+sur un téléphone, c'est le sélecteur. Toucher une catégorie l'affiche, et
+relance le cycle à partir d'elle.
+
+**« Responsive, et sur téléphone un seul tableau. »** Le nombre de colonnes
+suit la **largeur** autant que l'effectif (une colonne par tranche de 340 px,
+trois au plus), le podium en bandeau disparaît sous 900 px — trois cartes côte
+à côte s'y écrasent —, et toutes les tailles du bandeau sont fluides
+(`clamp()`) au lieu d'être figées. Sur téléphone, une seule colonne, un seul
+tableau : celui qu'on a choisi.
+
 ## 4. Critères d'acceptation
 
 | # | Critère | Comment on le vérifie |
@@ -138,6 +163,11 @@ dernier. Le doublon disparaît quand même : il n'existe plus qu'une seule page.
 | A11 | `/resultats` répond 308 vers `/` | Test de route |
 | A12 | Le mode spectateur (téléphone) reste utilisable : recherche, choix de catégorie | Capture 390 px + tests existants |
 | A13 | `prefers-reduced-motion` coupe les animations | Media query, vérifiée |
+| A14 | Le classement se lit dans **un seul sens** — rangées, comme le podium | Absence de `grid-auto-flow: column` ; vérifié à l'écran |
+| A15 | La barre de catégories existe dans les **deux** modes, et porte la jauge de rotation | Test de gabarit + capture |
+| A16 | Toucher une catégorie l'affiche seule et relance le cycle à partir d'elle | Piloté : clic sur « U13 H » → 25 lignes, une seule table |
+| A17 | Le nombre de colonnes suit la largeur de la fenêtre | 1920 → 3, 1100 → 3, 900 → 2, 560 → 1 |
+| A18 | Sous 900 px, le podium en bandeau s'efface au profit de la liste | Capture 760 px |
 
 ## 5. Ce qui reste hors périmètre
 

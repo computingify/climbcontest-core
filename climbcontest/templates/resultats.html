@@ -65,10 +65,6 @@
   body { display: flex; flex-direction: column; overflow: hidden; }
   body:not(.mur) { overflow-y: auto; overflow-x: hidden; }
 
-  /* ---- La barre de rotation (mur) ---- */
-  .barre-haut { height: 8px; background: var(--trait); flex: none; display: none; }
-  body.mur .barre-haut { display: block; }
-  #progression { height: 100%; width: 0; background: var(--groupe); }
 
   /* ---- Bandeau ---- */
   header {
@@ -76,48 +72,66 @@
     padding: 14px 24px 12px; border-bottom: 1px solid var(--trait);
   }
   .logo { height: 46px; width: auto; flex: none; }
-  body.mur .logo { height: 66px; }
+  body.mur .logo { height: clamp(38px, 4.2vw, 66px); }
 
   .titre-groupe {
     display: flex; align-items: center; gap: 14px; min-width: 0;
     font-size: clamp(1.4rem, 3vw, 2rem); font-weight: 900; letter-spacing: -0.03em;
     color: var(--groupe); line-height: 1;
   }
-  body.mur .titre-groupe { font-size: 62px; }
+  body.mur .titre-groupe { font-size: clamp(1.7rem, 3.6vw, 62px); }
+  .titre-groupe span { white-space: nowrap; }
   .titre-groupe .pastille {
     width: 12px; height: 1em; border-radius: 4px; background: var(--groupe); flex: none;
   }
   body.mur .titre-groupe .pastille { width: 18px; }
   #compte { color: var(--encre2); font-weight: 600; font-size: 0.95rem; white-space: nowrap; }
-  body.mur #compte { font-size: 25px; }
+  body.mur #compte { font-size: clamp(0.9rem, 1.35vw, 25px); }
 
   .droite { margin-left: auto; text-align: right; min-width: 0; }
   #competition { font-weight: 800; font-size: 1rem; }
-  body.mur #competition { font-size: 28px; }
+  body.mur #competition { font-size: clamp(1rem, 1.6vw, 28px); }
   .meta {
     color: var(--encre2); font-size: 0.78rem; margin-top: 2px;
     font-variant-numeric: tabular-nums; white-space: nowrap;
   }
-  body.mur .meta { font-size: 19px; margin-top: 4px; }
+  body.mur .meta { font-size: clamp(0.72rem, 1.1vw, 19px); margin-top: 4px; }
   .meta .perime { color: var(--alerte); font-weight: 700; }
   #suivant { color: var(--encre2); font-size: 0.78rem; margin-top: 2px; display: none; }
-  body.mur #suivant { display: block; font-size: 20px; }
+  body.mur #suivant { display: block; font-size: clamp(0.72rem, 1.15vw, 20px); }
 
-  /* ---- Barre de catégories et recherche (spectateur) ---- */
+  /* ---- La barre de catégories : la MÊME sur le mur et sur le téléphone ----
+     Sur le mur elle dit OÙ ON EN EST dans le cycle — la catégorie affichée s'y
+     remplit doucement jusqu'à la bascule. Sur un téléphone, c'est le sélecteur :
+     on touche une catégorie, on ne voit qu'elle. Un seul composant, deux
+     usages : c'est ce qui fait qu'ils ne divergeront pas. */
   #barre {
-    flex: none; display: flex; gap: 8px; overflow-x: auto;
-    padding: 12px 24px; border-bottom: 1px solid var(--trait);
+    flex: none; display: flex; gap: 8px; overflow-x: auto; scrollbar-width: none;
+    padding: 10px 24px; border-bottom: 1px solid var(--trait);
   }
+  #barre::-webkit-scrollbar { display: none; }
+  body.mur #barre { padding: 12px 32px; gap: 10px; }
   #barre button {
-    flex: 0 0 auto; cursor: pointer;
+    position: relative; overflow: hidden; flex: 0 0 auto; cursor: pointer;
     background: var(--carte); color: var(--encre2);
     border: 1px solid var(--trait); border-radius: 999px;
-    padding: 7px 15px; font: inherit; font-size: 0.9rem; font-weight: 600;
+    padding: 7px 16px; font: inherit; font-size: 0.9rem; font-weight: 600;
     border-left: 4px solid var(--teinte, var(--trait));
   }
-  #barre button[aria-pressed="true"] {
-    background: var(--teinte, var(--groupe)); color: #fff; border-color: transparent;
+  body.mur #barre button {
+    font-size: clamp(0.9rem, 1.15vw, 1.35rem); padding: 9px 22px; border-left-width: 6px;
   }
+  #barre button[aria-current="true"] {
+    color: var(--encre); border-color: var(--teinte, var(--groupe));
+    box-shadow: inset 0 0 0 1px var(--teinte, var(--groupe));
+  }
+  /* La jauge : elle avance pendant toute la durée d'affichage, donc on VOIT
+     venir la bascule au lieu de la subir. */
+  #barre .jauge {
+    position: absolute; left: 0; top: 0; bottom: 0; width: 0;
+    background: color-mix(in srgb, var(--teinte, var(--groupe)) 26%, transparent);
+  }
+  #barre .etiquette { position: relative; }
   #barre button:focus-visible { outline: 2px solid var(--encre); outline-offset: 2px; }
   #recherche {
     flex: none; margin: 12px 24px 0; padding: 11px 14px;
@@ -126,7 +140,7 @@
     border: 1px solid var(--trait); border-radius: 10px; font: inherit;
   }
   #recherche::placeholder { color: var(--encre2); }
-  body.mur #barre, body.mur #recherche { display: none; }
+  body.mur #recherche { display: none; }
 
   /* ---- Le classement ---- */
   main { flex: 1; min-height: 0; display: flex; flex-direction: column;
@@ -145,7 +159,7 @@
             height: clamp(132px, 19vh, 208px); }
   body.mur #podium.visible { display: grid; }
   .pod {
-    display: grid; grid-template-columns: 92px 1fr; column-gap: 18px; row-gap: 2px;
+    display: grid; grid-template-columns: clamp(56px, 5.6vw, 100px) 1fr; column-gap: 18px; row-gap: 2px;
     align-items: center; align-content: center;   /* sinon les trois lignes se
        repartissent sur toute la hauteur de la carte, et le nom flotte tout en
        haut pendant que le score tombe tout en bas */
@@ -158,17 +172,17 @@
   .pod.r2 { --medaille: var(--argent); }
   .pod.r3 { --medaille: var(--bronze); }
   .pod .place {
-    grid-row: 1 / span 3; font-size: 96px; font-weight: 900; line-height: 1;
+    grid-row: 1 / span 3; font-size: clamp(52px, 5.2vw, 96px); font-weight: 900; line-height: 1;
     color: var(--medaille); text-align: center; font-variant-numeric: tabular-nums;
   }
-  .pod .nom { font-size: 40px; font-weight: 800; letter-spacing: -0.02em;
+  .pod .nom { font-size: clamp(24px, 2.2vw, 40px); font-weight: 800; letter-spacing: -0.02em;
               white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .pod .club { font-size: 20px; color: var(--encre2);
+  .pod .club { font-size: clamp(14px, 1.1vw, 20px); color: var(--encre2);
                white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .pod .chiffres { display: flex; align-items: baseline; gap: 12px; margin-top: 4px; }
-  .pod .score { font-size: 60px; font-weight: 900; line-height: 1;
+  .pod .score { font-size: clamp(32px, 3.2vw, 60px); font-weight: 900; line-height: 1;
                 font-variant-numeric: tabular-nums; }
-  .pod .blocs { font-size: 22px; color: var(--encre2); }
+  .pod .blocs { font-size: clamp(14px, 1.2vw, 22px); color: var(--encre2); }
 
   /* La zone qui défile doucement quand le plateau déborde. */
   #defile { flex: 1; min-height: 0; overflow: hidden; }
@@ -178,14 +192,27 @@
      une petite catégorie. Jamais quand ça déborde : le défilement doit partir
      du haut. */
   body.mur #defile.centre { display: flex; flex-direction: column; justify-content: center; }
+  /* Quand ça défile, les lignes s'effacent aux deux bords au lieu d'être
+     tranchées net : une ligne coupée en deux se lit comme un bogue
+     d'affichage, un fondu se lit comme un mouvement voulu. */
+  body.mur #defile.defilant {
+    -webkit-mask-image: linear-gradient(to bottom, transparent 0, #000 26px,
+                                        #000 calc(100% - 26px), transparent 100%);
+    mask-image: linear-gradient(to bottom, transparent 0, #000 26px,
+                                #000 calc(100% - 26px), transparent 100%);
+  }
   body:not(.mur) #defile { overflow: visible; }
   #liste {
     display: flex; flex-direction: column; gap: 7px;
     will-change: transform;
   }
+  /* Le flux par LIGNES, et pas par colonnes. Le podium est une rangée (1, 2, 3
+     de gauche à droite) : enchaîner sur des colonnes qui se lisent de haut en
+     bas obligeait l'œil à changer de sens au milieu de l'écran. Maintenant tout
+     se lit dans le même sens — 4, 5, 6 puis 7, 8, 9. */
   body.mur #liste {
     display: grid; grid-template-columns: repeat(var(--colonnes, 3), 1fr);
-    grid-auto-flow: column; gap: 7px 18px; align-content: start;
+    gap: 7px 18px; align-content: start;
   }
 
   .ligne {
@@ -242,6 +269,11 @@
   /* Le telephone d'un parent, tenu a bout de bras. Le bandeau du mode mur y
      deborde : il passe en deux lignes plutot que de rogner le nom de la
      competition ou de pousser une barre de defilement horizontale. */
+  @media (max-width: 900px) {
+    .meta { white-space: normal; }
+    header { padding: 12px 20px 10px; gap: 12px; }
+  }
+
   @media (max-width: 680px) {
     header { flex-wrap: wrap; gap: 8px 12px; padding: 12px 16px 10px; }
     .logo { height: 34px; }
@@ -261,8 +293,6 @@
 </style>
 </head>
 <body>
-
-<div class="barre-haut"><div id="progression"></div></div>
 
 <header>
   <img class="logo" src="/static/logo-club.png" alt="" aria-hidden="true">
@@ -352,7 +382,6 @@
     reussites: document.getElementById("reussites"),
     competition: document.getElementById("competition"),
     suivant: document.getElementById("suivant"),
-    progression: document.getElementById("progression"),
   };
 
   if (MUR) document.body.classList.add("mur");
@@ -474,7 +503,7 @@
     etat.groupe = groupe.groupe;
     document.documentElement.style.setProperty("--groupe", couleurDe(groupe.groupe));
 
-    if (!MUR) dessinerBarre();
+    dessinerBarre();
 
     var q = MUR ? "" : el.recherche.value.trim().toLowerCase();
     var lignes, titreTexte, compteTexte;
@@ -647,8 +676,11 @@
     }
   }
 
+  var LARGEUR_PODIUM = 900;      // en dessous, trois cartes côte à côte s'écrasent
+
   function peindre(lignes, avecPodium) {
-    var podium = MUR && avecPodium && lignes.length > 3;
+    var podium = MUR && avecPodium && lignes.length > 3
+              && window.innerWidth >= LARGEUR_PODIUM;
     el.podium.classList.toggle("visible", podium);
 
     var tete = podium ? lignes.slice(0, 3) : [];
@@ -665,10 +697,9 @@
 
     // Le reste
     if (MUR) {
-      var colonnes = suite.length > 12 ? 3 : suite.length > 4 ? 2 : 1;
+      var colonnes = colonnesPour(suite.length);
       el.liste.style.setProperty("--colonnes", colonnes);
       ajuster(suite.length, colonnes);
-      el.liste.style.gridTemplateRows = "repeat(" + Math.ceil(suite.length / colonnes) + ", auto)";
     }
 
     suite.forEach(function (l, i) {
@@ -685,6 +716,23 @@
     Object.keys(etat.noeuds).forEach(function (cle) {
       if (!vivants[cle]) delete etat.noeuds[cle];
     });
+  }
+
+  /** Combien de colonnes : la largeur décide autant que l'effectif.
+   *
+   * Une fenêtre réduite à 700 px ne doit pas garder trois colonnes de 230 px —
+   * un nom n'y tient plus. On prend donc le MINIMUM des deux contraintes, et on
+   * recalcule à chaque redimensionnement.
+   */
+  function colonnesPour(nombre) {
+    var largeur = el.liste.clientWidth || window.innerWidth;
+    // 340 px par colonne : c'est la largeur en dessous de laquelle un nom
+    // commence à être tronqué. Au-dessus, on préfère TROIS colonnes serrées où
+    // tout le plateau se voit à deux colonnes larges qui obligent à défiler —
+    // sur un mur, ce qu'on ne voit pas n'existe pas.
+    var parLargeur = Math.max(1, Math.min(3, Math.floor(largeur / 340)));
+    var parNombre = nombre > 12 ? 3 : nombre > 4 ? 2 : 1;
+    return Math.min(parLargeur, parNombre);
   }
 
   /** La hauteur d'une ligne, pour que la catégorie ENTIÈRE tienne à l'écran. */
@@ -704,8 +752,9 @@
   function programmerDefilement() {
     if (etat.animationDefilement) { etat.animationDefilement.cancel(); etat.animationDefilement = null; }
     el.liste.style.transform = "none";
-    if (!MUR) { el.defile.classList.remove("centre"); return; }
+    if (!MUR) { el.defile.classList.remove("centre", "defilant"); return; }
     if (sansMouvement()) {
+      el.defile.classList.remove("defilant");
       el.defile.classList.toggle(
         "centre", el.liste.scrollHeight - el.defile.clientHeight <= 8);
       return;
@@ -713,6 +762,7 @@
 
     var trop = el.liste.scrollHeight - el.defile.clientHeight;
     el.defile.classList.toggle("centre", trop <= 8);
+    el.defile.classList.toggle("defilant", trop > 8);
     if (trop <= 8) return;
 
     // ~110 px par seconde : la vitesse à laquelle on lit une liste sans la
@@ -741,16 +791,11 @@
     if (!MUR) return;
     clearTimeout(etat.minuteurRotation);
     var visibles = groupesVisibles();
-    if (visibles.length < 2) { el.progression.style.width = "0%"; return; }
+    if (visibles.length < 2) { jauger(0); return; }
 
     var groupe = visibles.find(function (c) { return c.groupe === etat.groupe; }) || visibles[0];
     var duree = dureeRotation(groupe);
-
-    el.progression.style.transition = "none";
-    el.progression.style.width = "0%";
-    void el.progression.offsetWidth;
-    el.progression.style.transition = "width " + duree + "ms linear";
-    el.progression.style.width = "100%";
+    jauger(duree);
 
     etat.minuteurRotation = setTimeout(function () {
       var v = groupesVisibles();
@@ -764,37 +809,101 @@
       el.podium.innerHTML = "";
       el.liste.innerHTML = "";
       dessiner();
+      centrerBarre();
       programmerRotation();
     }, duree);
   }
 
   // --- La barre de catégories (spectateur) ---------------------------------
 
-  function dessinerBarre() {
-    var groupes = etat.classements;
-    if (groupes.length < 2) { el.barre.innerHTML = ""; return; }
-    if (el.barre.childElementCount === groupes.length) {
-      Array.prototype.forEach.call(el.barre.children, function (b) {
-        b.setAttribute("aria-pressed", String(b.dataset.groupe === etat.groupe));
-      });
-      return;
-    }
-    el.barre.innerHTML = "";
-    groupes.forEach(function (c, i) {
-      var b = document.createElement("button");
-      b.type = "button";
-      b.textContent = libelleDe(c);
-      b.dataset.groupe = c.groupe;
-      b.style.setProperty("--teinte", COULEURS[i % COULEURS.length]);
-      b.setAttribute("aria-pressed", String(c.groupe === etat.groupe));
-      b.addEventListener("click", function () {
-        etat.groupe = c.groupe;
-        etat.noeuds = {};
-        el.liste.innerHTML = "";
-        dessiner();
-      });
-      el.barre.appendChild(b);
+  function chipDe(nom) {
+    var trouve = null;
+    Array.prototype.forEach.call(el.barre.children, function (b) {
+      if (b.dataset.groupe === nom) trouve = b;
     });
+    return trouve;
+  }
+
+  /** La jauge de la catégorie affichée : elle avance jusqu'à la bascule.
+   *
+   * C'est le « où on en est » du mode mur, posé là où on regarde déjà — sur le
+   * nom de la catégorie — plutôt que sur un filet en haut de l'écran que
+   * personne ne relie à rien.
+   */
+  function jauger(duree) {
+    Array.prototype.forEach.call(el.barre.children, function (b) {
+      var j = b.querySelector(".jauge");
+      if (!j) return;
+      j.style.transition = "none";
+      j.style.width = "0%";
+    });
+    var actif = chipDe(etat.groupe);
+    if (!actif || !duree || sansMouvement()) return;
+    var j = actif.querySelector(".jauge");
+    void j.offsetWidth;
+    j.style.transition = "width " + duree + "ms linear";
+    j.style.width = "100%";
+  }
+
+  /** Amène la catégorie affichée dans la partie visible de la barre. */
+  function centrerBarre() {
+    var actif = chipDe(etat.groupe);
+    if (!actif || el.barre.scrollWidth <= el.barre.clientWidth) return;
+    var cible = actif.offsetLeft - (el.barre.clientWidth - actif.offsetWidth) / 2;
+    el.barre.scrollTo({ left: Math.max(0, cible),
+                        behavior: sansMouvement() ? "auto" : "smooth" });
+  }
+
+  function dessinerBarre() {
+    // Sur le mur, la barre montre le CYCLE : seulement ce qui défile. Sur
+    // téléphone elle montre TOUT ce qu'on peut demander, classement club
+    // compris.
+    var groupes = MUR ? groupesVisibles() : etat.classements;
+    if (groupes.length < 2) { el.barre.innerHTML = ""; el.barre.hidden = true; return; }
+    el.barre.hidden = false;
+
+    var memesGroupes = el.barre.childElementCount === groupes.length
+      && groupes.every(function (c, i) { return el.barre.children[i].dataset.groupe === c.groupe; });
+
+    if (!memesGroupes) {
+      el.barre.innerHTML = "";
+      groupes.forEach(function (c, i) {
+        var b = document.createElement("button");
+        b.type = "button";
+        b.dataset.groupe = c.groupe;
+        b.style.setProperty("--teinte", couleurDe(c.groupe));
+        var jauge = document.createElement("span");
+        jauge.className = "jauge";
+        var etiquette = document.createElement("span");
+        etiquette.className = "etiquette";
+        etiquette.textContent = libelleDe(c);       // textContent, jamais innerHTML
+        b.appendChild(jauge);
+        b.appendChild(etiquette);
+        b.addEventListener("click", function () { choisir(c.groupe); });
+        el.barre.appendChild(b);
+      });
+    }
+
+    Array.prototype.forEach.call(el.barre.children, function (b) {
+      var actif = b.dataset.groupe === etat.groupe;
+      b.setAttribute("aria-current", String(actif));
+      b.setAttribute("aria-pressed", String(actif));
+    });
+  }
+
+  /** Choisir une catégorie à la main — au doigt sur téléphone, à la souris sur
+   *  l'ordinateur de la salle. Sur le mur, la rotation repart d'ici : on ne
+   *  veut pas qu'elle ramène l'écran ailleurs deux secondes plus tard. */
+  function choisir(groupe) {
+    if (groupe === etat.groupe) return;
+    etat.groupe = groupe;
+    etat.noeuds = {};
+    etat.deltas = {};
+    el.podium.innerHTML = "";
+    el.liste.innerHTML = "";
+    dessiner();
+    centrerBarre();
+    if (MUR) programmerRotation();
   }
 
   el.recherche.addEventListener("input", function () {
@@ -807,7 +916,7 @@
   var minuteurTaille;
   window.addEventListener("resize", function () {
     clearTimeout(minuteurTaille);
-    minuteurTaille = setTimeout(dessiner, 250);
+    minuteurTaille = setTimeout(function () { dessiner(); centrerBarre(); }, 120);
   });
 
   // --- Démarrage ------------------------------------------------------------

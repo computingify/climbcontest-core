@@ -183,6 +183,34 @@ class TestFaitePourEtreProjetee:
         page = client.get("/").data.decode()
         assert "programmerDefilement" in page
 
+    def test_la_barre_de_categories_sert_aux_deux_modes(self, client, jeu):
+        """Un seul composant, deux usages : sur le mur il dit où on en est dans
+        le cycle, sur un téléphone c'est le sélecteur. Deux composants auraient
+        divergé."""
+        page = client.get("/").data.decode()
+        assert "dessinerBarre" in page
+        assert "body.mur #barre" in page, "la barre doit exister aussi en mode mur"
+        assert "body.mur #barre, body.mur #recherche { display: none; }" not in page
+
+    def test_la_jauge_de_rotation_vit_sur_la_categorie(self, client, jeu):
+        """Un filet en haut de l'écran ne se relie à rien ; la jauge est posée
+        là où on regarde déjà — sur le nom de la catégorie."""
+        page = client.get("/").data.decode()
+        assert "function jauger(" in page
+        assert 'id="progression"' not in page, "l'ancienne barre du haut a disparu"
+
+    def test_le_classement_se_lit_dans_un_seul_sens(self, client, jeu):
+        """Le podium est une rangée (1, 2, 3 de gauche à droite) : enchaîner sur
+        des colonnes lues de haut en bas obligeait l'œil à changer de sens au
+        milieu de l'écran."""
+        page = client.get("/").data.decode()
+        assert "grid-auto-flow: column" not in page
+
+    def test_les_colonnes_suivent_la_largeur(self, client, jeu):
+        page = client.get("/").data.decode()
+        assert "function colonnesPour(" in page
+        assert "clientWidth" in page
+
     def test_le_mouvement_se_coupe_si_l_utilisateur_le_demande(self, client, jeu):
         page = client.get("/").data.decode()
         assert "prefers-reduced-motion" in page

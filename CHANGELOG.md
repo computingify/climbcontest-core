@@ -19,6 +19,26 @@ qu'on ne met pas à jour le matin d'une compétition :
 
 ## [Non publié]
 
+### Modifié
+
+- **Le classement se lit dans un seul sens.** Le podium est une rangée — 1, 2, 3
+  de gauche à droite — et le reste enchaînait sur des colonnes lues de haut en
+  bas : l'œil changeait de sens au milieu de l'écran. Les rangs se remplissent
+  maintenant par lignes, 4, 5, 6 puis 7, 8, 9.
+- **La barre de catégories est la même sur le mur et sur le téléphone.** Sur le
+  mur, elle dit où on en est dans le cycle : la **jauge de rotation vit dans la
+  pastille** de la catégorie affichée, au lieu d'un filet en haut de l'écran que
+  personne ne reliait à rien. Sur un téléphone, c'est le sélecteur — on touche
+  une catégorie, on ne voit qu'elle, et le cycle repart de là.
+- **La page suit vraiment la fenêtre.** Le nombre de colonnes dépend de la
+  largeur autant que de l'effectif (une colonne par tranche de 340 px, trois au
+  plus), le podium en bandeau s'efface sous 900 px où trois cartes côte à côte
+  s'écrasent, et toutes les tailles du bandeau sont fluides au lieu d'être
+  figées — à 760 px, « U11 F » se cassait en deux lignes et la ligne d'état
+  était tranchée.
+- **Quand ça défile, les lignes s'effacent aux deux bords** au lieu d'être
+  tranchées net : une ligne coupée en deux se lit comme un bogue d'affichage.
+
 ### Corrigé
 
 - **Une petite catégorie ne laisse plus les trois quarts du mur vides.** Constaté
