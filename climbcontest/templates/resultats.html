@@ -333,6 +333,33 @@
   /* En deux lignes, l'en-tête n'annonce plus que ce qui reste. */
   #liste.d4 .entete span:nth-child(3), #liste.d4 .entete span:nth-child(4) { display: none; }
 
+  /* Les favoris du spectateur. Une colonne d'étoiles en plus, à droite, et
+     seulement sur téléphone : sur le mur, personne ne touche l'écran. */
+  body:not(.mur) #liste { --grille-ligne: 2.6em minmax(0, 1fr) 4.6em 2.4em; }
+  body:not(.mur) #liste.d1 { --grille-ligne: 3.4em minmax(0, 1fr) 3.4em 4.4em 5.2em 2.4em; }
+  body:not(.mur) #liste.d2 { --grille-ligne: 3.2em minmax(0, 1fr) 3.2em 4.2em 5em 2.4em; }
+  body:not(.mur) #liste.d3 { --grille-ligne: 3em minmax(0, 1fr) 3em 4em 4.8em 2.4em; }
+  body:not(.mur) #liste.d4 { --grille-ligne: 2.4em minmax(0, 1fr) 4.4em 2.4em; }
+  body.mur .etoile { display: none; }
+
+  .etoile {
+    cursor: pointer; background: none; border: 0; padding: 6px 2px;
+    font-size: 1.35rem; line-height: 1; color: var(--trait);
+    -webkit-tap-highlight-color: transparent;
+  }
+  .etoile[aria-pressed="true"] { color: var(--or); }
+  .etoile:focus-visible { outline: 2px solid var(--accent, var(--groupe)); border-radius: 6px; }
+
+  /* Un favori se repère sans être cherché : un filet à gauche et son étoile. */
+  .ligne.favori { background: color-mix(in srgb, var(--groupe) 12%, var(--carte)); }
+  .ligne.favori { box-shadow: inset 5px 0 0 var(--groupe); }
+  .ligne.favori.p1 { box-shadow: inset 5px 0 0 var(--or); }
+  .ligne.favori.p2 { box-shadow: inset 5px 0 0 var(--argent); }
+  .ligne.favori.p3 { box-shadow: inset 5px 0 0 var(--bronze); }
+
+  /* Une catégorie qui contient un favori le dit dans la barre. */
+  #barre button .marqueur { color: var(--or); margin-right: 6px; }
+
   .fleche { font-size: 0.62em; font-weight: 800; margin-left: 8px; }
   .monte { color: var(--ok); }
   .descend { color: var(--alerte); }
@@ -452,6 +479,7 @@
     ageServeurS: 0,
     recuA: null,
     groupe: null,
+    favoris: [],               // { id, nom, dossard } — stockage local du téléphone
     densite: 1,                // 1 = tout tient ; 4 = nom et score seulement
     entetes: [],               // les rangées d'en-tête, réutilisées
     groupes: [],               // les marches du podium, réutilisées
@@ -484,6 +512,105 @@
   if (MUR) document.body.classList.add("mur");
   if (SOMBRE) document.body.classList.add("sombre");
 
+  // --- Les favoris du spectateur ------------------------------------------
+  //
+  // Rangés dans le STOCKAGE LOCAL du téléphone, pas dans un cookie : un cookie
+  // repart dans chaque requête HTTP — vers une page que soixante personnes
+  // rafraîchissent toutes les quinze secondes — alors que ces noms n'ont rien à
+  // faire sur le réseau. Ils ne quittent jamais l'appareil.
+  //
+  // La liste est liée à UNE compétition : les identifiants de participant sont
+  // réattribués d'une édition à l'autre, et suivre « le n°12 » de l'an dernier
+  // n'aurait aucun sens.
+
+  var CLE_FAVORIS = "climbcontest.favoris";
+  var GROUPE_FAVORIS = "★ Mes favoris";
+
+  function lireFavoris() {
+    try {
+      var brut = JSON.parse(window.localStorage.getItem(CLE_FAVORIS) || "null");
+      if (!brut || !Array.isArray(brut.favoris)) return { competition: null, favoris: [] };
+      return brut;
+    } catch (e) {
+      // Navigation privée, stockage plein, JSON abîmé : on n'a pas de favoris,
+      // et surtout la page continue de fonctionner.
+      return { competition: null, favoris: [] };
+    }
+  }
+
+  function ecrireFavoris() {
+    try {
+      window.localStorage.setItem(CLE_FAVORIS, JSON.stringify({
+        competition: etat.competition ? etat.competition.id : null,
+        favoris: etat.favoris,
+      }));
+    } catch (e) { /* sans stockage, les favoris ne durent que la visite */ }
+  }
+
+  function chargerFavoris() {
+    var range = lireFavoris();
+    var id = etat.competition ? etat.competition.id : null;
+    // Compétition différente : on repart de zéro plutôt que de suivre des
+    // identifiants qui désignent quelqu'un d'autre.
+    etat.favoris = (range.competition === id) ? range.favoris : [];
+  }
+
+  function estFavori(participant) {
+    return etat.favoris.some(function (f) { return f.id === participant; });
+  }
+
+  function basculerFavori(l) {
+    var participant = Number(l.participant_id);
+    if (!participant) return;
+    if (estFavori(participant)) {
+      etat.favoris = etat.favoris.filter(function (f) { return f.id !== participant; });
+    } else {
+      etat.favoris.push({ id: participant, nom: l.nom, dossard: l.dossard });
+    }
+    ecrireFavoris();
+    etat.noeuds = {};
+    el.liste.innerHTML = "";
+    dessiner();
+  }
+
+  /** Les lignes des favoris, prises dans leur CATÉGORIE — leur résultat
+   *  officiel, celui du podium. */
+  function lignesFavorites() {
+    var lignes = [];
+    etat.favoris.forEach(function (f) {
+      var trouvee = null, groupe = null;
+      etat.classements.forEach(function (c) {
+        if (c.type !== "categorie" || trouvee) return;
+        (c.lignes || []).forEach(function (l) {
+          if (l.participant_id === f.id) { trouvee = l; groupe = c; }
+        });
+      });
+      if (trouvee) {
+        lignes.push({ cle: "fav-" + f.id, participant_id: f.id, rang: trouvee.rang,
+                      score: trouvee.score, blocs: trouvee.blocs, nom: trouvee.nom,
+                      club: trouvee.club, dossard: trouvee.dossard,
+                      contexte: libelleDe(groupe) });
+      } else {
+        // Le favori n'est plus au classement (retiré, ou compétition changée) :
+        // on le montre quand même, sinon on ne peut plus l'enlever.
+        lignes.push({ cle: "fav-" + f.id, participant_id: f.id, rang: 0, score: 0,
+                      blocs: 0, nom: f.nom, club: null, dossard: f.dossard,
+                      contexte: "plus au classement" });
+      }
+    });
+    return lignes;
+  }
+
+  function categoriesAvecFavori() {
+    var avec = {};
+    etat.classements.forEach(function (c) {
+      (c.lignes || []).forEach(function (l) {
+        if (estFavori(l.participant_id)) avec[c.groupe] = true;
+      });
+    });
+    return avec;
+  }
+
   function sansMouvement() {
     return window.matchMedia("(prefers-reduced-motion: reduce)").matches;
   }
@@ -503,6 +630,7 @@
   }
 
   function libelleDe(c) {
+    if (c.type === "favoris") return GROUPE_FAVORIS;
     // « U13 » est un CIRCUIT : filles et garçons ensemble. Sans l'étiquette, il
     // se confond avec la catégorie « U13 F » qu'on vient d'afficher.
     return c.type === "circuit" ? c.groupe + " scratch"
@@ -527,6 +655,7 @@
         etat.recuA = Date.now();
         etat.enPanne = false;
         etat.messageMetier = null;
+        if (!MUR) chargerFavoris();
         var visibles = groupesVisibles();
         if (!etat.groupe && visibles.length) etat.groupe = visibles[0].groupe;
         dessiner();
@@ -595,8 +724,13 @@
     el.message.textContent = "";
 
     var visibles = groupesVisibles();
-    var groupe = visibles.find(function (c) { return c.groupe === etat.groupe; })
-              || visibles[0] || etat.classements[0];
+    // « Mes favoris » n'est pas un classement du serveur : c'est une vue que la
+    // page compose à partir des catégories. Il disparaît quand la liste se vide.
+    var surFavoris = !MUR && etat.groupe === GROUPE_FAVORIS && etat.favoris.length > 0;
+    var groupe = surFavoris
+      ? { groupe: GROUPE_FAVORIS, type: "favoris", lignes: [] }
+      : (visibles.find(function (c) { return c.groupe === etat.groupe; })
+         || visibles[0] || etat.classements[0]);
     etat.groupe = groupe.groupe;
     document.documentElement.style.setProperty("--groupe", couleurDe(groupe.groupe));
 
@@ -614,7 +748,8 @@
         (c.lignes || []).forEach(function (l) {
           if ((l.nom || "").toLowerCase().indexOf(q) !== -1
               || String(l.dossard || "").indexOf(q) !== -1) {
-            lignes.push({ cle: c.groupe + "-" + l.participant_id, rang: l.rang,
+            lignes.push({ cle: c.groupe + "-" + l.participant_id,
+                          participant_id: l.participant_id, rang: l.rang,
                           score: l.score, blocs: l.blocs, nom: l.nom, club: l.club,
                           dossard: l.dossard, contexte: libelleDe(c) });
           }
@@ -622,11 +757,16 @@
       });
       titreTexte = "Recherche";
       compteTexte = lignes.length + (lignes.length > 1 ? " résultats" : " résultat");
+    } else if (surFavoris) {
+      lignes = lignesFavorites();
+      titreTexte = GROUPE_FAVORIS;
+      compteTexte = lignes.length + (lignes.length > 1 ? " grimpeurs suivis"
+                                                       : " grimpeur suivi");
     } else {
       lignes = (groupe.lignes || []).map(function (l) {
-        return { cle: String(l.participant_id), rang: l.rang, score: l.score,
-                 blocs: l.blocs, nom: l.nom, club: l.club, dossard: l.dossard,
-                 contexte: null };
+        return { cle: String(l.participant_id), participant_id: l.participant_id,
+                 rang: l.rang, score: l.score, blocs: l.blocs, nom: l.nom,
+                 club: l.club, dossard: l.dossard, contexte: null };
       });
       titreTexte = libelleDe(groupe);
       compteTexte = lignes.length + (lignes.length > 1 ? " grimpeurs" : " grimpeur");
@@ -744,7 +884,7 @@
     return g;
   }
 
-  /** Une ligne de tableau : rang | grimpeur | blocs | écart | score. */
+  /** Une ligne de tableau : rang | grimpeur | blocs | écart | score | ★ */
   function noeudLigne() {
     var n = div("ligne");
     div("rang", n);
@@ -754,6 +894,13 @@
     div("blocs", n);
     div("ecart", n);
     div("score", n);
+    if (!MUR) {
+      var etoile = document.createElement("button");
+      etoile.type = "button";
+      etoile.className = "etoile";
+      etoile.textContent = "★";
+      n.appendChild(etoile);
+    }
     return n;
   }
 
@@ -817,8 +964,21 @@
       ecart.textContent = retard > 0 ? "−" + retard : (estPodium ? "" : "—");
     }
 
-    if (estPodium) n.className = "pod";
-    else n.className = "ligne" + (l.rang <= 3 && !avecPodium ? " p" + l.rang : "");
+    if (estPodium) {
+      n.className = "pod";
+    } else {
+      var favori = !MUR && estFavori(Number(l.participant_id));
+      n.className = "ligne"
+        + (l.rang <= 3 && l.rang > 0 && !avecPodium ? " p" + l.rang : "")
+        + (favori ? " favori" : "");
+      var etoile = n.querySelector(".etoile");
+      if (etoile) {
+        etoile.setAttribute("aria-pressed", String(favori));
+        etoile.setAttribute("aria-label",
+          (favori ? "Retirer " : "Suivre ") + (l.nom || "ce grimpeur"));
+        etoile.onclick = function (e) { e.stopPropagation(); basculerFavori(l); };
+      }
+    }
 
     if (d > 0 && !sansMouvement()) {
       n.classList.remove("pulse"); void n.offsetWidth; n.classList.add("pulse");
@@ -1116,13 +1276,21 @@
   function dessinerBarre() {
     // Sur le mur, la barre montre le CYCLE : seulement ce qui défile. Sur
     // téléphone elle montre TOUT ce qu'on peut demander, classement club
-    // compris.
+    // compris — et, en tête, les favoris du spectateur s'il en a.
     var groupes = MUR ? groupesVisibles() : etat.classements;
+    if (!MUR && etat.favoris.length) {
+      groupes = [{ groupe: GROUPE_FAVORIS, type: "favoris", lignes: [] }].concat(groupes);
+    }
+    var avecFavori = MUR ? {} : categoriesAvecFavori();
     if (groupes.length < 2) { el.barre.innerHTML = ""; el.barre.hidden = true; return; }
     el.barre.hidden = false;
 
     var memesGroupes = el.barre.childElementCount === groupes.length
-      && groupes.every(function (c, i) { return el.barre.children[i].dataset.groupe === c.groupe; });
+      && groupes.every(function (c, i) {
+        var b = el.barre.children[i];
+        return b.dataset.groupe === c.groupe
+            && b.dataset.favori === String(!!avecFavori[c.groupe]);
+      });
 
     if (!memesGroupes) {
       el.barre.innerHTML = "";
@@ -1130,6 +1298,7 @@
         var b = document.createElement("button");
         b.type = "button";
         b.dataset.groupe = c.groupe;
+        b.dataset.favori = String(!!avecFavori[c.groupe]);
         b.style.setProperty("--teinte", couleurDe(c.groupe));
         var jauge = document.createElement("span");
         jauge.className = "jauge";
@@ -1138,6 +1307,13 @@
         etiquette.textContent = libelleDe(c);       // textContent, jamais innerHTML
         b.appendChild(jauge);
         b.appendChild(etiquette);
+        // Une catégorie où quelqu'un qu'on suit grimpe se signale d'une étoile.
+        if (avecFavori[c.groupe]) {
+          var marqueur = document.createElement("span");
+          marqueur.className = "marqueur";
+          marqueur.textContent = "★";
+          b.insertBefore(marqueur, etiquette);
+        }
         b.addEventListener("click", function () { choisir(c.groupe); });
         el.barre.appendChild(b);
       });
@@ -1163,6 +1339,42 @@
     dessiner();
     centrerBarre();
     if (MUR) programmerRotation();
+  }
+
+  // --- Le balayage tactile : d'une catégorie à l'autre ---------------------
+  //
+  // Sur un téléphone, changer de catégorie en visant une pastille de la barre
+  // demande de regarder ce qu'on touche. Un balayage, non.
+
+  var toucher = null;
+
+  document.addEventListener("touchstart", function (e) {
+    if (MUR || e.touches.length !== 1) { toucher = null; return; }
+    // On ignore ce qui part de la barre : elle défile déjà horizontalement.
+    if (e.target.closest && e.target.closest("#barre, #recherche")) { toucher = null; return; }
+    toucher = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+  }, { passive: true });
+
+  document.addEventListener("touchend", function (e) {
+    if (!toucher || !e.changedTouches.length) return;
+    var dx = e.changedTouches[0].clientX - toucher.x;
+    var dy = e.changedTouches[0].clientY - toucher.y;
+    toucher = null;
+    // Franc, et horizontal : sinon on volerait le défilement vertical de la
+    // page, qui est le geste le plus fréquent sur un classement.
+    if (Math.abs(dx) < 60 || Math.abs(dx) < Math.abs(dy) * 1.8) return;
+    voisin(dx < 0 ? 1 : -1);
+  }, { passive: true });
+
+  /** La catégorie suivante (+1) ou précédente (−1) dans la barre. */
+  function voisin(pas) {
+    var pastilles = Array.prototype.map.call(el.barre.children, function (b) {
+      return b.dataset.groupe;
+    });
+    if (pastilles.length < 2) return;
+    var i = pastilles.indexOf(etat.groupe);
+    if (i < 0) i = 0;
+    choisir(pastilles[(i + pas + pastilles.length) % pastilles.length]);
   }
 
   el.recherche.addEventListener("input", function () {

@@ -21,6 +21,21 @@ qu'on ne met pas à jour le matin d'une compétition :
 
 ### Ajouté
 
+- **Le spectateur peut suivre des grimpeurs.** Une **étoile** sur chaque ligne —
+  dans la recherche comme dans un classement. Ce qu'elle change : la ligne du
+  favori est surlignée, la catégorie où il grimpe porte une étoile dans la
+  barre, et une entrée **« ★ Mes favoris »** en tête de barre donne la liste,
+  avec le rang de chacun dans sa catégorie et l'étoile pour le retirer.
+  Les favoris vivent dans le **stockage local du téléphone**, pas dans un
+  cookie : un cookie repartirait dans chaque requête — vers une page que
+  soixante personnes rafraîchissent toutes les quinze secondes — alors que ces
+  noms n'ont rien à faire sur le réseau. Rien n'est envoyé, rien n'est stocké
+  côté serveur. La liste est liée à **une** compétition : les identifiants de
+  participant sont réattribués d'une édition à l'autre.
+- **Un balayage horizontal change de catégorie** sur téléphone. Viser une
+  pastille demande de regarder ce qu'on touche ; un balayage, non. Il est ignoré
+  s'il part de la barre ou s'il est trop vertical — le défilement du classement
+  reste le geste le plus fréquent.
 - **Trois classements qui traversent les circuits** (spec 017) : `Scratch` avec
   tout le monde, `Scratch F` et `Scratch H`. La règle du classeur est appliquée
   telle quelle — chacun reste jugé sur les blocs de **son** circuit, et la valeur

@@ -177,6 +177,42 @@ de 300 px de gabarit fixe — en dessous, il ne reste plus de place pour le nom,
 et c'est le nom qu'on vient lire. Aucune information n'est perdue, elle change
 de place.
 
+## 3.9 Le téléphone du spectateur (31/08, soir)
+
+Trois demandes d'Adrien, toutes pour le mode spectateur — le mur ne change pas,
+personne ne le touche.
+
+**Le balayage.** Un glissement franc vers la gauche ou la droite passe à la
+catégorie suivante ou précédente. Viser une pastille demande de regarder ce
+qu'on touche ; un balayage, non. Il est ignoré s'il part de la barre (qui défile
+déjà horizontalement) ou s'il est trop vertical — le geste le plus fréquent sur
+un classement reste le défilement.
+
+**Les favoris.** Chaque ligne porte une **étoile**. Ce qu'elle change :
+
+| Où | Ce qu'on voit |
+| --- | --- |
+| Dans un classement | la ligne du favori est **surlignée** et bordée |
+| Dans la barre | la catégorie qui contient un favori porte une **étoile** |
+| En tête de barre | une entrée **« ★ Mes favoris »** : la liste, avec le rang de chacun dans sa catégorie, et l'étoile pour le retirer |
+
+La recherche par nom ou dossard existait déjà (spec 006) et traverse toutes les
+catégories ; c'est d'elle qu'on part pour suivre quelqu'un.
+
+**Où ça se range.** Dans le **stockage local du téléphone**, pas dans un cookie.
+Un cookie repart dans *chaque* requête — vers une page que soixante personnes
+rafraîchissent toutes les quinze secondes — alors que ces noms n'ont rien à
+faire sur le réseau. Là, ils ne quittent jamais l'appareil : rien n'est envoyé,
+rien n'est stocké côté serveur, et le classeur ne sait pas qui suit qui.
+
+⚠️ **La liste est liée à une compétition.** Les identifiants de participant sont
+réattribués d'une édition à l'autre : suivre « le n°12 » de l'an dernier
+désignerait quelqu'un d'autre. Changement de compétition, liste vidée.
+
+Un favori disparu du classement (retiré de la compétition) reste affiché dans la
+liste, avec la mention « plus au classement » — sinon on ne pourrait plus
+l'enlever.
+
 ## 4. Critères d'acceptation
 
 | # | Critère | Comment on le vérifie |
@@ -205,6 +241,11 @@ de place.
 | A22 | Le classement se lit **en colonnes**, chaque colonne annonçant sa tranche | Capture 1920 |
 | A23 | Les **ex æquo partagent leur marche** : même niveau, même socle, même médaille | Capture d'une catégorie à deux premiers |
 | A24 | Or, argent et bronze se distinguent au premier coup d'œil | Capture |
+| A25 | Un balayage horizontal change de catégorie sur téléphone | Piloté : `U11 F` → `U11 H` |
+| A26 | L'étoile ajoute et retire un favori, et il survit au rechargement | Piloté + contenu du stockage local |
+| A27 | Un favori est surligné dans son classement, sa catégorie marquée dans la barre | Capture 390 px |
+| A28 | « ★ Mes favoris » liste les suivis avec leur rang, et permet de les retirer | Capture 390 px |
+| A29 | Aucun favori ne part sur le réseau ni dans un cookie | Test de gabarit : `localStorage`, pas de `document.cookie` |
 
 ## 5. Ce qui reste hors périmètre
 

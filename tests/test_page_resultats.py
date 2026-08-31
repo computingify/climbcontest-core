@@ -253,6 +253,32 @@ class TestFaitePourEtreProjetee:
         page = client.get("/").data.decode()
         assert '"categorie", "circuit", "scratch"' in page
 
+    def test_le_spectateur_peut_suivre_des_grimpeurs(self, client, jeu):
+        """Une étoile par ligne, une liste « Mes favoris », et la catégorie qui
+        contient un favori se signale dans la barre."""
+        page = client.get("/").data.decode()
+        assert "★ Mes favoris" in page
+        assert "function basculerFavori(" in page
+        assert "function lignesFavorites(" in page
+        assert "function categoriesAvecFavori(" in page
+
+    def test_les_favoris_restent_sur_le_telephone(self, client, jeu):
+        """Stockage LOCAL, pas cookie : un cookie repartirait dans chaque
+        requête — vers une page que soixante personnes rafraîchissent toutes les
+        quinze secondes — alors que ces noms n'ont rien à faire sur le réseau.
+        Et ils sont liés à UNE compétition : les identifiants sont réattribués
+        d'une édition à l'autre."""
+        page = client.get("/").data.decode()
+        assert "localStorage" in page
+        assert "climbcontest.favoris" in page
+        assert "document.cookie" not in page
+        assert "range.competition === id" in page
+
+    def test_le_balayage_change_de_categorie(self, client, jeu):
+        page = client.get("/").data.decode()
+        assert "touchstart" in page and "touchend" in page
+        assert "function voisin(" in page
+
     def test_le_mouvement_se_coupe_si_l_utilisateur_le_demande(self, client, jeu):
         page = client.get("/").data.decode()
         assert "prefers-reduced-motion" in page
