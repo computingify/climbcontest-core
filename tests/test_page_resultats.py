@@ -211,6 +211,20 @@ class TestFaitePourEtreProjetee:
         assert "function colonnesPour(" in page
         assert "clientWidth" in page
 
+    def test_la_page_retire_de_l_information_quand_la_place_manque(self, client, jeu):
+        """Adrien, 31/08 : « quitte à supprimer des informations ou les
+        redimensionner ». On n'affiche pas « Les Lezards Vagab… · n° » : on
+        enlève, dans l'ordre, le dossard puis le club puis le compte de blocs.
+        Le nom et le score ne partent jamais."""
+        page = client.get("/").data.decode()
+        assert "function regler_densite(" in page
+        assert "etat.densite" in page
+        assert "#liste.d4 .blocs" in page
+
+    def test_les_scratchs_defilent_sur_le_mur(self, client, jeu):
+        page = client.get("/").data.decode()
+        assert '"categorie", "circuit", "scratch"' in page
+
     def test_le_mouvement_se_coupe_si_l_utilisateur_le_demande(self, client, jeu):
         page = client.get("/").data.decode()
         assert "prefers-reduced-motion" in page

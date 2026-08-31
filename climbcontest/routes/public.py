@@ -17,6 +17,18 @@ logger = logging.getLogger(__name__)
 bp = Blueprint("public", __name__, url_prefix="/api/public")
 
 
+# L'ordre d'affichage, et pas l'ordre alphabetique des types : les categories
+# d'abord (le resultat officiel), puis les circuits, puis les scratchs qui les
+# traversent, et le club en dernier. Trie sur `type` seul, « club » se
+# retrouvait AVANT « scratch » -- un detail qui se voit sur le mur, ou l'ordre
+# de la barre est l'ordre du cycle.
+ORDRE_DES_TYPES = {"categorie": 0, "circuit": 1, "scratch": 2, "club": 3}
+
+
+def _ordre(classement):
+    return (ORDRE_DES_TYPES.get(classement.type, 9), classement.groupe)
+
+
 @bp.get("/classement")
 def classement():
     """Tous les classements, ou un seul avec ?groupe=U13%20F.
@@ -77,7 +89,7 @@ def classement():
         "age_s": round(max(0.0, time.time() - calcule_le), 1),
         "classements": [
             {**c.to_dict(), "lignes": [enrichir(l) for l in c.lignes]}
-            for c in sorted(choisis.values(), key=lambda c: (c.type, c.groupe))
+            for c in sorted(choisis.values(), key=_ordre)
         ],
     }), 200
 

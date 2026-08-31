@@ -19,6 +19,7 @@ méthode.
 | [014](../specs/014-jeton-juge-dans-le-lien/) | `jeton-juge-dans-le-lien` | 🟡 **codée, en attente de relecture** (30/08) — ⚠️ reste l'essai sur un vrai iPhone, et le filtre de journal sur `edge` | Le jeton du juge survit à l'installation : il passe dans la requête et le manifeste devient dynamique, pour que `start_url` le porte à chaque lancement |
 | [015](../specs/015-classeur-parametrable/) | `classeur-parametrable` | 🟡 **codée, en attente de relecture** (31/08) | Le classeur se règle depuis la console : lien, test d'accès en lecture seule, jeton Google en JSON, et trois modes de bascule. La grille de l'onglet `Import` s'agrandit toute seule quand un dossard attribué à chaud sort de sa largeur |
 | [016](../specs/016-page-resultats-projetee/) | `page-resultats-projetee` | 🟡 **codée, en attente de relecture** (31/08) | La page faite pour être projetée : fond clair, la catégorie entière à l'écran, les changements de place qui glissent avec leur flèche, rotation proportionnelle au plateau. `/resultats` supprimée au profit de la racine |
+| [017](../specs/017-scratchs-transversaux/) | `scratchs-transversaux` | 🟡 **codée, en attente de relecture** (31/08) | Un scratch avec tout le monde, un féminin, un masculin. La règle du classeur appliquée telle quelle à un groupe plus large — avec l'avertissement qui va avec : les scores d'un scratch ne se comparent qu'entre eux |
 
 ## Specs pressenties
 

@@ -247,6 +247,13 @@
 
   /* Une place gagnée ou perdue se VOIT : la flèche dit de combien, la ligne
      glisse jusqu'à sa nouvelle place, et celui qui monte pulse une fois. */
+  /* La densité : quand une colonne se resserre, on ENLÈVE de l'information
+     plutôt que de tout tronquer. Dans l'ordre de ce qu'on peut perdre : le
+     numéro de dossard (il est sur le dossard, justement), puis le club, puis
+     le compte de blocs. Le nom et le score, jamais. */
+  #liste.d4 .blocs, #podium.serre .club { display: none; }
+  #liste.d4 .club, .club:empty { display: none; }
+
   .fleche { font-size: 0.62em; font-weight: 800; margin-left: 8px; }
   .monte { color: var(--ok); }
   .descend { color: var(--alerte); }
@@ -272,6 +279,12 @@
   @media (max-width: 900px) {
     .meta { white-space: normal; }
     header { padding: 12px 20px 10px; gap: 12px; }
+  }
+
+  /* Sous 520 px, le compteur du jour saute : trois lignes de bandeau volent
+     deux lignes de classement, et c'est le classement qu'on est venu voir. */
+  @media (max-width: 520px) {
+    #reussites { display: none; }
   }
 
   @media (max-width: 680px) {
@@ -340,10 +353,10 @@
   var ROTATION_MIN_MS = 12000, ROTATION_MAX_MS = 35000;
   var ROTATION_FIXE_MS = parseFloat(params.get("rotation")) * 1000 || null;
 
-  // Le mode mur ne montre que les classements SPORTIFS : catégories et
-  // circuits. Le cumul par club reste consultable sur téléphone — il bouge peu
-  // et n'a pas sa place dans une boucle qu'on regarde toute la journée.
-  var TYPES_MUR = ["categorie", "circuit"];
+  // Le mode mur ne montre que les classements SPORTIFS : catégories, circuits
+  // et scratchs. Le cumul par club reste consultable sur téléphone — il bouge
+  // peu et n'a pas sa place dans une boucle qu'on regarde toute la journée.
+  var TYPES_MUR = ["categorie", "circuit", "scratch"];
 
   var MIN_H = 44, MAX_H = 124;        // hauteur d'une ligne, en mode mur
   // Sous ce nombre de lignes, on s'autorise plus grand : mieux vaut six lignes
@@ -358,6 +371,7 @@
     ageServeurS: 0,
     recuA: null,
     groupe: null,
+    densite: 1,                // 1 = tout tient ; 4 = nom et score seulement
     enPanne: false,
     messageMetier: null,
     noeuds: {},                // participant -> élément, pour ANIMER au lieu de recréer
@@ -662,8 +676,14 @@
       nom.appendChild(f);
     }
 
-    n.querySelector(".club").textContent =
-      [l.contexte, l.club, l.dossard ? "n°" + l.dossard : null].filter(Boolean).join(" · ");
+    // Ce qu'on garde de la ligne d'appoint dépend de la place. Le texte est
+    // recomposé, pas rogné : « Les Lezards Vagab… · n° » ne renseigne personne.
+    // Densité 1 : tout. 2 : le dossard part (il est sur le dossard, justement).
+    // 3 : le club part. 4 : la ligne entière part, et le compte de blocs avec.
+    var appoint = [l.contexte];
+    if (etat.densite <= 2) appoint.push(l.club);
+    if (etat.densite <= 1 && l.dossard) appoint.push("n°" + l.dossard);
+    n.querySelector(".club").textContent = appoint.filter(Boolean).join(" · ");
     n.querySelector(".score").textContent = l.score;
     n.querySelector(".blocs").textContent = l.blocs + (l.blocs > 1 ? " blocs" : " bloc");
 
@@ -699,8 +719,12 @@
     if (MUR) {
       var colonnes = colonnesPour(suite.length);
       el.liste.style.setProperty("--colonnes", colonnes);
+      regler_densite(colonnes);
       ajuster(suite.length, colonnes);
+    } else {
+      regler_densite(1);
     }
+    el.podium.classList.toggle("serre", window.innerWidth < 1150);
 
     suite.forEach(function (l, i) {
       var n = etat.noeuds[l.cle];
@@ -733,6 +757,19 @@
     var parLargeur = Math.max(1, Math.min(3, Math.floor(largeur / 340)));
     var parNombre = nombre > 12 ? 3 : nombre > 4 ? 2 : 1;
     return Math.min(parLargeur, parNombre);
+  }
+
+  /** Ce qu'on affiche d'une ligne, selon la place qu'elle a.
+   *
+   * Adrien, 31/08 : « si tu dois supprimer des informations ou les
+   * redimensionner ». C'est exactement ça — on ne tronque pas un nom de club
+   * en « Les Lezards Vagab… », on l'enlève. Le nom et le score ne partent
+   * jamais : ce sont les deux seules choses qu'on vient lire.
+   */
+  function regler_densite(colonnes) {
+    var largeur = (el.liste.clientWidth - (colonnes - 1) * 18) / colonnes;
+    etat.densite = largeur >= 420 ? 1 : largeur >= 330 ? 2 : largeur >= 250 ? 3 : 4;
+    for (var n = 1; n <= 4; n++) el.liste.classList.toggle("d" + n, n === etat.densite);
   }
 
   /** La hauteur d'une ligne, pour que la catégorie ENTIÈRE tienne à l'écran. */

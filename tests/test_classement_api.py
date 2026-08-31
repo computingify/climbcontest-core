@@ -242,3 +242,17 @@ class TestIsolationDesCompetitions:
         noms = {l.participant_id for c in resultat.values() for l in c.lignes}
         anciens = {p.id for p in Participant.query.filter_by(competition_id=autre.id)}
         assert not (noms & anciens), "un participant d'une autre competition est apparu"
+
+
+class TestOrdreDesClassements:
+    """L'ordre de la réponse est l'ordre de la barre, donc l'ordre du cycle sur
+    le mur. Trié sur le seul nom de type, « club » passait AVANT « scratch »."""
+
+    def test_categories_puis_circuits_puis_scratchs_puis_club(self, client, jeu):
+        from climbcontest.contest import enregistrer_reussite
+        enregistrer_reussite(jeu["participants"][0], jeu["blocs"][0])
+        d = client.get("/api/public/classement").get_json()
+        types = [c["type"] for c in d["classements"]]
+        attendu = {"categorie": 0, "circuit": 1, "scratch": 2, "club": 3}
+        rangs = [attendu[t] for t in types]
+        assert rangs == sorted(rangs), f"ordre inattendu : {types}"

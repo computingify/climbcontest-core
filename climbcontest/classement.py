@@ -57,6 +57,23 @@ class ParticipantCalcul:
         return self.categorie.rsplit(" ", 1)[0] if " " in self.categorie else self.categorie
 
 
+GENRES = ("F", "H")
+SCRATCH = "Scratch"
+
+
+def genre_de(categorie: str | None) -> str | None:
+    """« U13 F » → « F ». None si la catégorie n'en porte pas.
+
+    Le club écrit « F » et « H ». Une catégorie sans genre — ça existe, l'import
+    est tolérant — ne rejoint aucun des deux scratchs genrés, mais figure bien
+    au scratch général : elle est venue grimper.
+    """
+    if not categorie or " " not in categorie:
+        return None
+    suffixe = categorie.rsplit(" ", 1)[1].upper()
+    return suffixe if suffixe in GENRES else None
+
+
 @dataclass(frozen=True)
 class BlocCalcul:
     id: int
@@ -173,6 +190,10 @@ def _valider_par_couleur(
     return etendues
 
 
+def blocs_du_circuit(blocs: dict[int, BlocCalcul], circuit: str) -> set[int]:
+    return {b.id for b in blocs.values() if circuit in b.circuits}
+
+
 def calculer_groupe(
     groupe: str,
     type_groupe: str,
@@ -182,7 +203,7 @@ def calculer_groupe(
     reussites_par_participant: dict[int, set[int]],
     couleurs_requises: int = 0,
 ) -> Classement:
-    """Calcule le classement d'un groupe. Fonction pure."""
+    """Calcule le classement d'un groupe d'UN SEUL circuit. Fonction pure."""
     classement = Classement(groupe=groupe, type=type_groupe, circuit=circuit)
 
     if circuit is None:
@@ -190,18 +211,83 @@ def calculer_groupe(
             f"« {groupe} » n'a pas de circuit : classement vide")
         return classement
 
-    blocs_du_circuit = {b.id for b in blocs.values() if circuit in b.circuits}
-    if not blocs_du_circuit:
+    du_circuit = blocs_du_circuit(blocs, circuit)
+    if not du_circuit:
         classement.avertissements.append(
             f"aucun bloc n'appartient au circuit « {circuit} »")
 
-    # 1. Ce qui compte pour chaque membre : ses réussites, limitées aux blocs du
-    #    circuit, éventuellement étendues par la règle des couleurs.
+    return _classer(classement, membres, {m.id: du_circuit for m in membres},
+                    blocs, reussites_par_participant, couleurs_requises)
+
+
+def calculer_scratch(
+    groupe: str,
+    membres: list[ParticipantCalcul],
+    blocs: dict[int, BlocCalcul],
+    reussites_par_participant: dict[int, set[int]],
+    couleurs_requises: int = 0,
+) -> Classement:
+    """Un classement qui TRAVERSE les circuits : tout le monde, ou tout un genre.
+
+    Demandé par Adrien le 31/08 : « un scratch où il y a tout le monde, et un
+    scratch homme, un autre femme ».
+
+    La règle ne change pas d'un iota — elle est seulement appliquée à un groupe
+    plus large. Chaque membre reste jugé sur **les blocs de SON circuit** (un
+    U11 n'a jamais pu essayer les blocs U17), et la valeur d'un bloc reste
+    `1000 / nombre de membres du groupe l'ayant réussi`.
+
+    ⚠️ **Les scores d'un scratch ne sont comparables qu'entre eux.** J'ai
+    d'abord écrit ici qu'une fille garderait le score de sa catégorie ; c'est
+    faux, et la fixture de novembre 2025 le montre en une exécution : un bloc
+    appartient souvent à **plusieurs circuits** (`['U11', 'U13']`). Le
+    dénominateur d'un scratch compte donc des grimpeurs que la catégorie ne
+    comptait pas, et le score change — 54 écarts sur 57 grimpeuses.
+
+    C'est la règle du classeur, appliquée telle quelle : la valeur d'un bloc est
+    relative au groupe qu'on classe. Deux conséquences à dire au micro plutôt
+    qu'à découvrir devant le podium :
+
+    - un grimpeur a un score DIFFÉRENT dans chaque classement où il figure —
+      c'était déjà vrai entre sa catégorie et son circuit ;
+    - un groupe plus petit donne des blocs plus chers, donc des scores plus
+      hauts. Le premier du scratch féminin peut afficher davantage que le
+      premier du scratch général sans avoir grimpé davantage.
+
+    Un scratch qui traverse les circuits compare de toute façon des grimpeurs
+    qui n'ont pas grimpé les mêmes blocs. C'est une lecture transversale, pas un
+    titre : la catégorie reste le résultat officiel.
+    """
+    classement = Classement(groupe=groupe, type="scratch", circuit=None)
+    cache: dict[str, set[int]] = {}
+    par_membre: dict[int, set[int]] = {}
+    for m in membres:
+        if m.circuit not in cache:
+            cache[m.circuit] = blocs_du_circuit(blocs, m.circuit)
+        par_membre[m.id] = cache[m.circuit]
+    return _classer(classement, membres, par_membre, blocs,
+                    reussites_par_participant, couleurs_requises)
+
+
+def _classer(
+    classement: Classement,
+    membres: list[ParticipantCalcul],
+    blocs_par_membre: dict[int, set[int]],
+    blocs: dict[int, BlocCalcul],
+    reussites_par_participant: dict[int, set[int]],
+    couleurs_requises: int,
+) -> Classement:
+    """Le calcul lui-même. `blocs_par_membre` porte le filtre par circuit —
+    identique pour tout le monde dans un groupe d'un seul circuit, propre à
+    chacun dans un scratch qui les traverse."""
+    # 1. Ce qui compte pour chaque membre : ses réussites, limitées aux blocs de
+    #    son circuit, éventuellement étendues par la règle des couleurs.
     tenues: dict[int, set[int]] = {}
     for m in membres:
-        brutes = reussites_par_participant.get(m.id, set()) & blocs_du_circuit
+        autorises = blocs_par_membre.get(m.id, set())
+        brutes = reussites_par_participant.get(m.id, set()) & autorises
         tenues[m.id] = _valider_par_couleur(
-            brutes, blocs, blocs_du_circuit, couleurs_requises)
+            brutes, blocs, autorises, couleurs_requises)
 
     # 2. La valeur d'un bloc dépend de CE groupe : 1000 / le nombre de membres
     #    qui l'ont réussi. Un même bloc ne vaut pas la même chose ailleurs.
@@ -345,5 +431,45 @@ def calculer_tout(
         resultats[circuit] = calculer_groupe(
             circuit, "circuit", circuit, membres, blocs,
             reussites_par_participant, couleurs_requises)
+
+    resultats.update(_scratchs(participants, par_circuit, blocs,
+                               reussites_par_participant, couleurs_requises))
+    return resultats
+
+
+def _scratchs(participants, par_circuit, blocs, reussites_par_participant,
+              couleurs_requises) -> dict[str, Classement]:
+    """Le scratch général, et un par genre.
+
+    On ne les produit que s'ils APPRENNENT quelque chose :
+
+    - le scratch général demande **plus d'un circuit**, sinon il répète mot pour
+      mot le « U13 scratch » qui est juste à côté ;
+    - les scratchs genrés demandent **les deux genres**, sinon celui qui existe
+      répète le scratch général.
+
+    Un classement qui double son voisin ne fait pas gagner de temps : il fait
+    douter de celui qu'on regarde.
+    """
+    tous = [p for p in participants if p.circuit]
+    if len(par_circuit) < 2 or not tous:
+        return {}
+
+    resultats = {SCRATCH: calculer_scratch(
+        SCRATCH, tous, blocs, reussites_par_participant, couleurs_requises)}
+
+    par_genre: dict[str, list[ParticipantCalcul]] = defaultdict(list)
+    for p in tous:
+        genre = genre_de(p.categorie)
+        if genre:
+            par_genre[genre].append(p)
+
+    if len(par_genre) > 1:
+        for genre in GENRES:
+            if par_genre.get(genre):
+                nom = f"{SCRATCH} {genre}"
+                resultats[nom] = calculer_scratch(
+                    nom, par_genre[genre], blocs, reussites_par_participant,
+                    couleurs_requises)
 
     return resultats

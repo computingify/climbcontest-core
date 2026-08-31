@@ -11,7 +11,7 @@ from pathlib import Path
 import pytest
 
 from climbcontest.classement import (
-    BlocCalcul, ParticipantCalcul, calculer_groupe, calculer_tout,
+    BlocCalcul, ParticipantCalcul, calculer_clubs, calculer_groupe, calculer_tout,
 )
 
 FIXTURE = Path(__file__).resolve().parent.parent / "fixtures" / "contest-nov2025.json"
@@ -361,3 +361,116 @@ class TestAucuneReussite:
         c = calculer_groupe("U11 F", "categorie", "U11", [p(1), p(2), p(3)], BLOCS, {})
         assert [l.score for l in c.lignes] == [0, 0, 0]
         assert [l.rang for l in c.lignes] == [1, 1, 1]
+
+
+class TestScratchsQuiTraversentLesCircuits:
+    """Spec 017 — « un scratch où il y a tout le monde, et un scratch homme, un
+    autre femme » (Adrien, 31/08).
+
+    La règle ne change pas : chaque grimpeur reste jugé sur les blocs de SON
+    circuit, et la valeur d'un bloc reste relative au groupe classé. Ce qui
+    change, c'est la taille du groupe.
+    """
+
+    def jeu(self):
+        """Deux circuits, deux genres, un bloc partagé entre les deux circuits.
+
+        Le bloc partagé n'est pas un détail : 51 des 67 blocs de novembre 2025
+        appartiennent à plus d'un circuit. C'est lui qui fait qu'un scratch ne
+        rend pas les scores des catégories.
+        """
+        participants = [
+            ParticipantCalcul(id=1, dossard=1, categorie="U11 F"),
+            ParticipantCalcul(id=2, dossard=2, categorie="U11 H"),
+            ParticipantCalcul(id=3, dossard=3, categorie="U13 F"),
+            ParticipantCalcul(id=4, dossard=4, categorie="U13 H"),
+        ]
+        blocs = {
+            1: BlocCalcul(id=1, tag="A1", couleur=None, circuits=frozenset({"U11"})),
+            2: BlocCalcul(id=2, tag="A2", couleur=None, circuits=frozenset({"U13"})),
+            3: BlocCalcul(id=3, tag="A3", couleur=None, circuits=frozenset({"U11", "U13"})),
+        }
+        reussites = {1: {1, 3}, 2: {1}, 3: {2, 3}, 4: {2}}
+        return participants, blocs, reussites
+
+    def test_les_trois_scratchs_sont_produits(self):
+        tous = calculer_tout(*self.jeu())
+        scratchs = {g for g, c in tous.items() if c.type == "scratch"}
+        assert scratchs == {"Scratch", "Scratch F", "Scratch H"}
+
+    def test_le_scratch_general_contient_tout_le_monde(self):
+        tous = calculer_tout(*self.jeu())
+        assert {l.participant_id for l in tous["Scratch"].lignes} == {1, 2, 3, 4}
+
+    def test_les_scratchs_genres_ne_melangent_pas(self):
+        tous = calculer_tout(*self.jeu())
+        assert {l.participant_id for l in tous["Scratch F"].lignes} == {1, 3}
+        assert {l.participant_id for l in tous["Scratch H"].lignes} == {2, 4}
+
+    def test_chacun_reste_juge_sur_les_blocs_de_son_circuit(self):
+        """Un U11 n'a jamais pu essayer les blocs U13 : ils ne doivent pas
+        entrer dans son compte, même quand le groupe les traverse."""
+        participants, blocs, reussites = self.jeu()
+        reussites[1] = {1, 2, 3}            # une réussite U13 pour une U11
+        tous = calculer_tout(participants, blocs, reussites)
+        ligne = next(l for l in tous["Scratch"].lignes if l.participant_id == 1)
+        assert ligne.blocs_reussis == 2     # le bloc 2 (U13) ne compte pas
+
+    def test_un_bloc_partage_fait_diverger_le_scratch_de_la_categorie(self):
+        """La propriété que j'avais annoncée à l'envers, et que la fixture de
+        novembre a démentie : avec un bloc partagé, le dénominateur du scratch
+        n'est pas celui de la catégorie."""
+        tous = calculer_tout(*self.jeu())
+        # Bloc 3, partagé U11/U13 : réussi par la fille U11 et la fille U13.
+        # En catégorie « U11 F » elle est seule -> le bloc vaut 1000.
+        # Au scratch F elles sont deux -> il vaut 500.
+        en_categorie = next(l for l in tous["U11 F"].lignes if l.participant_id == 1)
+        au_scratch = next(l for l in tous["Scratch F"].lignes if l.participant_id == 1)
+        assert en_categorie.score == 2000
+        assert au_scratch.score == 1500
+
+    def test_aucun_scratch_avec_un_seul_circuit(self):
+        """Il répéterait mot pour mot le classement juste à côté."""
+        participants = [ParticipantCalcul(id=1, dossard=1, categorie="U11 F"),
+                        ParticipantCalcul(id=2, dossard=2, categorie="U11 H")]
+        blocs = {1: BlocCalcul(id=1, tag="A1", couleur=None,
+                               circuits=frozenset({"U11"}))}
+        tous = calculer_tout(participants, blocs, {1: {1}, 2: {1}})
+        assert not [c for c in tous.values() if c.type == "scratch"]
+
+    def test_aucun_scratch_genre_si_un_seul_genre(self):
+        participants = [ParticipantCalcul(id=1, dossard=1, categorie="U11 F"),
+                        ParticipantCalcul(id=2, dossard=2, categorie="U13 F")]
+        blocs = {1: BlocCalcul(id=1, tag="A1", couleur=None, circuits=frozenset({"U11"})),
+                 2: BlocCalcul(id=2, tag="A2", couleur=None, circuits=frozenset({"U13"}))}
+        tous = calculer_tout(participants, blocs, {1: {1}, 2: {2}})
+        scratchs = {g for g, c in tous.items() if c.type == "scratch"}
+        assert scratchs == {"Scratch"}
+
+    def test_une_categorie_sans_genre_figure_au_general_pas_aux_genres(self):
+        participants = [
+            ParticipantCalcul(id=1, dossard=1, categorie="U11 F"),
+            ParticipantCalcul(id=2, dossard=2, categorie="U13 H"),
+            ParticipantCalcul(id=3, dossard=3, categorie="U11"),   # sans genre
+        ]
+        blocs = {1: BlocCalcul(id=1, tag="A1", couleur=None, circuits=frozenset({"U11"})),
+                 2: BlocCalcul(id=2, tag="A2", couleur=None, circuits=frozenset({"U13"}))}
+        tous = calculer_tout(participants, blocs, {1: {1}, 2: {2}, 3: {1}})
+        assert 3 in {l.participant_id for l in tous["Scratch"].lignes}
+        assert 3 not in {l.participant_id for l in tous["Scratch F"].lignes}
+        assert 3 not in {l.participant_id for l in tous["Scratch H"].lignes}
+
+    def test_le_classement_club_ignore_les_scratchs(self):
+        """Il additionne les CATÉGORIES : compter aussi les scratchs
+        compterait chaque grimpeur trois fois de plus."""
+        participants = [
+            ParticipantCalcul(id=1, dossard=1, categorie="U11 F", club="Annonay"),
+            ParticipantCalcul(id=2, dossard=2, categorie="U13 H", club="Annonay"),
+        ]
+        blocs = {1: BlocCalcul(id=1, tag="A1", couleur=None, circuits=frozenset({"U11"})),
+                 2: BlocCalcul(id=2, tag="A2", couleur=None, circuits=frozenset({"U13"}))}
+        tous = calculer_tout(participants, blocs, {1: {1}, 2: {2}})
+        club = calculer_clubs(tous, participants)
+        attendu = (next(l for l in tous["U11 F"].lignes).score
+                   + next(l for l in tous["U13 H"].lignes).score)
+        assert club.lignes[0].score == attendu

@@ -19,6 +19,23 @@ qu'on ne met pas à jour le matin d'une compétition :
 
 ## [Non publié]
 
+### Ajouté
+
+- **Trois classements qui traversent les circuits** (spec 017) : `Scratch` avec
+  tout le monde, `Scratch F` et `Scratch H`. La règle du classeur est appliquée
+  telle quelle — chacun reste jugé sur les blocs de **son** circuit, et la valeur
+  d'un bloc reste relative au groupe classé. Ils défilent sur le mur avec les
+  autres et se choisissent au doigt sur téléphone.
+  ⚠️ **Les scores d'un scratch ne sont comparables qu'entre eux.** 51 blocs sur
+  67 appartiennent à plusieurs circuits : le dénominateur d'un scratch compte
+  des grimpeurs que la catégorie ne comptait pas, et le score change. Un groupe
+  plus petit donne des blocs plus chers — sur novembre 2025, la première du
+  scratch féminin affiche 5110 quand le premier du général affiche 4978, sans
+  avoir grimpé davantage. **La catégorie reste le résultat officiel.**
+- **La page retire de l'information quand la place manque**, au lieu de tronquer :
+  d'abord le numéro de dossard, puis le club, puis le compte de blocs. Le nom et
+  le score ne partent jamais. « Les Lezards Vagab… · n° » ne renseignait personne.
+
 ### Modifié
 
 - **Le classement se lit dans un seul sens.** Le podium est une rangée — 1, 2, 3
