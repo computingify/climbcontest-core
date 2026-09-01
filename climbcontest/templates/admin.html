@@ -294,6 +294,56 @@
   ol.etapes strong { color: var(--encre); }
   code { font-family: var(--chiffre); font-size: 0.85em; background: var(--surface2);
          border-radius: 5px; padding: 1px 6px; }
+
+  /* La carte destructrice (spec 018). Elle porte une bordure rouge ENTIERE,
+     pas seulement un bouton rouge : ce qui doit se voir, c'est la zone, avant
+     meme d'avoir lu le libelle du bouton. */
+  .carte.danger { border-color: var(--alerte); }
+  .carte.danger h2 { color: var(--alerte); }
+
+  /* La fenetre de confirmation, partagee par les TROIS gestes destructeurs.
+     Un <dialog> natif : `showModal()` donne le focus piege, la touche Echap et
+     le voile, correctement, sans une ligne de JavaScript ni de bibliotheque. */
+  dialog {
+    border: 1px solid var(--trait); border-radius: 14px; padding: 0;
+    background: var(--surface); color: var(--encre); box-shadow: var(--ombre);
+    max-width: 30rem; width: calc(100vw - 32px);
+  }
+  dialog::backdrop { background: rgba(0, 0, 0, 0.45); }
+  dialog .dedans { padding: 22px 24px; }
+  dialog h2 { margin: 0 0 10px; font-size: 1.12rem; }
+  dialog .etat { margin: 14px 0; }
+  dialog menu {
+    display: flex; gap: 10px; justify-content: flex-end; flex-wrap: wrap;
+    margin: 0; padding: 14px 24px; border-top: 1px solid var(--trait);
+    background: var(--surface2); border-radius: 0 0 14px 14px;
+  }
+  dialog menu button { margin-top: 0; }
+  dialog button.detruire {
+    cursor: pointer; font: inherit; font-weight: 600;
+    background: var(--alerte); color: #fff; border: 0;
+    border-radius: 9px; padding: 10px 18px;
+  }
+  dialog button.detruire:disabled { opacity: 0.4; cursor: not-allowed; }
+  .coche { display: flex; gap: 9px; align-items: flex-start; margin: 14px 0;
+           font-size: 0.9rem; color: var(--encre2); }
+  .coche input { margin-top: 3px; }
+
+  /* L'etat de l'edition : trois choix cote a cote, pas une liste deroulante.
+     Le statut courant doit se lire sans ouvrir quoi que ce soit. */
+  fieldset.rangee { display: flex; gap: 10px; flex-wrap: wrap;
+                    border: 0; padding: 0; margin: 0; }
+  fieldset.rangee legend { padding: 0; margin-bottom: 10px;
+                           font-size: 0.82rem; color: var(--encre2); }
+  fieldset.rangee label {
+    cursor: pointer; border: 1px solid var(--trait); border-radius: 9px;
+    padding: 9px 16px; font-size: 0.9rem; font-weight: 600;
+    background: var(--surface2);
+  }
+  fieldset.rangee label:has(input:checked) {
+    border-color: var(--accent); background: var(--surface3); color: var(--encre);
+  }
+  fieldset.rangee input { position: absolute; opacity: 0; pointer-events: none; }
 </style>
 </head>
 <body>
@@ -354,6 +404,14 @@
       <button data-vue="classeur" id="navClasseur" hidden>
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18"/><path d="M9 21V9"/></svg>
         <span class="quoi"><b>Classeur</b><i>La feuille Google et son jeton</i></span>
+      </button>
+      <button data-vue="competition" id="navCompetition" hidden>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M8 21h8"/><path d="M12 17v4"/><path d="M17 4h3a1 1 0 0 1 1 1v2a4 4 0 0 1-4 4"/><path d="M7 4H4a1 1 0 0 0-1 1v2a4 4 0 0 0 4 4"/><path d="M7 3h10v7a5 5 0 0 1-10 0Z"/></svg>
+        <span class="quoi"><b>Compétition</b><i>Importer, archiver, effacer</i></span>
+      </button>
+      <button data-vue="archives" id="navArchives">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="5" rx="1"/><path d="M4 9v10a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1V9"/><path d="M10 13h4"/></svg>
+        <span class="quoi"><b>Archives</b><i>Les éditions passées</i></span>
       </button>
       <button data-vue="reglages">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.6 1.65 1.65 0 0 0 10 3.09V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9c.14.36.4.66.74.86"/></svg>
@@ -624,6 +682,119 @@
       </div>
     </section>
 
+    <!-- ================= Compétition (spec 018) ================= -->
+    <section class="vue" id="vueCompetition" hidden>
+      <div class="titre-vue">
+        <h1>Compétition</h1>
+        <p>Le cycle d'une édition : on importe le classeur, on grimpe, on
+           archive, on efface, et on recommence. Les quatre gestes sont ici,
+           dans cet ordre.</p>
+      </div>
+
+      <div class="carte">
+        <h2>État de l'édition</h2>
+        <p class="aide">Une étiquette, pas un interrupteur : elle ne commande
+           ni les scans, ni le classement, ni les téléphones. Elle sert à se
+           dire où on en est — et c'est elle qui fait demander confirmation
+           deux fois avant d'effacer une compétition en cours.</p>
+        <fieldset class="rangee" id="rangeeStatut">
+          <legend>Cette compétition est</legend>
+          <label><input type="radio" name="statutCompetition" value="preparation"> En préparation</label>
+          <label><input type="radio" name="statutCompetition" value="en_cours"> En cours</label>
+          <label><input type="radio" name="statutCompetition" value="terminee"> Terminée</label>
+        </fieldset>
+        <dl class="etat" id="etatCompetition"></dl>
+      </div>
+
+      <div class="carte">
+        <h2>Importer le classeur</h2>
+        <p class="aide">Relit les onglets <strong>Listes</strong> et
+           <strong>Plan</strong> : les grimpeurs, les blocs, les circuits — et
+           donc le contenu des QR codes, qui en découle. Le classeur n'est
+           jamais modifié, seulement lu.</p>
+
+        <fieldset class="choix">
+          <legend>Et les données déjà en base ?</legend>
+          <label>
+            <input type="radio" name="modeImport" value="mise_a_jour" checked>
+            <span class="quoi"><b>Mise à jour</b>
+              <i>Ajoute ce qui manque et corrige ce qui a changé dans le
+                 classeur. N'efface rien. Les participants ajoutés à la main ne
+                 sont jamais écrasés.</i></span>
+          </label>
+          <label class="danger">
+            <input type="radio" name="modeImport" value="remplacer">
+            <span class="quoi"><b>Remplacement complet</b>
+              <i>Efface participants, blocs, circuits et
+                 <strong>réussites</strong> du serveur, puis importe. Pour
+                 brancher une nouvelle édition sur une base qui porte encore la
+                 précédente.</i></span>
+          </label>
+        </fieldset>
+
+        <button class="action" id="btnImporter">Importer</button>
+        <div id="rapportImport" hidden></div>
+      </div>
+
+      <div class="carte">
+        <h2>Archiver l'édition</h2>
+        <p class="aide">Fige le classement complet et passe la compétition en
+           <strong>terminée</strong>. <strong>Rien n'est effacé</strong> :
+           l'archive et les données coexistent. Elle reste consultable dans
+           « Archives », et téléchargeable pour en avoir une copie hors du
+           serveur.</p>
+        <p class="aide">C'est le geste à faire <strong>avant</strong> d'effacer :
+           une fois les données parties, l'archive est la seule mémoire de
+           l'édition.</p>
+        <button class="action" id="btnArchiver">Archiver la compétition</button>
+      </div>
+
+      <div class="carte danger">
+        <h2>Effacer les données du serveur</h2>
+        <p class="aide">Pour repartir de zéro sur une nouvelle édition.</p>
+        <dl class="etat">
+          <dt>Effacé</dt>
+          <dd>Participants, blocs, circuits, réussites et réaffectations de
+              dossard de la compétition active</dd>
+          <dt>Conservé</dt>
+          <dd>Les autres compétitions, les comptes de la console,
+              <strong>les archives</strong>, et <strong>le classeur Google —
+              pas une cellule n'est touchée</strong></dd>
+        </dl>
+        <p class="aide">Le classeur reste relié : on efface le plus souvent
+           pour réimporter proprement la même feuille.</p>
+        <button class="secondaire" id="btnEffacer"
+                style="border-color:var(--alerte);color:var(--alerte)">Effacer les données…</button>
+      </div>
+    </section>
+
+    <!-- ================= Archives (spec 018) ================= -->
+    <section class="vue" id="vueArchives" hidden>
+      <div class="titre-vue">
+        <h1>Archives</h1>
+        <p>Les éditions figées. « Revoir » rouvre la vraie page de résultats —
+           podium, classements, scratchs — alimentée par le classement archivé.
+           C'est de la consultation : rien n'est restauré, et la page publique
+           continue d'afficher la compétition active.</p>
+      </div>
+
+      <div class="carte">
+        <h2>Les éditions archivées</h2>
+        <div class="scroll">
+          <table id="tableArchives">
+            <thead>
+              <tr><th>Édition</th><th>Date</th><th>Participants</th><th>Blocs</th>
+                  <th>Réussites</th><th>Archivée</th><th></th></tr>
+            </thead>
+            <tbody id="corpsArchives"></tbody>
+          </table>
+        </div>
+        <p class="aide" id="aucuneArchive" hidden style="margin-top:16px">
+          Aucune archive pour l'instant. La première se crée depuis
+          <strong>Compétition → Archiver l'édition</strong>.</p>
+      </div>
+    </section>
+
     <!-- ================= Réglages ================= -->
     <section class="vue" id="vueReglages" hidden>
       <div class="titre-vue">
@@ -672,6 +843,38 @@
       </div>
     </section>
   </main>
+
+  <!-- La fenetre de confirmation, PARTAGEE par les trois gestes destructeurs
+       (spec 018) : effacer les donnees, remplacer par un import, supprimer une
+       archive. Une seule mecanique a relire, et un seul endroit ou se tromper.
+
+       Un <dialog> natif : `showModal()` donne le focus piege, Echap et le
+       voile gratuitement et correctement. Une bibliotheque ou un faux modal en
+       `position: fixed` ferait moins bien, avec plus de code. -->
+  <dialog id="dlgConfirmer">
+    <form method="dialog">
+      <div class="dedans">
+        <h2 id="dlgTitre"></h2>
+        <p class="aide" id="dlgTexte"></p>
+        <dl class="etat" id="dlgCompteurs"></dl>
+        <p class="aide" id="dlgAlerte" hidden
+           style="border-left:4px solid var(--attention);padding-left:12px"></p>
+
+        <label class="coche" id="dlgBlocForcer" hidden>
+          <input type="checkbox" id="dlgForcer">
+          <span id="dlgTexteForcer"></span>
+        </label>
+
+        <label for="dlgMot">Écris <code>EFFACER</code> pour confirmer</label>
+        <input id="dlgMot" autocapitalize="characters" spellcheck="false"
+               autocomplete="off" style="max-width:260px" placeholder="EFFACER">
+      </div>
+      <menu>
+        <button value="annuler" class="secondaire" id="dlgAnnuler">Annuler</button>
+        <button value="ok" class="detruire" id="dlgOk" disabled>Effacer</button>
+      </menu>
+    </form>
+  </dialog>
 </div>
 <script>
 (function () {
@@ -710,12 +913,21 @@
     });
   }
 
+  var minuteurMessage = null;
+
   function dire(texte, genre) {
     var m = $("message");
     m.textContent = texte;
     m.className = genre || "";
     m.hidden = false;
-    if (genre === "ok") setTimeout(function () { m.hidden = true; }, 6000);
+    // ⚠️ Annuler le precedent AVANT d'en poser un nouveau. Sans ca, un message
+    // « ok » suivi d'un avertissement fait disparaitre L'AVERTISSEMENT six
+    // secondes plus tard : le minuteur du premier survit et masque ce qui l'a
+    // remplace. Seuls les messages « ok » s'effacent seuls -- une erreur ou un
+    // avertissement reste a l'ecran jusqu'au geste suivant.
+    clearTimeout(minuteurMessage);
+    minuteurMessage = genre === "ok"
+      ? setTimeout(function () { m.hidden = true; }, 6000) : null;
   }
 
   function signaler(e) {
@@ -750,6 +962,10 @@
     // administrateur, le serveur repond 403 aux autres. Masquer l'entree evite
     // d'offrir un ecran qui ne repondrait que des refus.
     $("navClasseur").hidden = etat.moi.roles.indexOf("admin") === -1;
+    // « Competition » porte l'archivage et l'effacement : administrateurs.
+    // « Archives » ne fait que consulter : tout le monde y a droit, et c'est
+    // volontaire -- revoir l'edition de l'an dernier n'est pas un privilege.
+    $("navCompetition").hidden = etat.moi.roles.indexOf("admin") === -1;
     chargerReferentiels();
     // Sur QUOI on agit. Sans ca, rien a l'ecran ne distingue la competition
     // de novembre d'une competition de test restee active.
@@ -784,6 +1000,8 @@
     reussites:    { titre: "Réussites",            charge: null },
     telephones:   { titre: "Téléphones des juges", charge: chargerAppareils },
     classeur:     { titre: "Classeur Google",      charge: chargerClasseur },
+    competition:  { titre: "Compétition",          charge: chargerCompetition },
+    archives:     { titre: "Archives",             charge: chargerArchives },
     reglages:     { titre: "Réglages",             charge: chargerComptesSiAdmin }
   };
 
@@ -1316,6 +1534,306 @@
     $("btnMonMdp").click();
   });
 
+  // --- La fenetre de confirmation, partagee (spec 018) -----------------------
+  //
+  // Trois gestes detruisent : effacer, remplacer par un import, supprimer une
+  // archive. Ils passent TOUS par ici. Ecrire trois fois la meme mecanique,
+  // c'est se donner trois occasions de la rater -- et c'est sur l'action la
+  // plus destructrice du produit.
+  //
+  // Rend une promesse : resolue avec {confirmation, forcer} si l'on confirme,
+  // JAMAIS resolue si l'on annule (la suite du geste ne doit alors rien faire).
+
+  function confirmer(options) {
+    var dlg = $("dlgConfirmer");
+    $("dlgTitre").textContent = options.titre;
+    $("dlgTexte").textContent = options.texte;
+    $("dlgOk").textContent = options.libelle || "Effacer";
+
+    var dl = $("dlgCompteurs");
+    dl.innerHTML = "";
+    (options.compteurs || []).forEach(function (paire) {
+      ligneEtat(dl, paire[0], paire[1]);
+    });
+
+    $("dlgAlerte").hidden = !options.alerte;
+    $("dlgAlerte").textContent = options.alerte || "";
+
+    // La case n'apparait QUE quand la garde se declenche. La voir en
+    // permanence apprendrait a la cocher sans lire.
+    $("dlgBlocForcer").hidden = !options.forcable;
+    $("dlgForcer").checked = false;
+    $("dlgTexteForcer").textContent = options.texteForcer || "Effacer quand même";
+
+    $("dlgMot").value = "";
+
+    function jauger() {
+      // Le mot ET la case : le forcage s'AJOUTE a la confirmation, il ne la
+      // remplace pas. Deux gestes, deux intentions.
+      var mot = $("dlgMot").value.trim() === "EFFACER";
+      var coche = !options.forcable || $("dlgForcer").checked;
+      $("dlgOk").disabled = !(mot && coche);
+    }
+    $("dlgMot").oninput = jauger;
+    $("dlgForcer").onchange = jauger;
+    jauger();
+
+    return new Promise(function (resoudre) {
+      dlg.onclose = function () {
+        dlg.onclose = null;
+        if (dlg.returnValue === "ok") {
+          resoudre({ confirmation: $("dlgMot").value.trim(),
+                     forcer: options.forcable && $("dlgForcer").checked });
+        }
+      };
+      dlg.returnValue = "";
+      dlg.showModal();
+      $("dlgMot").focus();
+    });
+  }
+
+  // --- Compétition : statut, import, archivage, effacement (spec 018) --------
+
+  function peindreCompetition(d) {
+    etat.classeur = d;
+    var dl = $("etatCompetition");
+    dl.innerHTML = "";
+
+    var radios = document.querySelectorAll("input[name=statutCompetition]");
+    Array.prototype.forEach.call(radios, function (r) {
+      r.disabled = !d.competition;
+      r.checked = !!d.competition && r.value === d.competition.statut;
+    });
+
+    if (!d.competition) {
+      ligneEtat(dl, "Compétition", "aucune compétition active", "manque");
+      return;
+    }
+
+    ligneEtat(dl, "Compétition", d.competition.nom);
+    var c = d.compteurs;
+    ligneEtat(dl, "En base", c.participants + " participant(s), " + c.blocs
+                             + " bloc(s), " + c.reussites + " réussite(s)");
+    ligneEtat(dl, "Classeur", d.classeur.relie
+      ? lienVers(d.classeur.url, d.classeur.identifiant)
+      : "aucun classeur relié — l'import n'a rien à lire");
+  }
+
+  function chargerCompetition() {
+    $("rapportImport").hidden = true;
+    appeler("/admin/classeur").then(peindreCompetition).catch(signaler);
+    // Les archives AUSSI : c'est ce qui permet de dire « cette édition n'a
+    // jamais été archivée » dans la fenêtre de confirmation. Sans ce
+    // chargement, l'avertissement criait au loup tant qu'on n'avait pas
+    // visité la vue « Archives ».
+    if (!etat.archives) chargerArchives();
+  }
+
+  Array.prototype.forEach.call(
+    document.querySelectorAll("input[name=statutCompetition]"), function (radio) {
+      radio.addEventListener("change", function () {
+        appeler("/admin/competition/statut", {
+          methode: "POST", corps: { statut: radio.value },
+        }).then(function (d) {
+          dire("Compétition marquée « " + d.statut.replace("_", " ") + " ».", "ok");
+          chargerCompetition();
+        }).catch(function (e) { signaler(e); chargerCompetition(); });
+      });
+    });
+
+  function modeImport() {
+    var coche = document.querySelector("input[name=modeImport]:checked");
+    return coche ? coche.value : "mise_a_jour";
+  }
+
+  function lancerImport(corps) {
+    var bouton = $("btnImporter");
+    bouton.disabled = true;
+    appeler("/admin/import/sheet", { methode: "POST", corps: corps })
+      .then(function (d) {
+        peindreImport(d.rapport, $("rapportImport"));
+        dire("Classeur importé : " + d.rapport.resume, "ok");
+        chargerCompetition();
+      }).catch(signaler).then(function () { bouton.disabled = false; });
+  }
+
+  $("btnImporter").addEventListener("click", function () {
+    if (modeImport() !== "remplacer") return lancerImport({ mode: "mise_a_jour" });
+
+    var c = (etat.classeur && etat.classeur.compteurs) || {};
+    var comp = etat.classeur && etat.classeur.competition;
+    confirmer({
+      titre: "Remplacement complet",
+      texte: "Les données du serveur sont effacées, puis le classeur est "
+           + "importé. Le classeur Google, lui, n'est pas modifié.",
+      compteurs: [["Effacé", (c.participants || 0) + " participant(s), "
+                             + (c.blocs || 0) + " bloc(s), "
+                             + (c.reussites || 0) + " réussite(s)"]],
+      alerte: alerteArchive(c),
+      forcable: !!comp && comp.statut === "en_cours",
+      texteForcer: "Cette compétition est marquée EN COURS. Remplacer quand même.",
+      libelle: "Effacer et importer",
+    }).then(function (reponse) {
+      lancerImport({ mode: "remplacer", confirmation: reponse.confirmation,
+                     forcer: reponse.forcer });
+    });
+  });
+
+  function alerteArchive(compteurs) {
+    // On n'empeche pas : on previent. Effacer des donnees de test sans les
+    // archiver est parfaitement normal ; effacer une vraie edition sans
+    // l'avoir archivee ne l'est pas, et personne ne s'en apercevrait apres.
+    if (!compteurs || !compteurs.reussites) return null;
+    // `undefined` = la liste n'a pas encore répondu. On se tait plutôt que
+    // d'affirmer quelque chose qu'on ne sait pas.
+    if (!etat.archives || etat.archives.length) return null;
+    return "Cette édition porte " + compteurs.reussites + " réussite(s) et "
+         + "n'a jamais été archivée. Une fois effacée, il n'en restera rien.";
+  }
+
+  $("btnArchiver").addEventListener("click", function () {
+    var bouton = this;
+    bouton.disabled = true;
+    appeler("/admin/archives", { methode: "POST" }).then(function (d) {
+      // Un seul message. Deux appels successifs à `dire` s'écraseraient l'un
+      // l'autre — et on perdrait justement celui qui prévient.
+      var avertissements = d.avertissements || [];
+      dire("Édition archivée : " + d.archive.participants + " participant(s), "
+           + d.archive.reussites + " réussite(s). La compétition est marquée "
+           + "terminée — rien n'a été effacé."
+           + (avertissements.length ? " — " + avertissements.join(" ") : ""),
+           avertissements.length ? "attention" : "ok");
+      chargerCompetition();
+      chargerArchives();
+    }).catch(signaler).then(function () { bouton.disabled = false; });
+  });
+
+  $("btnEffacer").addEventListener("click", function () {
+    var c = (etat.classeur && etat.classeur.compteurs) || {};
+    var comp = etat.classeur && etat.classeur.competition;
+    confirmer({
+      titre: "Effacer les données du serveur",
+      texte: "Les archives, les comptes et le classeur Google ne sont pas "
+           + "touchés. Il n'y a pas de retour en arrière.",
+      compteurs: [
+        ["Compétition", comp ? comp.nom : "aucune"],
+        ["Participants", String(c.participants || 0)],
+        ["Blocs", String(c.blocs || 0)],
+        ["Réussites", String(c.reussites || 0)],
+      ],
+      alerte: alerteArchive(c),
+      forcable: !!comp && comp.statut === "en_cours",
+      texteForcer: "Cette compétition est marquée EN COURS. Effacer quand même.",
+      libelle: "Effacer définitivement",
+    }).then(function (reponse) {
+      appeler("/admin/donnees/effacer", {
+        methode: "POST",
+        corps: { confirmation: reponse.confirmation, forcer: reponse.forcer },
+      }).then(function (d) {
+        var e = d.efface;
+        dire("Effacé : " + e.participants + " participant(s), " + e.blocs
+             + " bloc(s), " + e.reussites + " réussite(s). Le classeur reste "
+             + "relié — « Importer » repeuple la base.", "ok");
+        chargerCompetition();
+      }).catch(signaler);
+    });
+  });
+
+  // --- Archives -------------------------------------------------------------
+
+  function chargerArchives() {
+    return appeler("/admin/archives").then(function (d) {
+      etat.archives = d.archives;
+      peindreArchives(d.archives);
+    }).catch(signaler);
+  }
+
+  function peindreArchives(archives) {
+    var corps = $("corpsArchives");
+    corps.innerHTML = "";
+    $("aucuneArchive").hidden = archives.length > 0;
+    $("tableArchives").hidden = archives.length === 0;
+
+    archives.forEach(function (a) {
+      var tr = document.createElement("tr");
+
+      // textContent partout : le nom d'une competition est saisi a la main.
+      [a.nom, a.date || "—"].forEach(function (texte) {
+        var td = document.createElement("td");
+        td.textContent = texte;
+        tr.appendChild(td);
+      });
+      [a.participants, a.blocs, a.reussites].forEach(function (n) {
+        var td = document.createElement("td");
+        td.className = "num";
+        td.textContent = n;
+        tr.appendChild(td);
+      });
+
+      var quand = document.createElement("td");
+      quand.textContent = (a.cree_le || "").replace("T", " ").slice(0, 16)
+                        + (a.cree_par ? " · " + a.cree_par : "");
+      tr.appendChild(quand);
+
+      var actions = document.createElement("td");
+      actions.style.whiteSpace = "nowrap";
+
+      if (a.lisible) {
+        var revoir = document.createElement("a");
+        revoir.className = "secondaire";
+        revoir.style.cssText = "margin:0;padding:5px 10px;font-size:0.82rem";
+        revoir.href = "/console/archives/" + a.id + "/resultats";
+        revoir.target = "_blank";
+        revoir.rel = "noopener";
+        revoir.textContent = "Revoir";
+        actions.appendChild(revoir);
+      } else {
+        var muet = document.createElement("span");
+        muet.className = "sans";
+        muet.textContent = "format " + a.format + ", illisible par ce serveur";
+        actions.appendChild(muet);
+      }
+
+      var fichier = document.createElement("a");
+      fichier.className = "secondaire";
+      fichier.style.cssText = "margin:0 0 0 8px;padding:5px 10px;font-size:0.82rem";
+      fichier.href = "/admin/archives/" + a.id + "/fichier";
+      fichier.textContent = "Télécharger";
+      actions.appendChild(fichier);
+
+      if (etat.moi && etat.moi.roles.indexOf("admin") !== -1) {
+        var jeter = document.createElement("button");
+        jeter.className = "discret";
+        jeter.style.marginLeft = "8px";
+        jeter.textContent = "Supprimer";
+        jeter.addEventListener("click", function () { supprimerArchive(a); });
+        actions.appendChild(jeter);
+      }
+
+      tr.appendChild(actions);
+      corps.appendChild(tr);
+    });
+  }
+
+  function supprimerArchive(a) {
+    confirmer({
+      titre: "Supprimer cette archive",
+      texte: "Une archive ne se reconstruit pas : les données qu'elle décrit "
+           + "ont peut-être déjà été effacées du serveur.",
+      compteurs: [["Édition", a.nom + " — " + (a.date || "sans date")],
+                  ["Contient", a.participants + " participant(s), "
+                             + a.reussites + " réussite(s)"]],
+      libelle: "Supprimer l'archive",
+    }).then(function (reponse) {
+      appeler("/admin/archives/" + a.id, {
+        methode: "DELETE", corps: { confirmation: reponse.confirmation },
+      }).then(function () {
+        dire("Archive supprimée.", "ok");
+        chargerArchives();
+      }).catch(signaler);
+    });
+  }
+
   // --- Classeur Google (spec 015) -------------------------------------------
   //
   // Tout ce qui s'affiche ici vient soit de la base, soit de GOOGLE (le titre
@@ -1443,8 +1961,8 @@
     }).catch(signaler).then(function () { bouton.disabled = false; });
   });
 
-  function peindreImport(rapport) {
-    var bloc = $("rapportClasseur");
+  function peindreImport(rapport, bloc) {
+    bloc = bloc || $("rapportClasseur");
     bloc.innerHTML = "";
     bloc.hidden = false;
 
@@ -1456,6 +1974,16 @@
     ligneEtat(dl, "Blocs", rapport.blocs.crees + " créé(s), "
                   + rapport.blocs.mis_a_jour + " mis à jour, "
                   + rapport.circuits_crees + " circuit(s) créé(s)");
+    if (rapport.mode) {
+      ligneEtat(dl, "Mode", rapport.mode === "remplacer"
+        ? "remplacement complet — la base a été vidée avant l'import"
+        : "mise à jour — rien n'a été effacé");
+    }
+    if (rapport.efface) {
+      ligneEtat(dl, "Effacé avant import", rapport.efface.participants
+                    + " participant(s), " + rapport.efface.blocs + " bloc(s), "
+                    + rapport.efface.reussites + " réussite(s)");
+    }
     bloc.appendChild(dl);
 
     // Les lignes ignorees sont la moitie du travail : un import muet qui perd
