@@ -718,3 +718,74 @@ class TestPodiumExAequo:
         assert "surLePodium.length > 6" in page
         assert ".groupe.c6 .pod" in page
         assert ".groupe.c7" not in page
+
+
+class TestLeTableauEtSesTitresSontAlignes:
+    """Un tableau dont les titres ne sont pas au-dessus de leurs colonnes n'est
+    pas un tableau.
+
+    Signale par Adrien sur telephone : « SCORE » sortait de l'ecran et l'etoile
+    tombait a la ligne. Deux causes distinctes, toutes deux dans la meme
+    propriete heritee, `--grille-ligne` — et toutes deux presentes depuis la
+    spec 016.
+
+    Elle se resout PAR ELEMENT : les lignes l'heritent de `#liste`, les titres
+    de `#entetes`. Il suffit donc que les deux ne lisent pas la meme chose pour
+    que les deux grilles divergent, sans qu'aucune regle ne paraisse fausse.
+
+    Comme le reste de la mise en page, elle ne se simule pas ici. Ces tests
+    verrouillent les deux garde-fous ; les largeurs ont ete relevees au
+    navigateur par sonde CDP, de 320 a 1920 px.
+    """
+
+    def test_la_grille_ne_se_declare_que_sur_main(self, client, jeu):
+        """`#liste` portait sa propre valeur, et un `id` l'emporte sur tout.
+
+        Les lignes recevaient donc cinq colonnes en `em` pendant que les titres
+        en recevaient six en `--h` ou en `rem`. Sur le mur, la colonne « Blocs »
+        du titre faisait 27 px pour 54 px de contenu ; sur telephone, l'etoile
+        n'avait pas de colonne du tout et retombait a la ligne suivante.
+
+        Effet de bord : les largeurs en `--h` de la spec 016 n'ont jamais
+        atteint les lignes, restees sur les `em` que `#liste` figeait.
+        """
+        page = client.get("/").data.decode()
+        debut = page.index("  #liste {")
+        assert "--grille-ligne" not in page[debut:page.index("}", debut)], \
+            "seul `main` declare --grille-ligne"
+        for mort in ("#liste.d2", "#liste.d3", "#liste.d4"):
+            assert mort not in page, \
+                f"« {mort} » ne peut pas s'appliquer : les densites vivent sur `main`"
+
+    def test_hors_du_mur_la_grille_est_en_rem(self, client, jeu):
+        """`em` se resout sur l'element qui s'en sert : 16 px pour une ligne,
+        10,88 px pour un titre en `0.68rem`. La meme valeur donnait deux
+        grilles — 38 px de colonne « Rang » sur la ligne, 26 px sur son titre,
+        qui sortait en « RAN ». En `rem`, les deux tombent l'une sur l'autre.
+        """
+        page = client.get("/").data.decode()
+        for densite in ("main", "main.d1", "main.d2", "main.d3", "main.d4"):
+            ligne = [l for l in page.splitlines()
+                     if l.strip().startswith(f"body:not(.mur) {densite} {{")]
+            assert ligne, f"regle « body:not(.mur) {densite} » attendue"
+            assert "em " not in ligne[0].replace("rem ", ""), \
+                f"« body:not(.mur) {densite} » doit se mesurer en rem : {ligne[0].strip()}"
+
+    def test_une_colonne_peut_toujours_contenir_son_titre(self, client, jeu):
+        """« Blocs » est la colonne la plus etroite, et la seule qui n'y arrivait
+        pas : son titre cesse de retrecir a 0,6 rem pendant que la colonne, elle,
+        continue de suivre `--h`. Sous 62 px de hauteur de ligne, « BLOCS »
+        sortait en « BLOC »."""
+        page = client.get("/").data.decode()
+        assert "max(calc(var(--h) * .62), 2.4rem)" in page
+
+    def test_la_densite_compte_ce_qui_reste_vraiment_au_nom(self, client, jeu):
+        """Les seuils portaient sur la largeur TOTALE et ignoraient l'etoile,
+        les gouttieres et le rembourrage. A 470 px de fenetre, la page choisissait
+        la densite 3 en laissant 75 px au nom — « Vialle Jade » en demande 88, et
+        « Nieuviarts Martin » 139 (mesure au canevas)."""
+        page = client.get("/").data.decode()
+        assert "COUT_TELEPHONE" in page
+        assert "LARGEUR_NOM" in page
+        assert "largeur >= 520 ? 1" not in page, \
+            "l'ancien seuil sur la largeur totale ne doit pas revenir"

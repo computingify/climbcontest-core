@@ -19,6 +19,41 @@ qu'on ne met pas à jour le matin d'une compétition :
 
 ## [Non publié]
 
+### Corrigé
+
+- **Les titres de colonnes n'étaient au-dessus de leurs colonnes nulle part.**
+  Signalé par Adrien sur téléphone : « SCORE » sortait de l'écran et l'étoile
+  des favoris retombait à la ligne suivante. Deux causes distinctes, l'une et
+  l'autre présentes depuis la spec 016, l'une et l'autre dans `--grille-ligne`.
+
+  Cette propriété est **héritée**, donc résolue par élément : les lignes la
+  prennent de `#liste`, les titres de `#entetes`. Or `#liste` en portait sa
+  propre valeur — et un `id` l'emporte sur tout. Les lignes recevaient donc
+  cinq colonnes pendant que les titres en recevaient six, ce qui explique
+  l'étoile sans colonne, tombée à la ligne. Effet de bord du même défaut : les
+  largeurs proportionnelles à `--h`, posées pour l'écran projeté, **n'ont
+  jamais atteint les lignes** — elles sont restées sur des `em` figés.
+
+  Seconde cause, sur téléphone : les colonnes s'y mesuraient en `em`, qui se
+  résout sur l'élément qui s'en sert — 16 px pour une ligne, 10,88 px pour un
+  titre écrit en `0.68rem`. La même valeur donnait deux grilles différentes :
+  38 px de colonne « Rang » sur la ligne, 26 px sur son titre, qui sortait en
+  « RAN ». Les colonnes hors du mur se mesurent maintenant en `rem`.
+
+- **La colonne « Blocs » ne pouvait pas contenir son propre titre.** Son titre
+  cesse de rétrécir à 0,6 rem, son plancher, pendant que la colonne continue de
+  suivre la hauteur de ligne : sous 62 px, « BLOCS » sortait en « BLOC ». La
+  colonne a désormais un plancher, elle aussi.
+
+- **La densité, sur téléphone, se décidait sur la largeur totale** — sans
+  compter l'étoile, les gouttières ni le rembourrage de la ligne. À 470 px de
+  fenêtre, la page gardait donc les cinq colonnes chiffrées en laissant **75 px
+  au nom**, quand « Vialle Jade » en demande 88 et « Nieuviarts Martin » 139
+  (mesuré au canevas). Elle mesure maintenant ce qui reste vraiment au nom, et
+  replie le tableau en deux lignes avant de le tronquer. Vérifié de 320 à
+  1920 px : aucune largeur ne déborde, aucun titre n'est rogné, et le nom garde
+  au moins 140 px partout au-dessus de 360 px de fenêtre.
+
 ## [0.13.0] — 2026-09-01
 
 Le pilotage d'une édition passe entièrement dans la console — la créer, régler
