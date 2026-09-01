@@ -19,6 +19,44 @@ qu'on ne met pas à jour le matin d'une compétition :
 
 ## [Non publié]
 
+### Corrigé
+
+- **Le quatrième circuit n'était jamais importé.** `importer.py` figeait les
+  colonnes de circuit de l'onglet `Plan` à **J, L, N** — trois — parce que la
+  structure avait été relevée sur le classeur de mars 2026, qui n'en a que
+  trois. Le classeur de novembre 2025 en a **quatre** : `U17` vit en colonne
+  **P**, jamais lue.
+
+  Le circuit n'était donc pas créé, ses **37 blocs** n'étaient rattachés à rien,
+  et le classement `U17` sortait vide sur « aucun bloc n'appartient au circuit ».
+  Chaque réussite d'un grimpeur de ce circuit comptait pour **zéro**. Aucun
+  message, nulle part : ni dans le rapport d'import, ni dans le journal.
+
+  Les colonnes sont maintenant **découvertes dans la ligne d'en-tête** (J, L, N,
+  P, R — une sur deux, cinq au plus, ce que le classeur annonce lui-même en
+  `Listes!A1`). Et l'import **dit ce qu'il a lu** : « Circuits lus — U11
+  (colonne J) · U13 (colonne L) · U15 (colonne N) · U17 (colonne P) », dans le
+  rapport de la console comme dans le journal. C'est la ligne qu'on compare de
+  tête à ce qu'on attend ; sans elle, le prochain circuit manquant se
+  reperdrait en silence.
+
+- **« Enregistrer » ne restait plus muet en reliant un classeur.** Signalé par
+  Adrien pendant un test de bout en bout : mode *nouvelle compétition*, mot
+  `EFFACER` frappé, clic sur **Enregistrer** — rien. Il a fallu passer la
+  compétition en *préparation* depuis une autre vue pour que le geste aboutisse.
+
+  Deux causes. Le bouton posait un `window.confirm` nu et **n'envoyait jamais**
+  `forcer`, alors que la route l'accepte depuis la spec 018 ; et le refus 409 du
+  serveur s'affichait dans la zone de message, **tout en haut d'une page où l'on
+  se trouve 180 lignes plus bas**. Le message existait ; personne ne le voyait.
+
+  « Enregistrer » passe désormais par le **même dialogue** que « Importer » et
+  « Effacer » — compteurs, alerte d'archive, et la case « Cette compétition est
+  marquée EN COURS. Effacer quand même. » Le mot `EFFACER` se frappe dans la
+  fenêtre, plus dans la carte. Et toute la console fait maintenant **défiler sa
+  zone de message dans la vue** : un refus ne peut plus passer inaperçu, quelle
+  que soit la vue et la longueur de la page.
+
 ### Modifié
 
 - **Le podium et les tableaux côte à côte ne dépendent plus du mode mur, mais

@@ -652,9 +652,9 @@
         </fieldset>
 
         <div id="blocConfirmation" hidden style="margin-top:14px">
-          <label for="confirmationClasseur">Écris <code>EFFACER</code> pour confirmer</label>
-          <input id="confirmationClasseur" autocapitalize="characters"
-                 spellcheck="false" style="max-width:260px" placeholder="EFFACER">
+          <p class="aide">« Enregistrer » demandera confirmation, comme
+             « Importer » et « Effacer » : le mot <code>EFFACER</code> se frappe
+             dans la fenêtre qui s'ouvre.</p>
           <p class="aide" style="margin-top:10px">La feuille vidée est la
              <strong>nouvelle</strong>, jamais celle qu'on quitte. Les en-têtes
              (dossards en ligne 1, numéros de blocs en colonne A) sont
@@ -920,6 +920,15 @@
     m.textContent = texte;
     m.className = genre || "";
     m.hidden = false;
+    // ⚠️ La zone de message vit tout EN HAUT de la page, et les cartes qui
+    // agissent sont parfois 180 lignes plus bas. Sans ce défilement, un refus
+    // du serveur s'affichait hors écran : le bouton semblait n'avoir eu aucun
+    // effet, et on recommençait. C'est exactement ce qui est arrivé à Adrien
+    // le 01/09 en reliant un classeur sur une compétition marquée en cours.
+    //
+    // `nearest` : si le message est déjà visible, la page ne bouge pas d'un
+    // pixel. On ne déplace la vue que quand c'est nécessaire.
+    if (m.scrollIntoView) m.scrollIntoView({ block: "nearest" });
     // ⚠️ Annuler le precedent AVANT d'en poser un nouveau. Sans ca, un message
     // « ok » suivi d'un avertissement fait disparaitre L'AVERTISSEMENT six
     // secondes plus tard : le minuteur du premier survit et masque ce qui l'a
@@ -1974,6 +1983,14 @@
     ligneEtat(dl, "Blocs", rapport.blocs.crees + " créé(s), "
                   + rapport.blocs.mis_a_jour + " mis à jour, "
                   + rapport.circuits_crees + " circuit(s) créé(s)");
+    // Les circuits LUS, pas seulement les nouveaux, et la colonne d'où ils
+    // viennent. C'est la ligne qu'on compare de tête à ce qu'on attend : « il
+    // devrait y en avoir quatre ». Sans elle, un circuit manquant à l'import
+    // ne se voyait nulle part — et son classement sortait vide sans un mot.
+    if (rapport.circuits) {
+      ligneEtat(dl, "Circuits lus", rapport.circuits.length
+                    ? rapport.circuits.join(" · ") : "aucun");
+    }
     if (rapport.mode) {
       ligneEtat(dl, "Mode", rapport.mode === "remplacer"
         ? "remplacement complet — la base a été vidée avant l'import"
@@ -2031,31 +2048,57 @@
     return "Classeur relié. Les prochaines réussites partiront vers cette feuille.";
   }
 
+  function relierClasseur(corps) {
+    var bouton = $("btnRelier");
+    bouton.disabled = true;
+    appeler("/admin/classeur", { methode: "POST", corps: corps })
+      .then(function (d) {
+        peindreClasseur(d);
+        $("lienClasseur").value = "";
+        $("rapportClasseur").hidden = true;
+        dire(resumeEffets(d.effets), "ok");
+        // La barre du haut dit sur QUOI on agit : elle ne doit pas rester sur
+        // l'ancienne verite.
+        if (etat.moi && etat.moi.competition && d.competition) {
+          $("competitionBarre").textContent = d.competition.nom;
+        }
+      }).catch(signaler).then(function () { bouton.disabled = false; });
+  }
+
   $("btnRelier").addEventListener("click", function () {
     var mode = modeClasseur();
-    if (mode === "reinitialiser" && !window.confirm(
-        "Effacer les participants, les blocs et les réussites du serveur, "
-        + "et vider la matrice Import de la NOUVELLE feuille ?\n\n"
-        + "C'est sans retour.")) return;
+    if (mode !== "reinitialiser") return relierClasseur({
+      lien: $("lienClasseur").value, mode: mode,
+    });
 
-    var bouton = this;
-    bouton.disabled = true;
-    appeler("/admin/classeur", {
-      methode: "POST",
-      corps: { lien: $("lienClasseur").value, mode: mode,
-               confirmation: $("confirmationClasseur").value },
-    }).then(function (d) {
-      peindreClasseur(d);
-      $("lienClasseur").value = "";
-      $("confirmationClasseur").value = "";
-      $("rapportClasseur").hidden = true;
-      dire(resumeEffets(d.effets), "ok");
-      // La barre du haut dit sur QUOI on agit : elle ne doit pas rester sur
-      // l'ancienne verite.
-      if (etat.moi && etat.moi.competition && d.competition) {
-        $("competitionBarre").textContent = d.competition.nom;
-      }
-    }).catch(signaler).then(function () { bouton.disabled = false; });
+    // Le MEME dialogue que « Importer » et « Effacer ». Il ne se contente pas
+    // d'etre coherent : c'est lui qui porte la case « marquee EN COURS ».
+    // Avant, ce bouton posait un window.confirm nu et n'envoyait JAMAIS
+    // `forcer` -- le serveur repondait 409, le message s'affichait tout en haut
+    // d'une page ou on etait 180 lignes plus bas, et le geste paraissait
+    // n'avoir eu aucun effet. Signale par Adrien le 01/09.
+    var c = (etat.classeur && etat.classeur.compteurs) || {};
+    var comp = etat.classeur && etat.classeur.competition;
+    confirmer({
+      titre: "Nouvelle compétition — tout effacer",
+      texte: "Les participants, les blocs et les réussites du serveur sont "
+           + "effacés, et la matrice Import de la NOUVELLE feuille est vidée. "
+           + "Les archives, les comptes et l'ancienne feuille ne sont pas touchés.",
+      compteurs: [
+        ["Compétition", comp ? comp.nom : "aucune"],
+        ["Participants", String(c.participants || 0)],
+        ["Blocs", String(c.blocs || 0)],
+        ["Réussites", String(c.reussites || 0)],
+      ],
+      alerte: alerteArchive(c),
+      forcable: !!comp && comp.statut === "en_cours",
+      texteForcer: "Cette compétition est marquée EN COURS. Effacer quand même.",
+      libelle: "Effacer et relier",
+    }).then(function (reponse) {
+      relierClasseur({ lien: $("lienClasseur").value, mode: mode,
+                       confirmation: reponse.confirmation,
+                       forcer: reponse.forcer });
+    });
   });
 
   $("btnPoserJeton").addEventListener("click", function () {
