@@ -17,7 +17,7 @@ qu'on ne met pas à jour le matin d'une compétition :
 - **MINEUR** — nouvelle fonctionnalité, compatible.
 - **CORRECTIF** — correction, compatible.
 
-## [Non publié]
+## [0.14.0] — 2026-09-01
 
 ### Ajouté
 
@@ -88,6 +88,14 @@ qu'on ne met pas à jour le matin d'une compétition :
   Quand l'information manque — dossard inconnu, participant sans catégorie, bloc
   rattaché à aucun circuit — l'application **se tait**. Un avertissement qu'on ne
   sait pas justifier apprend à ignorer les avertissements.
+
+  ⚠️ **À l'exploitation** : la forme du catalogue rangé sur les téléphones passe
+  de 2 à 3. Chaque téléphone **retéléchargera son catalogue** au premier
+  lancement après ce déploiement — une requête, quelques kilo-octets. C'est le
+  marqueur de format qui le déclenche, et c'est voulu : sans lui, un téléphone
+  garderait un catalogue illisible que le `304` du serveur ne remplacerait
+  jamais. Le contrat d'API, lui, **ne bouge pas** — l'application Android
+  publiée (`V3.1.4`) parle aux mêmes routes qu'avant.
 
 
 ### Modifié
