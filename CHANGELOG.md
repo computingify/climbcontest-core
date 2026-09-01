@@ -36,8 +36,12 @@ pour figer une catégorie.
 - **La rotation se met en pause.** Un bouton ⏸ / ▶ dans le bandeau du mur, pour
   figer une catégorie — pendant une remise de prix, ou quand quelqu'un demande
   « laisse la U13 F ». La jauge s'arrête où elle en est et repart de là.
-- **Le temps d'affichage par catégorie est raccourci** : 5 s + 0,3 s par
-  grimpeur, entre 9 et 20 s (au lieu de 8 s + 0,55 s, entre 12 et 35 s).
+- **Le temps d'affichage d'une catégorie découle du défilement**, et non d'une
+  formule : une catégorie qui déborde reste le temps de descendre et de remonter
+  en entier — à ~55 px/s, plus trois respirations de 2,5 s. Une catégorie qui
+  tient à l'écran n'a rien à faire défiler : elle garde le plancher de 10 s.
+  Mesuré : 10 s pour « U11 F », 40 s pour le scratch général et ses 891 px de
+  débordement. `?mur&rotation=30` force toujours une durée fixe.
 - **Le défilement automatique est deux fois plus lent** (~55 px/s) et **remonte
   aussi doucement qu'il descend**. L'assouplissement est maintenant posé sur
   chaque intervalle et non sur l'animation entière : appliqué globalement, il
@@ -50,6 +54,10 @@ pour figer une catégorie.
 
 ### Corrigé
 
+- **Le défilement remonte à nouveau.** Les données sont relues toutes les quinze
+  secondes, et chaque relecture recréait l'animation : elle repartait du haut
+  avant d'avoir eu le temps de remonter, donc la remontée n'arrivait jamais. Une
+  animation qui court sur le même plateau est maintenant laissée en place.
 - **Le score n'est plus tronqué dans une petite catégorie.** Les colonnes d'une
   ligne se mesuraient en `em` — donc sur la police du conteneur, 16 px — pendant
   que leur contenu grandissait avec la hauteur de ligne. Sur une catégorie de

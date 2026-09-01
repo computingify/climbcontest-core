@@ -492,9 +492,13 @@
   var PERIME_MS = 60000;       // au-delà, l'âge passe en rouge
   // La rotation suit la TAILLE du plateau : le temps de lecture doit suivre ce
   // qu'il y a à lire. Une catégorie de 8 ne mérite pas les 30 s d'une de 26.
-  // Raccourcie le 01/09 : « le temps d'affichage par catégorie est trop long ».
-  var ROTATION_BASE_MS = 5000, ROTATION_PAR_GRIMPEUR_MS = 300;
-  var ROTATION_MIN_MS = 9000, ROTATION_MAX_MS = 20000;
+  // C'est le DÉFILEMENT qui commande le temps d'affichage, pas l'inverse
+  // (Adrien, 01/09) : une catégorie reste à l'écran le temps de descendre et de
+  // remonter en entier. Une catégorie qui tient d'un coup n'a rien à faire
+  // défiler : elle reste le temps minimum.
+  var VITESSE_DEFILEMENT = 55;      // px par seconde — la vitesse de lecture
+  var ARRET_MS = 2500;              // les respirations, en haut et en bas
+  var DUREE_MIN_MS = 10000;         // le plancher, pour une petite catégorie
   var ROTATION_FIXE_MS = parseFloat(params.get("rotation")) * 1000 || null;
 
   // Le mode mur ne montre que les classements SPORTIFS : catégories, circuits
@@ -529,6 +533,8 @@
     rangs: {},                 // groupe -> { participant: rang } du rendu précédent
     deltas: {},
     minuteurRotation: null,
+    dureeAffichage: 0,         // le temps que la catégorie reste à l'écran
+    signatureDefilement: null, // ce qui justifie de relancer le défilement
     enPause: false,            // la rotation, figée à la demande
     animationDefilement: null,
   };
@@ -1209,49 +1215,61 @@
 
   /** Quand le plateau déborde malgré tout, il DÉFILE — doucement, en boucle. */
   function programmerDefilement() {
-    if (etat.animationDefilement) { etat.animationDefilement.cancel(); etat.animationDefilement = null; }
-    el.liste.style.transform = "none";
-    if (!MUR) { el.defile.classList.remove("centre", "defilant"); return; }
-    if (sansMouvement()) {
-      el.defile.classList.remove("defilant");
-      el.defile.classList.toggle(
-        "centre", el.liste.scrollHeight - el.defile.clientHeight <= 8);
-      return;
-    }
-
-    var trop = el.liste.scrollHeight - el.defile.clientHeight;
-    el.defile.classList.toggle("centre", trop <= 8);
-    el.defile.classList.toggle("defilant", trop > 8);
-    if (trop <= 8) return;
-
-    // ~55 px par seconde : la vitesse à laquelle on lit une liste sans la
-    // suivre des yeux. Et la remontée dure EXACTEMENT aussi longtemps que la
-    // descente — l'ancienne version remontait d'un coup.
+    // ⚠️ On ne relance PAS une animation qui court déjà sur le même plateau.
     //
-    // L'assouplissement est posé sur chaque intervalle, pas sur l'animation
-    // entière : appliqué globalement, il rendait le milieu (la descente) rapide
-    // et la fin (la remontée) saccadée. Ici, descente et remontée démarrent et
-    // s'arrêtent en douceur, les deux pauses sont plates.
-    var course = Math.max(9000, (trop / 55) * 1000);
-    var arret = 3500;
-    var duree = course * 2 + arret * 2;
+    // Les données sont rafraîchies toutes les quinze secondes, et chaque
+    // rafraîchissement repeint. En recréant l'animation à chaque fois, le
+    // défilement repartait du haut avant d'avoir eu le temps de remonter : la
+    // remontée n'arrivait jamais. C'est le défaut vu par Adrien le 01/09.
+    //
+    // La signature dit ce qui, seul, justifie de repartir de zéro : un autre
+    // classement, un débordement franchement différent, une autre durée.
+    var trop = el.liste.scrollHeight - el.defile.clientHeight;
+    var deborde = trop > 8 && MUR && !sansMouvement();
+
+    el.defile.classList.toggle("centre", trop <= 8);
+    el.defile.classList.toggle("defilant", deborde);
+
+    // Le temps d'affichage DÉCOULE d'ici : descente + remontée + les trois
+    // respirations. Une catégorie qui tient à l'écran garde le plancher.
+    var course = deborde ? (trop / VITESSE_DEFILEMENT) * 1000 : 0;
+    etat.dureeAffichage = deborde
+      ? Math.round(course * 2 + ARRET_MS * 3)
+      : DUREE_MIN_MS;
+
+    var signature = etat.groupe + ":" + Math.round(trop / 20) + ":" + deborde;
+    if (etat.animationDefilement && etat.signatureDefilement === signature) return;
+
+    if (etat.animationDefilement) { etat.animationDefilement.cancel(); etat.animationDefilement = null; }
+    etat.signatureDefilement = signature;
+    el.liste.style.transform = "none";
+    if (!deborde) return;
+
+    // Le cycle EST le temps d'affichage : on souffle, on descend, on souffle en
+    // bas, on remonte, on souffle — et la catégorie bascule à ce moment-là.
+    var duree = etat.dureeAffichage;
+    var arret = ARRET_MS / duree;
+    var course2 = (duree - ARRET_MS * 3) / 2 / duree;
     var bas = "translateY(" + (-trop) + "px)";
+    // L'assouplissement est posé sur chaque intervalle, pas sur l'animation
+    // entière : appliqué globalement, il rendait la descente rapide et la
+    // remontée saccadée.
     etat.animationDefilement = el.liste.animate([
-      { transform: "translateY(0)", offset: 0,                            easing: "linear" },
-      { transform: "translateY(0)", offset: arret / duree,                easing: "ease-in-out" },
-      { transform: bas,             offset: (arret + course) / duree,     easing: "linear" },
-      { transform: bas,             offset: (arret * 2 + course) / duree, easing: "ease-in-out" },
+      { transform: "translateY(0)", offset: 0,                        easing: "linear" },
+      { transform: "translateY(0)", offset: arret,                    easing: "ease-in-out" },
+      { transform: bas,             offset: arret + course2,          easing: "linear" },
+      { transform: bas,             offset: arret * 2 + course2,      easing: "ease-in-out" },
+      { transform: "translateY(0)", offset: arret * 2 + course2 * 2,  easing: "linear" },
       { transform: "translateY(0)", offset: 1 },
     ], { duration: duree, iterations: Infinity, easing: "linear" });
   }
 
   // --- La rotation (mode mur) ----------------------------------------------
 
-  function dureeRotation(groupe) {
-    if (ROTATION_FIXE_MS) return ROTATION_FIXE_MS;
-    var n = groupe && groupe.lignes ? groupe.lignes.length : 0;
-    return Math.max(ROTATION_MIN_MS,
-           Math.min(ROTATION_MAX_MS, ROTATION_BASE_MS + n * ROTATION_PAR_GRIMPEUR_MS));
+  /** Le temps d'affichage retenu : celui que le défilement a calculé, ou la
+   *  durée forcée par l'adresse. */
+  function dureeRotation() {
+    return ROTATION_FIXE_MS || etat.dureeAffichage || DUREE_MIN_MS;
   }
 
   el.pause.hidden = !MUR;
@@ -1296,8 +1314,8 @@
     var visibles = groupesVisibles();
     if (visibles.length < 2) { jauger(0); return; }
 
-    var groupe = visibles.find(function (c) { return c.groupe === etat.groupe; }) || visibles[0];
-    var duree = dureeRotation(groupe);
+    // La MÊME durée que celle que le défilement vient de calculer.
+    var duree = dureeRotation();
     jauger(duree);
 
     etat.minuteurRotation = setTimeout(function () {

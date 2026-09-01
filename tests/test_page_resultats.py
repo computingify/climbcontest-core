@@ -290,6 +290,22 @@ class TestFaitePourEtreProjetee:
         assert "body.mur main.d1" in page
         assert "calc(var(--h) * 1.6)" in page
 
+    def test_le_temps_d_affichage_decoule_du_defilement(self, client, jeu):
+        """Adrien, 01/09 : « calcule le temps nécessaire pour faire une descente
+        puis une remontée avant de passer à la catégorie suivante, avec un temps
+        minimum pour les petites catégories ». C'est le défilement qui commande
+        la rotation, et non l'inverse."""
+        page = client.get("/").data.decode()
+        assert "VITESSE_DEFILEMENT" in page
+        assert "DUREE_MIN_MS" in page
+        assert "etat.dureeAffichage" in page
+
+    def test_le_defilement_survit_a_un_rafraichissement(self, client, jeu):
+        """Les données sont relues toutes les 15 s : en recréant l'animation à
+        chaque fois, elle repartait du haut et ne remontait jamais."""
+        page = client.get("/").data.decode()
+        assert "signatureDefilement" in page
+
     def test_la_rotation_peut_etre_mise_en_pause(self, client, jeu):
         page = client.get("/").data.decode()
         assert 'id="pause"' in page
