@@ -17,9 +17,10 @@ from .classement import COULEURS
 from .extensions import db
 from .models import Bloc, BlocCircuit, Circuit
 
-# La taille du QR sur le papier. Plus grand que celui d'une bande (22 mm) :
-# la fiche se tient à bout de bras, le juge scanne par-dessus l'épaule.
-COTE_QR_MM = 28.0
+# La taille du QR sur le papier, zone de silence comprise. 24 mm donnent
+# 0,83 mm par module sur un dossard à quatre chiffres — plus du double du
+# plancher de `qr.MODULE_MINI_MM`, et de quoi scanner à bout de bras.
+COTE_QR_MM = 24.0
 
 
 def REPERE(nom: str) -> tuple[str, str]:

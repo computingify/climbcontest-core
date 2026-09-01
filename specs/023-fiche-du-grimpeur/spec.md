@@ -39,36 +39,42 @@ main de la journée.
 
 ### F1 — Une fiche, quatre par A4
 
-> ⚠️ **Corrigé après coup.** Cette section disait « deux par A4 » — le choix
-> qu'Adrien avait fait à la porte 2, sur description. En voyant la planche
-> imprimée : « bien trop gros ». La taille du classeur se déduit de
-> `Listes!C29:C34`, qui compte les feuilles à imprimer par catégorie : « 5 »
-> pour 17 grimpeurs, « 6 » pour 21, « 7 » pour 28, « 3 » pour 11 — soit
-> `ceil(n / 4)` à chaque fois. **Quatre fiches par feuille**, donc, et c'est ce
-> qui est livré.
+> ⚠️ **Corrigé deux fois après coup**, et c'est l'illustration de pourquoi une
+> mise en page se montre au lieu de se décrire.
+>
+> 1. La spec disait « deux par A4 » — le choix qu'Adrien avait fait à la porte 2,
+>    **sur description**. En voyant la planche : « bien trop gros ».
+> 2. Le **nombre** se déduit de `Listes!C29:C34`, qui compte les feuilles à
+>    imprimer par catégorie : « 5 » pour 17 grimpeurs, « 6 » pour 21, « 7 » pour
+>    28, « 3 » pour 11 — soit `ceil(n / 4)`. J'en ai fait un **quart carré**
+>    (99 × 142,5 mm). Adrien : « les feuilles sont des A4, 21 × 29,7 ; c'est un
+>    peu pour ça que le format du Google Sheet était plus allongé ».
+> 3. Il a raison, et l'onglet le dit : une fiche y occupe **douze colonnes de
+>    large pour onze lignes de haut**. C'est une **bande**.
+>
+> 4. Puis : « il faut vraiment que ça rentre sur une feuille A4 pour minimum
+>    6 dossards ».
+>
+> Format livré : **six bandes de 194 × 47,5 mm** — 285 / 6 — sur un A4 portrait.
 
 
-`/admin/dossards` rend des fiches de **99 × 142,5 mm** — le quart exact de la
-surface utile d'un A4 portrait à 6 mm de marge. On coupe en croix, on obtient
-quatre fiches. Les paramètres `?dossard=` et `?categorie=` ne changent pas.
+`/admin/dossards` rend des bandes de **194 × 47,5 mm** — le sixième de la
+hauteur utile d'un A4 portrait à 6 mm de marge, coupé en largeur. Trois colonnes qui se
+lisent d'un coup d'œil : l'identité et le QR à gauche, les blocs au milieu, le
+mur à droite. Les paramètres `?dossard=` et `?categorie=` ne changent pas.
 
 ```
-┌──────────────────────────────────────────────────────────────────────┐
-│  ┌────┐                                                    ┌───────┐ │
-│  │ 42 │  Lecomte Camille                      U11 F        │  QR   │ │
-│  └────┘  Les Lézards Vagabonds                circuit U11  │  28mm │ │
-│                                                            └───────┘ │
-│ ─────────────────────────────────────────────┬──────────────────────  │
-│  TES 36 BLOCS                                │  LE MUR              │
-│  ┌────┬────┬────┬────┬────┬────┐             │       X  Y           │
-│  │ Z  │ D  │ A  │ M  │ I  │ J  │             │    D  Z   ⌐Escalier  │
-│  │ J6 │J10 │ J1 │J14 │ J7 │J15 │             │    C  B  A           │
-│  ├────┼────┼────┼────┼────┼────┤             │                      │
-│  │ …  │    │    │    │    │    │             │ L                    │
-│  └────┴────┴────┴────┴────┴────┘             │ M  K  J  I   H  G  F │
-│  J Jaune · V Vert · B Bleu · M Mauve         │ N            E       │
-│  · R Rouge · N Noir                          │    Haut              │
-└──────────────────────────────────────────────────────────────────────┘
+┌─────────────────┬───────────────────────────────┬──────────────────┐
+│ 42 Lecomte      │ TES 36 BLOCS                  │ LE MUR           │
+│    Camille      │ ●Jaune [Z J6][D J10][A J1]…   │      X  Y        │
+│ Les Lézards     │ ●Vert  [G V12][K V20]…        │   D  Z  Escalier │
+│ U11 F · U11     │ ●Bleu  [A B15][E B8]…         │   C  B  A        │
+│  ┌─────────┐    │ ●Mauve …                      │ L                │
+│  │   QR    │    │ ●Rouge …                      │ M  K  J  I H G F │
+│  │  21mm   │    │ ●Noir  …                      │ N          E     │
+│  └─────────┘    │                               │    Haut          │
+└─────────────────┴───────────────────────────────┴──────────────────┘
+                        194 x 71,25 mm
 ```
 
 ### F2 — Les blocs, dans l'ordre du classeur
@@ -138,6 +144,11 @@ zone U »*. Un bloc qu'on ne peut pas situer doit **se dire**, pas disparaître.
 - Le QR est **généré localement** (`qr.py`, `segno`) — le classeur, lui, appelle
   `api.qrserver.com`, ce qui envoie les dossards à un tiers et ne marche pas si
   la connexion tombe le matin. C'est acquis depuis la spec 005, ça le reste.
+- ⚠️ **Sa zone de silence passe de 2 à 4 modules**, ce qu'exige l'ISO/IEC 18004.
+  Deux suffisaient sur un fond parfaitement blanc ; sur une planche de six
+  fiches serrées, le décodeur lit ce qui touche le code — une bordure de case,
+  le trait de coupe voisin — comme des modules noirs. À 24 mm, un module fait
+  **0,83 mm**, le double du plancher qu'on se donne.
 - Le contenu du QR est **le dossard nu**, inchangé : les téléphones des juges
   lisent ça et rien d'autre.
 - Une fiche n'est jamais coupée par un saut de page.
@@ -169,14 +180,15 @@ carte de la console.
 ## 4. Critères d'acceptation
 
 **Tous vérifiés le 01/09/2026** — 47 tests (`tests/test_fiches.py`,
-`tests/test_qr_et_dossards.py`) et un PDF mesuré : 8 fiches → 2 pages,
-99 × 142,5 mm au pixel près.
+`tests/test_qr_et_dossards.py`) et un PDF mesuré : 194 × 47,5 mm au pixel
+près, six par page.
 
-- [x] **A1** — Une fiche par participant numéroté, **quatre par page A4**,
+- [x] **A1** — Une fiche par participant numéroté, **six par page A4**,
   jamais coupée par un saut de page.
 - [x] **A2** — La fiche porte : dossard, nom, club, catégorie, circuit, QR.
-- [x] **A3** — Le QR contient le dossard nu et se relit par un décodeur
-  indépendant à sa taille d'impression — **non-régression** du test qui existe.
+- [x] **A3** — Le QR contient le dossard nu, porte une zone de silence de
+  **4 modules**, garde un module ≥ 0,5 mm à la taille imprimée, et se relit par
+  un décodeur indépendant à 300 ppp.
 - [x] **A4** — Le tableau liste **tous** les blocs du circuit du grimpeur, et
   seulement eux.
 - [x] **A5** — L'ordre est celui du classeur : difficulté (Jaune→Noir), puis

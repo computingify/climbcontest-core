@@ -8,6 +8,8 @@ avec 120 dossards deja imprimes.
 C'est arrive pendant l'ecriture de ce module : un encodeur maison produisait
 des matrices parfaitement plausibles que rien ne lisait.
 """
+import re
+
 import pytest
 
 from climbcontest import comptes, qr
@@ -82,6 +84,50 @@ class TestVraimentLisible:
         blanc = np.ones((200, 200), np.uint8) * 255
         lu, _, _ = cv2.QRCodeDetector().detectAndDecode(blanc)
         assert lu == "", "une image vide ne doit rien rendre"
+
+
+class TestLaNormeDuQr:
+    """L'ISO/IEC 18004 exige une zone de silence de QUATRE modules autour d'un
+    QR Code. Nous en posions DEUX. Ca marche sur un fond parfaitement blanc, et
+    ca lache des que le code touche autre chose -- une bordure de case, le trait
+    de coupe voisin : le decodeur les lit comme des modules noirs.
+
+    Le defaut est devenu urgent le 01/09, quand la planche est passee a six
+    fiches par A4 : c'est exactement le moment ou le voisinage se rapproche.
+    """
+
+    def test_la_zone_de_silence_fait_quatre_modules(self):
+        assert qr.ZONE_DE_SILENCE == 4
+
+    @pytest.mark.parametrize("dossard", ["1", "42", "120", "9999"])
+    def test_le_svg_porte_vraiment_cette_marge(self, dossard):
+        """Le `viewBox` compte les modules ET la marge : n + 2 x 4."""
+        cote = len(qr.matrice(dossard))
+        viewbox = re.search(r'viewBox="0 0 (\d+) (\d+)"', qr.svg(dossard)).groups()
+        assert viewbox == (str(cote + 8), str(cote + 8))
+
+    @pytest.mark.parametrize("dossard", ["1", "9999"])
+    def test_un_module_reste_au_dessus_du_plancher(self, dossard):
+        """Un module trop petit n'est plus lu de facon fiable par un appareil
+        photo de telephone, quelle que soit la qualite du code."""
+        from climbcontest import fiches
+        taille = qr.taille_de_module_mm(dossard, fiches.COTE_QR_MM)
+        assert taille >= qr.MODULE_MINI_MM, f"{taille:.2f} mm par module"
+
+    @pytest.mark.skipif(not DECODEUR, reason="opencv absent")
+    def test_il_se_relit_a_la_taille_de_la_fiche(self):
+        """Le vrai test : on rend le QR a la taille qu'il aura SUR LE PAPIER, en
+        300 points par pouce, et on le relit avec un decodeur independant."""
+        from climbcontest import fiches
+        dossard = "9999"
+        modules = len(qr.matrice(dossard)) + 2 * qr.ZONE_DE_SILENCE
+        # 300 ppp : la resolution d'une imprimante de bureau.
+        cote_px = int(fiches.COTE_QR_MM / 25.4 * 300)
+        echelle = max(1, cote_px // modules)
+        image = TestVraimentLisible._image(dossard, echelle=echelle,
+                                           marge=qr.ZONE_DE_SILENCE)
+        lu, _, _ = cv2.QRCodeDetector().detectAndDecode(image)
+        assert lu == dossard
 
 
 class TestSvg:
