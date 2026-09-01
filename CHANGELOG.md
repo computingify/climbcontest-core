@@ -19,32 +19,6 @@ qu'on ne met pas à jour le matin d'une compétition :
 
 ## [Non publié]
 
-### Corrigé
-
-- **Le podium débordait de ses cartes.** Signalé par Adrien en regardant
-  l'écran : « sur scratch H, ça dépasse au niveau du podium ». Deux causes,
-  et la seconde est la vraie.
-
-  La colonne de contenu de la carte était un `1fr` **nu**. Le `min-width` par
-  défaut d'une piste de grille vaut `auto` : elle ne peut donc jamais devenir
-  plus étroite que son contenu, et `.chiffres` est en `nowrap`. La grille
-  réclamait 404 px dans une carte de 373 — le nom, le club et les chiffres
-  sortaient de 9 px **par la droite, par-dessus le bord arrondi de la carte**.
-  L'ellipse du nom ne servait à rien : elle se calculait sur une largeur qui
-  débordait déjà. Corrigé en `minmax(0, 1fr)`.
-
-  Conséquence directe : un écart rogné au milieu affichait « −17 » pour
-  « −1700 ». Sur un mur, ça se lit comme un écart de dix-sept points — **un
-  nombre coupé ment, un nom coupé non**. L'écart puis les blocs disparaissent
-  donc désormais quand la carte est trop étroite, par requête de conteneur sur
-  la carte elle-même : les deux se relisent dans le tableau juste en dessous,
-  le score et le nom non.
-
-- **Le mobilier de la carte suit le nombre d'ex æquo.** La largeur de la marche
-  se divisait entre les cartes, mais le gros numéro de place, les marges et la
-  taille du nom ne bougeaient pas. À six ex æquo, les six noms étaient tronqués
-  d'un coup. Ils tiennent maintenant en entier.
-
 ### Ajouté
 
 - **Le cycle de vie d'une édition se pilote depuis la console** (spec 018).
@@ -79,6 +53,25 @@ qu'on ne met pas à jour le matin d'une compétition :
   et la remarque « cette édition n'a jamais été archivée » quand elle s'applique.
 - **Régler l'état de l'édition** — préparation, en cours, terminée.
 
+### Modifié
+
+- **Le tableau de la page de résultats reprend le podium.** Il commençait au
+  rang 4 : pour savoir ce qu'avait fait le premier, il fallait remonter les yeux
+  à l'autre bout de l'écran — et à quatre ex æquo, la marche ne le disait déjà
+  plus. Le classement se lit maintenant d'un bloc, de 1 à N, et un liseré de
+  médaille marque les trois premières lignes — **toujours**, y compris sur un
+  téléphone, où aucune marche n'est dessinée et où ils passaient jusqu'ici
+  inaperçus. En contrepartie, la carte de podium **perd le compte de blocs et
+  l'écart** : sans étiquette et à côté d'un score deux fois plus gros, ils se
+  déchiffraient plus qu'ils ne se lisaient, et ils volaient au nom la largeur
+  qui lui manque justement quand des ex æquo se partagent une marche. Ils sont
+  deux lignes plus bas, sous un en-tête qui les nomme.
+- La construction de la charge de `/api/public/classement` sort du corps de la
+  vue pour devenir `classement_service.charge_publique()`. Deux appelants
+  désormais : la route publique et l'archivage. Écrite en double, elle aurait
+  divergé au premier changement — et la page de résultats aurait cassé sur les
+  archives uniquement, c'est-à-dire longtemps après. Réponse inchangée.
+
 ### Corrigé
 
 - **`Competition.statut` ne voulait rien dire.** Il était écrit à la création et
@@ -100,14 +93,39 @@ qu'on ne met pas à jour le matin d'une compétition :
   regarder un classement qu'on vient de supprimer en se demandant si le bouton a
   marché. `classement_service.invalider()` existait depuis la spec 004 et
   n'était appelée nulle part.
+- **Le podium débordait de ses cartes.** Signalé par Adrien en regardant
+  l'écran : « sur scratch H, ça dépasse au niveau du podium ». Deux causes,
+  et la seconde est la vraie.
 
-### Modifié
+  La colonne de contenu de la carte était un `1fr` **nu**. Le `min-width` par
+  défaut d'une piste de grille vaut `auto` : elle ne peut donc jamais devenir
+  plus étroite que son contenu, et `.chiffres` est en `nowrap`. La grille
+  réclamait 404 px dans une carte de 373 — le nom, le club et les chiffres
+  sortaient de 9 px **par la droite, par-dessus le bord arrondi de la carte**.
+  L'ellipse du nom ne servait à rien : elle se calculait sur une largeur qui
+  débordait déjà. Corrigé en `minmax(0, 1fr)`.
 
-- La construction de la charge de `/api/public/classement` sort du corps de la
-  vue pour devenir `classement_service.charge_publique()`. Deux appelants
-  désormais : la route publique et l'archivage. Écrite en double, elle aurait
-  divergé au premier changement — et la page de résultats aurait cassé sur les
-  archives uniquement, c'est-à-dire longtemps après. Réponse inchangée.
+  Conséquence directe : un écart rogné au milieu affichait « −17 » pour
+  « −1700 ». Sur un mur, ça se lit comme un écart de dix-sept points — **un
+  nombre coupé ment, un nom coupé non**. Le sujet est clos autrement depuis :
+  l'écart et les blocs ont quitté la carte pour le tableau (voir *Modifié*),
+  et il ne reste sur la carte aucun nombre qu'un manque de place puisse couper.
+
+- **Le mobilier de la carte suit le nombre d'ex æquo.** La largeur de la marche
+  se divisait entre les cartes, mais le gros numéro de place, les marges et la
+  taille du nom ne bougeaient pas. À six ex æquo, les six noms étaient tronqués
+  d'un coup. Ils tiennent maintenant en entier.
+
+- **La carte de podium était réglée sur la hauteur du classement, pas sur la
+  sienne.** `.nom`, `.club` et `.score` existent des deux côtés — ligne de
+  tableau et carte de podium — et `body.mur .nom` l'emportait sur `.pod .nom` :
+  même nombre de classes, mais un `body` en plus. Une carte se dessinait donc à
+  la taille d'une ligne de tableau, 16,72 px là où elle en demandait 40, et ce
+  depuis la spec 016. Personne ne l'a vu tant que **toutes** les cartes
+  tombaient dedans ; ça saute aux yeux depuis que le mobilier suit les ex
+  æquo — une marche à une seule carte se retrouvait deux fois plus petite que
+  sa voisine à deux.
+
 ## [0.12.1] — 2026-09-01
 
 Deux défauts d'affichage de l'écran projeté, vus en le regardant tourner.
