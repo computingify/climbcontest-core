@@ -19,6 +19,32 @@ qu'on ne met pas à jour le matin d'une compétition :
 
 ## [Non publié]
 
+### Corrigé
+
+- **Le podium débordait de ses cartes.** Signalé par Adrien en regardant
+  l'écran : « sur scratch H, ça dépasse au niveau du podium ». Deux causes,
+  et la seconde est la vraie.
+
+  La colonne de contenu de la carte était un `1fr` **nu**. Le `min-width` par
+  défaut d'une piste de grille vaut `auto` : elle ne peut donc jamais devenir
+  plus étroite que son contenu, et `.chiffres` est en `nowrap`. La grille
+  réclamait 404 px dans une carte de 373 — le nom, le club et les chiffres
+  sortaient de 9 px **par la droite, par-dessus le bord arrondi de la carte**.
+  L'ellipse du nom ne servait à rien : elle se calculait sur une largeur qui
+  débordait déjà. Corrigé en `minmax(0, 1fr)`.
+
+  Conséquence directe : un écart rogné au milieu affichait « −17 » pour
+  « −1700 ». Sur un mur, ça se lit comme un écart de dix-sept points — **un
+  nombre coupé ment, un nom coupé non**. L'écart puis les blocs disparaissent
+  donc désormais quand la carte est trop étroite, par requête de conteneur sur
+  la carte elle-même : les deux se relisent dans le tableau juste en dessous,
+  le score et le nom non.
+
+- **Le mobilier de la carte suit le nombre d'ex æquo.** La largeur de la marche
+  se divisait entre les cartes, mais le gros numéro de place, les marges et la
+  taille du nom ne bougeaient pas. À six ex æquo, les six noms étaient tronqués
+  d'un coup. Ils tiennent maintenant en entier.
+
 ### Ajouté
 
 - **Le cycle de vie d'une édition se pilote depuis la console** (spec 018).

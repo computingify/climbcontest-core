@@ -573,3 +573,61 @@ class TestBandeauDeMessage:
         perdrait justement celui qui prévient."""
         page = client.get("/console").data.decode()
         assert 'avertissements.length ? "attention" : "ok"' in page
+
+
+class TestPodiumExAequo:
+    """Le podium ne doit ni déborder de ses cartes, ni couper un nombre.
+
+    Trouvé par Adrien en regardant l'écran, pas par un test : sur un groupe où
+    plusieurs grimpeurs sont ex æquo, « ça dépasse au niveau du podium ».
+
+    Deux causes distinctes, et la seconde est la vraie :
+
+    1. Le mobilier de la carte — le gros numéro de place, les marges, la taille
+       du nom — ne rétrécissait pas quand la marche se divisait entre N ex
+       æquo. À six, il restait moins de la moitié de la place pour le nom.
+    2. **La colonne de contenu était un `1fr` nu.** Le `min-width` par défaut
+       d'une piste de grille vaut `auto` : elle ne peut donc jamais devenir
+       plus étroite que son contenu. Or `.chiffres` est en `nowrap`. La grille
+       réclamait 404 px dans une carte de 373, et le nom, le club et les
+       chiffres sortaient de 9 px **par la droite, par-dessus le bord arrondi**.
+
+    Comme le reste du JavaScript de cette page, la mise en page ne se simule
+    pas ici. Ces tests verrouillent les garde-fous ; la vérification s'est faite
+    au navigateur, à 1280 et à 1920, sur six ex æquo et sur trois rangs
+    distincts.
+    """
+
+    def test_la_colonne_de_contenu_peut_retrecir(self, client, jeu):
+        """`1fr` nu = la carte déborde. C'est LE défaut."""
+        page = client.get("/").data.decode()
+        assert "clamp(56px, 5.6vw, 100px) minmax(0, 1fr)" in page
+        # …et le `1fr` nu ne doit pas revenir par la petite porte.
+        assert "clamp(56px, 5.6vw, 100px) 1fr" not in page
+
+    def test_les_chiffres_se_rognent_au_lieu_de_pousser(self, client, jeu):
+        page = client.get("/").data.decode()
+        bloc = page[page.index(".pod .chiffres"):page.index(".pod .score")]
+        assert "min-width: 0" in bloc and "overflow: hidden" in bloc
+
+    def test_un_nombre_ne_se_coupe_jamais_en_deux(self, client, jeu):
+        """Un « −1700 » rogné en « −17 » se lit comme un écart de dix-sept
+        points. Un nom coupé sur une ellipse, lui, se comprend."""
+        page = client.get("/").data.decode()
+        assert "@container (max-width: 430px) { .pod .ecart { display: none; } }" in page
+        assert "@container (max-width: 330px) { .pod .blocs { display: none; } }" in page
+        assert "container-type: inline-size;" in page
+
+    def test_le_mobilier_suit_le_nombre_d_ex_aequo(self, client, jeu):
+        page = client.get("/").data.decode()
+        assert '+ " c" + Math.min(6, m.lignes.length);' in page
+        for palier in ("c2", "c3", "c4"):
+            assert f".groupe.{palier} .pod" in page
+
+    def test_les_paliers_couvrent_ce_que_le_podium_accepte(self, client, jeu):
+        """`peindre()` supprime le podium au-delà de six cartes : les paliers
+        doivent donc aller jusqu'à six, et pas plus loin."""
+        page = client.get("/").data.decode()
+        assert "surLePodium.length > 6" in page
+        assert ".groupe.c6 .pod" in page
+        assert ".groupe.c7" not in page
