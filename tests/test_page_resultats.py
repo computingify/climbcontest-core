@@ -956,3 +956,37 @@ class TestReglagesDeLaPage:
         page = client.get("/").data.decode()
         assert 'id="competition"' in page
         assert "etat.competition.nom" in page
+
+
+class TestLesBasculesDeLEnTete:
+    """Les deux commandes de l'en-tête sont des boutons à BASCULE : masquer la
+    recherche, et mettre la rotation en pause. Elles doivent le dire de la même
+    façon.
+
+    Trouvé en pilotant la page : `#pause` ne recevait `aria-pressed` qu'au
+    PREMIER CLIC — le seul moment où l'attribut n'apprend plus rien. Avant ça,
+    un lecteur d'écran annonçait « bouton » et non « bouton à bascule, non
+    activé » : rien ne disait que la rotation TOURNE, ni qu'on pouvait
+    l'arrêter. Son voisin, lui, portait l'attribut depuis toujours.
+    """
+
+    @pytest.fixture()
+    def page(self, client, jeu):
+        return client.get("/").data.decode()
+
+    @pytest.mark.parametrize("bouton", ["pause", "masquerRecherche"])
+    def test_l_etat_de_bascule_est_pose_des_le_depart(self, page, bouton):
+        balise = re.search(rf'<button[^>]*id="{bouton}"[^>]*>', page,
+                           re.S).group(0)
+        assert 'aria-pressed="false"' in balise, balise
+
+    @pytest.mark.parametrize("bouton", ["pause", "masquerRecherche"])
+    def test_chaque_bascule_se_nomme(self, page, bouton):
+        """Un pictogramme seul (⏸, ⌕) n'a pas de nom accessible."""
+        balise = re.search(rf'<button[^>]*id="{bouton}"[^>]*>', page,
+                           re.S).group(0)
+        assert "aria-label=" in balise, balise
+
+    def test_le_script_tient_l_attribut_a_jour(self, page):
+        """Poser l'état de départ ne sert à rien si le clic ne le suit pas."""
+        assert 'el.pause.setAttribute("aria-pressed", String(etat.enPause));' in page

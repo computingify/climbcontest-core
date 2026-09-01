@@ -583,7 +583,14 @@
   </div>
   <button id="masquerRecherche" class="commande hors-mur" type="button"
           aria-pressed="false" aria-label="Masquer la recherche">⌕</button>
+  <!-- ⚠️ `aria-pressed` est pose DES LE DEPART, comme sur le bouton voisin.
+       Sans lui, un lecteur d'ecran annonce « bouton » et non « bouton a bascule,
+       non active » : rien ne dit que la rotation TOURNE, ni qu'on peut l'arreter.
+       L'attribut n'apparaissait qu'au premier clic -- le seul moment ou il
+       n'apprend plus rien. Les deux boutons de cet en-tete sont des bascules ;
+       ils se comportaient differemment. -->
   <button id="pause" class="commande" type="button" hidden
+          aria-pressed="false"
           aria-label="Mettre la rotation en pause">⏸</button>
 </header>
 
