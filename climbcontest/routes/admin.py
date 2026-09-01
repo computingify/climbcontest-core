@@ -761,6 +761,85 @@ def classeur_jeton():
 # spec 015 : decider ou vont les donnees est plus grave que les relire.
 
 
+@bp.get("/competition")
+@exige_role(ORGANISATEUR)
+def competition_etat():
+    """Le nom, la date, et la liste des classements a cocher — spec 020.
+
+    `groupes` vient du cache de classement, pas d'un calcul force : la liste
+    des groupes ne change qu'a l'import.
+    """
+    from ..classement_service import classements
+
+    try:
+        comp = competition_active()
+    except ErreurMetier as e:
+        return jsonify({"success": False, "message": e.message}), e.code
+
+    tous, _ = classements(comp)
+    groupes = [{"nom": c.groupe, "type": c.type, "circuit": c.circuit,
+                "participants": len(c.lignes)}
+               for c in sorted(tous.values(), key=lambda c: (c.type, c.groupe))]
+
+    return jsonify({
+        "success": True,
+        "competition": {"id": comp.id, "nom": comp.nom,
+                        "date": comp.date.isoformat() if comp.date else None,
+                        "statut": comp.statut},
+        "groupes": groupes,
+        "groupes_masques": cycle.groupes_masques(comp),
+    }), 200
+
+
+@bp.post("/competition")
+@exige_role(ADMIN)
+def competition_renommer():
+    """{"nom": "...", "date": "AAAA-MM-JJ"} — les deux facultatifs.
+
+    `ADMIN` : ce nom part sur un ECRAN PUBLIC (le bandeau de la page de
+    resultats) et dans le nom de fichier des archives.
+    """
+    corps = _corps_objet()
+    if corps is None:
+        return jsonify({"success": False, "message": "Corps JSON attendu"}), 400
+
+    try:
+        comp = competition_active()
+        etat = cycle.renommer(comp, corps.get("nom"), corps.get("date"))
+    except ErreurMetier as e:
+        db.session.rollback()
+        return jsonify({"success": False, "message": e.message}), e.code
+
+    logger.info("%s a renomme la competition %s en %r",
+                g.utilisateur.identifiant, comp.id, comp.nom)
+    return jsonify({"success": True, "competition": etat}), 200
+
+
+@bp.post("/competition/affichage")
+@exige_role(ADMIN)
+def competition_affichage():
+    """{"groupes_masques": ["U19 F"]} — ce que la page de resultats ne montre pas.
+
+    On range ce qu'on CACHE, jamais ce qu'on montre : une categorie creee en
+    cours de journee doit apparaitre, pas disparaitre en silence. Voir
+    `cycle.groupes_masques`.
+    """
+    corps = _corps_objet()
+    if corps is None:
+        return jsonify({"success": False, "message": "Corps JSON attendu"}), 400
+
+    try:
+        comp = competition_active()
+        masques = cycle.regler_affichage(comp, corps.get("groupes_masques"))
+    except ErreurMetier as e:
+        db.session.rollback()
+        return jsonify({"success": False, "message": e.message}), e.code
+
+    logger.info("%s a masque %d classement(s) sur la competition %s",
+                g.utilisateur.identifiant, len(masques), comp.id)
+    return jsonify({"success": True, "groupes_masques": masques}), 200
+
+
 @bp.post("/competition/statut")
 @exige_role(ORGANISATEUR)
 def competition_statut():

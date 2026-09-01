@@ -114,6 +114,13 @@
     width: 2.4em; height: 2.4em; font-size: clamp(1rem, 1.5vw, 1.6rem);
   }
   body.mur .commande { display: block; }
+  /* ⚠️ `.commande` est masquée par défaut et ne s'affiche qu'en mode mur : la
+     règle ci-dessus est celle de #pause, et #pause en dépend. « Masquer la
+     recherche » fait l'inverse — elle sert justement quand on projette SANS le
+     mode mur, sur le portable branché au vidéoprojecteur. D'où sa propre
+     classe, plutôt qu'une exception glissée dans la règle existante. */
+  .commande.hors-mur { display: block; }
+  body.mur .commande.hors-mur { display: none; }
   .commande:hover { background: var(--carte2); color: var(--encre); }
   .commande[aria-pressed="true"] { border-color: var(--groupe); color: var(--groupe); }
   .commande:focus-visible { outline: 2px solid var(--groupe); outline-offset: 2px; }
@@ -162,6 +169,7 @@
   }
   #recherche::placeholder { color: var(--encre2); }
   body.mur #recherche { display: none; }
+  body.sans-recherche #recherche { display: none; }
 
   /* ---- Le classement ---- */
   main { flex: 1; min-height: 0; display: flex; flex-direction: column;
@@ -573,6 +581,8 @@
     </div>
     <div id="suivant"></div>
   </div>
+  <button id="masquerRecherche" class="commande hors-mur" type="button"
+          aria-pressed="false" aria-label="Masquer la recherche">⌕</button>
   <button id="pause" class="commande" type="button" hidden
           aria-label="Mettre la rotation en pause">⏸</button>
 </header>
@@ -656,6 +666,8 @@
     dureeAffichage: 0,         // le temps que la catégorie reste à l'écran
     signatureDefilement: null, // ce qui justifie de relancer le défilement
     enPause: false,            // la rotation, figée à la demande
+    sansRecherche: false,      // le champ, masqué pour le vidéoprojecteur
+    groupesMasques: [],        // les classements que la console ne veut pas montrer
     animationDefilement: null,
   };
 
@@ -677,6 +689,7 @@
     competition: document.getElementById("competition"),
     suivant: document.getElementById("suivant"),
     pause: document.getElementById("pause"),
+    masquerRecherche: document.getElementById("masquerRecherche"),
   };
 
   if (MUR) document.body.classList.add("mur");
@@ -695,6 +708,40 @@
 
   var CLE_FAVORIS = "climbcontest.favoris";
   var GROUPE_FAVORIS = "★ Mes favoris";
+
+  // --- Masquer la recherche (spec 020) --------------------------------------
+  //
+  // Le champ est indispensable sur le téléphone d'un parent et parasite sur un
+  // mur. Il était déjà masqué en mode `?mur`, mais celui-ci emporte aussi la
+  // rotation automatique et le grand format : on projette souvent sans.
+  //
+  // Le choix vit dans le STOCKAGE LOCAL, à côté des favoris et pour la même
+  // raison : il ne regarde que cet appareil et n'a rien à faire sur le réseau.
+
+  var CLE_AFFICHAGE = "climbcontest.affichage";
+
+  function lireSansRecherche() {
+    try {
+      return JSON.parse(window.localStorage.getItem(CLE_AFFICHAGE) || "null")
+             ?.sansRecherche === true;
+    } catch (e) {
+      // Navigation privée, stockage plein, JSON abîmé : le champ s'affiche, et
+      // surtout la page continue de fonctionner.
+      return false;
+    }
+  }
+
+  function basculerRecherche(masquee) {
+    etat.sansRecherche = masquee;
+    document.body.classList.toggle("sans-recherche", masquee);
+    el.masquerRecherche.setAttribute("aria-pressed", String(masquee));
+    el.masquerRecherche.setAttribute(
+      "aria-label", masquee ? "Afficher la recherche" : "Masquer la recherche");
+    try {
+      window.localStorage.setItem(CLE_AFFICHAGE,
+                                  JSON.stringify({ sansRecherche: masquee }));
+    } catch (e) { /* sans stockage, le choix ne dure que la visite */ }
+  }
 
   function lireFavoris() {
     try {
@@ -802,10 +849,23 @@
   // --- Les groupes ----------------------------------------------------------
 
   function groupesVisibles() {
-    if (!MUR) return etat.classements;
-    return etat.classements.filter(function (c) {
-      return TYPES_MUR.indexOf(c.type) !== -1;
+    var tous = MUR
+      ? etat.classements.filter(function (c) {
+          return TYPES_MUR.indexOf(c.type) !== -1;
+        })
+      : etat.classements;
+
+    // Le réglage de la console (spec 020). Il s'applique PARTOUT — mur et
+    // téléphones : une seule vérité, rien à expliquer le jour J.
+    var masques = etat.groupesMasques || [];
+    if (!masques.length) return tous;
+    var restants = tous.filter(function (c) {
+      return masques.indexOf(c.groupe) === -1;
     });
+
+    // Tout masqué : on IGNORE le réglage. Une page vide se lit comme une
+    // panne, et personne n'ira chercher le réglage en pleine compétition.
+    return restants.length ? restants : tous;
   }
 
   function couleurDe(nomGroupe) {
@@ -833,6 +893,11 @@
       .then(function (d) {
         etat.classements = d.classements || [];
         etat.competition = d.competition || null;
+        // Absent en mode archive : une archive se revoit en entier, elle fige
+        // ce qu'elle fige.
+        etat.groupesMasques = (etat.competition
+                               && Array.isArray(etat.competition.groupes_masques))
+          ? etat.competition.groupes_masques : [];
         etat.reussites = typeof d.reussites === "number" ? d.reussites : null;
         etat.calculeLe = d.calcule_le || null;
         etat.ageServeurS = typeof d.age_s === "number" ? d.age_s : 0;
@@ -926,7 +991,10 @@
 
     dessinerBarre();
 
-    var q = MUR ? "" : el.recherche.value.trim().toLowerCase();
+    // Le champ masqué ne filtre plus rien, même si une valeur y traîne : une
+    // liste filtrée sans champ visible serait indéchiffrable.
+    var q = (MUR || etat.sansRecherche)
+      ? "" : el.recherche.value.trim().toLowerCase();
     var lignes, titreTexte, compteTexte;
 
     if (q) {
@@ -953,10 +1021,18 @@
       compteTexte = lignes.length + (lignes.length > 1 ? " grimpeurs suivis"
                                                        : " grimpeur suivi");
     } else {
+      // La catégorie, mais SEULEMENT sur un classement qui mélange les
+      // catégories. Sur « U13 F », elle est déjà dans le titre : la répéter à
+      // chaque ligne prendrait la place du club sans rien apprendre. Sur un
+      // scratch — général ou par circuit — rien ne dit qui se compare à qui.
+      // Demande d'Adrien, 01/09 : « sur les scratchs, tu m'affiches la
+      // catégorie uniquement sur les scratchs ».
+      var avecCategorie = groupe.type === "scratch" || groupe.type === "circuit";
       lignes = (groupe.lignes || []).map(function (l) {
         return { cle: cleDe(l), participant_id: l.participant_id,
                  rang: l.rang, score: l.score, blocs: l.blocs, nom: l.nom,
-                 club: l.club, dossard: l.dossard, contexte: null };
+                 club: l.club, dossard: l.dossard,
+                 contexte: avecCategorie ? (l.categorie || null) : null };
       });
       titreTexte = libelleDe(groupe);
       compteTexte = lignes.length + (lignes.length > 1 ? " grimpeurs" : " grimpeur");
@@ -1747,6 +1823,23 @@
     el.liste.innerHTML = "";
     dessiner();
   });
+
+  el.masquerRecherche.addEventListener("click", function () {
+    var masquee = !etat.sansRecherche;
+    basculerRecherche(masquee);
+    // Masquer un filtre ENCORE ACTIF laisserait une liste filtrée sans rien
+    // pour expliquer pourquoi. On vide donc la recherche en même temps.
+    if (masquee && el.recherche.value) {
+      el.recherche.value = "";
+      etat.noeuds = {};
+      el.liste.innerHTML = "";
+    }
+    dessiner();
+  });
+
+  // L'état est relu au démarrage : le choix survit au rechargement, ce qui est
+  // tout l'intérêt sur une machine qui projette toute la journée.
+  basculerRecherche(lireSansRecherche());
 
   // Redimensionnement : la hauteur des lignes et le défilement en dépendent.
   var minuteurTaille;
