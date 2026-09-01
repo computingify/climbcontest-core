@@ -281,7 +281,8 @@ classement est couvert** par le backend, et range le reste :
 | Pourcentage de réussite par grimpeur, tranches <50/75/90 % | `Résultats!FN,FU,D143` | ➖ analyse interne, non repris (volontaire) |
 | Compteurs de réussites par bloc/catégorie | `Résultats!H140` | ➖ idem |
 | Podium de cérémonie, règle « Trop d'exæquo » affichée | `Podium!C1` | ➖ affichage manuel de cérémonie, le classeur reste l'outil |
-| `Stats` (classement filtrable), `Fiches` (impression) | mars 2026 | ➖ analyse / papier |
+| `Fiches` — fiche du grimpeur : blocs du circuit, plan de la salle | `Fiches!O3:Z13` | ✅ reprise (spec 023, `fiches.py`) |
+| `Stats` (classement filtrable) | mars 2026 | ➖ analyse |
 | `XLSX` (normalisation des inscriptions importées) | mars 2026 | ➖ c'est l'amont : spec 008 (HelloAsso), non commencée |
 
 Les inventaires bruts (une ligne par structure de formule, avec exemple et

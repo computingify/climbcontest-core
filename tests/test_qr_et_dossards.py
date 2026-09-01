@@ -1,4 +1,4 @@
-"""Le QR des dossards, et la planche a imprimer (spec 005, IT4).
+"""Le QR des dossards, et la planche a imprimer (spec 005, IT4 ; spec 023).
 
 Le test qui compte est `TestVraimentLisible` : il DECODE ce qu'on produit,
 avec un decodeur independant de l'encodeur. Un QR d'allure correcte mais
@@ -113,10 +113,10 @@ class TestPageDossards:
         assert r.status_code == 200
         assert r.headers["Content-Type"].startswith("text/html")
 
-    def test_un_dossard_par_participant_numerote(self, connecte, jeu):
+    def test_une_fiche_par_participant_numerote(self, connecte, jeu):
         """Deux des trois participants du jeu portent un numero."""
         page = connecte.get("/admin/dossards").data.decode()
-        assert page.count('class="dossard"') == 2
+        assert page.count('class="fiche"') == 2
 
     def test_le_nom_et_le_numero_sont_la(self, connecte, jeu):
         """Sans le nom, impossible de donner le bon papier a la bonne personne."""
@@ -127,12 +127,12 @@ class TestPageDossards:
     def test_un_seul_dossard(self, connecte, jeu):
         """Le cas de l'arrivant de derniere minute."""
         page = connecte.get("/admin/dossards?dossard=1").data.decode()
-        assert page.count('class="dossard"') == 1
+        assert page.count('class="fiche"') == 1
         assert "Dupont Lea" in page
 
     def test_un_lot_par_categorie(self, connecte, jeu):
         page = connecte.get("/admin/dossards?categorie=U11 F").data.decode()
-        assert page.count('class="dossard"') == 1
+        assert page.count('class="fiche"') == 1
 
     def test_les_dossards_sont_tries(self, connecte, jeu):
         page = connecte.get("/admin/dossards").data.decode()
@@ -152,7 +152,7 @@ class TestPageDossards:
 
         page = client.get("/admin/dossards").data.decode()
 
-        assert "Aucun dossard" in page
+        assert "Aucune fiche" in page
 
     def test_la_page_ne_charge_rien_de_l_exterieur(self, connecte, jeu):
         import re
@@ -161,7 +161,7 @@ class TestPageDossards:
                     if u != "http://www.w3.org/2000/svg"]
         assert not externes, f"ressources externes : {externes}"
 
-    def test_une_bande_ne_peut_pas_etre_coupee_par_un_saut_de_page(self, connecte, jeu):
+    def test_une_fiche_ne_peut_pas_etre_coupee_par_un_saut_de_page(self, connecte, jeu):
         """Le grimpeur se retrouverait avec un demi-QR."""
         page = connecte.get("/admin/dossards").data.decode()
         assert "break-inside: avoid" in page

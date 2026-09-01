@@ -160,26 +160,30 @@ carte de la console.
 
 ## 4. Critères d'acceptation
 
-- [ ] **A1** — Une fiche par participant numéroté, deux par page A4, jamais
+**Tous vérifiés le 01/09/2026** — 47 tests (`tests/test_fiches.py`,
+`tests/test_qr_et_dossards.py`) et un PDF mesuré : 8 fiches → 4 pages, 142,5 mm
+de haut au pixel près.
+
+- [x] **A1** — Une fiche par participant numéroté, deux par page A4, jamais
   coupée par un saut de page.
-- [ ] **A2** — La fiche porte : dossard, nom, club, catégorie, circuit, QR.
-- [ ] **A3** — Le QR contient le dossard nu et se relit par un décodeur
+- [x] **A2** — La fiche porte : dossard, nom, club, catégorie, circuit, QR.
+- [x] **A3** — Le QR contient le dossard nu et se relit par un décodeur
   indépendant à sa taille d'impression — **non-régression** du test qui existe.
-- [ ] **A4** — Le tableau liste **tous** les blocs du circuit du grimpeur, et
+- [x] **A4** — Le tableau liste **tous** les blocs du circuit du grimpeur, et
   seulement eux.
-- [ ] **A5** — L'ordre est celui du classeur : difficulté (Jaune→Noir), puis
+- [x] **A5** — L'ordre est celui du classeur : difficulté (Jaune→Noir), puis
   numéro. Un bloc sans couleur passe en dernier, jamais en premier.
-- [ ] **A6** — Chaque case porte la zone et le numéro.
-- [ ] **A7** — Le plan de la salle reprend les positions du classeur, à la case
+- [x] **A6** — Chaque case porte la zone et le numéro.
+- [x] **A7** — Le plan de la salle reprend les positions du classeur, à la case
   près.
-- [ ] **A8** — Les zones du grimpeur ressortent sur le plan ; les autres sont
+- [x] **A8** — Les zones du grimpeur ressortent sur le plan ; les autres sont
   en gris.
-- [ ] **A9** — Une zone hors plan est signalée sous le plan.
-- [ ] **A10** — `?dossard=42` rend une fiche, `?categorie=U11 F` rend le lot de
+- [x] **A9** — Une zone hors plan est signalée sous le plan.
+- [x] **A10** — `?dossard=42` rend une fiche, `?categorie=U11 F` rend le lot de
   la catégorie — **non-régression**.
-- [ ] **A11** — Aucun appel réseau dans la page : ni police, ni image, ni script
+- [x] **A11** — Aucun appel réseau dans la page : ni police, ni image, ni script
   distant — **non-régression** de la règle des specs 005/016.
-- [ ] **A12** — Le nombre de requêtes SQL ne dépend pas du nombre de
+- [x] **A12** — Le nombre de requêtes SQL ne dépend pas du nombre de
   participants (3 requêtes, comme `circuits.inventaire`).
 
 ## 5. Cas limites

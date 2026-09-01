@@ -2,20 +2,20 @@
 
 ## Étapes
 
-1. [ ] `climbcontest/fiches.py` — `PLAN`, `ZONES_DU_PLAN`, `_rang()`,
+1. [x] `climbcontest/fiches.py` — `PLAN`, `ZONES_DU_PLAN`, `_rang()`,
    `_blocs_par_circuit()`, `_plan_pour()`, `construire()`. Aucun Flask.
-2. [ ] Tests de `fiches.py` — le tableau ci-dessous, avant le gabarit. C'est là
+2. [x] Tests de `fiches.py` — le tableau ci-dessous, avant le gabarit. C'est là
    qu'est la logique ; le reste est de la mise en page.
-3. [ ] `routes/admin.py` — `page_dossards()` appelle `construire()`. Les
+3. [x] `routes/admin.py` — `page_dossards()` appelle `construire()`. Les
    paramètres et le journal ne changent pas.
-4. [ ] `templates/dossards.html` réécrit : fiche A5, en-tête, tableau des blocs
+4. [x] `templates/dossards.html` réécrit : fiche A5, en-tête, tableau des blocs
    groupé par couleur, plan, légende, QR 28 mm.
-5. [ ] `templates/admin.html` — la carte parle de « fiches », le bouton devient
+5. [x] `templates/admin.html` — la carte parle de « fiches », le bouton devient
    « Ouvrir les fiches ».
-6. [ ] Tests de route — non-régressions comprises.
-7. [ ] `docs/technical/classeur-google.md` — l'onglet `Fiches` passe à
+6. [x] Tests de route — non-régressions comprises.
+7. [x] `docs/technical/classeur-google.md` — l'onglet `Fiches` passe à
    « ✅ repris » dans le tableau du § 5 bis.
-8. [ ] Impression réelle : une page, coupée, mesurée.
+8. [x] Impression réelle : une page, coupée, mesurée.
 
 ## Plan de test
 

@@ -125,14 +125,38 @@ def _blocs_par_circuit(comp) -> dict[str, list]:
 def plan_pour(zones: set[str]) -> list[list[dict]]:
     """Le plan de la salle, chaque case sachant si elle est « la sienne ».
 
-    Le gabarit ne fait qu'afficher : c'est ici qu'on décide ce qui s'allume.
+    Le gabarit ne fait qu'afficher : c'est ici qu'on décide ce qui s'allume, et
+    ici qu'on compte les colonnes.
+
+    ⚠️ Un repère — « Escalier », « Haut » — est un MOT, pas une lettre : il tient
+    sur trois cases. Il absorbe donc les deux cases vides qui le suivent, sinon
+    la ligne compterait neuf colonnes au lieu de sept et tout le plan se
+    décalerait. Le calcul se fait ici et pas en Jinja : une boucle de gabarit qui
+    saute des éléments est exactement ce qu'on relit trois fois sans le croire.
     """
-    return [[
-        {"zone": None, "repere": case[1], "sienne": False} if isinstance(case, tuple)
-        else {"zone": None, "repere": None, "sienne": False} if case is None
-        else {"zone": case, "repere": None, "sienne": case in zones}
-        for case in ligne
-    ] for ligne in PLAN]
+    lignes = []
+    for ligne in PLAN:
+        cases, saute = [], 0
+        for i, case in enumerate(ligne):
+            if saute:
+                saute -= 1
+                continue
+            if isinstance(case, tuple):
+                # Les deux cases suivantes ne sont absorbées que si elles sont
+                # VIDES : mieux vaut un repère étroit qu'une zone effacée.
+                suivantes = ligne[i + 1:i + 3]
+                large = len(suivantes) == 2 and all(c is None for c in suivantes)
+                saute = 2 if large else 0
+                cases.append({"zone": None, "repere": case[1], "sienne": False,
+                              "colonnes": 3 if large else 1})
+            elif case is None:
+                cases.append({"zone": None, "repere": None, "sienne": False,
+                              "colonnes": 1})
+            else:
+                cases.append({"zone": case, "repere": None,
+                              "sienne": case in zones, "colonnes": 1})
+        lignes.append(cases)
+    return lignes
 
 
 def _groupes(blocs) -> list[dict]:
