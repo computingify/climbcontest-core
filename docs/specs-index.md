@@ -26,6 +26,7 @@ méthode.
 | [021](../specs/021-console-lisible/) | `console-lisible` | 📝 **rédigée, en attente de la porte 2** (01/09) | La console se relit : thème **clair ou sombre selon le système** en ocre du logo, **tiroir épinglé** au-delà de 1080 px, la page « Classeur » qui porte enfin le nom du menu, et la confirmation destructrice qui se **maintient** au lieu de se taper |
 | [022](../specs/022-jeton-google-en-un-clic/) | `jeton-google-en-un-clic` | 📝 **rédigée, en attente de la porte 2** (01/09) | Le consentement OAuth **depuis la console** : un bouton, l'écran Google, le jeton posé. Plus de `token.pickle` à exporter sur le Mac ni de JSON à coller. Le collage reste, replié, comme chemin de secours |
 | [023](../specs/023-fiche-du-grimpeur/) | `fiche-du-grimpeur` | 📝 **rédigée, en attente de la porte 2** (01/09) | La bande à découper devient la **fiche de l'onglet `Fiches`** du classeur : identité, QR, **tous les blocs de son circuit** dans l'ordre de difficulté, et le **plan de la salle** avec ses zones allumées. Deux fiches par A4 |
+| [024](../specs/024-etiquettes-de-blocs/) | `etiquettes-de-blocs` | 📝 **rédigée, en attente de la porte 2** (01/09) | Les **étiquettes de blocs à coller au mur** — zone, numéro en gros, QR `ZJ6` généré localement, couleur des prises et **les circuits pour qui le bloc compte**. Six par A4, une zone par page |
 
 ## Specs pressenties
 
