@@ -327,15 +327,22 @@
                                 #000 calc(100% - 26px), transparent 100%);
   }
   body:not(.mur) #defile { overflow: visible; }
+  /* ⚠️ `--grille-ligne` se déclare sur `main`, ET NULLE PART AILLEURS.
+     C'est une propriété HÉRITÉE : elle se résout par élément, pas par cascade
+     globale. `#liste` en portait sa propre valeur — et comme les lignes sont
+     ses enfants alors que les en-têtes sont ceux de `#entetes`, les deux
+     grilles n'ont jamais été la même. Le tableau et ses titres ont donc TOUJOURS
+     été décalés : sur le mur, la colonne « Blocs » du titre faisait 27 px pour
+     54 px de contenu (d'où « BLOC », rogné) ; sur téléphone, la ligne recevait
+     cinq colonnes et l'en-tête six, et l'étoile, sans colonne, retombait à la
+     ligne suivante.
+     Effet de bord du même défaut : les largeurs en `--h` posées par la spec 016
+     n'ont jamais atteint les lignes, qui sont restées sur les `em` que ces
+     règles-ci figeaient. */
   #liste {
     display: flex; flex-direction: column; gap: 0;
     will-change: transform;
-    /* rang | grimpeur | blocs | écart | score */
-    --grille-ligne: 3.4em minmax(0, 1fr) 3.4em 4.4em 5.2em;
   }
-  #liste.d2 { --grille-ligne: 3.2em minmax(0, 1fr) 3.2em 4.2em 5em; }
-  #liste.d3 { --grille-ligne: 3em minmax(0, 1fr) 3em 4em 4.8em; }
-  #liste.d4 { --grille-ligne: 2.4em minmax(0, 1fr) 4.4em; }
   /* Le flux par LIGNES, et pas par colonnes. Le podium est une rangée (1, 2, 3
      de gauche à droite) : enchaîner sur des colonnes qui se lisent de haut en
      bas obligeait l'œil à changer de sens au milieu de l'écran. Maintenant tout
@@ -352,7 +359,13 @@
      c'est le même qui faisait que le tableau ne suivait pas un
      redimensionnement : la grille ne bougeait pas avec le texte. */
   body.mur main.d1, body.mur main.d2, body.mur main.d3 {
-    --grille-ligne: calc(var(--h) * .85) minmax(0, 1fr) calc(var(--h) * .62)
+    /* `max(…, 2.4rem)` sur la colonne des blocs : c'est la plus étroite, et la
+       seule qui n'arrivait pas à contenir son propre titre. Le titre cesse de
+       rétrécir à 0,6 rem (son plancher) pendant que la colonne, elle, continue
+       de suivre `--h` : sous 62 px de hauteur de ligne, « BLOCS » ne rentrait
+       plus et sortait en « BLOC ». Un chiffre de blocs, lui, tient dans les
+       27 px que `--h` donne — c'est bien le mot qu'il fallait loger. */
+    --grille-ligne: calc(var(--h) * .85) minmax(0, 1fr) max(calc(var(--h) * .62), 2.4rem)
                     calc(var(--h) * 1.1) calc(var(--h) * 1.4);
   }
   body.mur main.d4 {
@@ -448,11 +461,19 @@
 
   /* Les favoris du spectateur. Une colonne d'étoiles en plus, à droite, et
      seulement sur téléphone : sur le mur, personne ne touche l'écran. */
-  body:not(.mur) main { --grille-ligne: 2.6em minmax(0, 1fr) 4.6em 2.4em; }
-  body:not(.mur) main.d1 { --grille-ligne: 3.4em minmax(0, 1fr) 3.4em 4.4em 5.2em 2.4em; }
-  body:not(.mur) main.d2 { --grille-ligne: 3.2em minmax(0, 1fr) 3.2em 4.2em 5em 2.4em; }
-  body:not(.mur) main.d3 { --grille-ligne: 3em minmax(0, 1fr) 3em 4em 4.8em 2.4em; }
-  body:not(.mur) main.d4 { --grille-ligne: 2.4em minmax(0, 1fr) 4.4em 2.4em; }
+  /* ⚠️ `rem`, et surtout PAS `em`. `--grille-ligne` est héritée, mais ses `em`
+     se résolvent sur l'élément QUI S'EN SERT : 16 px pour une ligne, 10,88 px
+     pour un en-tête (`0.68rem`). La même valeur donnait donc deux grilles
+     différentes — 38 px de colonne « Rang » sur la ligne, 26 px sur son titre,
+     qui sortait en « RAN » — et les titres ne se posaient pas au-dessus de ce
+     qu'ils nomment. En `rem`, les deux se résolvent sur la racine et tombent
+     l'une sur l'autre. Le mur n'a jamais eu le défaut : ses colonnes sont en
+     `calc(var(--h) * …)`, une longueur absolue. */
+  body:not(.mur) main { --grille-ligne: 2.6rem minmax(0, 1fr) 4.6rem 2.4rem; }
+  body:not(.mur) main.d1 { --grille-ligne: 3.4rem minmax(0, 1fr) 3.4rem 4.4rem 5.2rem 2.4rem; }
+  body:not(.mur) main.d2 { --grille-ligne: 3.2rem minmax(0, 1fr) 3.2rem 4.2rem 5rem 2.4rem; }
+  body:not(.mur) main.d3 { --grille-ligne: 3rem minmax(0, 1fr) 3rem 4rem 4.8rem 2.4rem; }
+  body:not(.mur) main.d4 { --grille-ligne: 2.4rem minmax(0, 1fr) 4.4rem 2.4rem; }
   body.mur .etoile { display: none; }
 
   .etoile {
@@ -1324,13 +1345,43 @@
    * jamais : ce sont les deux seules choses qu'on vient lire.
    */
   // Ce que coûtent les quatre colonnes chiffrées, en multiples de la hauteur de
-  // ligne : rang .85 + blocs .62 + écart 1.1 + score 1.4.
+  // ligne : rang .85 + blocs .62 + écart 1.1 + score 1.4. Sous 62 px de hauteur
+  // de ligne, le plancher de 2,4 rem sur la colonne des blocs coûte une dizaine
+  // de pixels de plus — trop peu pour changer une densité, et l'estimation reste
+  // du bon côté : elle sous-évalue le coût de moins de 2 %.
   var COUT_CHIFFRES = 3.97;
+
+  // Hors du mur, les mêmes colonnes se mesurent en `rem` — et il y en a une de
+  // plus, l'étoile des favoris. Par densité : rang + blocs + écart + score +
+  // étoile, puis les gouttières de 12 px et les 2 × 14 px de rembourrage de la
+  // ligne. En deux lignes (densité 4), il ne reste que trois colonnes, donc
+  // trois gouttières.
+  var COUT_TELEPHONE = [null,
+    { rem: 3.4 + 3.4 + 4.4 + 5.2 + 2.4, px: 5 * 12 + 28 },
+    { rem: 3.2 + 3.2 + 4.2 + 5.0 + 2.4, px: 5 * 12 + 28 },
+    { rem: 3.0 + 3.0 + 4.0 + 4.8 + 2.4, px: 5 * 12 + 28 },
+    { rem: 2.4 + 4.4 + 2.4,             px: 3 * 12 + 28 }];
+
+  // Mesuré au canevas, à la police et à la graisse de `.nom` : « Vialle Jade »
+  // occupe 88 px, « Nieuviarts Martin » 139. En dessous de 140 px de colonne, un
+  // nom de compétition ne tient plus — on replie le tableau en deux lignes
+  // plutôt que de le tronquer. Les noms composés très longs (« Delacroix-Martin
+  // Alexandre », 221 px) s'abrègent sur l'ellipse : un nom coupé se comprend.
+  var LARGEUR_NOM = 140;
 
   function regler_densite(colonnes) {
     var largeur = (el.liste.clientWidth - (colonnes - 1) * 26) / colonnes;
     if (!MUR) {
-      etat.densite = largeur >= 520 ? 1 : largeur >= 470 ? 2 : largeur >= 430 ? 3 : 4;
+      // ⚠️ Les seuils portaient sur la largeur TOTALE et ignoraient et
+      // l'étoile, et les gouttières, et le rembourrage. À 470 px de fenêtre, la
+      // page choisissait donc la densité 3 en laissant 75 px au nom — « Vialle
+      // Jade » en demande 88. On mesure maintenant ce qui reste vraiment au nom.
+      var rem = parseFloat(getComputedStyle(document.documentElement).fontSize) || 16;
+      etat.densite = 4;
+      for (var d = 1; d <= 3; d++) {
+        var cout = COUT_TELEPHONE[d];
+        if (largeur - cout.rem * rem - cout.px >= LARGEUR_NOM) { etat.densite = d; break; }
+      }
     } else {
       // Sur le mur, tout est proportionnel à la hauteur de ligne : la place qui
       // reste au nom se mesure donc DANS CETTE UNITÉ, pas en pixels. Une
