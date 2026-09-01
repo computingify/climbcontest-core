@@ -19,6 +19,13 @@ qu'on ne met pas à jour le matin d'une compétition :
 
 ## [Non publié]
 
+## [0.12.0] — 2026-09-01
+
+La passe de lisibilité sur l'écran projeté, faite en le regardant tourner :
+l'ordre des classements, les colonnes qui suivent la taille du texte, les
+en-têtes qui restent en place, un défilement qui ne saccade plus, et un bouton
+pour figer une catégorie.
+
 ### Modifié
 
 - **Les scratchs passent avant leurs catégories.** L'ordre — donc celui de la
@@ -901,7 +908,8 @@ livrer — spec 001, itération 3.
 - Les données et les secrets vivent dans `shared/`, hors des releases : un
   déploiement ou un retour arrière ne peut pas les toucher.
 
-[Non publié]: https://github.com/computingify/climbcontest-core/compare/v0.11.0...HEAD
+[Non publié]: https://github.com/computingify/climbcontest-core/compare/v0.12.0...HEAD
+[0.12.0]: https://github.com/computingify/climbcontest-core/releases/tag/v0.12.0
 [0.11.0]: https://github.com/computingify/climbcontest-core/releases/tag/v0.11.0
 [0.10.0]: https://github.com/computingify/climbcontest-core/releases/tag/v0.10.0
 [0.6.0]: https://github.com/computingify/climbcontest-core/releases/tag/v0.6.0
