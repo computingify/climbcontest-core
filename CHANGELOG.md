@@ -19,6 +19,108 @@ qu'on ne met pas à jour le matin d'une compétition :
 
 ## [Non publié]
 
+## [0.11.0] — 2026-09-01
+
+La page de résultats reprise de fond en comble, et trois classements de plus.
+Le fil qui les relie : ce qu'on projette doit se lire d'un coup d'œil à huit
+mètres, et ce qu'on tient dans la main doit se manipuler au pouce.
+
+### Ajouté
+
+- **Le spectateur peut suivre des grimpeurs.** Une **étoile** sur chaque ligne —
+  dans la recherche comme dans un classement. Ce qu'elle change : la ligne du
+  favori est surlignée, la catégorie où il grimpe porte une étoile dans la
+  barre, et une entrée **« ★ Mes favoris »** en tête de barre donne la liste,
+  avec le rang de chacun dans sa catégorie et l'étoile pour le retirer.
+  Les favoris vivent dans le **stockage local du téléphone**, pas dans un
+  cookie : un cookie repartirait dans chaque requête — vers une page que
+  soixante personnes rafraîchissent toutes les quinze secondes — alors que ces
+  noms n'ont rien à faire sur le réseau. Rien n'est envoyé, rien n'est stocké
+  côté serveur. La liste est liée à **une** compétition : les identifiants de
+  participant sont réattribués d'une édition à l'autre.
+- **Un balayage horizontal change de catégorie** sur téléphone. Viser une
+  pastille demande de regarder ce qu'on touche ; un balayage, non. Il est ignoré
+  s'il part de la barre ou s'il est trop vertical — le défilement du classement
+  reste le geste le plus fréquent.
+- **Trois classements qui traversent les circuits** (spec 017) : `Scratch` avec
+  tout le monde, `Scratch F` et `Scratch H`. La règle du classeur est appliquée
+  telle quelle — chacun reste jugé sur les blocs de **son** circuit, et la valeur
+  d'un bloc reste relative au groupe classé. Ils défilent sur le mur avec les
+  autres et se choisissent au doigt sur téléphone.
+  ⚠️ **Les scores d'un scratch ne sont comparables qu'entre eux.** 51 blocs sur
+  67 appartiennent à plusieurs circuits : le dénominateur d'un scratch compte
+  des grimpeurs que la catégorie ne comptait pas, et le score change. Un groupe
+  plus petit donne des blocs plus chers — sur novembre 2025, la première du
+  scratch féminin affiche 5110 quand le premier du général affiche 4978, sans
+  avoir grimpé davantage. **La catégorie reste le résultat officiel.**
+- **La page retire de l'information quand la place manque**, au lieu de tronquer :
+  d'abord le numéro de dossard, puis le club, puis le compte de blocs. Le nom et
+  le score ne partent jamais. « Les Lezards Vagab… · n° » ne renseignait personne.
+
+### Modifié
+
+- **Les ex æquo partagent leur marche.** Deux premiers à égalité sont côte à
+  côte, au même niveau, sur le même socle et avec la même médaille — une marche
+  porte un groupe de grimpeurs, pas un grimpeur. Il n'y a alors pas de deuxième
+  marche : c'est ce que dit le classement.
+- **Les couleurs du podium sont refaites.** La marche du milieu est en **argent
+  gris**, celle de droite en **cuivre**, et l'or est un jaune franc qui ne se
+  confond plus avec le bronze. La médaille suit désormais la **marche** et non
+  le rang : deux ex æquo en tête gardent leur « 1 » affiché — c'est le chiffre
+  qui dit la vérité sportive, la couleur dit la marche. Chaque médaille a deux
+  valeurs, un aplat vif pour le socle et une encre plus sombre pour le chiffre,
+  sans quoi un or assez vif pour se distinguer du bronze devient illisible.
+- **Le classement se lit en colonnes**, et chaque colonne annonce sa tranche
+  (« 4 → 10 »). La lecture en lignes, essayée d'abord, obligeait à balayer de
+  gauche à droite pour suivre des rangs qui, eux, descendent. Deux autres mises
+  en page restent atteignables par l'adresse pour comparer : `?sens=lignes` et
+  `?sens=large` (une seule colonne, lignes hautes, le reste défile).
+- **Le podium a la forme d'un podium** : le premier au centre et plus haut, le
+  deuxième à gauche un peu en dessous, le troisième à droite plus bas encore,
+  chacun sur son socle à la couleur de sa médaille.
+- **Le classement devient un tableau.** En regardant comment les services de
+  résultats sportifs présentent les leurs, trois choses reviennent partout et
+  manquaient toutes : la colonne **Écart au premier** (« 1287 » ne dit rien
+  seul ; « 1287, à −368 » dit la course), un **en-tête de colonnes** (sans lui,
+  « 16 » et « −368 » sont deux nombres à deviner), et des **chiffres tabulaires
+  alignés à droite** avec le texte à gauche. Les cartes détachées cèdent la
+  place à des zébrures très peu saturées : des colonnes alignées se parcourent à
+  la verticale, des cartes obligent à relire chaque ligne en entier.
+- **Sur téléphone, le tableau se replie en deux lignes** — nom et score en
+  grand, « club · 13 blocs · −285 » en dessous. Les cinq colonnes coûtent près
+  de 300 px de gabarit : en dessous, il ne restait plus de place pour le nom, et
+  c'est le nom qu'on vient lire.
+- **Le classement se lit dans un seul sens.** Le podium est une rangée — 1, 2, 3
+  de gauche à droite — et le reste enchaînait sur des colonnes lues de haut en
+  bas : l'œil changeait de sens au milieu de l'écran. Les rangs se remplissent
+  maintenant par lignes, 4, 5, 6 puis 7, 8, 9.
+- **La barre de catégories est la même sur le mur et sur le téléphone.** Sur le
+  mur, elle dit où on en est dans le cycle : la **jauge de rotation vit dans la
+  pastille** de la catégorie affichée, au lieu d'un filet en haut de l'écran que
+  personne ne reliait à rien. Sur un téléphone, c'est le sélecteur — on touche
+  une catégorie, on ne voit qu'elle, et le cycle repart de là.
+- **La page suit vraiment la fenêtre.** Le nombre de colonnes dépend de la
+  largeur autant que de l'effectif (une colonne par tranche de 340 px, trois au
+  plus), le podium en bandeau s'efface sous 900 px où trois cartes côte à côte
+  s'écrasent, et toutes les tailles du bandeau sont fluides au lieu d'être
+  figées — à 760 px, « U11 F » se cassait en deux lignes et la ligne d'état
+  était tranchée.
+- **Quand ça défile, les lignes s'effacent aux deux bords** au lieu d'être
+  tranchées net : une ligne coupée en deux se lit comme un bogue d'affichage.
+
+### Corrigé
+
+- **Une petite catégorie ne laisse plus les trois quarts du mur vides.** Constaté
+  en production juste après la 0.10.0, sur la compétition de test : trois
+  grimpeurs, trois lignes collées en haut de l'écran, et le reste blanc — ça se
+  lit comme un écran cassé, pas comme une petite catégorie. Le plateau est
+  maintenant **centré** quand il ne remplit pas la hauteur (jamais quand il
+  déborde : le défilement doit partir du haut), les lignes ont droit à plus de
+  hauteur en dessous de six, et le nombre de colonnes suit vraiment l'effectif —
+  un seul grimpeur occupait une demi-largeur parce que les deux branches du
+  calcul étaient identiques.
+- **« 1 grimpeurs »** devient « 1 grimpeur ». En 25 px sur un mur, ça se voit.
+
 ## [0.10.0] — 2026-08-31
 
 Deux écrans repris, et pour la même raison : ce qu'on ne peut pas faire sans
@@ -764,7 +866,8 @@ livrer — spec 001, itération 3.
 - Les données et les secrets vivent dans `shared/`, hors des releases : un
   déploiement ou un retour arrière ne peut pas les toucher.
 
-[Non publié]: https://github.com/computingify/climbcontest-core/compare/v0.10.0...HEAD
+[Non publié]: https://github.com/computingify/climbcontest-core/compare/v0.11.0...HEAD
+[0.11.0]: https://github.com/computingify/climbcontest-core/releases/tag/v0.11.0
 [0.10.0]: https://github.com/computingify/climbcontest-core/releases/tag/v0.10.0
 [0.6.0]: https://github.com/computingify/climbcontest-core/releases/tag/v0.6.0
 [0.5.1]: https://github.com/computingify/climbcontest-core/releases/tag/v0.5.1

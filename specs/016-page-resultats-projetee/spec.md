@@ -121,6 +121,98 @@ dernier. Le doublon disparaît quand même : il n'existe plus qu'une seule page.
 `@public path` du Caddyfile de `edge`, et les mentions dans les specs 001 et
 006.
 
+## 3.7 Reprise du 31/08 (après la mise en service)
+
+Trois retours d'Adrien, tous vérifiés à l'écran :
+
+**« Ce n'est pas logique : on voit les 3 premiers en ligne puis le reste en
+colonne. »** Il a raison — le podium est une rangée qui se lit de gauche à
+droite, et le classement enchaînait sur des colonnes qui se lisent de haut en
+bas. L'œil changeait de sens au milieu de l'écran. Le classement se remplit
+maintenant **par lignes** : 4, 5, 6, puis 7, 8, 9. Un seul sens de lecture.
+
+**« La liste des catégories en haut, avec un truc pour voir le défilement. »**
+La barre de catégories, qui n'existait que sur téléphone, est désormais **la
+même dans les deux modes** — et la jauge de rotation vit **dans la pastille de
+la catégorie affichée** plutôt que dans un filet en haut de l'écran que
+personne ne reliait à rien. Sur le mur, elle dit où on en est dans le cycle ;
+sur un téléphone, c'est le sélecteur. Toucher une catégorie l'affiche, et
+relance le cycle à partir d'elle.
+
+**« Responsive, et sur téléphone un seul tableau. »** Le nombre de colonnes
+suit la **largeur** autant que l'effectif (une colonne par tranche de 340 px,
+trois au plus), le podium en bandeau disparaît sous 900 px — trois cartes côte
+à côte s'y écrasent —, et toutes les tailles du bandeau sont fluides
+(`clamp()`) au lieu d'être figées. Sur téléphone, une seule colonne, un seul
+tableau : celui qu'on a choisi.
+
+## 3.8 Reprise du 31/08 (soir) — le podium, et un vrai tableau
+
+**Le podium prend la forme qu'on lui connaît** : le premier au centre et plus
+haut, le deuxième à gauche un peu en dessous, le troisième à droite plus bas
+encore, chacun sur son socle à la couleur de sa médaille. C'est la forme qu'on
+lit sans la lire.
+
+**Le classement en dessous devient un tableau**, et pas une pile de cartes.
+Adrien : « la présentation des résultats en dessous n'est vraiment pas
+terrible ». En regardant comment les services de résultats sportifs s'y prennent
+(IFSC, chronométrage de course, tables de classement), trois choses reviennent
+partout et manquaient toutes :
+
+| Ce qu'ils font | Pourquoi | Chez nous |
+| --- | --- | --- |
+| **Position + écart au leader** | « 1287 » ne dit rien seul ; « 1287, à −368 » dit la course. C'est la deuxième colonne de tout classement chronométré | colonne **Écart** |
+| **Un en-tête de colonnes** | sans lui, « 16 » et « −368 » sont deux nombres qu'il faut deviner | Rang · Grimpeur · Blocs · Écart · Score |
+| **Chiffres tabulaires, alignés à droite ; texte à gauche** | c'est ce qui permet de comparer deux nombres sans les lire | `font-variant-numeric: tabular-nums` partout |
+
+Et des **zébrures très peu saturées** plutôt que des cartes détachées : la
+littérature sur les tableaux est nuancée — le gain de vitesse est faible — mais
+la précision de lecture progresse, et sur un mur c'est la précision qui compte.
+Des colonnes alignées se parcourent à la verticale ; des cartes obligent à
+relire chaque ligne en entier.
+
+**Sur téléphone, le tableau se replie en deux lignes** : nom et score en grand,
+et « club · 13 blocs · −285 » en petit dessous. Les cinq colonnes coûtent près
+de 300 px de gabarit fixe — en dessous, il ne reste plus de place pour le nom,
+et c'est le nom qu'on vient lire. Aucune information n'est perdue, elle change
+de place.
+
+## 3.9 Le téléphone du spectateur (31/08, soir)
+
+Trois demandes d'Adrien, toutes pour le mode spectateur — le mur ne change pas,
+personne ne le touche.
+
+**Le balayage.** Un glissement franc vers la gauche ou la droite passe à la
+catégorie suivante ou précédente. Viser une pastille demande de regarder ce
+qu'on touche ; un balayage, non. Il est ignoré s'il part de la barre (qui défile
+déjà horizontalement) ou s'il est trop vertical — le geste le plus fréquent sur
+un classement reste le défilement.
+
+**Les favoris.** Chaque ligne porte une **étoile**. Ce qu'elle change :
+
+| Où | Ce qu'on voit |
+| --- | --- |
+| Dans un classement | la ligne du favori est **surlignée** et bordée |
+| Dans la barre | la catégorie qui contient un favori porte une **étoile** |
+| En tête de barre | une entrée **« ★ Mes favoris »** : la liste, avec le rang de chacun dans sa catégorie, et l'étoile pour le retirer |
+
+La recherche par nom ou dossard existait déjà (spec 006) et traverse toutes les
+catégories ; c'est d'elle qu'on part pour suivre quelqu'un.
+
+**Où ça se range.** Dans le **stockage local du téléphone**, pas dans un cookie.
+Un cookie repart dans *chaque* requête — vers une page que soixante personnes
+rafraîchissent toutes les quinze secondes — alors que ces noms n'ont rien à
+faire sur le réseau. Là, ils ne quittent jamais l'appareil : rien n'est envoyé,
+rien n'est stocké côté serveur, et le classeur ne sait pas qui suit qui.
+
+⚠️ **La liste est liée à une compétition.** Les identifiants de participant sont
+réattribués d'une édition à l'autre : suivre « le n°12 » de l'an dernier
+désignerait quelqu'un d'autre. Changement de compétition, liste vidée.
+
+Un favori disparu du classement (retiré de la compétition) reste affiché dans la
+liste, avec la mention « plus au classement » — sinon on ne pourrait plus
+l'enlever.
+
 ## 4. Critères d'acceptation
 
 | # | Critère | Comment on le vérifie |
@@ -138,6 +230,22 @@ dernier. Le doublon disparaît quand même : il n'existe plus qu'une seule page.
 | A11 | `/resultats` répond 308 vers `/` | Test de route |
 | A12 | Le mode spectateur (téléphone) reste utilisable : recherche, choix de catégorie | Capture 390 px + tests existants |
 | A13 | `prefers-reduced-motion` coupe les animations | Media query, vérifiée |
+| A14 | Le classement se lit dans **un seul sens** — rangées, comme le podium | Absence de `grid-auto-flow: column` ; vérifié à l'écran |
+| A15 | La barre de catégories existe dans les **deux** modes, et porte la jauge de rotation | Test de gabarit + capture |
+| A16 | Toucher une catégorie l'affiche seule et relance le cycle à partir d'elle | Piloté : clic sur « U13 H » → 25 lignes, une seule table |
+| A17 | Le nombre de colonnes suit la largeur de la fenêtre | 1920 → 3, 1100 → 3, 900 → 2, 560 → 1 |
+| A18 | Sous 900 px, le podium en bandeau s'efface au profit de la liste | Capture 760 px |
+| A19 | Le podium est en **marches** : 1er au centre et plus haut, 2e à gauche, 3e à droite et plus bas | Capture 1920 |
+| A20 | Le classement porte un **en-tête de colonnes** et une colonne **Écart** | Capture + test de gabarit |
+| A21 | Sous 430 px de colonne, le tableau se replie en deux lignes sans rien perdre | Capture 390 px |
+| A22 | Le classement se lit **en colonnes**, chaque colonne annonçant sa tranche | Capture 1920 |
+| A23 | Les **ex æquo partagent leur marche** : même niveau, même socle, même médaille | Capture d'une catégorie à deux premiers |
+| A24 | Or, argent et bronze se distinguent au premier coup d'œil | Capture |
+| A25 | Un balayage horizontal change de catégorie sur téléphone | Piloté : `U11 F` → `U11 H` |
+| A26 | L'étoile ajoute et retire un favori, et il survit au rechargement | Piloté + contenu du stockage local |
+| A27 | Un favori est surligné dans son classement, sa catégorie marquée dans la barre | Capture 390 px |
+| A28 | « ★ Mes favoris » liste les suivis avec leur rang, et permet de les retirer | Capture 390 px |
+| A29 | Aucun favori ne part sur le réseau ni dans un cookie | Test de gabarit : `localStorage`, pas de `document.cookie` |
 
 ## 5. Ce qui reste hors périmètre
 

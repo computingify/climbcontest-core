@@ -183,6 +183,102 @@ class TestFaitePourEtreProjetee:
         page = client.get("/").data.decode()
         assert "programmerDefilement" in page
 
+    def test_la_barre_de_categories_sert_aux_deux_modes(self, client, jeu):
+        """Un seul composant, deux usages : sur le mur il dit où on en est dans
+        le cycle, sur un téléphone c'est le sélecteur. Deux composants auraient
+        divergé."""
+        page = client.get("/").data.decode()
+        assert "dessinerBarre" in page
+        assert "body.mur #barre" in page, "la barre doit exister aussi en mode mur"
+        assert "body.mur #barre, body.mur #recherche { display: none; }" not in page
+
+    def test_la_jauge_de_rotation_vit_sur_la_categorie(self, client, jeu):
+        """Un filet en haut de l'écran ne se relie à rien ; la jauge est posée
+        là où on regarde déjà — sur le nom de la catégorie."""
+        page = client.get("/").data.decode()
+        assert "function jauger(" in page
+        assert 'id="progression"' not in page, "l'ancienne barre du haut a disparu"
+
+    def test_le_classement_se_lit_en_colonnes(self, client, jeu):
+        """Adrien, 31/08 : « le classement en ligne n'est vraiment pas lisible,
+        en colonne ce serait mieux ». Les rangs descendent, l'œil descend avec
+        eux, et chaque colonne annonce sa tranche (« 4 → 10 ») — sans quoi rien
+        ne dirait dans quel sens lire."""
+        page = client.get("/").data.decode()
+        assert "function agencer(" in page
+        assert "function majEntete(" in page
+        assert "gridAutoFlow" in page
+
+    def test_les_colonnes_suivent_la_largeur(self, client, jeu):
+        page = client.get("/").data.decode()
+        assert "function colonnesPour(" in page
+        assert "clientWidth" in page
+
+    def test_la_page_retire_de_l_information_quand_la_place_manque(self, client, jeu):
+        """Adrien, 31/08 : « quitte à supprimer des informations ou les
+        redimensionner ». On n'affiche pas « Les Lezards Vagab… · n° » : on
+        enlève, dans l'ordre, le dossard puis le club puis le compte de blocs.
+        Le nom et le score ne partent jamais."""
+        page = client.get("/").data.decode()
+        assert "function regler_densite(" in page
+        assert "etat.densite" in page
+        assert "#liste.d4 .blocs" in page
+
+    def test_le_podium_est_en_marches(self, client, jeu):
+        """Premier au centre et plus haut, deuxième à gauche, troisième à droite
+        et plus bas — la forme qu'on lit sans la lire."""
+        page = client.get("/").data.decode()
+        assert ".groupe.place-1 { order: 2;" in page
+        assert ".groupe.place-2 { order: 1;" in page
+        assert ".groupe.place-3 { order: 3;" in page
+
+    def test_les_ex_aequo_partagent_leur_marche(self, client, jeu):
+        """Ils sont à égalité : ils doivent être au même niveau, sur le même
+        socle et avec la même médaille (Adrien, 31/08). Une marche porte donc un
+        GROUPE de cartes, pas une carte."""
+        page = client.get("/").data.decode()
+        assert "function noeudGroupe(" in page
+        assert "derniere.rang === l.rang" in page
+        assert ".groupe .cartes" in page
+
+    def test_le_classement_est_un_tableau(self, client, jeu):
+        """Ce que font les services de résultats sportifs : un en-tête de
+        colonnes, l'écart au premier, des chiffres tabulaires alignés."""
+        page = client.get("/").data.decode()
+        assert '"Rang", "Grimpeur", "Blocs", "Écart", "Score"' in page
+        assert "tabular-nums" in page
+        assert "function noeudEntete(" in page
+
+    def test_les_scratchs_defilent_sur_le_mur(self, client, jeu):
+        page = client.get("/").data.decode()
+        assert '"categorie", "circuit", "scratch"' in page
+
+    def test_le_spectateur_peut_suivre_des_grimpeurs(self, client, jeu):
+        """Une étoile par ligne, une liste « Mes favoris », et la catégorie qui
+        contient un favori se signale dans la barre."""
+        page = client.get("/").data.decode()
+        assert "★ Mes favoris" in page
+        assert "function basculerFavori(" in page
+        assert "function lignesFavorites(" in page
+        assert "function categoriesAvecFavori(" in page
+
+    def test_les_favoris_restent_sur_le_telephone(self, client, jeu):
+        """Stockage LOCAL, pas cookie : un cookie repartirait dans chaque
+        requête — vers une page que soixante personnes rafraîchissent toutes les
+        quinze secondes — alors que ces noms n'ont rien à faire sur le réseau.
+        Et ils sont liés à UNE compétition : les identifiants sont réattribués
+        d'une édition à l'autre."""
+        page = client.get("/").data.decode()
+        assert "localStorage" in page
+        assert "climbcontest.favoris" in page
+        assert "document.cookie" not in page
+        assert "range.competition === id" in page
+
+    def test_le_balayage_change_de_categorie(self, client, jeu):
+        page = client.get("/").data.decode()
+        assert "touchstart" in page and "touchend" in page
+        assert "function voisin(" in page
+
     def test_le_mouvement_se_coupe_si_l_utilisateur_le_demande(self, client, jeu):
         page = client.get("/").data.decode()
         assert "prefers-reduced-motion" in page

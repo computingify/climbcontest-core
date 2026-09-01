@@ -40,7 +40,11 @@
     --encre2: #5A6472;
     --alerte: #B3352A;
     --ok: #1E7A45;
-    --or: #C9971C; --argent: #7E8896; --bronze: #A8703C;
+    --or: #EFB61E;        --or-encre: #A87A00;      /* jaune franc */
+    --argent: #B6BFCA;    --argent-encre: #6C7684;  /* gris neutre */
+    --bronze: #C4703A;    --bronze-encre: #8A4820;  /* cuivre */
+    --encre3: #7B8494;
+    --zebre: #E9EDF3;                 /* zébrure : neutre et très peu saturée */
 
     --groupe: var(--c3);
     --titre: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
@@ -53,7 +57,10 @@
     --c5: #E0705F; --c6: #96A0B2;
     --fond: #0B0F17; --carte: #161B24; --carte2: #1E2430; --trait: #2A313D;
     --encre: #F0F3F8; --encre2: #97A2B2; --alerte: #E0705F; --ok: #57D58D;
-    --or: #E8B93C; --argent: #B9C2CF; --bronze: #C08150;
+    --or: #F0C13F;        --or-encre: #F0C13F;
+    --argent: #C3CBD7;    --argent-encre: #C3CBD7;
+    --bronze: #D08B52;    --bronze-encre: #D08B52;
+    --encre3: #798398; --zebre: #12171F;
   }
 
   * { box-sizing: border-box; }
@@ -65,10 +72,6 @@
   body { display: flex; flex-direction: column; overflow: hidden; }
   body:not(.mur) { overflow-y: auto; overflow-x: hidden; }
 
-  /* ---- La barre de rotation (mur) ---- */
-  .barre-haut { height: 8px; background: var(--trait); flex: none; display: none; }
-  body.mur .barre-haut { display: block; }
-  #progression { height: 100%; width: 0; background: var(--groupe); }
 
   /* ---- Bandeau ---- */
   header {
@@ -76,48 +79,66 @@
     padding: 14px 24px 12px; border-bottom: 1px solid var(--trait);
   }
   .logo { height: 46px; width: auto; flex: none; }
-  body.mur .logo { height: 66px; }
+  body.mur .logo { height: clamp(38px, 4.2vw, 66px); }
 
   .titre-groupe {
     display: flex; align-items: center; gap: 14px; min-width: 0;
     font-size: clamp(1.4rem, 3vw, 2rem); font-weight: 900; letter-spacing: -0.03em;
     color: var(--groupe); line-height: 1;
   }
-  body.mur .titre-groupe { font-size: 62px; }
+  body.mur .titre-groupe { font-size: clamp(1.7rem, 3.6vw, 62px); }
+  .titre-groupe span { white-space: nowrap; }
   .titre-groupe .pastille {
     width: 12px; height: 1em; border-radius: 4px; background: var(--groupe); flex: none;
   }
   body.mur .titre-groupe .pastille { width: 18px; }
   #compte { color: var(--encre2); font-weight: 600; font-size: 0.95rem; white-space: nowrap; }
-  body.mur #compte { font-size: 25px; }
+  body.mur #compte { font-size: clamp(0.9rem, 1.35vw, 25px); }
 
   .droite { margin-left: auto; text-align: right; min-width: 0; }
   #competition { font-weight: 800; font-size: 1rem; }
-  body.mur #competition { font-size: 28px; }
+  body.mur #competition { font-size: clamp(1rem, 1.6vw, 28px); }
   .meta {
     color: var(--encre2); font-size: 0.78rem; margin-top: 2px;
     font-variant-numeric: tabular-nums; white-space: nowrap;
   }
-  body.mur .meta { font-size: 19px; margin-top: 4px; }
+  body.mur .meta { font-size: clamp(0.72rem, 1.1vw, 19px); margin-top: 4px; }
   .meta .perime { color: var(--alerte); font-weight: 700; }
   #suivant { color: var(--encre2); font-size: 0.78rem; margin-top: 2px; display: none; }
-  body.mur #suivant { display: block; font-size: 20px; }
+  body.mur #suivant { display: block; font-size: clamp(0.72rem, 1.15vw, 20px); }
 
-  /* ---- Barre de catégories et recherche (spectateur) ---- */
+  /* ---- La barre de catégories : la MÊME sur le mur et sur le téléphone ----
+     Sur le mur elle dit OÙ ON EN EST dans le cycle — la catégorie affichée s'y
+     remplit doucement jusqu'à la bascule. Sur un téléphone, c'est le sélecteur :
+     on touche une catégorie, on ne voit qu'elle. Un seul composant, deux
+     usages : c'est ce qui fait qu'ils ne divergeront pas. */
   #barre {
-    flex: none; display: flex; gap: 8px; overflow-x: auto;
-    padding: 12px 24px; border-bottom: 1px solid var(--trait);
+    flex: none; display: flex; gap: 8px; overflow-x: auto; scrollbar-width: none;
+    padding: 10px 24px; border-bottom: 1px solid var(--trait);
   }
+  #barre::-webkit-scrollbar { display: none; }
+  body.mur #barre { padding: 12px 32px; gap: 10px; }
   #barre button {
-    flex: 0 0 auto; cursor: pointer;
+    position: relative; overflow: hidden; flex: 0 0 auto; cursor: pointer;
     background: var(--carte); color: var(--encre2);
     border: 1px solid var(--trait); border-radius: 999px;
-    padding: 7px 15px; font: inherit; font-size: 0.9rem; font-weight: 600;
+    padding: 7px 16px; font: inherit; font-size: 0.9rem; font-weight: 600;
     border-left: 4px solid var(--teinte, var(--trait));
   }
-  #barre button[aria-pressed="true"] {
-    background: var(--teinte, var(--groupe)); color: #fff; border-color: transparent;
+  body.mur #barre button {
+    font-size: clamp(0.9rem, 1.15vw, 1.35rem); padding: 9px 22px; border-left-width: 6px;
   }
+  #barre button[aria-current="true"] {
+    color: var(--encre); border-color: var(--teinte, var(--groupe));
+    box-shadow: inset 0 0 0 1px var(--teinte, var(--groupe));
+  }
+  /* La jauge : elle avance pendant toute la durée d'affichage, donc on VOIT
+     venir la bascule au lieu de la subir. */
+  #barre .jauge {
+    position: absolute; left: 0; top: 0; bottom: 0; width: 0;
+    background: color-mix(in srgb, var(--teinte, var(--groupe)) 26%, transparent);
+  }
+  #barre .etiquette { position: relative; }
   #barre button:focus-visible { outline: 2px solid var(--encre); outline-offset: 2px; }
   #recherche {
     flex: none; margin: 12px 24px 0; padding: 11px 14px;
@@ -126,7 +147,7 @@
     border: 1px solid var(--trait); border-radius: 10px; font: inherit;
   }
   #recherche::placeholder { color: var(--encre2); }
-  body.mur #barre, body.mur #recherche { display: none; }
+  body.mur #recherche { display: none; }
 
   /* ---- Le classement ---- */
   main { flex: 1; min-height: 0; display: flex; flex-direction: column;
@@ -139,65 +160,148 @@
   }
   body.mur #attente { font-size: 1.35rem; padding: 18px 26px; }
 
-  /* Le podium en bandeau : trois cartes côte à côte, pleine largeur. Il n'existe
-     qu'en mode mur — sur un téléphone, il mangerait tout l'écran. */
-  #podium { flex: none; display: none; grid-template-columns: repeat(3, 1fr); gap: 18px;
-            height: clamp(132px, 19vh, 208px); }
-  body.mur #podium.visible { display: grid; }
+  /* Le podium, en MARCHES : le premier au centre et plus haut, le deuxième à
+     gauche, le troisième à droite et plus bas encore. C'est la forme qu'on
+     reconnaît sans la lire — demandée par Adrien le 31/08. Il n'existe qu'en
+     mode mur : sur un téléphone, il mangerait tout l'écran. */
+  #podium { flex: none; display: none; gap: 20px; align-items: end;
+            height: clamp(150px, 23vh, 250px); }
+  body.mur #podium.visible { display: flex; }
+
+  /* UNE MARCHE PAR RANG, et les ex æquo la partagent — ils sont à égalité, ils
+     doivent être au même niveau (Adrien, 31/08). La marche porte donc un
+     GROUPE de cartes, pas une carte. */
+  .groupe {
+    display: flex; flex-direction: column; justify-content: flex-end;
+    flex: 1 1 0; min-width: 0;
+  }
+  .groupe .cartes { display: flex; gap: 10px; min-width: 0; align-items: stretch; }
+  .groupe .cartes > .pod { flex: 1 1 0; min-width: 0; }
+  .groupe .socle { border-radius: 0 0 6px 6px; background: var(--medaille); }
+  .groupe.place-1 { order: 2; padding-bottom: 52px; flex-grow: 1.15; }
+  .groupe.place-2 { order: 1; padding-bottom: 26px; }
+  .groupe.place-3 { order: 3; padding-bottom: 0; }
+  .groupe.place-1 .socle { height: 30px; }
+  .groupe.place-2 .socle { height: 20px; }
+  .groupe.place-3 .socle { height: 12px; }
+  /* La place dans la RANGÉE vient du rang affiché (1er au centre), la médaille
+     vient du rang réel : deux ex æquo en tête portent deux fois l'or. C'est la
+     MARCHE qui porte la position — voir `.marche.place-N` plus bas. */
   .pod {
-    display: grid; grid-template-columns: 92px 1fr; column-gap: 18px; row-gap: 2px;
+    display: grid; grid-template-columns: clamp(56px, 5.6vw, 100px) 1fr;
+    column-gap: 18px; row-gap: 2px;
     align-items: center; align-content: center;   /* sinon les trois lignes se
        repartissent sur toute la hauteur de la carte, et le nom flotte tout en
        haut pendant que le score tombe tout en bas */
-    background: var(--carte); border-radius: 18px;
-    padding: 16px 22px; border-top: 9px solid var(--medaille);
+    background: var(--carte); border-radius: 18px 18px 0 0;
+    padding: 14px 22px 12px; border-top: 9px solid var(--medaille);
     box-shadow: 0 1px 0 rgba(14,20,32,.06);
+    /* `flex: 1` et pas `height: 100%` : la carte prend la place qui reste
+       APRÈS le socle. Avec la hauteur pleine, elle le poussait hors de la
+       marche et le podium redevenait trois cartes alignées. */
+    flex: 1;
   }
-  .pod { --medaille: var(--bronze); }
-  .pod.r1 { --medaille: var(--or); }
-  .pod.r2 { --medaille: var(--argent); }
-  .pod.r3 { --medaille: var(--bronze); }
+
+  /* La médaille suit le RANG : une marche = un rang = une couleur. Deux
+     premiers ex æquo partagent la marche dorée, et il n'y a pas de deuxième
+     marche ce jour-là. C'est la vérité sportive, et c'est lisible.
+     Ce qui était vraiment en cause dans « le 2 devrait être gris », c'était la
+     palette : l'argent tirait sur le bleu et l'or sur le bronze. */
+  .groupe, .groupe .pod { --medaille: var(--bronze);
+                          --medaille-encre: var(--bronze-encre); }
+  .groupe.r1, .groupe.r1 .pod { --medaille: var(--or);
+                                --medaille-encre: var(--or-encre); }
+  .groupe.r2, .groupe.r2 .pod { --medaille: var(--argent);
+                                --medaille-encre: var(--argent-encre); }
+  .groupe.r3, .groupe.r3 .pod { --medaille: var(--bronze);
+                                --medaille-encre: var(--bronze-encre); }
   .pod .place {
-    grid-row: 1 / span 3; font-size: 96px; font-weight: 900; line-height: 1;
-    color: var(--medaille); text-align: center; font-variant-numeric: tabular-nums;
+    grid-row: 1 / span 3; font-size: clamp(52px, 5.2vw, 96px); font-weight: 900; line-height: 1;
+    color: var(--medaille-encre); text-align: center; font-variant-numeric: tabular-nums;
   }
-  .pod .nom { font-size: 40px; font-weight: 800; letter-spacing: -0.02em;
+  .pod .nom { font-size: clamp(24px, 2.2vw, 40px); font-weight: 800; letter-spacing: -0.02em;
               white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .pod .club { font-size: 20px; color: var(--encre2);
+  .pod .club { font-size: clamp(14px, 1.1vw, 20px); color: var(--encre2);
                white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .pod .chiffres { display: flex; align-items: baseline; gap: 12px; margin-top: 4px; }
-  .pod .score { font-size: 60px; font-weight: 900; line-height: 1;
+  .pod .chiffres { display: flex; align-items: baseline; gap: 12px; margin-top: 4px;
+                   flex-wrap: nowrap; white-space: nowrap; }
+  .pod .score { font-size: clamp(32px, 3.2vw, 60px); font-weight: 900; line-height: 1;
                 font-variant-numeric: tabular-nums; }
-  .pod .blocs { font-size: 22px; color: var(--encre2); }
+  .pod .blocs { font-size: clamp(14px, 1.2vw, 22px); color: var(--encre2); }
+  .pod .ecart { font-size: clamp(14px, 1.2vw, 22px); color: var(--encre2); }
 
   /* La zone qui défile doucement quand le plateau déborde. */
   #defile { flex: 1; min-height: 0; overflow: hidden; }
+  /* Et qui CENTRE quand il ne la remplit pas. Vu en production le 31/08 sur la
+     compétition de test : trois grimpeurs, trois lignes collées en haut, et
+     les trois quarts du mur vides — ça se lit comme un écran cassé, pas comme
+     une petite catégorie. Jamais quand ça déborde : le défilement doit partir
+     du haut. */
+  body.mur #defile.centre { display: flex; flex-direction: column; justify-content: center; }
+  /* Quand ça défile, les lignes s'effacent aux deux bords au lieu d'être
+     tranchées net : une ligne coupée en deux se lit comme un bogue
+     d'affichage, un fondu se lit comme un mouvement voulu. */
+  body.mur #defile.defilant {
+    -webkit-mask-image: linear-gradient(to bottom, transparent 0, #000 26px,
+                                        #000 calc(100% - 26px), transparent 100%);
+    mask-image: linear-gradient(to bottom, transparent 0, #000 26px,
+                                #000 calc(100% - 26px), transparent 100%);
+  }
   body:not(.mur) #defile { overflow: visible; }
   #liste {
-    display: flex; flex-direction: column; gap: 7px;
+    display: flex; flex-direction: column; gap: 0;
     will-change: transform;
+    /* rang | grimpeur | blocs | écart | score */
+    --grille-ligne: 3.4em minmax(0, 1fr) 3.4em 4.4em 5.2em;
   }
+  #liste.d2 { --grille-ligne: 3.2em minmax(0, 1fr) 3.2em 4.2em 5em; }
+  #liste.d3 { --grille-ligne: 3em minmax(0, 1fr) 3em 4em 4.8em; }
+  #liste.d4 { --grille-ligne: 2.4em minmax(0, 1fr) 4.4em; }
+  /* Le flux par LIGNES, et pas par colonnes. Le podium est une rangée (1, 2, 3
+     de gauche à droite) : enchaîner sur des colonnes qui se lisent de haut en
+     bas obligeait l'œil à changer de sens au milieu de l'écran. Maintenant tout
+     se lit dans le même sens — 4, 5, 6 puis 7, 8, 9. */
   body.mur #liste {
     display: grid; grid-template-columns: repeat(var(--colonnes, 3), 1fr);
-    grid-auto-flow: column; gap: 7px 18px; align-content: start;
+    gap: 0 26px; align-content: start;
   }
 
+  /* Un TABLEAU, pas une pile de cartes. C'est ce que font les services de
+     résultats sportifs, et pour une raison qui se mesure : des colonnes
+     alignées se parcourent à la verticale, des cartes obligent à relire chaque
+     ligne en entier. Zébrures très peu saturées (elles aident un peu la
+     précision de lecture sans faire de bruit), chiffres tabulaires, texte à
+     gauche et nombres à droite. */
+  .entete {
+    display: grid; align-items: end; gap: 12px;
+    grid-template-columns: var(--grille-ligne);
+    padding: 0 14px 6px; border-bottom: 2px solid var(--trait);
+    font-size: 0.68rem; letter-spacing: 0.1em; text-transform: uppercase;
+    font-weight: 700; color: var(--encre3, var(--encre2));
+  }
+  body.mur .entete { font-size: calc(var(--h, 64px) * .21); padding-bottom: 8px; }
+  .entete span:nth-child(1), .entete span:nth-child(3),
+  .entete span:nth-child(4), .entete span:nth-child(5) { text-align: right; }
+  .entete span:nth-child(1) { text-align: left; }
+
   .ligne {
-    display: grid; grid-template-columns: 3.2em 1fr auto; align-items: center; gap: 14px;
-    background: var(--carte); border-radius: 11px; padding: 10px 16px;
-    border-left: 5px solid transparent;
+    display: grid; grid-template-columns: var(--grille-ligne);
+    align-items: center; gap: 12px;
+    padding: 9px 14px; border-bottom: 1px solid var(--trait);
   }
-  body.mur .ligne {
-    height: var(--h, 64px); padding: 0 16px; gap: 12px;
-    grid-template-columns: calc(var(--h, 64px) * .95) 1fr auto;
-  }
-  .ligne.p1 { border-left-color: var(--or); background: var(--carte2); }
-  .ligne.p2 { border-left-color: var(--argent); background: var(--carte2); }
-  .ligne.p3 { border-left-color: var(--bronze); background: var(--carte2); }
+  .ligne:nth-of-type(even) { background: var(--zebre); }
+  body.mur .ligne { height: var(--h, 64px); padding: 0 14px; }
+
+  /* Le podium reste marqué dans le tableau — utile quand il n'y a pas de
+     bandeau (téléphone, fenêtre étroite). */
+  .ligne.p1, .ligne.p2, .ligne.p3 { background: var(--carte2); }
+  .ligne.p1 { box-shadow: inset 5px 0 0 var(--or); }
+  .ligne.p2 { box-shadow: inset 5px 0 0 var(--argent); }
+  .ligne.p3 { box-shadow: inset 5px 0 0 var(--bronze); }
 
   .rang { font-weight: 800; color: var(--encre2); text-align: right;
           font-variant-numeric: tabular-nums; font-size: 1.15rem; }
-  body.mur .rang { font-size: calc(var(--h, 64px) * .42); }
+  body.mur .rang { font-size: calc(var(--h, 64px) * .40); }
   .qui { min-width: 0; }
   .nom { font-weight: 700; font-size: 1.05rem;
          white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -205,15 +309,57 @@
   .club { color: var(--encre2); font-size: 0.8rem;
           white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   body.mur .club { font-size: calc(var(--h, 64px) * .21); }
-  .chiffres { text-align: right; }
   .score { font-weight: 800; font-size: 1.2rem; font-variant-numeric: tabular-nums;
-           line-height: 1.1; }
+           text-align: right; }
   body.mur .score { font-size: calc(var(--h, 64px) * .40); }
-  .blocs { color: var(--encre2); font-size: 0.75rem; }
-  body.mur .blocs { font-size: calc(var(--h, 64px) * .19); }
+  .blocs { color: var(--encre2); font-size: 0.9rem; text-align: right;
+           font-variant-numeric: tabular-nums; }
+  body.mur .blocs { font-size: calc(var(--h, 64px) * .28); }
+  /* L'écart au premier : la deuxième colonne que tout service de résultats
+     affiche, après la position. « 1287 » ne dit rien seul ; « 1287, à −368 »
+     dit la course. */
+  .ecart { color: var(--encre2); text-align: right; font-variant-numeric: tabular-nums;
+           font-size: 0.9rem; }
+  body.mur .ecart { font-size: calc(var(--h, 64px) * .28); }
 
   /* Une place gagnée ou perdue se VOIT : la flèche dit de combien, la ligne
      glisse jusqu'à sa nouvelle place, et celui qui monte pulse une fois. */
+  /* La densité : quand une colonne se resserre, on ENLÈVE de l'information
+     plutôt que de tout tronquer. Dans l'ordre de ce qu'on peut perdre : le
+     numéro de dossard (il est sur le dossard, justement), puis le club, puis
+     le compte de blocs. Le nom et le score, jamais. */
+  #liste.d4 .blocs, #liste.d4 .ecart, #podium.serre .club { display: none; }
+  .club:empty { display: none; }
+  /* En deux lignes, l'en-tête n'annonce plus que ce qui reste. */
+  #liste.d4 .entete span:nth-child(3), #liste.d4 .entete span:nth-child(4) { display: none; }
+
+  /* Les favoris du spectateur. Une colonne d'étoiles en plus, à droite, et
+     seulement sur téléphone : sur le mur, personne ne touche l'écran. */
+  body:not(.mur) #liste { --grille-ligne: 2.6em minmax(0, 1fr) 4.6em 2.4em; }
+  body:not(.mur) #liste.d1 { --grille-ligne: 3.4em minmax(0, 1fr) 3.4em 4.4em 5.2em 2.4em; }
+  body:not(.mur) #liste.d2 { --grille-ligne: 3.2em minmax(0, 1fr) 3.2em 4.2em 5em 2.4em; }
+  body:not(.mur) #liste.d3 { --grille-ligne: 3em minmax(0, 1fr) 3em 4em 4.8em 2.4em; }
+  body:not(.mur) #liste.d4 { --grille-ligne: 2.4em minmax(0, 1fr) 4.4em 2.4em; }
+  body.mur .etoile { display: none; }
+
+  .etoile {
+    cursor: pointer; background: none; border: 0; padding: 6px 2px;
+    font-size: 1.35rem; line-height: 1; color: var(--trait);
+    -webkit-tap-highlight-color: transparent;
+  }
+  .etoile[aria-pressed="true"] { color: var(--or); }
+  .etoile:focus-visible { outline: 2px solid var(--accent, var(--groupe)); border-radius: 6px; }
+
+  /* Un favori se repère sans être cherché : un filet à gauche et son étoile. */
+  .ligne.favori { background: color-mix(in srgb, var(--groupe) 12%, var(--carte)); }
+  .ligne.favori { box-shadow: inset 5px 0 0 var(--groupe); }
+  .ligne.favori.p1 { box-shadow: inset 5px 0 0 var(--or); }
+  .ligne.favori.p2 { box-shadow: inset 5px 0 0 var(--argent); }
+  .ligne.favori.p3 { box-shadow: inset 5px 0 0 var(--bronze); }
+
+  /* Une catégorie qui contient un favori le dit dans la barre. */
+  #barre button .marqueur { color: var(--or); margin-right: 6px; }
+
   .fleche { font-size: 0.62em; font-weight: 800; margin-left: 8px; }
   .monte { color: var(--ok); }
   .descend { color: var(--alerte); }
@@ -236,6 +382,17 @@
   /* Le telephone d'un parent, tenu a bout de bras. Le bandeau du mode mur y
      deborde : il passe en deux lignes plutot que de rogner le nom de la
      competition ou de pousser une barre de defilement horizontale. */
+  @media (max-width: 900px) {
+    .meta { white-space: normal; }
+    header { padding: 12px 20px 10px; gap: 12px; }
+  }
+
+  /* Sous 520 px, le compteur du jour saute : trois lignes de bandeau volent
+     deux lignes de classement, et c'est le classement qu'on est venu voir. */
+  @media (max-width: 520px) {
+    #reussites { display: none; }
+  }
+
   @media (max-width: 680px) {
     header { flex-wrap: wrap; gap: 8px 12px; padding: 12px 16px 10px; }
     .logo { height: 34px; }
@@ -255,8 +412,6 @@
 </style>
 </head>
 <body>
-
-<div class="barre-haut"><div id="progression"></div></div>
 
 <header>
   <img class="logo" src="/static/logo-club.png" alt="" aria-hidden="true">
@@ -304,12 +459,17 @@
   var ROTATION_MIN_MS = 12000, ROTATION_MAX_MS = 35000;
   var ROTATION_FIXE_MS = parseFloat(params.get("rotation")) * 1000 || null;
 
-  // Le mode mur ne montre que les classements SPORTIFS : catégories et
-  // circuits. Le cumul par club reste consultable sur téléphone — il bouge peu
-  // et n'a pas sa place dans une boucle qu'on regarde toute la journée.
-  var TYPES_MUR = ["categorie", "circuit"];
+  // Le mode mur ne montre que les classements SPORTIFS : catégories, circuits
+  // et scratchs. Le cumul par club reste consultable sur téléphone — il bouge
+  // peu et n'a pas sa place dans une boucle qu'on regarde toute la journée.
+  var TYPES_MUR = ["categorie", "circuit", "scratch"];
 
-  var MIN_H = 44, MAX_H = 124;        // hauteur d'une ligne, en mode mur
+  // Hauteur d'une ligne, en mode mur. En « large », on assume d'en montrer
+  // moins : c'est le principe de la proposition.
+  var MIN_H = 44, MAX_H = 124;
+  // Sous ce nombre de lignes, on s'autorise plus grand : mieux vaut six lignes
+  // hautes et lisibles de loin qu'un ruban de six lignes perdu sur un mur.
+  var PEU_DE_LIGNES = 6, MAX_H_PEU = 168;
 
   var etat = {
     classements: [],           // dernier classement CONNU. Jamais vidé sur erreur.
@@ -319,6 +479,10 @@
     ageServeurS: 0,
     recuA: null,
     groupe: null,
+    favoris: [],               // { id, nom, dossard } — stockage local du téléphone
+    densite: 1,                // 1 = tout tient ; 4 = nom et score seulement
+    entetes: [],               // les rangées d'en-tête, réutilisées
+    groupes: [],               // les marches du podium, réutilisées
     enPanne: false,
     messageMetier: null,
     noeuds: {},                // participant -> élément, pour ANIMER au lieu de recréer
@@ -343,11 +507,109 @@
     reussites: document.getElementById("reussites"),
     competition: document.getElementById("competition"),
     suivant: document.getElementById("suivant"),
-    progression: document.getElementById("progression"),
   };
 
   if (MUR) document.body.classList.add("mur");
   if (SOMBRE) document.body.classList.add("sombre");
+
+  // --- Les favoris du spectateur ------------------------------------------
+  //
+  // Rangés dans le STOCKAGE LOCAL du téléphone, pas dans un cookie : un cookie
+  // repart dans chaque requête HTTP — vers une page que soixante personnes
+  // rafraîchissent toutes les quinze secondes — alors que ces noms n'ont rien à
+  // faire sur le réseau. Ils ne quittent jamais l'appareil.
+  //
+  // La liste est liée à UNE compétition : les identifiants de participant sont
+  // réattribués d'une édition à l'autre, et suivre « le n°12 » de l'an dernier
+  // n'aurait aucun sens.
+
+  var CLE_FAVORIS = "climbcontest.favoris";
+  var GROUPE_FAVORIS = "★ Mes favoris";
+
+  function lireFavoris() {
+    try {
+      var brut = JSON.parse(window.localStorage.getItem(CLE_FAVORIS) || "null");
+      if (!brut || !Array.isArray(brut.favoris)) return { competition: null, favoris: [] };
+      return brut;
+    } catch (e) {
+      // Navigation privée, stockage plein, JSON abîmé : on n'a pas de favoris,
+      // et surtout la page continue de fonctionner.
+      return { competition: null, favoris: [] };
+    }
+  }
+
+  function ecrireFavoris() {
+    try {
+      window.localStorage.setItem(CLE_FAVORIS, JSON.stringify({
+        competition: etat.competition ? etat.competition.id : null,
+        favoris: etat.favoris,
+      }));
+    } catch (e) { /* sans stockage, les favoris ne durent que la visite */ }
+  }
+
+  function chargerFavoris() {
+    var range = lireFavoris();
+    var id = etat.competition ? etat.competition.id : null;
+    // Compétition différente : on repart de zéro plutôt que de suivre des
+    // identifiants qui désignent quelqu'un d'autre.
+    etat.favoris = (range.competition === id) ? range.favoris : [];
+  }
+
+  function estFavori(participant) {
+    return etat.favoris.some(function (f) { return f.id === participant; });
+  }
+
+  function basculerFavori(l) {
+    var participant = Number(l.participant_id);
+    if (!participant) return;
+    if (estFavori(participant)) {
+      etat.favoris = etat.favoris.filter(function (f) { return f.id !== participant; });
+    } else {
+      etat.favoris.push({ id: participant, nom: l.nom, dossard: l.dossard });
+    }
+    ecrireFavoris();
+    etat.noeuds = {};
+    el.liste.innerHTML = "";
+    dessiner();
+  }
+
+  /** Les lignes des favoris, prises dans leur CATÉGORIE — leur résultat
+   *  officiel, celui du podium. */
+  function lignesFavorites() {
+    var lignes = [];
+    etat.favoris.forEach(function (f) {
+      var trouvee = null, groupe = null;
+      etat.classements.forEach(function (c) {
+        if (c.type !== "categorie" || trouvee) return;
+        (c.lignes || []).forEach(function (l) {
+          if (l.participant_id === f.id) { trouvee = l; groupe = c; }
+        });
+      });
+      if (trouvee) {
+        lignes.push({ cle: "fav-" + f.id, participant_id: f.id, rang: trouvee.rang,
+                      score: trouvee.score, blocs: trouvee.blocs, nom: trouvee.nom,
+                      club: trouvee.club, dossard: trouvee.dossard,
+                      contexte: libelleDe(groupe) });
+      } else {
+        // Le favori n'est plus au classement (retiré, ou compétition changée) :
+        // on le montre quand même, sinon on ne peut plus l'enlever.
+        lignes.push({ cle: "fav-" + f.id, participant_id: f.id, rang: 0, score: 0,
+                      blocs: 0, nom: f.nom, club: null, dossard: f.dossard,
+                      contexte: "plus au classement" });
+      }
+    });
+    return lignes;
+  }
+
+  function categoriesAvecFavori() {
+    var avec = {};
+    etat.classements.forEach(function (c) {
+      (c.lignes || []).forEach(function (l) {
+        if (estFavori(l.participant_id)) avec[c.groupe] = true;
+      });
+    });
+    return avec;
+  }
 
   function sansMouvement() {
     return window.matchMedia("(prefers-reduced-motion: reduce)").matches;
@@ -368,6 +630,7 @@
   }
 
   function libelleDe(c) {
+    if (c.type === "favoris") return GROUPE_FAVORIS;
     // « U13 » est un CIRCUIT : filles et garçons ensemble. Sans l'étiquette, il
     // se confond avec la catégorie « U13 F » qu'on vient d'afficher.
     return c.type === "circuit" ? c.groupe + " scratch"
@@ -392,6 +655,7 @@
         etat.recuA = Date.now();
         etat.enPanne = false;
         etat.messageMetier = null;
+        if (!MUR) chargerFavoris();
         var visibles = groupesVisibles();
         if (!etat.groupe && visibles.length) etat.groupe = visibles[0].groupe;
         dessiner();
@@ -460,12 +724,17 @@
     el.message.textContent = "";
 
     var visibles = groupesVisibles();
-    var groupe = visibles.find(function (c) { return c.groupe === etat.groupe; })
-              || visibles[0] || etat.classements[0];
+    // « Mes favoris » n'est pas un classement du serveur : c'est une vue que la
+    // page compose à partir des catégories. Il disparaît quand la liste se vide.
+    var surFavoris = !MUR && etat.groupe === GROUPE_FAVORIS && etat.favoris.length > 0;
+    var groupe = surFavoris
+      ? { groupe: GROUPE_FAVORIS, type: "favoris", lignes: [] }
+      : (visibles.find(function (c) { return c.groupe === etat.groupe; })
+         || visibles[0] || etat.classements[0]);
     etat.groupe = groupe.groupe;
     document.documentElement.style.setProperty("--groupe", couleurDe(groupe.groupe));
 
-    if (!MUR) dessinerBarre();
+    dessinerBarre();
 
     var q = MUR ? "" : el.recherche.value.trim().toLowerCase();
     var lignes, titreTexte, compteTexte;
@@ -479,7 +748,8 @@
         (c.lignes || []).forEach(function (l) {
           if ((l.nom || "").toLowerCase().indexOf(q) !== -1
               || String(l.dossard || "").indexOf(q) !== -1) {
-            lignes.push({ cle: c.groupe + "-" + l.participant_id, rang: l.rang,
+            lignes.push({ cle: c.groupe + "-" + l.participant_id,
+                          participant_id: l.participant_id, rang: l.rang,
                           score: l.score, blocs: l.blocs, nom: l.nom, club: l.club,
                           dossard: l.dossard, contexte: libelleDe(c) });
           }
@@ -487,14 +757,19 @@
       });
       titreTexte = "Recherche";
       compteTexte = lignes.length + (lignes.length > 1 ? " résultats" : " résultat");
+    } else if (surFavoris) {
+      lignes = lignesFavorites();
+      titreTexte = GROUPE_FAVORIS;
+      compteTexte = lignes.length + (lignes.length > 1 ? " grimpeurs suivis"
+                                                       : " grimpeur suivi");
     } else {
       lignes = (groupe.lignes || []).map(function (l) {
-        return { cle: String(l.participant_id), rang: l.rang, score: l.score,
-                 blocs: l.blocs, nom: l.nom, club: l.club, dossard: l.dossard,
-                 contexte: null };
+        return { cle: String(l.participant_id), participant_id: l.participant_id,
+                 rang: l.rang, score: l.score, blocs: l.blocs, nom: l.nom,
+                 club: l.club, dossard: l.dossard, contexte: null };
       });
       titreTexte = libelleDe(groupe);
-      compteTexte = lignes.length + " grimpeurs";
+      compteTexte = lignes.length + (lignes.length > 1 ? " grimpeurs" : " grimpeur");
     }
 
     el.titre.textContent = titreTexte;
@@ -508,7 +783,8 @@
     el.attente.hidden = !toutAZero;
     if (toutAZero) {
       el.attente.textContent = "En attente des premières réussites — "
-        + lignes.length + " grimpeurs inscrits, aucun bloc validé pour l'instant.";
+        + lignes.length + (lignes.length > 1 ? " grimpeurs inscrits" : " grimpeur inscrit")
+        + ", aucun bloc validé pour l'instant.";
     }
 
     if (!lignes.length) {
@@ -587,6 +863,7 @@
     return n;
   }
 
+  /** Une carte de podium. */
   function noeudPodium() {
     var n = div("pod");
     div("place", n);
@@ -595,22 +872,51 @@
     var chiffres = div("chiffres", n);
     div("score", chiffres, "span");
     div("blocs", chiffres, "span");
+    div("ecart", chiffres, "span");
     return n;
   }
 
+  /** Une marche : les cartes d'un même rang, et le socle qui les porte. */
+  function noeudGroupe() {
+    var g = div("groupe");
+    div("cartes", g);
+    div("socle", g);
+    return g;
+  }
+
+  /** Une ligne de tableau : rang | grimpeur | blocs | écart | score | ★ */
   function noeudLigne() {
     var n = div("ligne");
     div("rang", n);
     var qui = div("qui", n);
     div("nom", qui);
     div("club", qui);
-    var chiffres = div("chiffres", n);
-    div("score", chiffres);
-    div("blocs", chiffres);
+    div("blocs", n);
+    div("ecart", n);
+    div("score", n);
+    if (!MUR) {
+      var etoile = document.createElement("button");
+      etoile.type = "button";
+      etoile.className = "etoile";
+      etoile.textContent = "★";
+      n.appendChild(etoile);
+    }
     return n;
   }
 
-  function remplir(n, l, avecPodium) {
+  /** L'en-tête de colonnes. Une par colonne affichée : sans elle, « 16 » et
+   *  « −368 » sont deux nombres qu'on doit deviner. */
+  function noeudEntete() {
+    var n = div("entete");
+    ["Rang", "Grimpeur", "Blocs", "Écart", "Score"].forEach(function (mot) {
+      var s = document.createElement("span");
+      s.textContent = mot;
+      n.appendChild(s);
+    });
+    return n;
+  }
+
+  function remplir(n, l, avecPodium, tete) {
     var d = etat.deltas[l.cle];
     n.querySelector(".place, .rang").textContent = l.rang;
 
@@ -623,51 +929,190 @@
       nom.appendChild(f);
     }
 
-    n.querySelector(".club").textContent =
-      [l.contexte, l.club, l.dossard ? "n°" + l.dossard : null].filter(Boolean).join(" · ");
+    // Ce qu'on garde de la ligne d'appoint dépend de la place. Le texte est
+    // recomposé, pas rogné : « Les Lezards Vagab… · n° » ne renseigne personne.
+    // Densité 1 : tout. 2 : le dossard part (il est sur le dossard, justement).
+    // 3 : le club part. 4 : la ligne entière part, et le compte de blocs avec.
+    var appoint = [l.contexte];
+    // Le club revient en densité 4 : la mise en deux lignes lui redonne la
+    // place que le tableau serré lui refusait. Un parent cherche le club.
+    if (etat.densite !== 3 || estPodium) appoint.push(l.club);
+    if ((etat.densite <= 1 || estPodium) && l.dossard) appoint.push("n°" + l.dossard);
+    if (etat.densite >= 4 && !estPodium) {
+      // Les colonnes ont disparu : leur contenu revient ici plutôt que d'être
+      // perdu. Une ligne de plus vaut mieux qu'une information de moins.
+      appoint.push(l.blocs + (l.blocs > 1 ? " blocs" : " bloc"));
+      var perdu = (tete || 0) - l.score;
+      if (perdu > 0) appoint.push("−" + perdu);
+    }
+    n.querySelector(".club").textContent = appoint.filter(Boolean).join(" · ");
     n.querySelector(".score").textContent = l.score;
-    n.querySelector(".blocs").textContent = l.blocs + (l.blocs > 1 ? " blocs" : " bloc");
 
-    if (n.classList.contains("pod")) n.className = "pod r" + Math.min(3, l.rang);
-    else if (!avecPodium) n.className = "ligne";
-    else n.className = "ligne" + (l.rang <= 3 ? " p" + l.rang : "");
+    var estPodium = n.classList.contains("pod");
+    n.querySelector(".blocs").textContent = estPodium
+      ? l.blocs + (l.blocs > 1 ? " blocs" : " bloc")
+      : l.blocs;                       // en tableau, l'en-tête dit déjà « Blocs »
+
+    // L'écart au premier : ce que tout service de résultats affiche juste après
+    // la position. Le premier n'a pas d'écart — un « 0 » ferait croire à une
+    // égalité avec lui-même.
+    var ecart = n.querySelector(".ecart");
+    if (ecart) {
+      var retard = (tete || 0) - l.score;
+      // Sur une marche, le premier n'affiche rien du tout ; dans le tableau, un
+      // tiret garde la colonne alignée.
+      ecart.textContent = retard > 0 ? "−" + retard : (estPodium ? "" : "—");
+    }
+
+    if (estPodium) {
+      n.className = "pod";
+    } else {
+      var favori = !MUR && estFavori(Number(l.participant_id));
+      n.className = "ligne"
+        + (l.rang <= 3 && l.rang > 0 && !avecPodium ? " p" + l.rang : "")
+        + (favori ? " favori" : "");
+      var etoile = n.querySelector(".etoile");
+      if (etoile) {
+        etoile.setAttribute("aria-pressed", String(favori));
+        etoile.setAttribute("aria-label",
+          (favori ? "Retirer " : "Suivre ") + (l.nom || "ce grimpeur"));
+        etoile.onclick = function (e) { e.stopPropagation(); basculerFavori(l); };
+      }
+    }
 
     if (d > 0 && !sansMouvement()) {
       n.classList.remove("pulse"); void n.offsetWidth; n.classList.add("pulse");
     }
   }
 
-  function peindre(lignes, avecPodium) {
-    var podium = MUR && avecPodium && lignes.length > 3;
-    el.podium.classList.toggle("visible", podium);
+  var LARGEUR_PODIUM = 900;      // en dessous, trois cartes côte à côte s'écrasent
 
-    var tete = podium ? lignes.slice(0, 3) : [];
-    var suite = podium ? lignes.slice(3) : lignes;
-
-    // Le podium
-    tete.forEach(function (l, i) {
-      var n = etat.noeuds[l.cle];
-      if (!n || !n.classList.contains("pod")) { n = noeudPodium(); etat.noeuds[l.cle] = n; }
-      remplir(n, l, avecPodium);
-      if (el.podium.children[i] !== n) el.podium.insertBefore(n, el.podium.children[i] || null);
-    });
-    while (el.podium.children.length > tete.length) el.podium.removeChild(el.podium.lastChild);
-
-    // Le reste
-    if (MUR) {
-      var colonnes = suite.length > 26 ? 3 : suite.length > 12 ? 3 : 2;
-      el.liste.style.setProperty("--colonnes", colonnes);
-      ajuster(suite.length, colonnes);
-      el.liste.style.gridTemplateRows = "repeat(" + Math.ceil(suite.length / colonnes) + ", auto)";
+  /** L'ordre des enfants de la liste : en-têtes et lignes, agencés selon le
+   *  sens de lecture choisi. C'est ici, et nulle part ailleurs, que se décide
+   *  « on lit en colonnes » ou « on lit en lignes ». */
+  function agencer(suite, colonnes) {
+    var enfants = [];
+    if (!MUR || colonnes < 2) {
+      el.liste.style.gridAutoFlow = "row";
+      el.liste.style.gridTemplateRows = "";
+      enfants.push({ entete: true });
+      suite.forEach(function (l) { enfants.push({ ligne: l }); });
+      return enfants;
     }
 
-    suite.forEach(function (l, i) {
-      var n = etat.noeuds[l.cle];
-      if (!n || n.classList.contains("pod")) { n = noeudLigne(); etat.noeuds[l.cle] = n; }
-      remplir(n, l, avecPodium);
-      if (el.liste.children[i] !== n) el.liste.insertBefore(n, el.liste.children[i] || null);
+    // Chaque colonne est une tranche CONTINUE du classement, et son en-tête
+    // annonce la tranche — « 4 → 10 ». Les rangs descendent, l'œil descend avec
+    // eux ; et sans l'annonce, rien ne dirait dans quel sens lire.
+    var parColonne = Math.ceil(suite.length / colonnes);
+    el.liste.style.gridAutoFlow = "column";
+    el.liste.style.gridTemplateRows = "repeat(" + (parColonne + 1) + ", auto)";
+    for (var i = 0; i < colonnes; i++) {
+      var tranche = suite.slice(i * parColonne, (i + 1) * parColonne);
+      if (!tranche.length) continue;
+      enfants.push({ entete: true, de: tranche[0].rang,
+                     a: tranche[tranche.length - 1].rang });
+      tranche.forEach(function (l) { enfants.push({ ligne: l }); });
+    }
+    return enfants;
+  }
+
+  function majEntete(n, item) {
+    var rang = n.querySelector("span");
+    rang.textContent = item.de ? item.de + " → " + item.a : "Rang";
+  }
+
+  function peindre(lignes, avecPodium) {
+    var podium = MUR && avecPodium && lignes.length > 3
+              && window.innerWidth >= LARGEUR_PODIUM;
+    el.podium.classList.toggle("visible", podium);
+    el.podium.classList.toggle("serre", window.innerWidth < 1150);
+
+    // L'écart se mesure au premier : les lignes sont déjà triées par rang.
+    var meilleur = lignes.length ? lignes[0].score : 0;
+
+    // Le podium prend TOUS ceux qui sont dans les trois premiers rangs, ex æquo
+    // compris : ils sont à égalité, ils doivent être au même niveau. Au-delà de
+    // six cartes, la marche devient illisible et tout repasse au tableau.
+    var surLePodium = lignes.filter(function (l) { return l.rang <= 3; });
+    if (surLePodium.length > 6 || surLePodium.length >= lignes.length) surLePodium = [];
+    podium = podium && surLePodium.length > 0;
+    el.podium.classList.toggle("visible", podium);
+
+    var tete = podium ? surLePodium : [];
+    var suite = podium ? lignes.slice(tete.length) : lignes;
+
+    // Une marche par RANG : le premier au centre et plus haut, le deuxième à
+    // gauche, le troisième à droite et plus bas. Les ex æquo partagent leur
+    // marche — même hauteur, même médaille.
+    var marches = [];
+    tete.forEach(function (l) {
+      var derniere = marches[marches.length - 1];
+      if (derniere && derniere.rang === l.rang) derniere.lignes.push(l);
+      else marches.push({ rang: l.rang, lignes: [l] });
     });
-    while (el.liste.children.length > suite.length) el.liste.removeChild(el.liste.lastChild);
+
+    marches.forEach(function (m, i) {
+      var g = etat.groupes[i] || (etat.groupes[i] = noeudGroupe());
+      g.className = "groupe place-" + Math.min(3, m.rang) + " r" + Math.min(3, m.rang);
+      var cartes = g.querySelector(".cartes");
+      m.lignes.forEach(function (l, j) {
+        var carte = etat.noeuds[l.cle];
+        if (!carte || !carte.classList.contains("pod")) {
+          carte = noeudPodium();
+          etat.noeuds[l.cle] = carte;
+        }
+        remplir(carte, l, avecPodium, meilleur);
+        if (cartes.children[j] !== carte) {
+          cartes.insertBefore(carte, cartes.children[j] || null);
+        }
+      });
+      while (cartes.children.length > m.lignes.length) {
+        cartes.removeChild(cartes.lastChild);
+      }
+      if (el.podium.children[i] !== g) {
+        el.podium.insertBefore(g, el.podium.children[i] || null);
+      }
+    });
+    while (el.podium.children.length > marches.length) {
+      el.podium.removeChild(el.podium.lastChild);
+    }
+
+    var colonnes = 1;
+    if (MUR) {
+      colonnes = colonnesPour(suite.length);
+      el.liste.style.setProperty("--colonnes", colonnes);
+      regler_densite(colonnes);
+    } else {
+      regler_densite(1);
+    }
+
+    var enfants = suite.length ? agencer(suite, colonnes) : [];
+    if (MUR) {
+      ajuster(Math.ceil(suite.length / colonnes), 1, true);
+    }
+
+    var utilisees = 0;
+    enfants.forEach(function (item, index) {
+      var n;
+      if (item.entete) {
+        n = etat.entetes[utilisees] || (etat.entetes[utilisees] = noeudEntete());
+        utilisees++;
+        majEntete(n, item);
+      } else {
+        n = etat.noeuds[item.ligne.cle];
+        if (!n || !n.classList.contains("ligne")) {
+          n = noeudLigne();
+          etat.noeuds[item.ligne.cle] = n;
+        }
+        remplir(n, item.ligne, avecPodium, meilleur);
+      }
+      if (el.liste.children[index] !== n) {
+        el.liste.insertBefore(n, el.liste.children[index] || null);
+      }
+    });
+    while (el.liste.children.length > enfants.length) {
+      el.liste.removeChild(el.liste.lastChild);
+    }
 
     // Les nœuds disparus (changement de groupe, recherche) sortent de la table.
     var vivants = {};
@@ -677,25 +1122,66 @@
     });
   }
 
+  /** Combien de colonnes : la largeur décide autant que l'effectif.
+   *
+   * Une fenêtre réduite à 700 px ne doit pas garder trois colonnes de 230 px —
+   * un nom n'y tient plus. On prend donc le MINIMUM des deux contraintes, et on
+   * recalcule à chaque redimensionnement.
+   */
+  function colonnesPour(nombre) {
+    var largeur = el.liste.clientWidth || window.innerWidth;
+    // 430 px par colonne. Le tableau coûte ~300 px de gabarit fixe (rang,
+    // blocs, écart, score) : en dessous, il ne reste plus de place pour un nom,
+    // et c'est le nom qu'on vient lire. Mieux vaut deux colonnes lisibles que
+    // trois colonnes de « Nieuv… ».
+    var parLargeur = Math.max(1, Math.min(3, Math.floor(largeur / 430)));
+    var parNombre = nombre > 12 ? 3 : nombre > 4 ? 2 : 1;
+    return Math.min(parLargeur, parNombre);
+  }
+
+  /** Ce qu'on affiche d'une ligne, selon la place qu'elle a.
+   *
+   * Adrien, 31/08 : « si tu dois supprimer des informations ou les
+   * redimensionner ». C'est exactement ça — on ne tronque pas un nom de club
+   * en « Les Lezards Vagab… », on l'enlève. Le nom et le score ne partent
+   * jamais : ce sont les deux seules choses qu'on vient lire.
+   */
+  function regler_densite(colonnes) {
+    var largeur = (el.liste.clientWidth - (colonnes - 1) * 18) / colonnes;
+    etat.densite = largeur >= 520 ? 1 : largeur >= 470 ? 2 : largeur >= 430 ? 3 : 4;
+    for (var n = 1; n <= 4; n++) el.liste.classList.toggle("d" + n, n === etat.densite);
+  }
+
   /** La hauteur d'une ligne, pour que la catégorie ENTIÈRE tienne à l'écran. */
-  function ajuster(nombre, colonnes) {
-    var lignes = Math.max(1, Math.ceil(nombre / colonnes));
+  function ajuster(nombre, colonnes, entetes) {
+    // La rangée d'en-têtes prend sa place : sans ça, la dernière ligne passe
+    // sous le bord de l'écran.
+    var lignes = Math.max(1, Math.ceil(nombre / colonnes)) + (entetes ? 0.75 : 0);
     var style = getComputedStyle(el.defile);
     // clientHeight INCLUT le rembourrage : sans cette soustraction, les
     // dernières lignes passent sous le bord de l'écran.
     var dispo = el.defile.clientHeight
               - parseFloat(style.paddingTop) - parseFloat(style.paddingBottom);
     var h = Math.floor((dispo - (lignes - 1) * 7) / lignes);
-    el.liste.style.setProperty("--h", Math.max(MIN_H, Math.min(MAX_H, h)) + "px");
+    var plafond = lignes <= PEU_DE_LIGNES ? MAX_H_PEU : MAX_H;
+    el.liste.style.setProperty("--h", Math.max(MIN_H, Math.min(plafond, h)) + "px");
   }
 
   /** Quand le plateau déborde malgré tout, il DÉFILE — doucement, en boucle. */
   function programmerDefilement() {
     if (etat.animationDefilement) { etat.animationDefilement.cancel(); etat.animationDefilement = null; }
     el.liste.style.transform = "none";
-    if (!MUR || sansMouvement()) return;
+    if (!MUR) { el.defile.classList.remove("centre", "defilant"); return; }
+    if (sansMouvement()) {
+      el.defile.classList.remove("defilant");
+      el.defile.classList.toggle(
+        "centre", el.liste.scrollHeight - el.defile.clientHeight <= 8);
+      return;
+    }
 
     var trop = el.liste.scrollHeight - el.defile.clientHeight;
+    el.defile.classList.toggle("centre", trop <= 8);
+    el.defile.classList.toggle("defilant", trop > 8);
     if (trop <= 8) return;
 
     // ~110 px par seconde : la vitesse à laquelle on lit une liste sans la
@@ -724,16 +1210,11 @@
     if (!MUR) return;
     clearTimeout(etat.minuteurRotation);
     var visibles = groupesVisibles();
-    if (visibles.length < 2) { el.progression.style.width = "0%"; return; }
+    if (visibles.length < 2) { jauger(0); return; }
 
     var groupe = visibles.find(function (c) { return c.groupe === etat.groupe; }) || visibles[0];
     var duree = dureeRotation(groupe);
-
-    el.progression.style.transition = "none";
-    el.progression.style.width = "0%";
-    void el.progression.offsetWidth;
-    el.progression.style.transition = "width " + duree + "ms linear";
-    el.progression.style.width = "100%";
+    jauger(duree);
 
     etat.minuteurRotation = setTimeout(function () {
       var v = groupesVisibles();
@@ -747,37 +1228,153 @@
       el.podium.innerHTML = "";
       el.liste.innerHTML = "";
       dessiner();
+      centrerBarre();
       programmerRotation();
     }, duree);
   }
 
   // --- La barre de catégories (spectateur) ---------------------------------
 
-  function dessinerBarre() {
-    var groupes = etat.classements;
-    if (groupes.length < 2) { el.barre.innerHTML = ""; return; }
-    if (el.barre.childElementCount === groupes.length) {
-      Array.prototype.forEach.call(el.barre.children, function (b) {
-        b.setAttribute("aria-pressed", String(b.dataset.groupe === etat.groupe));
-      });
-      return;
-    }
-    el.barre.innerHTML = "";
-    groupes.forEach(function (c, i) {
-      var b = document.createElement("button");
-      b.type = "button";
-      b.textContent = libelleDe(c);
-      b.dataset.groupe = c.groupe;
-      b.style.setProperty("--teinte", COULEURS[i % COULEURS.length]);
-      b.setAttribute("aria-pressed", String(c.groupe === etat.groupe));
-      b.addEventListener("click", function () {
-        etat.groupe = c.groupe;
-        etat.noeuds = {};
-        el.liste.innerHTML = "";
-        dessiner();
-      });
-      el.barre.appendChild(b);
+  function chipDe(nom) {
+    var trouve = null;
+    Array.prototype.forEach.call(el.barre.children, function (b) {
+      if (b.dataset.groupe === nom) trouve = b;
     });
+    return trouve;
+  }
+
+  /** La jauge de la catégorie affichée : elle avance jusqu'à la bascule.
+   *
+   * C'est le « où on en est » du mode mur, posé là où on regarde déjà — sur le
+   * nom de la catégorie — plutôt que sur un filet en haut de l'écran que
+   * personne ne relie à rien.
+   */
+  function jauger(duree) {
+    Array.prototype.forEach.call(el.barre.children, function (b) {
+      var j = b.querySelector(".jauge");
+      if (!j) return;
+      j.style.transition = "none";
+      j.style.width = "0%";
+    });
+    var actif = chipDe(etat.groupe);
+    if (!actif || !duree || sansMouvement()) return;
+    var j = actif.querySelector(".jauge");
+    void j.offsetWidth;
+    j.style.transition = "width " + duree + "ms linear";
+    j.style.width = "100%";
+  }
+
+  /** Amène la catégorie affichée dans la partie visible de la barre. */
+  function centrerBarre() {
+    var actif = chipDe(etat.groupe);
+    if (!actif || el.barre.scrollWidth <= el.barre.clientWidth) return;
+    var cible = actif.offsetLeft - (el.barre.clientWidth - actif.offsetWidth) / 2;
+    el.barre.scrollTo({ left: Math.max(0, cible),
+                        behavior: sansMouvement() ? "auto" : "smooth" });
+  }
+
+  function dessinerBarre() {
+    // Sur le mur, la barre montre le CYCLE : seulement ce qui défile. Sur
+    // téléphone elle montre TOUT ce qu'on peut demander, classement club
+    // compris — et, en tête, les favoris du spectateur s'il en a.
+    var groupes = MUR ? groupesVisibles() : etat.classements;
+    if (!MUR && etat.favoris.length) {
+      groupes = [{ groupe: GROUPE_FAVORIS, type: "favoris", lignes: [] }].concat(groupes);
+    }
+    var avecFavori = MUR ? {} : categoriesAvecFavori();
+    if (groupes.length < 2) { el.barre.innerHTML = ""; el.barre.hidden = true; return; }
+    el.barre.hidden = false;
+
+    var memesGroupes = el.barre.childElementCount === groupes.length
+      && groupes.every(function (c, i) {
+        var b = el.barre.children[i];
+        return b.dataset.groupe === c.groupe
+            && b.dataset.favori === String(!!avecFavori[c.groupe]);
+      });
+
+    if (!memesGroupes) {
+      el.barre.innerHTML = "";
+      groupes.forEach(function (c, i) {
+        var b = document.createElement("button");
+        b.type = "button";
+        b.dataset.groupe = c.groupe;
+        b.dataset.favori = String(!!avecFavori[c.groupe]);
+        b.style.setProperty("--teinte", couleurDe(c.groupe));
+        var jauge = document.createElement("span");
+        jauge.className = "jauge";
+        var etiquette = document.createElement("span");
+        etiquette.className = "etiquette";
+        etiquette.textContent = libelleDe(c);       // textContent, jamais innerHTML
+        b.appendChild(jauge);
+        b.appendChild(etiquette);
+        // Une catégorie où quelqu'un qu'on suit grimpe se signale d'une étoile.
+        if (avecFavori[c.groupe]) {
+          var marqueur = document.createElement("span");
+          marqueur.className = "marqueur";
+          marqueur.textContent = "★";
+          b.insertBefore(marqueur, etiquette);
+        }
+        b.addEventListener("click", function () { choisir(c.groupe); });
+        el.barre.appendChild(b);
+      });
+    }
+
+    Array.prototype.forEach.call(el.barre.children, function (b) {
+      var actif = b.dataset.groupe === etat.groupe;
+      b.setAttribute("aria-current", String(actif));
+      b.setAttribute("aria-pressed", String(actif));
+    });
+  }
+
+  /** Choisir une catégorie à la main — au doigt sur téléphone, à la souris sur
+   *  l'ordinateur de la salle. Sur le mur, la rotation repart d'ici : on ne
+   *  veut pas qu'elle ramène l'écran ailleurs deux secondes plus tard. */
+  function choisir(groupe) {
+    if (groupe === etat.groupe) return;
+    etat.groupe = groupe;
+    etat.noeuds = {};
+    etat.deltas = {};
+    el.podium.innerHTML = "";
+    el.liste.innerHTML = "";
+    dessiner();
+    centrerBarre();
+    if (MUR) programmerRotation();
+  }
+
+  // --- Le balayage tactile : d'une catégorie à l'autre ---------------------
+  //
+  // Sur un téléphone, changer de catégorie en visant une pastille de la barre
+  // demande de regarder ce qu'on touche. Un balayage, non.
+
+  var toucher = null;
+
+  document.addEventListener("touchstart", function (e) {
+    if (MUR || e.touches.length !== 1) { toucher = null; return; }
+    // On ignore ce qui part de la barre : elle défile déjà horizontalement.
+    if (e.target.closest && e.target.closest("#barre, #recherche")) { toucher = null; return; }
+    toucher = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+  }, { passive: true });
+
+  document.addEventListener("touchend", function (e) {
+    if (!toucher || !e.changedTouches.length) return;
+    var dx = e.changedTouches[0].clientX - toucher.x;
+    var dy = e.changedTouches[0].clientY - toucher.y;
+    toucher = null;
+    // Franc, et horizontal : sinon on volerait le défilement vertical de la
+    // page, qui est le geste le plus fréquent sur un classement.
+    if (Math.abs(dx) < 60 || Math.abs(dx) < Math.abs(dy) * 1.8) return;
+    voisin(dx < 0 ? 1 : -1);
+  }, { passive: true });
+
+  /** La catégorie suivante (+1) ou précédente (−1) dans la barre. */
+  function voisin(pas) {
+    var pastilles = Array.prototype.map.call(el.barre.children, function (b) {
+      return b.dataset.groupe;
+    });
+    if (pastilles.length < 2) return;
+    var i = pastilles.indexOf(etat.groupe);
+    if (i < 0) i = 0;
+    choisir(pastilles[(i + pas + pastilles.length) % pastilles.length]);
   }
 
   el.recherche.addEventListener("input", function () {
@@ -790,7 +1387,7 @@
   var minuteurTaille;
   window.addEventListener("resize", function () {
     clearTimeout(minuteurTaille);
-    minuteurTaille = setTimeout(dessiner, 250);
+    minuteurTaille = setTimeout(function () { dessiner(); centrerBarre(); }, 120);
   });
 
   // --- Démarrage ------------------------------------------------------------
