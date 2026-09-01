@@ -33,8 +33,10 @@ logger = logging.getLogger(__name__)
 
 STATUTS = (PREPARATION, EN_COURS, TERMINEE)
 
-# Le mot à frapper pour détruire. Repris tel quel de la spec 015 : un seul mot
-# dans tout le produit, pour qu'il n'y ait jamais à se demander lequel.
+# Le marqueur qui accompagne toute destruction. Repris tel quel de la spec 015 :
+# un seul mot dans tout le produit, pour qu'il n'y ait jamais à se demander
+# lequel. Depuis la spec 021 il n'est plus frappé par un humain — la console le
+# pose après un maintien de deux secondes. Voir `exiger_confirmation`.
 MOT_DE_CONFIRMATION = "EFFACER"
 
 
@@ -116,16 +118,25 @@ def garde_en_cours(comp, forcer: bool = False) -> None:
 
 
 def exiger_confirmation(confirmation: str) -> None:
-    """Le mot frappé à la main, avant toute destruction.
+    """Le marqueur de confirmation, avant toute destruction.
 
-    Vérifié AVANT le forçage, jamais après : cocher une case sans frapper le mot
-    ne détruit rien. Deux gestes, deux intentions — la case dit « je sais que le
-    statut dit en cours », le mot dit « je veux effacer ».
+    ⚠️ Il ne se frappe plus à la main. Depuis la spec 021, la console le pose
+    elle-même quand le bouton rouge a été **maintenu deux secondes** : l'arrêt
+    volontaire est demandé là où il se voit, à l'écran, pas au clavier.
+
+    Ce que ce garde protège n'a pas changé pour autant, et c'est pour ça qu'il
+    reste : il ferme la route à un `POST` nu, à un onglet resté ouvert, à un
+    script qui l'appellerait sans passer par la fenêtre de confirmation.
+
+    Vérifié AVANT le forçage, jamais après : cocher une case sans confirmer ne
+    détruit rien. Deux gestes, deux intentions — la case dit « je sais que le
+    statut dit en cours », le marqueur dit « je veux effacer ».
     """
     if (confirmation or "").strip() != MOT_DE_CONFIRMATION:
         raise ErreurMetier(
-            f"Pour tout effacer, ecris « {MOT_DE_CONFIRMATION} » dans le champ "
-            "de confirmation. Rien n'a ete touche.")
+            f"Confirmation absente : « {MOT_DE_CONFIRMATION} » est attendu dans "
+            "le corps de la requete. Depuis la console, maintiens le bouton "
+            "rouge deux secondes. Rien n'a ete touche.")
 
 
 # --- Nommer, et régler ce qu'on affiche (spec 020) ---------------------------

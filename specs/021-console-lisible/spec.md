@@ -89,9 +89,10 @@ Compétition continue de l'appeler.
 Dans la fenêtre partagée, le champ « Écris EFFACER » disparaît. Le bouton rouge
 devient un **bouton à maintenir** :
 
-- au contact (souris, doigt, ou **Entrée/Espace** au clavier), un anneau se
-  remplit en 2 s et le libellé passe à « Maintiens… » ;
-- relâcher avant la fin **annule** — l'anneau se vide, rien n'est envoyé ;
+- au contact (souris, doigt, ou **Entrée/Espace** au clavier), une **jauge**
+  traverse le bouton en 2 s et le libellé passe à « Maintiens… » ;
+- relâcher avant la fin **annule** — la jauge se vide d'un coup, rien n'est
+  envoyé ;
 - au bout des 2 s, le geste part.
 
 Le libellé nomme l'acte et son volume : « Effacer les 100 participants », pas
@@ -176,33 +177,36 @@ docstrings de `cycle.py` que F3 rend faux.
 
 ## 4. Critères d'acceptation
 
-- [ ] **A1** — Le tiroir, la barre et le `<h1>` disent tous « Classeur ».
-- [ ] **A2** — La carte « Où vont les réussites » n'a plus de bouton
+**Tous vérifiés le 01/09/2026** — 31 tests Python (`tests/test_console_lisible.py`)
+et 36 vérifications pilotées dans un vrai Chrome.
+
+- [x] **A1** — Le tiroir, la barre et le `<h1>` disent tous « Classeur ».
+- [x] **A2** — La carte « Où vont les réussites » n'a plus de bouton
   « Importer le classeur » ; elle renvoie en toutes lettres vers
   Compétition → Importer.
-- [ ] **A3** — `POST /admin/import/sheet` répond exactement comme avant depuis
+- [x] **A3** — `POST /admin/import/sheet` répond exactement comme avant depuis
   la vue Compétition (non-régression).
-- [ ] **A4** — La fenêtre de confirmation n'a plus de champ texte.
-- [ ] **A5** — Maintenir le bouton 2 s déclenche le geste ; relâcher à 1 s ne
+- [x] **A4** — La fenêtre de confirmation n'a plus de champ texte.
+- [x] **A5** — Maintenir le bouton 2 s déclenche le geste ; relâcher à 1 s ne
   déclenche rien et laisse la fenêtre ouverte.
-- [ ] **A6** — Le maintien marche au clavier (Entrée ou Espace maintenus sur le
+- [x] **A6** — Le maintien marche au clavier (Entrée ou Espace maintenus sur le
   bouton focalisé) et le bouton porte `aria-describedby` disant ce qu'il faut
   faire.
-- [ ] **A7** — Le libellé du bouton nomme le volume détruit (« Effacer les 100
+- [x] **A7** — Le libellé du bouton nomme le volume détruit (« Effacer les 100
   participants »).
-- [ ] **A8** — La case « Effacer quand même » reste obligatoire quand la
+- [x] **A8** — La case « Effacer quand même » reste obligatoire quand la
   compétition est marquée en cours ; sans elle, le maintien n'active rien.
-- [ ] **A9** — `POST /admin/effacer` sans `confirmation` répond toujours 400 et
+- [x] **A9** — `POST /admin/effacer` sans `confirmation` répond toujours 400 et
   ne touche à rien (non-régression).
-- [ ] **A10** — À 1280 px, le tiroir est ouvert, sans voile, sans burger, et le
+- [x] **A10** — À 1280 px, le tiroir est ouvert, sans voile, sans burger, et le
   contenu n'est pas recouvert.
-- [ ] **A11** — À 900 px, le tiroir est fermé, le burger est là, et le
+- [x] **A11** — À 900 px, le tiroir est fermé, le burger est là, et le
   comportement est celui d'aujourd'hui.
-- [ ] **A12** — À 1280 px, cliquer une entrée du tiroir change de vue **sans**
+- [x] **A12** — À 1280 px, cliquer une entrée du tiroir change de vue **sans**
   refermer le tiroir.
-- [ ] **A13** — En thème clair, aucune couleur n'est écrite en dur hors des
+- [x] **A13** — En thème clair, aucune couleur n'est écrite en dur hors des
   variables `:root` ; le contraste texte/fond est ≥ 4,5:1 partout.
-- [ ] **A14** — Basculer le système clair→sombre change la page sans rechargement
+- [x] **A14** — Basculer le système clair→sombre change la page sans rechargement
   et sans réglage dans la console.
 
 ## 5. Cas limites
@@ -215,6 +219,24 @@ docstrings de `cycle.py` que F3 rend faux.
 | Maintien interrompu par un `Échap` | La fenêtre se ferme, rien n'est envoyé |
 | Maintien avec la souris, curseur sorti du bouton avant la fin | Annulé — même règle que relâcher |
 | Deux maintiens successifs très rapides | Un seul envoi : le bouton se désactive dès le premier départ |
-| `prefers-reduced-motion` | L'anneau ne s'anime pas, mais la temporisation de 2 s reste : c'est une garde, pas une décoration |
+| `prefers-reduced-motion` | La jauge disparaît ; le libellé « Maintiens… » porte seul l'information. La temporisation de 2 s **ne change pas** : c'est une garde, pas une décoration |
 | Système sans `prefers-color-scheme` (vieux navigateur) | Thème **clair** — c'est le défaut, il ne dépend d'aucune requête média |
 | Le jour J, la console plante au chargement du style | Aucune conséquence : tout est en ligne dans le fichier, il n'y a rien à télécharger |
+
+## 6. Ce que l'implémentation a corrigé en plus
+
+**Les cases à cocher étaient étirées sur toute la largeur de leur carte**, leur
+libellé rejeté hors du cadre. La règle globale `input, select, textarea` leur
+donnait `width: 100%`, un fond, une bordure et 10 px de rembourrage — elle n'a
+jamais distingué un champ de saisie d'une case à cocher.
+
+Deux endroits en souffraient, et le second est celui qu'Adrien a signalé pendant
+l'implémentation : **« Ce qu'affiche la page de résultats »**, où les catégories
+sortaient du cadre, et la case « Effacer quand même » de la fenêtre de
+confirmation. Un seul défaut, corrigé **à la racine** — la règle exclut désormais
+`[type="checkbox"]` et `[type="radio"]` — plutôt que carte par carte. Les deux
+rustines locales qui redisaient `width: auto` ont disparu avec lui.
+
+**Le libellé anneau → jauge.** Un anneau sur un bouton rectangulaire est
+malcommode ; une jauge qui traverse le bouton dit « continue d'appuyer » bien
+plus clairement. La spec a été corrigée, pas contournée.

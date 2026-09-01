@@ -2,29 +2,29 @@
 
 ## Étapes
 
-1. [ ] **Les jetons de couleur.** Remplacer le bloc `:root` par les deux jeux
+1. [x] **Les jetons de couleur.** Remplacer le bloc `:root` par les deux jeux
    (clair par défaut, sombre sous la requête média), déclarer
    `color-scheme: light dark`, ajouter `--accent-texte` et `--sur-accent`.
-2. [ ] **Purger les couleurs en dur.** Le fond translucide de `.barre`, le
+2. [x] **Purger les couleurs en dur.** Le fond translucide de `.barre`, le
    `#17111f` de `button.action`, le `var(--carte2)` inexistant de
    `montrerConnexion()`, le liseré de `peindreRapport()`.
-3. [ ] **Relire tout le style** avec les nouveaux jetons : cartes, tableaux,
+3. [x] **Relire tout le style** avec les nouveaux jetons : cartes, tableaux,
    `dl.etat`, `fieldset.choix`, `dialog`, `#message`, le QR (`.qr-cadre` reste
    blanc, un QR sur fond sombre ne se lit pas).
-4. [ ] **Le tiroir épinglé.** Media query `min-width: 1080px`, `--tiroir` en
+4. [x] **Le tiroir épinglé.** Media query `min-width: 1080px`, `--tiroir` en
    variable, `tiroirEpingle()` dans le script, Échap et le clic d'entrée qui en
    tiennent compte.
-5. [ ] **La page Classeur.** Titre dans `VUES` et `<h1>`, retrait du bouton
+5. [x] **La page Classeur.** Titre dans `VUES` et `<h1>`, retrait du bouton
    « Importer le classeur » et de son écouteur, phrase de renvoi vers
    Compétition.
-6. [ ] **Le bouton à maintenir.** Retrait de `#dlgMot` et de son label, anneau,
+6. [x] **Le bouton à maintenir.** Retrait de `#dlgMot` et de son label, anneau,
    `demarrer/annuler/aboutir`, clavier, `aria-describedby`,
    `prefers-reduced-motion`. Les trois appelants de `confirmer()` gagnent un
    `libelle` qui nomme le volume détruit.
-7. [ ] **`cycle.py`** : docstring de `exiger_confirmation()` et message d'erreur
+7. [x] **`cycle.py`** : docstring de `exiger_confirmation()` et message d'erreur
    réécrits (marqueur de protocole, plus « frappé à la main »).
-8. [ ] **Tests** : ceux du tableau ci-dessous.
-9. [ ] **Vérification au navigateur** : la liste du bas, captures à l'appui.
+8. [x] **Tests** : ceux du tableau ci-dessous.
+9. [x] **Vérification au navigateur** : la liste du bas, captures à l'appui.
 
 ## Plan de test
 

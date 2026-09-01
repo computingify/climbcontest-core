@@ -91,18 +91,26 @@ et son `<label>` sont supprimés du HTML.
 ```
 ┌─ mécanique ────────────────────────────────────────────────┐
 │ démarrer()   pointerdown | keydown(Enter|Space, sans repeat)│
-│              → t0 = now, anneau animé, libellé « Maintiens… »│
+│              → jauge lancée, libellé « Maintiens… »        │
 │ annuler()    pointerup | pointerleave | pointercancel        │
-│              | keyup | blur  → anneau vidé, libellé rendu    │
+│              | keyup | blur  → jauge vidée, libellé rendu   │
 │ aboutir()    setTimeout(2000) → bouton désactivé, promesse   │
 │              résolue avec {confirmation: "EFFACER", forcer}  │
 └────────────────────────────────────────────────────────────┘
 ```
 
-- L'anneau est un `conic-gradient` sur un pseudo-élément, animé par une
-  transition sur une variable `--part` — aucune image, aucune bibliothèque.
-- Sous `prefers-reduced-motion`, l'anneau saute directement à plein après les
-  2 s ; **le délai ne change pas**.
+- La jauge est un `<i>` en `position: absolute` sous le libellé
+  (`z-index: -1` dans un `isolation: isolate`), dont la `width` passe de 0 à
+  100 % par transition — aucune image, aucune bibliothèque. Sa **durée est posée
+  par le script** (`MAINTIEN_MS`), pour qu'il n'y ait qu'un endroit où lire
+  « deux secondes ». La vider est instantané : sinon elle redescendrait en deux
+  secondes après un relâchement et un second maintien repartirait d'un état
+  menteur.
+- Sous `prefers-reduced-motion`, la jauge n'est **pas affichée** ; le libellé
+  « Maintiens… » porte seul l'information, et **le délai ne change pas**.
+- `touch-action: none` sur le bouton : sans lui, maintenir le doigt fait défiler
+  la page sous le bouton et le `pointerleave` annule le geste — le bouton
+  devient intenable sur téléphone.
 - `aria-describedby` pointe une phrase invisible : « Maintiens le bouton deux
   secondes pour confirmer. »
 - Le bouton reste `disabled` tant que la case « Effacer quand même » n'est pas
