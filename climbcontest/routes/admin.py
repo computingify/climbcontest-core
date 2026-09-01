@@ -29,9 +29,11 @@ from ..contest import (
     participant_par_dossard, reaffecter_dossard, reussites_tracees,
     supprimer_reussite,
 )
+from .. import cycle
+from ..models import Archive
 from ..sheets import parametrage
 from ..sheets.client import ErreurClasseur
-from ..sheets.importer import importer
+from ..sheets.importer import importer, lire_tout
 
 logger = logging.getLogger(__name__)
 bp = Blueprint("admin", __name__, url_prefix="/admin")
@@ -510,6 +512,11 @@ def _corps_objet():
     return corps if isinstance(corps, dict) else None
 
 
+MODE_MISE_A_JOUR = "mise_a_jour"
+MODE_REMPLACER = "remplacer"
+MODES_IMPORT = (MODE_MISE_A_JOUR, MODE_REMPLACER)
+
+
 @bp.post("/import/sheet")
 @exige_role(ORGANISATEUR)
 def importer_classeur():
@@ -519,24 +526,78 @@ def importer_classeur():
     dossard inconnu scanne en boucle ne doit pas pouvoir declencher des lectures
     Google en rafale.
 
-    `ORGANISATEUR`, et plus seulement « connecte » (audit du 30/08) : un
-    reimport REECRIT la base et declenche une rafale d'appels Google. Aucun
-    compte sans role n'a de raison de pouvoir ca.
+    Deux modes depuis la spec 018 :
+
+      mise_a_jour  ajoute ce qui manque, corrige ce qui a change. Le defaut,
+                   et le comportement d'avant : c'est le geste du samedi matin.
+      remplacer    efface les donnees de la competition active, PUIS importe.
+                   Destructeur, donc reserve a ADMIN et confirme a la main.
+
+    Le role est porte par le mode, et c'est le seul endroit du produit ou c'est
+    le cas : `ORGANISATEUR` ne detruit rien, `ADMIN` seul peut remplacer.
     """
     global _dernier_rapport
+    corps = _corps_objet() or {}
+    mode = str(corps.get("mode") or MODE_MISE_A_JOUR).strip()
+    if mode not in MODES_IMPORT:
+        return jsonify({"success": False,
+                        "message": f"Mode d'import inconnu « {mode} ». "
+                                   f"Attendus : {', '.join(MODES_IMPORT)}."}), 400
+
+    if mode == MODE_REMPLACER and not g.utilisateur.a_le_role(ADMIN):
+        return jsonify({
+            "success": False,
+            "message": "Le remplacement complet efface les donnees du serveur : "
+                       "il est reserve aux administrateurs. La mise a jour, "
+                       "elle, reste ouverte."}), 403
+
     try:
         comp = competition_active()
     except ErreurMetier as e:
         return jsonify({"success": False, "message": e.message}), e.code
 
+    # La confirmation AVANT le reseau : refuser apres avoir fait travailler
+    # Google pour rien serait gratuit, et ferait dependre un 400 d'un
+    # aller-retour qui peut echouer.
+    if mode == MODE_REMPLACER:
+        try:
+            cycle.exiger_confirmation(str(corps.get("confirmation") or ""))
+            cycle.garde_en_cours(comp, bool(corps.get("forcer")))
+        except ErreurMetier as e:
+            return jsonify({"success": False, "message": e.message}), e.code
+
     try:
-        rapport = importer(comp)
+        classeur = parametrage.ClasseurGoogle(comp.spreadsheet_id)
+        # ⚠️ On LIT avant d'effacer. Si Google refuse ici, la base n'a pas
+        # bouge -- l'ordre inverse laisserait une base vide et un import qui
+        # n'a jamais eu lieu.
+        lecture = lire_tout(classeur)
     except ErreurClasseur as e:
+        logger.warning("import refuse : %s", e)
+        return jsonify({"success": False,
+                        "message": f"{e} — rien n'a ete modifie."}), 502
+
+    efface = None
+    try:
+        if mode == MODE_REMPLACER:
+            efface = cycle.effacer_donnees(
+                comp, str(corps.get("confirmation") or ""), bool(corps.get("forcer")))
+        rapport = importer(comp, classeur, lecture=lecture)
+    except ErreurMetier as e:
+        db.session.rollback()
+        return jsonify({"success": False, "message": e.message}), e.code
+    except ErreurClasseur as e:
+        db.session.rollback()
         logger.warning("import refuse : %s", e)
         return jsonify({"success": False, "message": str(e)}), 502
 
     _dernier_rapport = rapport.to_dict()
     _dernier_rapport["resume"] = rapport.resume()
+    _dernier_rapport["mode"] = mode
+    _dernier_rapport["efface"] = efface
+
+    logger.info("%s a importe le classeur (mode %s) : %s",
+                g.utilisateur.identifiant, mode, rapport.resume())
     return jsonify({"success": True, "rapport": _dernier_rapport}), 200
 
 
@@ -572,10 +633,16 @@ def classeur_etat():
 @bp.post("/classeur/test")
 @exige_role(ADMIN)
 def classeur_test():
-    """Lecture seule, sur le classeur relie ou sur un lien qu'on envisage.
+    """{"lien": "...", "ecriture": false}
 
-    Pouvoir tester AVANT de relier est le seul moment ou l'on peut encore
-    s'apercevoir qu'on avait la mauvaise feuille.
+    Lecture seule par defaut, sur le classeur relie ou sur un lien qu'on
+    envisage. Pouvoir tester AVANT de relier est le seul moment ou l'on peut
+    encore s'apercevoir qu'on avait la mauvaise feuille.
+
+    Avec `"ecriture": true`, un aller-retour REEL est fait dans le coin de la
+    grille (spec 018) : c'est la seule facon de detecter une feuille partagee
+    en LECTURE SEULE avec le compte du jeton -- un cas qui passe tous les
+    controles de lecture et ne se revele qu'apres le premier scan.
     """
     corps = _corps_objet() or {}
     comp = Competition.query.filter_by(active=True).first()
@@ -590,7 +657,8 @@ def classeur_test():
                 raise ErreurMetier(
                     "Aucun classeur relie a cette competition : colle un lien "
                     "pour l'essayer.", code=409)
-        rapport = parametrage.tester(identifiant, comp)
+        rapport = parametrage.tester(
+            identifiant, comp, ecriture=bool(corps.get("ecriture")))
     except ErreurMetier as e:
         return jsonify({"success": False, "message": e.message}), e.code
     except ErreurClasseur as e:
@@ -618,6 +686,7 @@ def classeur_relier():
             comp, identifiant,
             mode=str(corps.get("mode") or parametrage.MODE_RELIER),
             confirmation=str(corps.get("confirmation") or ""),
+            forcer=bool(corps.get("forcer")),
         )
     except ErreurMetier as e:
         db.session.rollback()
@@ -660,6 +729,177 @@ def classeur_jeton():
 
     logger.info("%s a pose un nouveau jeton Google", g.utilisateur.identifiant)
     return jsonify({"success": True, "jeton": etat}), 200
+
+
+# --- Le cycle de vie de l'edition (spec 018) ---------------------------------
+#
+# Trois gestes destructeurs ou irreversibles (`ADMIN`), deux gestes de
+# consultation et un d'etiquetage (`ORGANISATEUR`). La regle est celle de la
+# spec 015 : decider ou vont les donnees est plus grave que les relire.
+
+
+@bp.post("/competition/statut")
+@exige_role(ORGANISATEUR)
+def competition_statut():
+    """{"statut": "preparation|en_cours|terminee"}
+
+    `ORGANISATEUR` : ca ne detruit rien, et c'est le geste de celui qui ouvre la
+    journee. Le statut ne commande RIEN dans le produit -- c'est une etiquette,
+    qui n'arme que l'avertissement de l'effacement.
+
+    Avant la spec 018, ce champ etait ecrit a la creation et plus jamais :
+    `preparation` pour toujours sur une competition creee normalement,
+    `en_cours` pour toujours sur une competition semee. La garde qui s'y
+    appuyait ne se declenchait donc jamais quand il aurait fallu, et toujours
+    quand il ne fallait pas.
+    """
+    corps = _corps_objet()
+    if corps is None:
+        return jsonify({"success": False, "message": "Corps JSON attendu"}), 400
+
+    try:
+        comp = competition_active()
+        ancien = cycle.regler_statut(comp, str(corps.get("statut") or ""))
+    except ErreurMetier as e:
+        db.session.rollback()
+        return jsonify({"success": False, "message": e.message}), e.code
+
+    logger.info("%s a passe la competition %s de %s a %s",
+                g.utilisateur.identifiant, comp.id, ancien, comp.statut)
+    return jsonify({"success": True, "ancien": ancien, "statut": comp.statut,
+                    "statuts": list(cycle.STATUTS)}), 200
+
+
+@bp.post("/donnees/effacer")
+@exige_role(ADMIN)
+def donnees_effacer():
+    """{"confirmation": "EFFACER", "forcer": false}
+
+    Efface les donnees de la competition ACTIVE, et rien d'autre : ni les
+    autres competitions, ni les comptes, ni les archives, ni une seule cellule
+    du classeur Google. Le classeur reste relie -- on efface le plus souvent
+    pour reimporter proprement la meme feuille.
+    """
+    corps = _corps_objet()
+    if corps is None:
+        return jsonify({"success": False, "message": "Corps JSON attendu"}), 400
+
+    try:
+        comp = competition_active()
+        efface = cycle.effacer_donnees(
+            comp, str(corps.get("confirmation") or ""), bool(corps.get("forcer")))
+        db.session.commit()
+    except ErreurMetier as e:
+        db.session.rollback()
+        return jsonify({"success": False, "message": e.message}), e.code
+
+    logger.warning("%s a EFFACE les donnees de la competition %s : %s",
+                   g.utilisateur.identifiant, comp.id, efface)
+    return jsonify({"success": True, "efface": efface,
+                    "compteurs": cycle.compteurs(comp)}), 200
+
+
+@bp.post("/archives")
+@exige_role(ADMIN)
+def archiver_competition():
+    """Fige le classement de la competition active et la passe « terminee »."""
+    try:
+        comp = competition_active()
+        archive, avertissements = cycle.archiver(comp, g.utilisateur.identifiant)
+    except ErreurMetier as e:
+        db.session.rollback()
+        return jsonify({"success": False, "message": e.message}), e.code
+
+    logger.info("%s a archive la competition %s (archive %s)",
+                g.utilisateur.identifiant, comp.id, archive.id)
+    return jsonify({"success": True, "archive": archive.resume(),
+                    "avertissements": avertissements}), 200
+
+
+@bp.get("/archives")
+@exige_role(ORGANISATEUR)
+def archives_liste():
+    """La liste, sans jamais desérialiser le contenu des archives."""
+    return jsonify({"success": True, "archives": cycle.lister()}), 200
+
+
+def _archive_ou_404(identifiant: int):
+    archive = db.session.get(Archive, identifiant)
+    if archive is None:
+        raise ErreurMetier(f"Archive {identifiant} introuvable.", code=404)
+    return archive
+
+
+@bp.get("/archives/<int:identifiant>/classement")
+@exige_role(ORGANISATEUR)
+def archive_classement(identifiant: int):
+    """Le classement fige, dans la forme exacte de /api/public/classement.
+
+    C'est ce que consomme la page de resultats en mode archive. Rien n'est
+    recalcule : l'archive est indépendante du moteur de classement, celui
+    d'aujourd'hui comme celui de dans trois ans.
+
+    Derriere la session, contrairement a la page publique : le classement d'une
+    edition passee n'a pas a etre servi a qui passe, et il porte des noms de
+    mineurs.
+    """
+    try:
+        archive = _archive_ou_404(identifiant)
+        charge = cycle.classement_archive(archive)
+    except ErreurMetier as e:
+        return jsonify({"success": False, "message": e.message}), e.code
+
+    # L'age d'un classement fige n'a aucun sens : la page n'a rien a rafraichir.
+    charge = {**charge, "archive": archive.resume(), "age_s": None}
+    return jsonify(charge), 200
+
+
+@bp.get("/archives/<int:identifiant>/fichier")
+@exige_role(ORGANISATEUR)
+def archive_fichier(identifiant: int):
+    """Le JSON complet, en telechargement — une copie hors de la VM."""
+    from flask import Response
+
+    try:
+        archive = _archive_ou_404(identifiant)
+    except ErreurMetier as e:
+        return jsonify({"success": False, "message": e.message}), e.code
+
+    # Le nom du fichier porte la date : c'est ce qu'on cherche des mois plus
+    # tard dans un dossier de telechargements. Reduit a l'ASCII sans espaces,
+    # parce qu'un `Content-Disposition` accentue ne traverse pas tous les
+    # navigateurs de la meme facon.
+    lisible = "".join(c if (c.isascii() and c.isalnum()) else "-"
+                      for c in (archive.nom or "archive"))
+    lisible = "-".join(filtre for filtre in lisible.split("-") if filtre).lower()
+    # Un nom entierement non-ASCII (ou vide) ne doit pas donner « …-.json ».
+    nom = f"climbcontest-{archive.date.isoformat()}-{lisible or 'archive-sans-nom'}.json"
+
+    return Response(
+        archive.contenu, mimetype="application/json; charset=utf-8",
+        headers={"Content-Disposition": f'attachment; filename="{nom}"'})
+
+
+@bp.delete("/archives/<int:identifiant>")
+@exige_role(ADMIN)
+def archive_supprimer(identifiant: int):
+    """{"confirmation": "EFFACER"} — une archive ne se reconstruit pas."""
+    corps = _corps_objet()
+    if corps is None:
+        return jsonify({"success": False, "message": "Corps JSON attendu"}), 400
+
+    try:
+        archive = _archive_ou_404(identifiant)
+        cycle.exiger_confirmation(str(corps.get("confirmation") or ""))
+        nom = archive.nom
+        cycle.supprimer(archive)
+    except ErreurMetier as e:
+        db.session.rollback()
+        return jsonify({"success": False, "message": e.message}), e.code
+
+    logger.warning("%s a supprime l'archive %s (%s)",
+                   g.utilisateur.identifiant, identifiant, nom)
+    return jsonify({"success": True}), 200
 
 
 # --- Tracabilite : quel telephone a envoye quoi (spec 011) -------------------

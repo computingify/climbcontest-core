@@ -479,3 +479,97 @@ class TestConsoleAdmin:
         """« Ajuster a la page » sort des QR trop petits pour etre scannes."""
         page = client.get("/console").data.decode()
         assert "100" in page and "chelle" in page
+
+
+# --- Le rejeu d'une archive (spec 018) --------------------------------------
+#
+# Le pari de la spec : PAS de seconde page de résultats à maintenir. Le même
+# gabarit, une source de données différente. Ces tests vérifient la seule
+# chose que Python puisse honnêtement vérifier — ce que le serveur rend — et
+# laissent le comportement JavaScript à la vérification au navigateur.
+
+class TestRejeuArchive:
+
+    @pytest.fixture()
+    def archive(self, app, jeu):
+        from climbcontest import cycle
+        from climbcontest.contest import enregistrer_reussite
+
+        enregistrer_reussite(jeu["participants"][0], jeu["blocs"][0])
+        archive, _ = cycle.archiver(jeu["competition"], "chef")
+        return archive
+
+    def test_la_racine_lit_le_classement_en_direct(self, client, jeu):
+        """A25. La page publique ne change pas d'un octet."""
+        page = client.get("/").data.decode()
+        assert 'data-source="/api/public/classement"' in page
+        assert 'data-archive=""' in page
+
+    def test_la_page_d_archive_pointe_l_archive(self, client, archive):
+        """A24."""
+        page = client.get(f"/console/archives/{archive.id}/resultats").data.decode()
+        assert f'data-source="/admin/archives/{archive.id}/classement"' in page
+        assert 'data-archive="2026-11-15"' in page
+
+    def test_c_est_le_meme_gabarit(self, client, archive):
+        """Pas de seconde page : podium, colonnes et scratchs viennent du même
+        fichier. Une divergence d'affichage entre le direct et l'archive est
+        donc structurellement impossible."""
+        directe = client.get("/").data.decode()
+        rejeu = client.get(f"/console/archives/{archive.id}/resultats").data.decode()
+        for marqueur in ("id=\"podium\"", "id=\"barre\"", "id=\"defile\""):
+            assert marqueur in directe and marqueur in rejeu
+
+    def test_le_rafraichissement_est_coupe_sur_une_archive(self, client, archive):
+        """A26, la moitié vérifiable en Python.
+
+        L'autre moitié — compter les requêtes réelles — se fait au navigateur :
+        `test_page_resultats` dit déjà pourquoi on ne simule pas le JavaScript
+        ici. Ce test garantit au moins que la condition existe et porte sur la
+        bonne variable.
+        """
+        page = client.get("/").data.decode()
+        assert "if (!ARCHIVE) setInterval(charger, PERIODE_MS);" in page
+
+    def test_une_archive_inconnue_donne_404(self, client, jeu):
+        assert client.get("/console/archives/999/resultats").status_code == 404
+
+    def test_la_page_est_servie_mais_ses_donnees_sont_fermees(
+            self, app, client, archive):
+        """La page ne contient aucune donnée — comme `/console`. Ce sont les
+        noms qui sont protégés, et ils vivent derrière la session."""
+        app.config["SECRET_KEY"] = "une-vraie-cle-de-test-suffisamment-longue"
+        assert client.get(
+            f"/console/archives/{archive.id}/resultats").status_code == 200
+        assert client.get(
+            f"/admin/archives/{archive.id}/classement").status_code == 401
+
+
+class TestBandeauDeMessage:
+    """Le minuteur de masquage doit être annulé avant d'en poser un autre.
+
+    Trouvé en pilotant la console, pas par un test : après un archivage, la
+    console disait le succès puis l'avertissement. Le message « ok » programme
+    un masquage à six secondes ; ce minuteur survivait au message suivant et
+    faisait **disparaître l'avertissement** tout seul. Un avertissement qui
+    s'efface est pire que pas d'avertissement du tout — on croit avoir lu de
+    travers.
+
+    Comme le reste du JavaScript de la console, ça ne se simule pas ici : ce
+    test vérifie que le garde-fou est présent, la vérification réelle s'est
+    faite au navigateur (40 s d'observation).
+    """
+
+    def test_le_minuteur_precedent_est_annule(self, client, jeu):
+        page = client.get("/console").data.decode()
+        assert "clearTimeout(minuteurMessage);" in page
+
+    def test_seuls_les_messages_ok_s_effacent_seuls(self, client, jeu):
+        page = client.get("/console").data.decode()
+        assert 'minuteurMessage = genre === "ok"' in page
+
+    def test_l_archivage_ne_dit_qu_une_chose(self, client, jeu):
+        """Deux appels successifs à `dire` s'écraseraient l'un l'autre — et on
+        perdrait justement celui qui prévient."""
+        page = client.get("/console").data.decode()
+        assert 'avertissements.length ? "attention" : "ok"' in page

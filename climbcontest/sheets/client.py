@@ -29,6 +29,7 @@ jour de la compétition, personne n'a de terminal SSH sous la main :
 import json
 import logging
 import os
+from datetime import datetime
 from pathlib import Path
 import pickle
 import tempfile
@@ -195,7 +196,8 @@ class ClasseurGoogle:
                 self._meta = self.feuilles.get(
                     spreadsheetId=self.spreadsheet_id,
                     fields="properties.title,"
-                           "sheets.properties(sheetId,title,gridProperties)",
+                           "sheets.properties(sheetId,title,gridProperties),"
+                           "sheets.protectedRanges(protectedRangeId,description,range)",
                 ).execute()
             except ErreurClasseur:
                 raise
@@ -314,6 +316,127 @@ class ClasseurGoogle:
 
         logger.info("classeur : %d reussite(s) ecrite(s)", len(couples))
         return len(couples)
+
+    def plages_protegees(self, onglet: str) -> list[str]:
+        """Les protections posees sur cet onglet, decrites en clair.
+
+        Lues des metadonnees deja chargees : aucune requete de plus. C'est
+        l'angle mort de l'essai d'ecriture — une protection sur `D2:DP103`
+        laisse le coin de la grille parfaitement ecrivable, et bloque pourtant
+        exactement la ou le miroir ecrit.
+        """
+        protections = []
+        for feuille in self.metadonnees().get("sheets", []):
+            proprietes = feuille.get("properties", {})
+            if proprietes.get("title") != onglet:
+                continue
+            for protection in feuille.get("protectedRanges", []) or []:
+                description = (protection.get("description") or "").strip()
+                protections.append(description or f"protection sans description "
+                                                  f"(id {protection.get('protectedRangeId')})")
+        return protections
+
+    def essai_ecriture(self, onglet: str = ONGLET_IMPORT) -> dict:
+        """Ecrit puis efface la derniere cellule de la grille. Diagnostic pur.
+
+        **Ne leve jamais.** Un test dont l'echec EST la reponse attendue ne doit
+        pas s'exprimer par une exception : « la feuille est partagee en lecture
+        seule » est un resultat, pas une panne. Tout part dans le dictionnaire.
+
+        La cellule temoin est le dernier coin de la grille, JAMAIS une cellule
+        de la matrice. La ligne 1 porte les dossards, les colonnes A a C portent
+        les blocs, `D2:...` porte les « A » et `D103` un horodatage : tester la
+        ou le miroir ecrit vraiment detruirait une reussite reelle si
+        l'effacement final echouait. Le coin, lui, est vide par construction.
+        """
+        rapport = {"tentee": False, "onglet": onglet, "cellule": None,
+                   "ecriture": None, "restauree": None, "message": None,
+                   "plages_protegees": []}
+
+        try:
+            grille = self.grille(onglet)
+            rapport["plages_protegees"] = self.plages_protegees(onglet)
+        except ErreurClasseur as e:
+            rapport["message"] = str(e)
+            return rapport
+
+        lignes, colonnes = grille["lignes"], grille["colonnes"]
+        if lignes < 2 or colonnes < 4:
+            rapport["message"] = (
+                f"La grille de « {onglet} » fait {lignes} x {colonnes} : trop "
+                "petite pour porter une cellule temoin hors des donnees.")
+            return rapport
+
+        cellule = f"{self.colonne(colonnes)}{lignes}"
+        rapport["cellule"] = f"{onglet}!{cellule}"
+
+        # 1. Le coin doit etre vide. Sinon on renonce : mieux vaut un test qui
+        #    s'arrete qu'un test qui ecrase une donnee qu'on n'avait pas prevue.
+        try:
+            avant = self.lire(onglet, cellule)
+        except ErreurClasseur as e:
+            rapport["message"] = f"Lecture de la cellule temoin impossible : {e}"
+            return rapport
+
+        if avant and any(str(c).strip() for ligne in avant for c in ligne):
+            rapport["message"] = (
+                f"La cellule temoin {onglet}!{cellule} n'est pas vide : rien "
+                "n'a ete ecrit. Vide-la, ou teste sur un classeur ou le coin "
+                "de la grille est libre.")
+            return rapport
+
+        # 2. Ecrire.
+        marque = f"climbcontest-test {datetime.now().isoformat(timespec='seconds')}"
+        rapport["tentee"] = True
+        try:
+            self.feuilles.values().update(
+                spreadsheetId=self.spreadsheet_id, range=f"{onglet}!{cellule}",
+                valueInputOption="RAW", body={"values": [[marque]]},
+            ).execute()
+        except Exception as e:
+            rapport["ecriture"] = False
+            rapport["message"] = (
+                f"Google a refuse l'ecriture : {e}. La feuille est-elle bien "
+                "partagee EN MODIFICATION avec le compte du jeton ? Un partage "
+                "en lecture seule passe tous les autres controles.")
+            return rapport
+
+        # 3. Relire : une ecriture acceptee mais sans effet se verrait ici.
+        try:
+            relu = self.lire(onglet, cellule)
+            ecrit = relu and relu[0] and str(relu[0][0]).strip() == marque
+        except ErreurClasseur as e:
+            relu, ecrit = None, False
+            rapport["message"] = f"Relecture impossible : {e}"
+
+        rapport["ecriture"] = bool(ecrit)
+        if not ecrit and rapport["message"] is None:
+            rapport["message"] = (
+                "L'ecriture a ete acceptee mais la relecture ne rend pas ce "
+                "qui a ete ecrit. La cellule est peut-etre protegee.")
+
+        # 4. Remettre comme c'etait. Tente MEME quand la relecture a echoue :
+        #    si quelque chose a ete pose, il faut l'enlever.
+        try:
+            self.feuilles.values().clear(
+                spreadsheetId=self.spreadsheet_id, range=f"{onglet}!{cellule}",
+                body={},
+            ).execute()
+            rapport["restauree"] = True
+        except Exception as e:
+            rapport["restauree"] = False
+            rapport["message"] = (
+                f"Ecriture reussie, mais la cellule {onglet}!{cellule} n'a PAS "
+                f"pu etre effacee ({e}). Elle porte « {marque} » : va la vider "
+                "a la main. Elle ne gene rien, mais autant le savoir.")
+
+        if rapport["ecriture"] and rapport["restauree"] and not rapport["message"]:
+            rapport["message"] = (
+                f"Ecriture confirmee sur {onglet}!{cellule}, puis effacee.")
+
+        logger.info("essai d'ecriture sur %s!%s : ecriture=%s restauree=%s",
+                    onglet, cellule, rapport["ecriture"], rapport["restauree"])
+        return rapport
 
     def vider_matrice(self, onglet: str = ONGLET_IMPORT) -> dict:
         """Efface les « A » de la matrice, et RIEN d'autre.

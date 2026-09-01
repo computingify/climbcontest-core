@@ -56,3 +56,36 @@ def resultats():
     un compte de blocs.
     """
     return render_template("resultats.html")
+
+
+@bp.get("/console/archives/<int:identifiant>/resultats")
+def archive_resultats(identifiant: int):
+    """Revoir une edition archivee, dans la VRAIE page de resultats.
+
+    Le meme gabarit que `/`, avec une source de donnees differente : podium,
+    colonnes, scratchs, mode mur, tout marche sans qu'une ligne d'affichage
+    soit dupliquee. `?mur` reste utilisable -- revoir l'edition passee sur le
+    videoprojecteur pendant que la salle se remplit est exactement l'usage.
+
+    **Consultation seule** (Adrien, 01/09 : « cette visu ne doit etre que
+    temporaire, c'est juste de la consultation »). Rien n'est restaure, rien ne
+    redevient actif, et `/` continue d'afficher la competition ACTIVE pendant
+    qu'on regarde une archive dans un autre onglet.
+
+    La page est servie sans session -- comme `/console`, elle ne contient
+    aucune donnee. C'est `/admin/archives/<id>/classement` qui exige la
+    session, et c'est la que sont les noms.
+    """
+    from ..extensions import db
+    from ..models import Archive
+
+    archive = db.session.get(Archive, identifiant)
+    if archive is None:
+        return render_template("resultats.html"), 404
+
+    libelle = archive.date.isoformat() if archive.date else (
+        archive.cree_le.date().isoformat() if archive.cree_le else "")
+    return render_template(
+        "resultats.html",
+        source=f"/admin/archives/{identifiant}/classement",
+        archive_libelle=libelle)

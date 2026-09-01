@@ -58,6 +58,16 @@ class ClasseurDouble:
         return {"id": 0, "lignes": self._options.get("lignes", 60),
                 "colonnes": self._options.get("colonnes", 123)}
 
+    def plages_protegees(self, onglet):
+        return list(self._options.get("plages_protegees", ()))
+
+    def essai_ecriture(self, onglet="Import"):
+        ClasseurDouble.registre["essais"] += 1
+        return dict(self._options.get("essai_ecriture", {
+            "tentee": True, "onglet": onglet, "cellule": f"{onglet}!DS60",
+            "ecriture": True, "restauree": True, "plages_protegees": [],
+            "message": f"Ecriture confirmee sur {onglet}!DS60, puis effacee."}))
+
     def vider_matrice(self, onglet="Import"):
         if self._options.get("vidage_refuse"):
             raise ErreurClasseur("Google refuse le vidage (simule)")
@@ -76,7 +86,8 @@ def classeur(monkeypatch, tmp_path):
     (tmp_path / "token.json").write_text(json.dumps(JETON))
     monkeypatch.setattr(ClasseurGoogle, "_dossiers_de_jeton",
                         staticmethod(lambda: [tmp_path]))
-    ClasseurDouble.registre = {"identifiants": [], "vidages": 0, "options": {}}
+    ClasseurDouble.registre = {"identifiants": [], "vidages": 0, "essais": 0,
+                               "options": {}}
     monkeypatch.setattr(parametrage, "ClasseurGoogle", ClasseurDouble)
     return ClasseurDouble.registre
 
@@ -475,3 +486,68 @@ class TestAcces:
         lignes : mieux vaut une console indisponible qu'une console ouverte."""
         r = getattr(client, methode)(chemin, json=corps)
         assert r.status_code == 503
+
+
+# --- A1→A6 : le test d'accès en ÉCRITURE, vu de la route (spec 018) ---------
+
+class TestTesterEnEcriture:
+
+    def test_par_defaut_rien_n_est_ecrit(self, connecte, jeu, classeur):
+        """A6. Le test d'avant n'a pas bougé : il ne fait toujours que lire."""
+        r = connecte.post("/admin/classeur/test", json={"lien": LIEN})
+        assert r.status_code == 200
+        assert r.get_json()["rapport"]["essai_ecriture"] is None
+        assert classeur["essais"] == 0
+
+    def test_avec_le_drapeau_l_essai_a_lieu(self, connecte, jeu, classeur):
+        """A1. C'est un bouton distinct dans la console : l'un écrit, l'autre
+        pas, et ça doit se voir avant de cliquer."""
+        r = connecte.post("/admin/classeur/test",
+                          json={"lien": LIEN, "ecriture": True})
+        assert r.status_code == 200
+        essai = r.get_json()["rapport"]["essai_ecriture"]
+        assert essai["ecriture"] is True
+        assert classeur["essais"] == 1
+
+    def test_un_echec_d_ecriture_remonte_en_avertissement(
+            self, connecte, jeu, classeur):
+        """A2. Le cas « feuille partagée en lecture seule » : la route répond
+        200 — le classeur EST joignable — et l'avertissement dit le reste."""
+        classeur["options"]["essai_ecriture"] = {
+            "tentee": True, "cellule": "Import!DS60", "ecriture": False,
+            "restauree": None, "plages_protegees": [],
+            "message": "Google a refuse l'ecriture : partage en lecture seule."}
+
+        r = connecte.post("/admin/classeur/test",
+                          json={"lien": LIEN, "ecriture": True})
+        assert r.status_code == 200
+        rapport = r.get_json()["rapport"]
+        assert rapport["essai_ecriture"]["ecriture"] is False
+        assert any("lecture seule" in a for a in rapport["avertissements"])
+
+    def test_une_restauration_ratee_remonte_aussi(self, connecte, jeu, classeur):
+        """A4."""
+        classeur["options"]["essai_ecriture"] = {
+            "tentee": True, "cellule": "Import!DS60", "ecriture": True,
+            "restauree": False, "plages_protegees": [],
+            "message": "La cellule Import!DS60 n'a PAS pu etre effacee."}
+
+        rapport = connecte.post("/admin/classeur/test",
+                                json={"lien": LIEN, "ecriture": True}
+                                ).get_json()["rapport"]
+        assert any("Import!DS60" in a for a in rapport["avertissements"])
+
+    def test_les_plages_protegees_sont_dites_meme_en_lecture(
+            self, connecte, jeu, classeur):
+        """A5. Gratuit : les métadonnées sont déjà chargées."""
+        classeur["options"]["plages_protegees"] = ["Matrice verrouillée"]
+        rapport = connecte.post("/admin/classeur/test",
+                                json={"lien": LIEN}).get_json()["rapport"]
+        assert any("Matrice verrouillée" in a for a in rapport["avertissements"])
+
+    def test_un_organisateur_ne_peut_pas_tester(self, organisateur, jeu, classeur):
+        """A13 de la spec 015 : la route reste réservée aux administrateurs."""
+        r = organisateur.post("/admin/classeur/test",
+                              json={"lien": LIEN, "ecriture": True})
+        assert r.status_code == 403
+        assert classeur["essais"] == 0

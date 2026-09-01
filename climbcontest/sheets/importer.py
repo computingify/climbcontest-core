@@ -97,8 +97,10 @@ def _texte(ligne: list, index: int) -> str | None:
     return valeur or None
 
 
-def importer_participants(comp: Competition, classeur, rapport: Rapport) -> None:
-    lignes = classeur.lire(LISTES_ONGLET, LISTES_PLAGE)
+def importer_participants(comp: Competition, classeur, rapport: Rapport,
+                          lignes: list[list] | None = None) -> None:
+    if lignes is None:
+        lignes = classeur.lire(LISTES_ONGLET, LISTES_PLAGE)
 
     for n, ligne in enumerate(lignes, start=2):
         nom_complet = _texte(ligne, I_NOM_COMPLET)
@@ -159,8 +161,10 @@ def importer_participants(comp: Competition, classeur, rapport: Rapport) -> None
     db.session.commit()
 
 
-def importer_blocs(comp: Competition, classeur, rapport: Rapport) -> None:
-    lignes = classeur.lire(PLAN_ONGLET, PLAN_PLAGE)
+def importer_blocs(comp: Competition, classeur, rapport: Rapport,
+                   lignes: list[list] | None = None) -> None:
+    if lignes is None:
+        lignes = classeur.lire(PLAN_ONGLET, PLAN_PLAGE)
     if not lignes:
         rapport.ignores.append("Plan : aucune ligne lue")
         return
@@ -236,18 +240,42 @@ def importer_blocs(comp: Competition, classeur, rapport: Rapport) -> None:
     db.session.commit()
 
 
-def importer(comp: Competition, classeur=None) -> Rapport:
+@dataclass
+class Lecture:
+    """Ce que le classeur a répondu, avant qu'on touche à quoi que ce soit.
+
+    C'est toute la raison d'être de cette classe : en mode « remplacement
+    complet » (spec 018), la base est effacée puis repeuplée. Si la lecture
+    échouait APRÈS l'effacement, on se retrouverait avec une base vide et un
+    import qui n'a jamais eu lieu — le pire des deux mondes, et sans retour
+    possible. Lire d'abord, détruire ensuite.
+    """
+
+    plan: list[list]
+    listes: list[list]
+
+
+def lire_tout(classeur) -> Lecture:
+    """Les deux plages du classeur, et RIEN d'autre. Que du réseau."""
+    return Lecture(plan=classeur.lire(PLAN_ONGLET, PLAN_PLAGE),
+                   listes=classeur.lire(LISTES_ONGLET, LISTES_PLAGE))
+
+
+def importer(comp: Competition, classeur=None, lecture: Lecture | None = None) -> Rapport:
     """Importe participants et blocs. Idempotent : rejouable sans rien dupliquer.
 
     Le rejeu est ce qui permet de reprendre une correction faite dans le
     classeur — un dossard changé, une catégorie corrigée — ce que l'ancienne
     version ne faisait jamais (elle n'ajoutait que les noms absents).
+
+    Sans `lecture`, il lit lui-même : c'est le comportement d'origine, et tous
+    les appels existants le gardent.
     """
     cl = classeur or ClasseurGoogle(comp.spreadsheet_id)
     rapport = Rapport()
 
-    importer_blocs(comp, cl, rapport)
-    importer_participants(comp, cl, rapport)
+    importer_blocs(comp, cl, rapport, lecture.plan if lecture else None)
+    importer_participants(comp, cl, rapport, lecture.listes if lecture else None)
 
     comp.catalogue_version = (comp.catalogue_version or 0) + 1
     db.session.add(comp)

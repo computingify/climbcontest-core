@@ -50,19 +50,32 @@ class Valeurs:
     def batchUpdate(self, **kw):                                  # noqa: N802
         return Requete(self.service, "values.batchUpdate", kw, {})
 
+    def update(self, **kw):
+        # Une ecriture se RELIT : c'est ce qui permet a l'essai d'ecriture de
+        # verifier ce qu'il a pose, et de detecter une ecriture acceptee mais
+        # sans effet.
+        def poser():
+            self.service.lectures[kw["range"]] = kw["body"]["values"]
+            return {}
+        return Requete(self.service, "values.update", kw, poser)
+
     def clear(self, **kw):
-        return Requete(self.service, "values.clear", kw, {})
+        def effacer():
+            self.service.lectures.pop(kw["range"], None)
+            return {}
+        return Requete(self.service, "values.clear", kw, effacer)
 
 
 class FeuillesFictives:
     """Un classeur en mémoire : un onglet `Import` et sa grille."""
 
     def __init__(self, lignes=50, colonnes=26, onglets=("Import", "Listes", "Plan"),
-                 lectures=None, echecs=()):
+                 lectures=None, echecs=(), protections=None):
         self.grilles = {nom: {"lignes": lignes, "colonnes": colonnes}
                         for nom in onglets}
-        self.lectures = lectures or {}
+        self.lectures = dict(lectures or {})
         self.echecs = set(echecs)
+        self.protections = protections or {}
         self.appels = []
 
     # -- l'API telle que le client l'appelle
@@ -93,7 +106,10 @@ class FeuillesFictives:
             "sheets": [
                 {"properties": {"sheetId": i, "title": nom,
                                 "gridProperties": {"rowCount": g["lignes"],
-                                                   "columnCount": g["colonnes"]}}}
+                                                   "columnCount": g["colonnes"]}},
+                 "protectedRanges": [
+                     {"protectedRangeId": 100 + j, "description": texte}
+                     for j, texte in enumerate(self.protections.get(nom, []))]}
                 for i, (nom, g) in enumerate(self.grilles.items())
             ],
         }
@@ -299,3 +315,140 @@ class TestJeton:
 
     def test_le_dossier_d_ecriture_est_le_premier_de_la_liste(self, secrets):
         assert mod.chemin_jeton_json() == secrets / "token.json"
+
+
+# --- A1→A5 : l'essai d'écriture (spec 018) ----------------------------------
+#
+# La panne qu'il attrape n'est pas « la feuille est introuvable » : c'est « la
+# feuille est partagée en LECTURE SEULE avec le compte du jeton ». Ce cas-là
+# passe tous les contrôles de lecture sans broncher — titre lu, onglets listés,
+# grille mesurée, tout est vert — et ne se révèle que quarante secondes après
+# le premier scan, quand les réussites commencent à s'empiler « en attente ».
+
+class TestEssaiEcriture:
+
+    def test_ecrit_relit_puis_efface_le_coin_de_la_grille(self):
+        """A1. Et surtout : dans CET ordre, sur la MÊME cellule."""
+        cl, feuilles = classeur(lignes=60, colonnes=123)
+        rapport = cl.essai_ecriture("Import")
+
+        assert rapport["cellule"] == "Import!DS60"
+        assert (rapport["tentee"], rapport["ecriture"], rapport["restauree"]) \
+            == (True, True, True)
+
+        noms = [nom for nom, _ in feuilles.appels]
+        assert noms.count("values.update") == 1
+        assert noms.index("values.update") < noms.index("values.clear")
+
+        for appel in ("values.update", "values.clear"):
+            assert feuilles.dernier(appel)["range"] == "Import!DS60"
+
+        # La cellule est bien rendue à son état d'origine.
+        assert "Import!DS60" not in feuilles.lectures
+
+    def test_le_coin_n_est_jamais_dans_la_matrice(self):
+        """La ligne 1 porte les dossards, A à C les blocs, D2:… les « A ».
+
+        Tester là où le miroir écrit vraiment détruirait une réussite réelle si
+        l'effacement final échouait. Le coin, lui, est vide par construction.
+        """
+        cl, _ = classeur(lignes=60, colonnes=123)
+        cellule = cl.essai_ecriture("Import")["cellule"]
+        colonne, ligne = cellule.split("!")[1][:2], int(cellule.split("!")[1][2:])
+        assert ligne > 1                      # jamais la ligne des dossards
+        assert colonne > "C"                  # jamais les colonnes des blocs
+
+    def test_une_feuille_en_lecture_seule_est_detectee(self):
+        """A2. LE cas qui justifie tout ce test."""
+        cl, feuilles = classeur(echecs=("values.update",))
+        rapport = cl.essai_ecriture("Import")
+
+        assert rapport["tentee"] is True
+        assert rapport["ecriture"] is False
+        assert rapport["restauree"] is None
+        assert "MODIFICATION" in rapport["message"]
+        # Rien à effacer : on n'a rien posé.
+        assert feuilles.combien("values.clear") == 0
+
+    def test_une_cellule_temoin_non_vide_interrompt_avant_d_ecrire(self):
+        """A3. Mieux vaut un test qui renonce qu'un test qui écrase."""
+        cl, feuilles = classeur(lignes=60, colonnes=123,
+                                lectures={"Import!DS60": [["déjà quelque chose"]]})
+        rapport = cl.essai_ecriture("Import")
+
+        assert rapport["tentee"] is False
+        assert rapport["ecriture"] is None
+        assert "n'est pas vide" in rapport["message"]
+        assert feuilles.combien("values.update") == 0
+        # Et la valeur qui était là n'a pas bougé.
+        assert feuilles.lectures["Import!DS60"] == [["déjà quelque chose"]]
+
+    def test_un_effacement_rate_nomme_la_cellule(self):
+        """A4. Une trace oubliée dans un coin ne gêne rien — encore faut-il
+        savoir qu'elle est là plutôt que la découvrir six mois plus tard."""
+        cl, _ = classeur(lignes=60, colonnes=123, echecs=("values.clear",))
+        rapport = cl.essai_ecriture("Import")
+
+        assert rapport["ecriture"] is True
+        assert rapport["restauree"] is False
+        assert "Import!DS60" in rapport["message"]
+        assert "climbcontest-test" in rapport["message"]
+
+    def test_une_ecriture_sans_effet_est_vue(self):
+        """Acceptée par Google, mais la relecture ne rend pas ce qu'on a écrit."""
+        cl, feuilles = classeur(lignes=60, colonnes=123)
+
+        # Le faux service accepte l'écriture mais ne la conserve pas.
+        vraie = feuilles.values
+
+        class SansEffet(Valeurs):
+            def update(self, **kw):
+                return Requete(self.service, "values.update", kw, {})
+
+        feuilles.values = lambda: SansEffet(feuilles)
+        rapport = cl.essai_ecriture("Import")
+        feuilles.values = vraie
+
+        assert rapport["ecriture"] is False
+        assert "protégée" in rapport["message"] or "protegee" in rapport["message"]
+
+    def test_les_plages_protegees_sont_signalees(self):
+        """A5. L'angle mort de l'essai : une protection posée sur `D2:DP103`
+        laisse le coin parfaitement écrivable et bloque pourtant le miroir."""
+        cl, _ = classeur(lignes=60, colonnes=123,
+                         protections={"Import": ["Matrice verrouillée"]})
+        rapport = cl.essai_ecriture("Import")
+        assert rapport["plages_protegees"] == ["Matrice verrouillée"]
+
+    def test_aucune_protection_ne_coute_aucun_appel_de_plus(self):
+        """A5. `protectedRanges` s'ajoute au `fields` d'une requête déjà faite."""
+        cl, feuilles = classeur(lignes=60, colonnes=123)
+        cl.metadonnees()
+        avant = feuilles.combien("get")
+        assert cl.plages_protegees("Import") == []
+        assert feuilles.combien("get") == avant
+
+    def test_le_champ_protectedranges_est_demande_a_google(self):
+        """Sans ça, l'API ne le renvoie pas et la détection serait toujours
+        vide — un test vert qui ne prouve rien."""
+        cl, feuilles = classeur()
+        cl.metadonnees()
+        assert "protectedRanges" in feuilles.dernier("get")["fields"]
+
+    def test_une_grille_trop_petite_renonce_proprement(self):
+        """Pas de cellule témoin possible hors des données : on le dit."""
+        cl, feuilles = classeur(lignes=1, colonnes=3)
+        rapport = cl.essai_ecriture("Import")
+        assert rapport["tentee"] is False
+        assert feuilles.combien("values.update") == 0
+
+    def test_un_onglet_absent_ne_leve_pas(self):
+        """A2. C'est un DIAGNOSTIC : son échec est une réponse, pas une panne.
+
+        Une exception ici ferait remonter un 500 à la console, là où l'on
+        attend « voilà ce que Google a dit ».
+        """
+        cl, _ = classeur(onglets=("Listes",))
+        rapport = cl.essai_ecriture("Import")
+        assert rapport["tentee"] is False
+        assert "Import" in rapport["message"]

@@ -410,3 +410,70 @@ class Verrou(db.Model):
     nom = Column(String(40), primary_key=True)
     detenu_par = Column(String(80))
     pris_le = Column(DateTime)
+
+
+# --- Archives (spec 018) ----------------------------------------------------
+
+# Le numéro de format du contenu archivé. Il monte quand la STRUCTURE du JSON
+# change, jamais quand les données changent. Sa raison d'être : qu'une archive
+# écrite aujourd'hui puisse être reconnue et refusée proprement dans trois ans,
+# plutôt que de faire tomber la page de résultats sur une clé manquante.
+FORMAT_ARCHIVE = 1
+
+
+class Archive(db.Model):
+    """Une édition figée : son classement, ses données brutes, sa date.
+
+    **Volontairement sans clé étrangère vers `competition`.** Une archive doit
+    survivre à l'effacement de ce qu'elle décrit — c'est sa seule raison d'être.
+    Avec `PRAGMA foreign_keys=ON` (que la base active), une `ForeignKey` ferait
+    exactement l'inverse : elle empêcherait la suppression de la compétition, ou
+    emporterait l'archive en cascade. `competition_id` reste ici un entier de
+    traçabilité, jamais une contrainte.
+
+    Elle vit EN BASE et non dans un fichier à côté parce que
+    `climbcontest-sauvegarde` recopie la base SQLite et **rien d'autre** : un
+    JSON posé dans `shared/archives/` serait le seul fichier de la VM sans
+    sauvegarde, et précisément celui qu'on ne peut pas reconstruire.
+    """
+
+    __tablename__ = "archive"
+
+    id = Column(Integer, primary_key=True)
+    competition_id = Column(Integer, nullable=False)
+    nom = Column(String(120), nullable=False)
+    date = Column(Date, nullable=False)
+    format = Column(Integer, nullable=False, default=FORMAT_ARCHIVE)
+
+    cree_le = Column(DateTime, nullable=False, default=func.now())
+    cree_par = Column(String(80))
+
+    # Recopiés à l'archivage pour que la LISTE n'ait jamais à désérialiser
+    # `contenu` : trois cents kilo-octets de JSON par ligne, lus pour afficher
+    # un nombre, c'est le genre de détail qui rend une page lente sans raison.
+    participants = Column(Integer, nullable=False, default=0)
+    blocs = Column(Integer, nullable=False, default=0)
+    reussites = Column(Integer, nullable=False, default=0)
+
+    contenu = Column(Text, nullable=False)            # le JSON complet
+
+    def resume(self) -> dict:
+        """Ce que la liste affiche. Ne touche jamais `contenu`."""
+        return {
+            "id": self.id,
+            "competition_id": self.competition_id,
+            "nom": self.nom,
+            "date": self.date.isoformat() if self.date else None,
+            "format": self.format,
+            "cree_le": self.cree_le.isoformat() if self.cree_le else None,
+            "cree_par": self.cree_par,
+            "participants": self.participants,
+            "blocs": self.blocs,
+            "reussites": self.reussites,
+            # Le client n'a pas à connaître la liste des formats lisibles : le
+            # serveur tranche, et dit simplement si « Revoir » est possible.
+            "lisible": self.format == FORMAT_ARCHIVE,
+        }
+
+    def __repr__(self) -> str:
+        return f"<Archive {self.id} {self.nom!r} du {self.date}>"

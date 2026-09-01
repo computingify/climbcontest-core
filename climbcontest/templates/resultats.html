@@ -452,7 +452,8 @@
   }
 </style>
 </head>
-<body>
+<body data-source="{{ source|default('/api/public/classement', true) }}"
+      data-archive="{{ archive_libelle|default('', true) }}">
 
 <header>
   <img class="logo" src="/static/logo-club.png" alt="" aria-hidden="true">
@@ -494,6 +495,13 @@
   var params = new URLSearchParams(location.search);
   var MUR = params.has("mur");
   var SOMBRE = params.has("sombre");
+
+  // La source des donnees. La page publique lit le classement en direct ; la
+  // consultation d'une archive lit un classement fige, servi par la console
+  // (spec 018). Un seul `fetch` dans tout ce fichier : c'est ce qui rend le
+  // rejeu possible sans dupliquer une seule ligne d'affichage.
+  var SOURCE = document.body.dataset.source || "/api/public/classement";
+  var ARCHIVE = document.body.dataset.archive || null;
 
   var PERIODE_MS = 15000;      // rafraîchissement des données
   var PERIME_MS = 60000;       // au-delà, l'âge passe en rouge
@@ -697,7 +705,7 @@
   // --- Récupération ---------------------------------------------------------
 
   function charger() {
-    fetch("/api/public/classement", { cache: "no-store" })
+    fetch(SOURCE, { cache: "no-store" })
       .then(function (r) {
         if (r.status === 409) return r.json().then(function (d) { throw { metier: d.message }; });
         if (!r.ok) throw new Error("HTTP " + r.status);
@@ -734,7 +742,12 @@
     el.horloge.textContent = maintenant.getHours() + "h"
       + String(maintenant.getMinutes()).padStart(2, "0");
 
-    if (etat.recuA === null) {
+    if (ARCHIVE) {
+      // Les donnees sont figees : « calculé il y a 3 s » serait un mensonge,
+      // et il vieillirait a l'ecran sans que rien ne change jamais.
+      el.fraicheur.textContent = "· archive du " + ARCHIVE;
+      el.fraicheur.className = "";
+    } else if (etat.recuA === null) {
       el.fraicheur.textContent = etat.enPanne ? "· serveur injoignable" : "· chargement…";
     } else {
       var age = (etat.ageServeurS * 1000) + (Date.now() - etat.recuA);
@@ -748,7 +761,8 @@
     }
 
     el.reussites.textContent = etat.reussites === null ? ""
-      : "· " + etat.reussites.toLocaleString("fr-FR") + " blocs validés aujourd'hui";
+      : "· " + etat.reussites.toLocaleString("fr-FR")
+        + (ARCHIVE ? " blocs validés" : " blocs validés aujourd'hui");
   }
 
   // --- Rendu ----------------------------------------------------------------
@@ -1520,7 +1534,9 @@
   // --- Démarrage ------------------------------------------------------------
 
   charger();
-  setInterval(charger, PERIODE_MS);
+  // Une archive ne bouge plus : la relire toutes les 15 s ne ferait que du
+  // trafic. Un seul appel, et c'est fini.
+  if (!ARCHIVE) setInterval(charger, PERIODE_MS);
   setInterval(majMeta, 5000);
   if (MUR) setTimeout(programmerRotation, 1200);
 })();

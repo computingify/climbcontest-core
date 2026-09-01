@@ -16,14 +16,12 @@ import json
 import logging
 import re
 
-from sqlalchemy import func
 
+from .. import cycle
 from ..contest import ErreurMetier
+from ..cycle import compteurs as _compteurs
 from ..extensions import db
-from ..models import (
-    Bloc, Circuit, EN_COURS, Participant, ReaffectationDossard, Success,
-    prochaine_version_catalogue,
-)
+from ..models import Participant, Success
 from .client import ClasseurGoogle, ecrire_jeton_json, etat_jeton
 
 logger = logging.getLogger(__name__)
@@ -47,8 +45,6 @@ MODE_RELIER = "relier"
 MODE_REJOUER = "rejouer"
 MODE_REINITIALISER = "reinitialiser"
 MODES = (MODE_RELIER, MODE_REJOUER, MODE_REINITIALISER)
-
-MOT_DE_CONFIRMATION = "EFFACER"
 
 # Un identifiant de classeur Google : au moins vingt caractères de l'alphabet
 # des URL. Court, c'est un fragment de lien mal collé, pas un identifiant.
@@ -94,28 +90,6 @@ def extraire_identifiant(texte: str) -> str:
 
 # --- L'état affiché par la console ------------------------------------------
 
-def _compteurs(comp) -> dict:
-    """Ce qui est en base pour cette compétition — les chiffres qui décident.
-
-    « Combien de réussites vais-je emporter en changeant de feuille ? » est la
-    question qu'on se pose la main sur le bouton ; elle mérite une réponse à
-    l'écran, pas un calcul de tête.
-    """
-    ids = db.session.query(Participant.id).filter(Participant.competition_id == comp.id)
-    total = Success.query.filter(Success.participant_id.in_(ids)).count()
-    attente = Success.query.filter(
-        Success.participant_id.in_(ids), Success.sheet_synced_at.is_(None)).count()
-    dossard_max = db.session.query(func.max(Participant.dossard)).filter(
-        Participant.competition_id == comp.id).scalar()
-    return {
-        "participants": Participant.query.filter_by(competition_id=comp.id).count(),
-        "blocs": Bloc.query.filter_by(competition_id=comp.id).count(),
-        "reussites": total,
-        "reussites_en_attente": attente,
-        "dossard_max": dossard_max,
-    }
-
-
 def etat(comp) -> dict:
     """Tout ce que la vue « Classeur » affiche. Ne touche pas au réseau."""
     if comp is None:
@@ -150,11 +124,18 @@ def _exiger_jeton(classeur) -> None:
             "« Jeton Google » ci-dessous, puis retente.", code=409)
 
 
-def tester(identifiant: str, comp=None, classeur=None) -> dict:
-    """Lecture seule. Répond ce que Google répond, sans rien changer.
+def tester(identifiant: str, comp=None, classeur=None, ecriture: bool = False) -> dict:
+    """Répond ce que Google répond. En lecture seule par défaut.
 
     Sert de vérification AVANT de relier : c'est le seul moment où l'on peut
     encore se rendre compte qu'on avait la mauvaise feuille.
+
+    `ecriture=True` ajoute un aller-retour réel dans le coin de la grille
+    (spec 018). C'est un bouton distinct dans la console, parce que l'un écrit
+    et l'autre pas, et que ça doit se voir AVANT de cliquer. La panne qu'il
+    attrape — une feuille partagée en lecture seule avec le compte du jeton —
+    passe tous les contrôles de lecture sans broncher, et ne se révèle
+    aujourd'hui que quarante secondes après le premier scan.
     """
     _exiger_jeton(classeur)
     cl = classeur or ClasseurGoogle(identifiant)
@@ -170,6 +151,7 @@ def tester(identifiant: str, comp=None, classeur=None) -> dict:
         "onglets": onglets,
         "onglets_manquants": manquants,
         "grille": None,
+        "essai_ecriture": None,
         "avertissements": [],
     }
 
@@ -182,6 +164,15 @@ def tester(identifiant: str, comp=None, classeur=None) -> dict:
 
     grille = cl.grille(ONGLET_MATRICE)
     rapport["grille"] = grille
+
+    # Gratuit : les metadonnees sont deja chargees et mises en cache.
+    protegees = cl.plages_protegees(ONGLET_MATRICE)
+    if protegees:
+        rapport["avertissements"].append(
+            f"L'onglet « {ONGLET_MATRICE} » porte {len(protegees)} plage(s) "
+            "protegee(s) : " + " ; ".join(protegees)
+            + ". Une protection posee sur la matrice bloque le miroir meme "
+              "quand le reste de la feuille est ecrivable.")
     # colonne = dossard + 3 : la largeur dit le plus grand dossard écrivable
     # sans agrandissement.
     rapport["dossard_max_sans_agrandir"] = max(0, grille["colonnes"] - 3)
@@ -194,6 +185,15 @@ def tester(identifiant: str, comp=None, classeur=None) -> dict:
             "classeur sont ecrites. La reussite sera bien posee dans « Import » "
             "(la grille s'agrandit toute seule), mais le classeur ne la comptera "
             "pas : c'est la page de resultats du serveur qui fait foi.")
+
+    if ecriture:
+        essai = cl.essai_ecriture(ONGLET_MATRICE)
+        rapport["essai_ecriture"] = essai
+        if essai["ecriture"] is False or not essai["tentee"]:
+            rapport["avertissements"].append(essai["message"])
+        elif essai["restauree"] is False:
+            rapport["avertissements"].append(essai["message"])
+
     return rapport
 
 
@@ -208,34 +208,8 @@ def _remettre_en_attente(comp) -> int:
     return nombre
 
 
-def _vider_la_base(comp) -> dict:
-    """Efface tout ce qui décrit une édition : participants, blocs, réussites.
-
-    Les réaffectations de dossard partent EN PREMIER : elles pointent vers des
-    participants par clé étrangère, et SQLite applique l'intégrité référentielle
-    (`PRAGMA foreign_keys=ON`). Sans ça, la suppression échouerait.
-    """
-    compte = _compteurs(comp)
-
-    ReaffectationDossard.query.filter_by(competition_id=comp.id).delete(
-        synchronize_session=False)
-    db.session.flush()
-
-    # Suppression par objet, pas en masse : les cascades ORM emportent les
-    # réussites d'un participant et les liens bloc↔circuit d'un bloc. Sur
-    # quelques centaines de lignes, la lisibilité vaut mieux que la vitesse.
-    for participant in Participant.query.filter_by(competition_id=comp.id):
-        db.session.delete(participant)
-    for bloc in Bloc.query.filter_by(competition_id=comp.id):
-        db.session.delete(bloc)
-    for circuit in Circuit.query.filter_by(competition_id=comp.id):
-        db.session.delete(circuit)
-    db.session.flush()
-    return compte
-
-
 def relier(comp, identifiant: str, mode: str = MODE_RELIER,
-           confirmation: str = "", classeur=None) -> dict:
+           confirmation: str = "", classeur=None, forcer: bool = False) -> dict:
     """Pointe la compétition active vers ce classeur, dans le mode demandé.
 
     Les trois modes viennent d'Adrien (31/08) : « nouvelle compétition donc
@@ -251,16 +225,11 @@ def relier(comp, identifiant: str, mode: str = MODE_RELIER,
               "reussites_reprogrammees": 0, "efface": None, "classeur_vide": None}
 
     if mode == MODE_REINITIALISER:
-        if comp.statut == EN_COURS:
-            raise ErreurMetier(
-                "La competition est EN COURS : effacer ses reussites n'est "
-                "surement pas ce que tu voulais faire. Passe par « meme "
-                "competition, autre feuille » si tu dois changer de classeur "
-                "maintenant.", code=409)
-        if (confirmation or "").strip() != MOT_DE_CONFIRMATION:
-            raise ErreurMetier(
-                f"Pour tout effacer, ecris « {MOT_DE_CONFIRMATION} » dans le "
-                "champ de confirmation. Rien n'a ete touche.")
+        # Les deux memes verrous que l'effacement autonome, et la MEME
+        # implementation : une regle ecrite en double dans deux routes finit
+        # toujours par diverger (spec 018).
+        cycle.exiger_confirmation(confirmation)
+        cycle.garde_en_cours(comp, forcer)
 
         # Le classeur AVANT la base. Si Google refuse, rien n'est détruit côté
         # serveur — l'ordre inverse laisserait une base vide et un classeur
@@ -268,11 +237,8 @@ def relier(comp, identifiant: str, mode: str = MODE_RELIER,
         _exiger_jeton(classeur)
         cl = classeur or ClasseurGoogle(identifiant)
         effets["classeur_vide"] = cl.vider_matrice()
-        effets["efface"] = _vider_la_base(comp)
-        # Les téléphones DOIVENT retélécharger : sinon ils continuent d'afficher
-        # les grimpeurs de l'édition précédente sur des dossards désormais
-        # libres (le correctif du 30/08 sur `catalogue_version`).
-        comp.catalogue_version = prochaine_version_catalogue()
+        # `catalogue_version` et l'invalidation du cache sont dedans.
+        effets["efface"] = cycle.effacer_donnees(comp, confirmation, forcer)
 
     comp.spreadsheet_id = identifiant
 

@@ -19,6 +19,69 @@ qu'on ne met pas à jour le matin d'une compétition :
 
 ## [Non publié]
 
+### Ajouté
+
+- **Le cycle de vie d'une édition se pilote depuis la console** (spec 018).
+  Deux vues nouvelles, « Compétition » et « Archives », et le classeur gagne un
+  test d'accès **en écriture**.
+- **Tester l'accès en écriture.** Un aller-retour réel — écrire, relire,
+  effacer — dans le **dernier coin de la grille** de l'onglet `Import`, jamais
+  dans la matrice. C'est la seule façon de détecter une feuille partagée en
+  **lecture seule** avec le compte du jeton : ce cas passe tous les contrôles de
+  lecture sans broncher et ne se révèle qu'après le premier scan, quand les
+  réussites commencent à s'empiler « en attente ». Le test signale aussi les
+  plages protégées de `Import`, sans une requête de plus.
+- **L'import a deux modes, annoncés.** *Mise à jour* (le défaut, le comportement
+  d'avant) ajoute ce qui manque et corrige ce qui a changé ; *remplacement
+  complet* efface les données du serveur avant d'importer. Le classeur est
+  **lu avant** que quoi que ce soit soit effacé : si Google ne répond pas, la
+  base n'a pas bougé. Le remplacement est réservé aux administrateurs.
+- **Archiver une édition.** Le classement complet et les données brutes sont
+  figés dans la base — pas dans un fichier à côté, parce que
+  `climbcontest-sauvegarde` recopie la base et **rien d'autre**. La compétition
+  passe « terminée », **rien n'est effacé**. Mesuré : 701 Ko pour 196 grimpeurs,
+  50 blocs et 3 031 réussites, produits en 44 ms.
+- **Revoir une édition archivée** — `/console/archives/<id>/resultats` — dans la
+  **vraie** page de résultats : podium, colonnes, scratchs, mode mur. Le même
+  gabarit, une source de données différente ; aucune seconde page à maintenir.
+  C'est de la consultation seule : rien n'est restauré, et `/` continue
+  d'afficher la compétition active. Le rafraîchissement automatique est coupé —
+  les données sont figées.
+- **Effacer les données du serveur**, sans avoir à changer de classeur. Les
+  autres compétitions, les comptes, les archives et le classeur Google ne sont
+  pas touchés. Fenêtre de confirmation avec les compteurs réels, mot à frapper,
+  et la remarque « cette édition n'a jamais été archivée » quand elle s'applique.
+- **Régler l'état de l'édition** — préparation, en cours, terminée.
+
+### Corrigé
+
+- **`Competition.statut` ne voulait rien dire.** Il était écrit à la création et
+  **plus jamais** : `preparation` pour toujours sur une compétition créée
+  normalement, `en_cours` pour toujours sur une compétition semée par
+  `tools/semer_competition_test.py`. La garde de la spec 015 — refuser
+  d'effacer une compétition en cours — était donc **exactement inversée** : elle
+  ne se déclenchait jamais quand il aurait fallu, et bloquait en permanence les
+  bases de test. Le statut se règle maintenant depuis la console, et
+  l'effacement peut être **forcé** quand il est faux.
+- **Un avertissement de la console ne s'efface plus tout seul.** `dire()`
+  programmait un masquage à six secondes pour les messages « ok » **sans
+  annuler le minuteur précédent** : un message de succès suivi d'un
+  avertissement faisait disparaître **l'avertissement**. Trouvé en pilotant la
+  console après un archivage — un avertissement qui s'efface est pire que pas
+  d'avertissement, on croit avoir lu de travers.
+- **Le cache de classement est invalidé après un effacement.** Il expirait seul
+  en cinq secondes : sans conséquence en production, mais cinq secondes à
+  regarder un classement qu'on vient de supprimer en se demandant si le bouton a
+  marché. `classement_service.invalider()` existait depuis la spec 004 et
+  n'était appelée nulle part.
+
+### Modifié
+
+- La construction de la charge de `/api/public/classement` sort du corps de la
+  vue pour devenir `classement_service.charge_publique()`. Deux appelants
+  désormais : la route publique et l'archivage. Écrite en double, elle aurait
+  divergé au premier changement — et la page de résultats aurait cassé sur les
+  archives uniquement, c'est-à-dire longtemps après. Réponse inchangée.
 ## [0.12.1] — 2026-09-01
 
 Deux défauts d'affichage de l'écran projeté, vus en le regardant tourner.
