@@ -6,40 +6,14 @@ rafraichissent toutes les 15 s, soit les trois quarts du trafic. Le cache
 plafonne le calcul a 12 fois par minute quel que soit le nombre de spectateurs.
 """
 import logging
-import time
 
 from flask import Blueprint, jsonify, request
 
-from ..classement_service import classements
+from ..classement_service import charge_publique, classements
 from ..contest import ErreurMetier, competition_active
 
 logger = logging.getLogger(__name__)
 bp = Blueprint("public", __name__, url_prefix="/api/public")
-
-
-# L'ordre d'affichage. C'est aussi l'ordre de la barre, donc l'ordre du cycle
-# sur le mur : il se lit du plus general au plus precis.
-#
-#   Scratch, Scratch F, Scratch H        les trois qui traversent tout
-#   U11 scratch, U11 F, U11 H            un circuit, puis SES categories
-#   U13 scratch, U13 F, U13 H
-#   ...
-#   Clubs
-#
-# Demande d'Adrien (01/09) : « les scratchs avant leurs categories
-# correspondantes, et les scratchs generaux au debut a gauche ». Grouper par
-# circuit met cote a cote des classements qui parlent des memes grimpeurs --
-# on passe de « U13 scratch » a « U13 F » sans traverser la barre.
-
-
-def _ordre(classement):
-    if classement.type == "scratch":            # les generaux, tout a gauche
-        return (0, "", 0, classement.groupe)
-    if classement.type == "club":               # et le cumul par club a la fin
-        return (2, "", 0, classement.groupe)
-    # Un circuit ouvre sa famille, ses categories suivent.
-    return (1, classement.circuit or "",
-            0 if classement.type == "circuit" else 1, classement.groupe)
 
 
 @bp.get("/classement")
@@ -54,57 +28,22 @@ def classement():
     except ErreurMetier as e:
         return jsonify({"success": False, "message": e.message}), e.code
 
-    tous, calcule_le = classements(comp)
+    charge = charge_publique(comp)
 
+    # Le filtrage par groupe reste ICI : c'est une commodite de l'API publique
+    # (`?groupe=U13%20F`), pas une propriete de la charge -- une archive fige
+    # TOUS les classements, sans quoi elle ne serait consultable qu'en partie.
     demande = request.args.get("groupe")
     if demande:
-        if demande not in tous:
+        connus = [c["groupe"] for c in charge["classements"]]
+        if demande not in connus:
             return jsonify({"success": False,
                             "message": f"Groupe « {demande} » inconnu",
-                            "groupes": sorted(tous)}), 404
-        choisis = {demande: tous[demande]}
-    else:
-        choisis = tous
+                            "groupes": sorted(connus)}), 404
+        charge["classements"] = [c for c in charge["classements"]
+                                 if c["groupe"] == demande]
 
-    # Les noms, en une seule requete plutot qu'une par ligne.
-    from ..models import Participant, Success
-    noms = {
-        p.id: {"nom": p.nom_complet, "club": p.club, "categorie": p.categorie}
-        for p in Participant.query.filter_by(competition_id=comp.id).all()
-    }
-
-    def enrichir(ligne):
-        d = ligne.to_dict()
-        # Une ligne de club porte deja son nom (`libelle`) et n'a pas de
-        # participant : `participant_id` vaut 0, qu'aucun identifiant SQLite ne
-        # prend. Elle traverse donc cet enrichissement sans etre ecrasee.
-        d.update(noms.get(ligne.participant_id, {}))
-        return d
-
-    # Le compteur de la journee (spec 016). Il monte tout au long de la
-    # competition, y compris quand un classement ne bouge pas : c'est ce qui
-    # dit, sur un ecran projete, que le systeme VIT. Un COUNT indexe sur une
-    # base de quelques milliers de lignes -- et la reponse est de toute facon
-    # mise en cache 5 s par le proxy.
-    reussites = (
-        Success.query.join(Participant, Success.participant_id == Participant.id)
-        .filter(Participant.competition_id == comp.id).count()
-    )
-
-    return jsonify({
-        "competition": {"id": comp.id, "nom": comp.nom, "statut": comp.statut},
-        "calcule_le": calcule_le,
-        "reussites": reussites,
-        # L'AGE du calcul, vu par le serveur. Sans lui, la page ne pourrait que
-        # mesurer depuis sa propre reception -- et afficherait « calcule il y a
-        # 1 s » pour un classement que le cache garde depuis 5 s. Le client ne
-        # peut pas le deduire : son horloge n'est pas celle du serveur.
-        "age_s": round(max(0.0, time.time() - calcule_le), 1),
-        "classements": [
-            {**c.to_dict(), "lignes": [enrichir(l) for l in c.lignes]}
-            for c in sorted(choisis.values(), key=_ordre)
-        ],
-    }), 200
+    return jsonify(charge), 200
 
 
 @bp.get("/groupes")

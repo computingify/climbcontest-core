@@ -158,3 +158,84 @@ def invalider(competition_id: int | None = None) -> None:
             _cache.clear()
         else:
             _cache.pop(competition_id, None)
+
+
+# --- La charge que sert la page de résultats (spec 018) ---------------------
+#
+# Elle vivait dans le corps de `routes/public.py`. Elle en sort parce qu'elle a
+# maintenant DEUX appelants : la route publique, et l'archivage — qui doit
+# figer exactement ce que la page sait afficher. Écrite en double, elle aurait
+# divergé au premier changement, et la page de résultats aurait cassé sur les
+# archives uniquement, c'est-à-dire longtemps après.
+
+
+# L'ordre d'affichage. C'est aussi l'ordre de la barre, donc l'ordre du cycle
+# sur le mur : il se lit du plus general au plus precis.
+#
+#   Scratch, Scratch F, Scratch H        les trois qui traversent tout
+#   U11 scratch, U11 F, U11 H            un circuit, puis SES categories
+#   U13 scratch, U13 F, U13 H
+#   ...
+#   Clubs
+#
+# Demande d'Adrien (01/09) : « les scratchs avant leurs categories
+# correspondantes, et les scratchs generaux au debut a gauche ». Grouper par
+# circuit met cote a cote des classements qui parlent des memes grimpeurs --
+# on passe de « U13 scratch » a « U13 F » sans traverser la barre.
+def ordre(classement):
+    if classement.type == "scratch":            # les generaux, tout a gauche
+        return (0, "", 0, classement.groupe)
+    if classement.type == "club":               # et le cumul par club a la fin
+        return (2, "", 0, classement.groupe)
+    # Un circuit ouvre sa famille, ses categories suivent.
+    return (1, classement.circuit or "",
+            0 if classement.type == "circuit" else 1, classement.groupe)
+
+
+def charge_publique(comp: Competition, forcer: bool = False) -> dict:
+    """Tous les classements de cette compétition, prêts à être servis.
+
+    Le nom des participants est inclus : la page resultats doit les afficher,
+    et ils sont deja publics -- affiches sur les dossards et annonces au micro.
+    """
+    tous, calcule_le = classements(comp, forcer=forcer)
+
+    # Les noms, en une seule requete plutot qu'une par ligne.
+    from .models import Participant, Success
+    noms = {
+        p.id: {"nom": p.nom_complet, "club": p.club, "categorie": p.categorie}
+        for p in Participant.query.filter_by(competition_id=comp.id).all()
+    }
+
+    def enrichir(ligne):
+        d = ligne.to_dict()
+        # Une ligne de club porte deja son nom (`libelle`) et n'a pas de
+        # participant : `participant_id` vaut 0, qu'aucun identifiant SQLite ne
+        # prend. Elle traverse donc cet enrichissement sans etre ecrasee.
+        d.update(noms.get(ligne.participant_id, {}))
+        return d
+
+    # Le compteur de la journee (spec 016). Il monte tout au long de la
+    # competition, y compris quand un classement ne bouge pas : c'est ce qui
+    # dit, sur un ecran projete, que le systeme VIT. Un COUNT indexe sur une
+    # base de quelques milliers de lignes -- et la reponse est de toute facon
+    # mise en cache 5 s par le proxy.
+    reussites = (
+        Success.query.join(Participant, Success.participant_id == Participant.id)
+        .filter(Participant.competition_id == comp.id).count()
+    )
+
+    return {
+        "competition": {"id": comp.id, "nom": comp.nom, "statut": comp.statut},
+        "calcule_le": calcule_le,
+        "reussites": reussites,
+        # L'AGE du calcul, vu par le serveur. Sans lui, la page ne pourrait que
+        # mesurer depuis sa propre reception -- et afficherait « calcule il y a
+        # 1 s » pour un classement que le cache garde depuis 5 s. Le client ne
+        # peut pas le deduire : son horloge n'est pas celle du serveur.
+        "age_s": round(max(0.0, time.time() - calcule_le), 1),
+        "classements": [
+            {**c.to_dict(), "lignes": [enrichir(l) for l in c.lignes]}
+            for c in sorted(tous.values(), key=ordre)
+        ],
+    }
