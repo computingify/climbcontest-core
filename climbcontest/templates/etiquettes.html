@@ -15,8 +15,8 @@
      ⚠️ Ce que l'étiquette doit permettre, dans cet ordre :
      1. se reconnaître à DEUX MÈTRES -- le numéro est donc l'élément le plus
         gros de la page ;
-     2. se scanner à un bras tendu -- le QR fait 45 mm, deux fois celui d'une
-        fiche, avec la zone de silence de quatre modules qu'exige l'ISO ;
+     2. se scanner a un bras tendu -- le QR est nettement plus grand que celui
+        d'une fiche, avec la zone de silence de quatre modules qu'exige l'ISO ;
      3. dire POUR QUI le bloc compte -- un bloc rattaché à aucun circuit ne
         compte pour personne, et ça doit se voir avant de le coller.
 
@@ -24,11 +24,14 @@
      veille au soir, parfois sans reseau. Le QR est genere localement. */
   @page { size: A4 portrait; margin: 6mm; }
 
-  /* Toute la geometrie tient ici : deux colonnes, trois lignes, six par page. */
+  /* Toute la geometrie tient ici. Deux colonnes, quatre lignes, HUIT par page.
+     La disposition est HORIZONTALE -- QR a gauche, texte a droite : une
+     etiquette se colle au-dessus du depart d'un bloc, ou la place est large et
+     basse, et empiler verticalement gaspillait la moitie de la hauteur. */
   :root {
-    --etiquette-largeur: 99mm;    /* 198 / 2 */
-    --etiquette-hauteur: 95mm;    /* 285 / 3 */
-    --qr: 45mm;
+    --etiquette-largeur: 99mm;      /* 198 / 2 */
+    --etiquette-hauteur: 71.25mm;   /* 285 / 4 */
+    --qr: 40mm;
   }
 
   * { box-sizing: border-box; }
@@ -45,32 +48,36 @@
      page de la zone Z, on va coller ses cinq etiquettes, on ne trie rien.
      `break-before` sur un ENFANT de grille est mal supporte : refermer la
      grille a chaque zone l'evite completement. */
-  .zone { display: grid; grid-template-columns: repeat(2, var(--etiquette-largeur)); }
+  .zone { display: grid;
+          grid-template-columns: repeat(auto-fill, var(--etiquette-largeur)); }
   .zone + .zone { break-before: page; page-break-before: always; }
 
   .etiquette {
-    height: var(--etiquette-hauteur); padding: 4mm;
-    display: flex; flex-direction: column; align-items: center;
-    text-align: center;
+    height: var(--etiquette-hauteur); padding: 3mm;
+    display: flex; align-items: center; gap: 3mm;
     break-inside: avoid; page-break-inside: avoid;
     /* Les traits de coupe. En pointille : on decoupe dessus. */
     border-right: 0.3mm dashed #aaa; border-bottom: 0.3mm dashed #aaa;
   }
-  .etiquette:nth-child(2n) { border-right: 0; }
+  /* Le trait de droite reste meme sur la derniere colonne : le nombre de
+     colonnes se deduit de `--etiquette-largeur`, un `nth-child(2n)` mentirait
+     des qu'on change la densite. Au bord de la feuille, c'est un guide de
+     coupe de plus -- pas une gene. */
 
+  .quoi { flex: 1; min-width: 0; }
   .zone-du-bloc {
-    font-size: 3.4mm; font-weight: 700; letter-spacing: 0.16em;
+    font-size: 3.2mm; font-weight: 700; letter-spacing: 0.16em;
     text-transform: uppercase; color: #666;
   }
-  /* LE plus gros element de la page : c'est ce qu'on lit a deux metres pour
-     savoir si on est devant le bon bloc. */
+  /* LE plus gros element de l'etiquette : c'est ce qu'on lit a deux metres
+     pour savoir si on est devant le bon bloc. */
   .numero {
-    font-size: 22mm; font-weight: 800; line-height: 1; margin-top: 1mm;
-    letter-spacing: -0.02em;
+    font-size: 18mm; font-weight: 800; line-height: 1;
+    letter-spacing: -0.03em;
   }
   .difficulte {
-    display: flex; align-items: center; justify-content: center; gap: 1.5mm;
-    font-size: 3.2mm; color: #444; margin-top: 1.5mm;
+    display: flex; align-items: center; gap: 1.5mm;
+    font-size: 3.2mm; color: #444; margin-top: 1mm;
   }
   .pastille {
     width: 3.2mm; height: 3.2mm; border-radius: 50%; flex: none;
@@ -87,12 +94,12 @@
   .c-noir  { background: #222; }
   .c-inconnue { background: #fff; }
 
-  .qr { margin: auto 0; }
+  .qr { flex: none; }
   .qr svg { display: block; width: var(--qr); height: var(--qr); }
 
-  .prises { font-size: 3.6mm; margin-top: 1mm; }
+  .prises { font-size: 3.4mm; margin-top: 1.5mm; }
   .prises b { font-weight: 700; }
-  .circuits { font-size: 3.4mm; color: #444; margin-top: 1.5mm; }
+  .circuits { font-size: 3.2mm; color: #444; margin-top: 1mm; }
   /* Un bloc rattache a aucun circuit ne compte pour PERSONNE. C'est l'anomalie
      que la vue Circuits traque (spec 019), et le papier qu'on va coller est le
      dernier moment ou on peut la rattraper. */
@@ -115,7 +122,7 @@
 
 <div class="entete">
   <h1>Étiquettes de blocs — {{ titre }}</h1>
-  <p>{{ total }} à imprimer, <strong>six par page, une zone par page</strong>,
+  <p>{{ total }} à imprimer, <strong>huit par page, une zone par page</strong>,
      à couper sur les pointillés. Vérifie l'échelle d'impression :
      <strong>100 %</strong>, sans « ajuster à la page », sinon les QR sortiront
      trop petits pour être lus.</p>
@@ -132,25 +139,24 @@
   <div class="zone">
     {% for e in groupe.etiquettes %}
     <div class="etiquette">
-      <div class="zone-du-bloc">Zone {{ e.zone or "—" }}</div>
-      <div class="numero">{{ e.numero }}</div>
-      <div class="difficulte">
-        <i class="pastille c-{{ (e.couleur or 'inconnue')|lower }}"></i>
-        <span>{{ e.couleur or "difficulté inconnue" }}</span>
-      </div>
-
       <div class="qr">{{ e.qr|safe }}</div>
-
-      {% if e.couleur_prises %}
-      <div class="prises">Prises : <b>{{ e.couleur_prises }}</b></div>
-      {% endif %}
-      <div class="circuits">
-        {%- if e.circuits -%}
-          Compte pour {{ e.circuits|join(" · ") }}
-        {%- else -%}
-          <span class="orphelin">Aucun circuit — ce bloc ne compte pour
-          personne</span>
-        {%- endif -%}
+      <div class="quoi">
+        <div class="zone-du-bloc">Zone {{ e.zone or "—" }}</div>
+        <div class="numero">{{ e.numero }}</div>
+        <div class="difficulte">
+          <i class="pastille c-{{ (e.couleur or 'inconnue')|lower }}"></i>
+          <span>{{ e.couleur or "difficulté inconnue" }}</span>
+        </div>
+        {% if e.couleur_prises %}
+        <div class="prises">Prises : <b>{{ e.couleur_prises }}</b></div>
+        {% endif %}
+        <div class="circuits">
+          {%- if e.circuits -%}
+            {{ e.circuits|join(" · ") }}
+          {%- else -%}
+            <span class="orphelin">Aucun circuit</span>
+          {%- endif -%}
+        </div>
       </div>
     </div>
     {% endfor %}

@@ -244,6 +244,24 @@ class TestLaRoute:
     def test_une_zone_par_page(self, page):
         assert ".zone + .zone { break-before: page" in page
 
+    def test_huit_par_page_et_la_geometrie_en_variables(self, page):
+        """198/2 en largeur, 285/4 en hauteur. Trois variables, ce qui a permis
+        de rendre trois densites et de choisir en les regardant."""
+        for valeur in ("--etiquette-largeur: 99mm", "--etiquette-hauteur: 71.25mm",
+                       "--qr: 40mm"):
+            assert valeur in page, valeur
+
+    def test_la_disposition_est_horizontale(self, page):
+        """QR a gauche, texte a droite. Une etiquette se colle au-dessus du
+        depart d'un bloc, ou la place est large et basse : empiler
+        verticalement gaspillait la moitie de la hauteur."""
+        etiquette = page.split('class="etiquette"')[1].split("</div>\n    </div>")[0]
+        assert etiquette.index('class="qr"') < etiquette.index('class="quoi"')
+
+    def test_le_qr_reste_au_dessus_du_plancher_a_cette_taille(self):
+        """40 mm sur un tag de trois caracteres : largement au-dessus."""
+        assert qr.taille_de_module_mm("ZJ6", 40.0) >= qr.MODULE_MINI_MM
+
     def test_le_journal_dit_qui_et_combien(self, connecte_orga, salle, caplog):
         with caplog.at_level("INFO"):
             connecte_orga.get("/admin/etiquettes?zone=D")
