@@ -163,6 +163,42 @@ class TestLeTiroirSEpingle:
         assert "if (tiroirEpingle()) return;" in page
 
 
+class TestLesClassementsSontDesInterrupteurs:
+    """F6, demande d'Adrien pendant l'implementation.
+
+    Une case a cocher dit « je consens » ; ces lignes-la disent « c'est allume
+    ou c'est eteint ». Ce n'est pas la meme question.
+    """
+
+    def test_la_glissiere_existe(self, page):
+        assert ".glissiere {" in page
+        assert "label.bascule {" in page
+
+    def test_la_case_native_est_conservee(self, page):
+        """Invisible, jamais `display: none` : elle garde le clavier, le focus,
+        l'etat et le lecteur d'ecran."""
+        assert 'interrupteur.type = "checkbox";' in page
+        assert "label.bascule input { position: absolute; opacity: 0;" in page
+        assert "label.bascule input { display: none" not in page
+
+    def test_le_lecteur_d_ecran_entend_un_interrupteur(self, page):
+        assert 'interrupteur.setAttribute("role", "switch");' in page
+
+    def test_le_visuel_est_un_frere_pas_un_pseudo_element_sur_l_input(self, page):
+        """Un `::after` sur un element remplace tient de la tolerance des
+        navigateurs. Cette console doit marcher le matin d'une competition, pas
+        « en general »."""
+        assert "label.bascule input:checked + .glissiere" in page
+
+    def test_le_focus_clavier_se_voit(self, page):
+        assert "label.bascule input:focus-visible + .glissiere" in page
+
+    def test_le_texte_d_aide_parle_d_allumer(self, page):
+        """« Decoche » ne veut plus rien dire quand il n'y a plus de case."""
+        assert "Éteins un classement" in page
+        assert "Décoche un classement" not in page
+
+
 class TestClairEtSombre:
     """A13-A14. Les couleurs etaient figees et rien ne regardait le systeme :
     sur un Mac regle en clair, en plein jour, on lisait un ecran noir.

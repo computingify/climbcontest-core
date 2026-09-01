@@ -161,6 +161,26 @@ avec sur du blanc.
 cocher, les `<dialog>` et les barres de défilement natives restent claires sur
 un fond sombre.
 
+### F6 — Les classements affichés se règlent à l'interrupteur
+
+*Demandé par Adrien pendant l'implémentation.*
+
+La carte « Ce qu'affiche la page de résultats » alignait des **cases à cocher**.
+Une case à cocher dit « je consens » ; ces lignes-là disent « ce classement est
+allumé ou éteint ». Ce n'est pas la même question, et l'**interrupteur** des
+réglages qu'on a dans les mains toute la journée la pose mieux.
+
+La case à cocher **native est conservée**, seulement rendue invisible : elle
+garde le clavier, le focus, l'état et le lecteur d'écran — `role="switch"` la
+fait annoncer « interrupteur, activé » plutôt que « case à cocher, cochée ». Le
+visuel est un **frère** (`input:checked + .glissiere`), jamais un
+pseudo-élément posé sur l'`<input>` : un `::after` sur un élément remplacé tient
+de la tolérance des navigateurs, et cette console doit marcher le matin d'une
+compétition, pas « en général ».
+
+Le texte d'aide suit : « **Éteins** un classement pour le retirer » — « décoche »
+ne veut plus rien dire quand il n'y a plus de case.
+
 ## 3. Périmètre
 
 **Inclus** : `admin.html` uniquement (structure, style, script), et les deux
@@ -208,6 +228,9 @@ et 36 vérifications pilotées dans un vrai Chrome.
   variables `:root` ; le contraste texte/fond est ≥ 4,5:1 partout.
 - [x] **A14** — Basculer le système clair→sombre change la page sans rechargement
   et sans réglage dans la console.
+- [x] **A15** — Les classements affichés sont des interrupteurs, pilotables à la
+  souris **et** au clavier, annoncés `switch`, et l'état survit à un
+  enregistrement suivi d'un rechargement.
 
 ## 5. Cas limites
 

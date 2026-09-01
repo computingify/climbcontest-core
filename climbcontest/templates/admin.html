@@ -464,6 +464,52 @@
     border-color: var(--accent); background: var(--surface3); color: var(--encre);
   }
   fieldset.rangee input { position: absolute; opacity: 0; pointer-events: none; }
+
+  /* L'INTERRUPTEUR des classements affiches (spec 021, F6).
+     Une case a cocher dit « je consens » ; ces lignes-la disent « c'est allume
+     ou c'est eteint ». Ce n'est pas la meme question, et l'interrupteur de
+     reglages qu'on a dans les mains toute la journee la pose mieux.
+
+     La case a cocher NATIVE est conservee, juste rendue invisible : elle garde
+     le clavier, le focus, l'etat et le lecteur d'ecran (`role="switch"` la fait
+     annoncer « interrupteur, active »). Le visuel est un frere, jamais un
+     pseudo-element sur l'<input> -- un `::after` sur un element remplace tient
+     de la tolerance des navigateurs, et cette console doit marcher le matin
+     d'une competition, pas « en general ». */
+  label.bascule {
+    position: relative; display: flex; align-items: center; gap: 13px;
+    padding: 9px 0; cursor: pointer; font-size: 0.94rem; color: var(--encre);
+    margin: 0;
+  }
+  label.bascule input { position: absolute; opacity: 0; width: 0; height: 0; }
+  .glissiere {
+    position: relative; flex: none; width: 42px; height: 25px;
+    border-radius: 999px; background: var(--surface3);
+    border: 1px solid var(--trait);
+    transition: background-color .18s ease, border-color .18s ease;
+  }
+  .glissiere::after {
+    content: ""; position: absolute; top: 2px; left: 2px;
+    width: 19px; height: 19px; border-radius: 50%;
+    background: var(--surface); box-shadow: 0 1px 2px rgba(0, 0, 0, 0.35);
+    transition: transform .18s ease;
+  }
+  label.bascule input:checked + .glissiere {
+    background: var(--accent); border-color: var(--accent);
+  }
+  label.bascule input:checked + .glissiere::after {
+    transform: translateX(17px); background: var(--sur-accent);
+  }
+  /* Le focus se pose sur l'<input> invisible : sans ca, naviguer au clavier ne
+     montrerait RIEN. */
+  label.bascule input:focus-visible + .glissiere {
+    outline: 2px solid var(--accent); outline-offset: 2px;
+  }
+  label.bascule .quoi { flex: 1; min-width: 0; }
+  label.bascule .combien { color: var(--encre2); font-size: 0.86rem; }
+  @media (prefers-reduced-motion: reduce) {
+    .glissiere, .glissiere::after { transition: none; }
+  }
 </style>
 </head>
 <body>
@@ -880,7 +926,7 @@
 
       <div class="carte">
         <h2>Ce qu'affiche la page de résultats</h2>
-        <p class="aide">Décoche un classement pour le retirer de la page — de la
+        <p class="aide">Éteins un classement pour le retirer de la page — de la
            barre et de la rotation du mur, <strong>et</strong> des téléphones des
            spectateurs. Il continue d'être calculé et archivé : c'est un réglage
            d'affichage, rien n'est perdu.</p>
@@ -2118,24 +2164,34 @@
 
     d.groupes.forEach(function (g) {
       var label = document.createElement("label");
-      label.style.cssText = "display:flex;align-items:center;gap:10px;"
-                          + "padding:7px 0;cursor:pointer";
-      var case_ = document.createElement("input");
-      case_.type = "checkbox";
-      case_.value = g.nom;
-      // Cochee = AFFICHEE. On range l'inverse -- voir cycle.groupes_masques.
-      case_.checked = masques.indexOf(g.nom) === -1;
-      case_.dataset.groupe = "1";
-      label.appendChild(case_);
+      label.className = "bascule";
+
+      // Une case a cocher NATIVE, rendue invisible par le style : elle garde le
+      // clavier, le focus et l'etat. `role="switch"` la fait annoncer
+      // « interrupteur, active » au lieu de « case a cocher, cochee » -- le
+      // navigateur derive `aria-checked` de `checked` tout seul.
+      var interrupteur = document.createElement("input");
+      interrupteur.type = "checkbox";
+      interrupteur.setAttribute("role", "switch");
+      interrupteur.value = g.nom;
+      // Allume = AFFICHE. On range l'inverse -- voir cycle.groupes_masques.
+      interrupteur.checked = masques.indexOf(g.nom) === -1;
+      interrupteur.dataset.groupe = "1";
+      label.appendChild(interrupteur);
+
+      var glissiere = document.createElement("span");
+      glissiere.className = "glissiere";
+      glissiere.setAttribute("aria-hidden", "true");
+      label.appendChild(glissiere);
 
       var texte = document.createElement("span");
+      texte.className = "quoi";
       // textContent : ces noms viennent du classeur.
       texte.textContent = g.nom;
       label.appendChild(texte);
 
       var combien = document.createElement("span");
-      combien.className = "aide";
-      combien.style.marginLeft = "auto";
+      combien.className = "combien";
       combien.textContent = g.participants
         + (g.participants > 1 ? " grimpeurs" : " grimpeur");
       label.appendChild(combien);

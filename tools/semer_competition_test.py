@@ -23,6 +23,14 @@ from climbcontest.models import Bloc, BlocCircuit, Circuit, Competition, EN_COUR
 
 NOM = "Test septembre 2026"
 COULEURS = ["Jaune", "Vert", "Bleu", "Mauve", "Rouge", "Noir"]
+# Des zones du VRAI mur d'Annonay (cf. `climbcontest/fiches.py`) : le plan de la
+# salle imprimé sur les fiches ne veut rien dire si tout est dans la même.
+ZONES = ["Z", "D", "C", "A", "E"]
+# La couleur des PRISES, celle qu'on cherche des yeux au pied du bloc. Reprise
+# de `Listes!C41:C50` du classeur. Elle n'est ordonnée par rien et n'entre dans
+# aucun calcul — voir le commentaire de `Bloc.couleur_prises`.
+COULEURS_PRISES = ["Blanc", "Jaune", "Orange", "Rouge", "Rose", "Violet",
+                   "Bleu", "Mint", "Vert", "Gris"]
 # Des noms VOLONTAIREMENT fictifs, empruntés au vocabulaire de l'escalade :
 # le classeur du club contient des noms de mineurs, on n'en recopie aucun.
 GRIMPEURS = [("Réglette", "Camille", "U11 F"), ("Bidoigt", "Yanis", "U11 H"),
@@ -46,8 +54,19 @@ def semer(spreadsheet_id: str | None) -> Competition:
     db.session.flush()
     for i in range(1, 25):
         couleur = COULEURS[(i - 1) // 4]
-        b = Bloc(competition_id=c.id, tag=f"Z{couleur[0]}{i}", numero=i, zone="Z",
-                 couleur=couleur)
+        # ⚠️ Cinq zones, et une couleur de PRISES sur chaque bloc.
+        #
+        # Les 24 blocs étaient tous en zone « Z » et sans couleur de prises. Deux
+        # conséquences, et la seconde a fait croire à un bug : la colonne
+        # « Prises » de la vue Circuits affichait « — » partout (signalé par
+        # Adrien le 01/09), alors que l'import la lit correctement depuis la
+        # colonne H du `Plan` depuis la spec 019 — c'est la donnée SEMÉE qui
+        # n'existait pas. Et une seule zone rendait le plan de la salle des
+        # fiches (spec 023) invérifiable.
+        zone = ZONES[(i - 1) % len(ZONES)]
+        b = Bloc(competition_id=c.id, tag=f"{zone}{couleur[0]}{i}", numero=i,
+                 zone=zone, couleur=couleur,
+                 couleur_prises=COULEURS_PRISES[(i - 1) % len(COULEURS_PRISES)])
         db.session.add(b)
         db.session.flush()
         for circuit in circuits.values():
