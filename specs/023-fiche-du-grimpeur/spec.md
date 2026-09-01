@@ -53,13 +53,22 @@ main de la journée.
 >    large pour onze lignes de haut**. C'est une **bande**.
 >
 > 4. Puis : « il faut vraiment que ça rentre sur une feuille A4 pour minimum
->    6 dossards ».
+>    6 dossards ». Six bandes de 194 × 47,5 sur un A4 **portrait**.
+> 5. Enfin : « prends une feuille A4 en format **paysage**, deux dossards en
+>    largeur et deux ou trois en hauteur, vois si ça rentre ». Les deux
+>    rentrent ; le 2 × 2 laisse 33 mm de vide sous chaque fiche — **le nombre
+>    de lignes de blocs dépend des six couleurs, pas du nombre de blocs**, il
+>    ne grandira donc jamais. Adrien a tranché le 2 × 3.
 >
-> Format livré : **six bandes de 194 × 47,5 mm** — 285 / 6 — sur un A4 portrait.
+> Format livré : **A4 paysage, six fiches — deux en largeur, trois en
+> hauteur — de 142,5 × 66 mm**.
 
 
-`/admin/dossards` rend des bandes de **194 × 47,5 mm** — le sixième de la
-hauteur utile d'un A4 portrait à 6 mm de marge, coupé en largeur. Trois colonnes qui se
+`/admin/dossards` rend un **A4 paysage** (297 × 210) portant **six fiches** de
+**142,5 × 66 mm** : deux en largeur, trois en hauteur. Toute la géométrie tient
+dans trois variables CSS (`--fiche-largeur`, `--fiche-hauteur`, `--qr`), ce qui
+a permis d'essayer les deux grilles et de choisir sur pièces plutôt que sur
+description. Trois colonnes qui se
 lisent d'un coup d'œil : l'identité et le QR à gauche, les blocs au milieu, le
 mur à droite. Les paramètres `?dossard=` et `?categorie=` ne changent pas.
 
@@ -180,11 +189,11 @@ carte de la console.
 ## 4. Critères d'acceptation
 
 **Tous vérifiés le 01/09/2026** — 47 tests (`tests/test_fiches.py`,
-`tests/test_qr_et_dossards.py`) et un PDF mesuré : 194 × 47,5 mm au pixel
-près, six par page.
+`tests/test_qr_et_dossards.py`) et un PDF mesuré à `preferCSSPageSize` :
+297 × 210 mm, six fiches de 142,5 × 66 mm par page.
 
-- [x] **A1** — Une fiche par participant numéroté, **six par page A4**,
-  jamais coupée par un saut de page.
+- [x] **A1** — Une fiche par participant numéroté, **six par A4 paysage**
+  (2 × 3), jamais coupée par un saut de page.
 - [x] **A2** — La fiche porte : dossard, nom, club, catégorie, circuit, QR.
 - [x] **A3** — Le QR contient le dossard nu, porte une zone de silence de
   **4 modules**, garde un module ≥ 0,5 mm à la taille imprimée, et se relit par

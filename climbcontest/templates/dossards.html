@@ -9,18 +9,23 @@
      numero : le seul papier qu'un grimpeur a en main de la journee doit lui
      dire QUELS blocs comptent pour lui, et OU ils sont.
 
-     ⚠️ SIX BANDES ALLONGEES PAR FEUILLE, demande d'Adrien : « il faut vraiment
-     que ca rentre sur une A4 pour minimum 6 dossards ». 285 / 6 = 47,5 mm de
-     haut, sur 198 de large.
+     ⚠️ A4 EN PAYSAGE, DEUX FICHES EN LARGEUR, TROIS EN HAUTEUR -- six par
+     feuille. Demande d'Adrien : « prends une feuille A4 en format paysage,
+     deux dossards en largeur et deux ou trois en hauteur ».
 
-     La FORME vient de l'onglet du classeur : une fiche y occupe douze colonnes
-     de large pour onze lignes de haut. Elle est allongee, et c'est ce qui la
-     rend lisible -- l'identite, les blocs et le mur se lisent cote a cote,
-     d'un coup d'oeil.
+     297 x 210 a 6 mm de marge = 285 x 198 de surface utile. Deux colonnes de
+     142,5 mm ; trois lignes de 66 mm. La grille est celle du classeur, qui
+     range lui aussi ses fiches en colonnes.
 
-     Trois versions ont ete jetees avant : deux fiches par A4 (« bien trop
-     gros »), un quart carre de 99 x 142,5 mm (qui ne portait pas deux colonnes
-     lisibles sur 99 mm), et quatre bandes de 71 mm.
+     La FORME de la fiche vient de l'onglet : elle y occupe douze colonnes de
+     large pour onze lignes de haut. Elle est allongee, et c'est ce qui la rend
+     lisible -- l'identite, les blocs et le mur se lisent cote a cote, d'un
+     coup d'oeil.
+
+     Quatre versions ont ete jetees avant : deux fiches par A4 portrait (« bien
+     trop gros »), un quart carre de 99 x 142,5 (qui ne portait pas deux
+     colonnes lisibles sur 99 mm de large), quatre bandes de 71 mm, puis six
+     bandes de 198 x 47,5 sur un A4 portrait.
 
      Tout est en MILLIMETRES : ce qui compte est la taille physique sur le
      papier, pas des pixels dont l'imprimante fera ce qu'elle veut.
@@ -29,7 +34,15 @@
      le matin d'une competition, parfois sans reseau. Le QR est genere
      localement (`qr.py`) ; le classeur, lui, appelle api.qrserver.com, ce qui
      envoie les dossards a un tiers ET ne marche pas si la connexion tombe. */
-  @page { size: A4 portrait; margin: 6mm; }
+  @page { size: A4 landscape; margin: 6mm; }
+
+  /* Toute la geometrie tient dans ces trois valeurs : c'est ce qui a permis
+     d'essayer 2x2 et 2x3 sans rien rebatir, et de choisir sur pieces. */
+  :root {
+    --fiche-largeur: 142.5mm;    /* 285 / 2 */
+    --fiche-hauteur: 66mm;       /* 198 / 3 */
+    --qr: 24mm;
+  }
 
   * { box-sizing: border-box; }
   body {
@@ -47,20 +60,23 @@
      lisible : l'identite a gauche, les blocs au milieu, le mur a droite, tout
      d'un coup d'oeil. Un quart carre (99 x 142,5) obligeait a empiler, et ne
      portait pas deux colonnes lisibles sur 99 mm. */
+  .planche { display: grid; grid-template-columns: repeat(2, var(--fiche-largeur)); }
   .fiche {
-    height: 47.5mm; padding: 2.2mm 3mm; display: flex; gap: 3mm;
+    height: var(--fiche-hauteur); padding: 2.5mm 3mm; display: flex; gap: 2.5mm;
     /* Une fiche coupee en deux par un saut de page donnerait un demi-QR. */
     break-inside: avoid; page-break-inside: avoid;
-    /* Le trait de coupe. En pointille : on decoupe dessus, ce n'est pas un
-       cadre imprime a garder. */
-    border-bottom: 0.3mm dashed #aaa;
+    /* Les traits de coupe. En pointille : on decoupe dessus, ce n'est pas un
+       cadre imprime a garder. La colonne de droite n'a pas de trait a droite,
+       c'est le bord de la feuille. */
+    border-bottom: 0.3mm dashed #aaa; border-right: 0.3mm dashed #aaa;
   }
+  .fiche:nth-child(2n) { border-right: 0; }
 
   /* --- L'identite, a gauche ----------------------------------------------- */
   /* Le QR SOUS l'identite : il se lit comme une carte, et la colonne n'occupe
      que la largeur du QR au lieu du double. Ce que ca libere va aux blocs. */
   .fiche header {
-    flex: none; width: 34mm; display: flex; flex-direction: column;
+    flex: none; width: calc(var(--qr) + 6mm); display: flex; flex-direction: column;
     padding-right: 3mm; border-right: 0.4mm solid #111; overflow: hidden;
   }
   .qui { min-width: 0; }
@@ -85,7 +101,9 @@
   }
   .quoi b { color: #111; font-size: 2.8mm; }
   .qr { margin-top: 1.5mm; }
-  .qr svg { display: block; width: 24mm; height: 24mm; }
+  /* La largeur vient du CSS et non de l'attribut du SVG : c'est ce qui permet
+     de changer la taille du QR avec le format sans regenerer le code. */
+  .qr svg { display: block; width: var(--qr); height: var(--qr); }
 
   /* --- Les blocs, au milieu ------------------------------------------------ */
   h2 {
@@ -101,11 +119,11 @@
      bande de 47 mm, onze millimetres de libelle repete six fois, c'est une
      ligne de blocs en moins. */
   .groupe {
-    display: grid; grid-template-columns: 3.2mm 1fr; gap: 0.8mm 1.2mm;
-    align-items: start; margin-bottom: 0.8mm;
+    display: grid; grid-template-columns: 3.4mm 1fr; gap: 1mm 1.4mm;
+    align-items: center; margin-bottom: 1.2mm;
   }
   .pastille {
-    width: 2.6mm; height: 2.6mm; border-radius: 50%; margin-top: 1mm;
+    width: 2.8mm; height: 2.8mm; border-radius: 50%;
     border: 0.2mm solid #555;
   }
   /* Les six couleurs de difficulte du classeur (`Listes!A41:A46`). En noir et
@@ -129,11 +147,11 @@
      d'espace vide ». */
   .cases { display: grid; grid-template-columns: repeat(auto-fit, minmax(8.5mm, 1fr)); gap: 0.6mm; }
   .case {
-    border: 0.2mm solid #bbb; border-radius: 0.7mm; padding: 0.3mm 0.2mm;
-    text-align: center; line-height: 1;
+    border: 0.2mm solid #bbb; border-radius: 0.8mm; padding: 0.8mm 0.3mm;
+    text-align: center; line-height: 1.05;
   }
-  .case .zone { display: block; font-size: 1.7mm; color: #777; }
-  .case .num { display: block; font-size: 2.5mm; font-weight: 700; }
+  .case .zone { display: block; font-size: 1.9mm; color: #777; }
+  .case .num { display: block; font-size: 3mm; font-weight: 700; }
 
   .legende { margin: 1.5mm 0 0; font-size: 2.1mm; color: #888; line-height: 1.3; }
   .manque {
@@ -144,11 +162,11 @@
   /* --- Le plan de la salle, a droite --------------------------------------- */
   /* Sept cases par ligne : la grille du classeur (`Fiches!V4:X11`), ou la
      premiere cellule vaut une case et les deux suivantes en valent trois. */
-  .mur { flex: none; width: 46mm; border-left: 0.2mm solid #ddd; padding-left: 3mm; }
-  .plan { display: grid; grid-template-columns: repeat(7, 1fr); gap: 0.5mm; }
+  .mur { flex: none; width: 37mm; border-left: 0.2mm solid #ddd; padding-left: 2.5mm; }
+  .plan { display: grid; grid-template-columns: repeat(7, 1fr); gap: 0.6mm; }
   .case-plan {
-    height: 4mm; display: flex; align-items: center; justify-content: center;
-    font-size: 2.2mm; border-radius: 0.6mm;
+    height: 5mm; display: flex; align-items: center; justify-content: center;
+    font-size: 2.3mm; border-radius: 0.7mm;
   }
   .case-plan.zone { border: 0.2mm solid #ddd; color: #999; font-weight: 600; }
   /* Les zones OU CE GRIMPEUR a des blocs. C'est ce qui transforme une carte
@@ -176,7 +194,7 @@
     /* Un apercu qui ressemble a la feuille : sinon on ne voit pas ce qu'on
        imprime avant de l'avoir imprime. */
     body { background: #ECEAE5; padding: 6mm; }
-    .entete, .planche, .vide { background: #fff; max-width: 198mm; margin-inline: auto; }
+    .entete, .planche, .vide { background: #fff; width: max-content; margin-inline: auto; }
     .planche { box-shadow: 0 1mm 3mm rgba(0, 0, 0, 0.12); padding-inline: 2mm; }
     .entete { padding-inline: 6mm; }
   }
@@ -186,7 +204,7 @@
 
 <div class="entete">
   <h1>Fiches — {{ titre }}</h1>
-  <p>{{ fiches|length }} à imprimer, <strong>six par page</strong>, à couper
+  <p>{{ fiches|length }} à imprimer, <strong>six par page</strong> (A4 <strong>paysage</strong>), à couper
      sur les pointillés. Vérifie l'échelle d'impression :
      <strong>100 %</strong>, sans « ajuster à la page », sinon les QR sortiront
      trop petits pour être lus.</p>

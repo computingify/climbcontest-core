@@ -346,3 +346,43 @@ class TestLaPlanche:
 
     def test_le_papier_dit_combien_de_blocs(self, page):
         assert "Tes 2 blocs" in page
+
+
+class TestLeFormatDuPapier:
+    """A4 PAYSAGE, deux fiches en largeur, trois en hauteur — six par feuille.
+
+    Le format a ete refait quatre fois avant d'arriver la, chaque fois en le
+    REGARDANT. Ces trois assertions ne prouvent pas qu'il est joli ; elles
+    prouvent qu'on ne l'a pas remis en portrait sans s'en rendre compte.
+    """
+
+    @pytest.fixture()
+    def page(self, connecte_orga, competition):
+        _grimpeur(competition, 1, "U11 F")
+        db.session.commit()
+        return connecte_orga.get("/admin/dossards").data.decode()
+
+    def test_la_feuille_est_un_a4_paysage(self, page):
+        assert "@page { size: A4 landscape; margin: 6mm; }" in page
+
+    def test_deux_fiches_en_largeur(self, page):
+        assert "grid-template-columns: repeat(2, var(--fiche-largeur))" in page
+
+    def test_la_geometrie_tient_dans_trois_variables(self, page):
+        """285 / 2 en largeur, 198 / 3 en hauteur. C'est ce qui a permis
+        d'essayer 2x2 et 2x3 sans rien rebatir, et de choisir sur pieces."""
+        for valeur in ("--fiche-largeur: 142.5mm", "--fiche-hauteur: 66mm",
+                       "--qr: 24mm"):
+            assert valeur in page, valeur
+
+    def test_une_fiche_n_est_jamais_coupee(self, page):
+        assert "break-inside: avoid" in page
+
+    def test_les_colonnes_de_blocs_vides_sont_repliees(self, page):
+        """`auto-fill` laisse des colonnes vides quand un groupe a moins de
+        cases que la largeur n'en contient — c'est ce qui faisait « trop
+        d'espace vide ». `auto-fit` les replie."""
+        assert "repeat(auto-fit, minmax(8.5mm, 1fr))" in page
+        # La forme d'USAGE, pas le mot : le commentaire du gabarit explique
+        # justement pourquoi `auto-fill` a ete abandonne.
+        assert "repeat(auto-fill" not in page
