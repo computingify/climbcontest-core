@@ -257,6 +257,34 @@ ssh adrien@192.168.0.32 'sudo systemctl stop climbcontest
 
 ## Après la compétition
 
+### D'abord, depuis la console (spec 018)
+
+Avant les sauvegardes système, **archiver dans la console** — `/console` →
+« Compétition » → **Archiver l'édition**. Le classement complet et les données
+brutes sont figés dans la base, la compétition passe « terminée », et **rien
+n'est effacé**.
+
+L'édition est ensuite consultable dans « Archives », avec trois boutons :
+
+| Bouton | Ce qu'il fait |
+| --- | --- |
+| **Revoir** | Rouvre la vraie page de résultats sur le classement figé — podium, classements, scratchs, et `?mur` marche aussi. Consultation seule : rien n'est restauré |
+| **Télécharger** | Un JSON daté, pour en avoir une copie hors de la VM (~700 Ko pour une édition complète) |
+| **Supprimer** | Réservé aux administrateurs, confirmation à frapper |
+
+Puis, pour repartir sur l'édition suivante :
+
+1. « Compétition » → **Effacer les données** (fenêtre de confirmation, mot
+   `EFFACER` à frapper). Les archives et le classeur Google ne sont pas touchés.
+2. « Classeur » → **Relier** la feuille de la nouvelle édition, puis
+   **Tester l'accès en écriture** — c'est le geste qui attrape une feuille
+   partagée en lecture seule, avant le jour J plutôt qu'après le premier scan.
+3. « Compétition » → **Importer** (mise à jour). Ou **remplacement complet** si
+   la base porte encore l'édition précédente.
+4. « Compétition » → l'état repasse à **En préparation**.
+
+### Ensuite, les sauvegardes système
+
 ```bash
 # 1. Archiver la base
 ssh adrien@192.168.0.32 'sudo -u climbcontest sqlite3 /opt/climbcontest/shared/data/climbcontest.db ".backup /tmp/compet-$(date +%F).db"'

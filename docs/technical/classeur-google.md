@@ -293,6 +293,43 @@ redémarrage du service repart d'un jeton périmé et redemande un rafraîchisse
 
 ---
 
+## 5 quater. Vérifier qu'on a le droit d'ÉCRIRE (spec 018)
+
+Lire le classeur ne prouve rien sur le droit d'y écrire. Une feuille partagée
+en **lecture seule** avec le compte du jeton répond au titre, aux onglets et à
+la grille exactement comme une feuille en modification — et ne se trahit qu'au
+premier lot du miroir, quarante secondes après le premier scan, quand les
+réussites commencent à s'empiler « en attente ».
+
+`ClasseurGoogle.essai_ecriture()` fait donc un aller-retour réel :
+
+```
+1. lire   Import!<dernier coin de la grille>   ← doit être VIDE, sinon on renonce
+2. écrire « climbcontest-test <horodatage> »
+3. relire                                       ← doit rendre ce qu'on a écrit
+4. effacer                                      ← on remet comme c'était
+```
+
+**Le coin de la grille, jamais la matrice.** La ligne 1 porte les dossards, les
+colonnes A à C portent les blocs, `D2:…` porte les « A » et `D103` un
+horodatage. Tester là où le miroir écrit vraiment détruirait une réussite réelle
+si l'effacement final échouait. Sur une grille de 120 × 1000, la cellule témoin
+est `DP1000`.
+
+La méthode **ne lève jamais** : son échec est la réponse attendue, pas une
+panne. Elle rend `{"tentee", "cellule", "ecriture", "restauree", "message",
+"plages_protegees"}`.
+
+**L'angle mort, et ce qui le couvre.** Une protection posée sur `D2:DP103`
+laisse le coin parfaitement écrivable et bloque pourtant le miroir. D'où
+`plages_protegees()`, lue des métadonnées **déjà chargées** — `protectedRanges`
+a été ajouté au `fields` de l'appel `spreadsheets.get` existant, ce qui ne coûte
+aucune requête supplémentaire.
+
+Dans la console : « Classeur » → **Tester l'accès en écriture**, un bouton
+distinct de « Tester l'accès ». L'un écrit, l'autre pas, et ça doit se voir
+avant de cliquer.
+
 ## 6. Relire le classeur
 
 Accès en lecture seule, via le jeton OAuth existant du serveur :
