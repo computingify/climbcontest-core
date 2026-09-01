@@ -22,22 +22,40 @@ class ClasseurFictif:
     def lire(self, onglet, plage):
         return {"Plan": self.plan, "Listes": self.listes}[onglet]
 
+    # Les colonnes de circuit du classeur : J, L, N, P, R.
+    COLONNES = (6, 8, 10, 12, 14)
+
     @staticmethod
     def _ligne_plan(zone, couleur, circuits, numero_zone, numero_import):
-        """Construit une ligne D:Y (22 colonnes), comme le vrai classeur."""
+        """Construit une ligne D:Y (22 colonnes), comme le vrai classeur.
+
+        `circuits` est aussi long qu'il y a de circuits dans l'en-tête : trois
+        pour le classeur de mars 2026, quatre pour celui de novembre 2025.
+        """
         l = [""] * 22
         l[0], l[2] = zone, couleur
-        for i, actif in zip((6, 8, 10), circuits):
+        for i, actif in zip(ClasseurFictif.COLONNES, circuits):
             l[i] = "1" if actif else ""
         l[16], l[21] = numero_zone, str(numero_import)
         return l
 
     @classmethod
-    def plan_type(cls):
+    def _entete(cls, *noms):
+        """La ligne 28 : un nom de circuit une colonne sur deux, à partir de J."""
         entete = [""] * 22
-        entete[6], entete[8], entete[10] = "U11", "U13", "U15"
+        # Le vrai classeur intitule aussi les colonnes de structure. Elles sont
+        # ici pour que les tests prouvent qu'aucune n'est prise pour un circuit.
+        entete[2], entete[4], entete[16] = "Dif", "Prises", "N\u00b0"
+        entete[17], entete[18], entete[19] = "E", "D", "A1"
+        entete[20], entete[21] = "A2", "N\u00b0"
+        for i, nom in zip(cls.COLONNES, noms):
+            entete[i] = nom
+        return entete
+
+    @classmethod
+    def plan_type(cls):
         return [
-            entete,
+            cls._entete("U11", "U13", "U15"),
             cls._ligne_plan("Z", "Jaune", (True, True, False), "J6", 1),
             cls._ligne_plan("Z", "Vert", (True, False, False), "J7", 2),
             cls._ligne_plan("D", "Bleu", (False, True, True), "V21", 3),
@@ -135,8 +153,7 @@ class TestBlocLigneCourte:
         """Sur une ligne à 17 colonnes, l'ancienne version prenait `line[-1]`,
         c'est-à-dire la colonne T — le numéro de ZONE, pas celui de l'onglet
         Import. Les réussites atterrissaient sur la mauvaise ligne."""
-        entete = [""] * 22
-        entete[6], entete[8], entete[10] = "U11", "U13", "U15"
+        entete = ClasseurFictif._entete("U11", "U13", "U15")
         courte = [""] * 17
         courte[0], courte[16] = "Z", "J9"          # s'arrête à la colonne T
         r = importer(competition, ClasseurFictif(plan=[entete, courte]))
@@ -150,6 +167,68 @@ class TestBlocLigneCourte:
         importer(competition, ClasseurFictif())
         assert Bloc.query.filter_by(tag="ZJ6").one().numero == 1
         assert Bloc.query.filter_by(tag="DV21").one().numero == 3
+
+
+class TestNombreDeCircuits:
+    """Le classeur en prévoit cinq — colonnes J, L, N, P, R.
+
+    Jusqu'au 01/09, l'import n'en lisait que **trois** (J, L, N). Le classeur
+    de mars 2026 n'en a que trois, celui de novembre 2025 en a quatre : le
+    quatrième circuit n'était jamais créé, ses 37 blocs n'étaient rattachés à
+    rien, et son classement sortait vide sans un mot.
+    """
+
+    def test_trois_circuits_inchange(self, app, competition):
+        """Le cas de mars 2026. Non-régression : rien ne doit bouger."""
+        r = importer(competition, ClasseurFictif())
+        assert r.circuits_crees == 3
+        assert {c.nom for c in Circuit.query.all()} == {"U11", "U13", "U15"}
+
+    def test_quatre_circuits_le_cas_de_novembre_2025(self, app, competition):
+        """U17 vit en colonne P. C'est le circuit qui disparaissait."""
+        plan = [
+            ClasseurFictif._entete("U11", "U13", "U15", "U17"),
+            ClasseurFictif._ligne_plan("Z", "Jaune", (True, True, False, False), "J6", 1),
+            ClasseurFictif._ligne_plan("D", "Noir", (False, False, True, True), "V21", 2),
+        ]
+        r = importer(competition, ClasseurFictif(plan=plan))
+        assert r.circuits_crees == 4
+        assert {c.nom for c in Circuit.query.all()} == {"U11", "U13", "U15", "U17"}
+
+        # Le rattachement, qui est le vrai enjeu : sans lui, une réussite du
+        # circuit U17 ne compte pour rien.
+        u17 = {bc.bloc.tag for bc in
+               Circuit.query.filter_by(nom="U17").one().blocs}
+        assert u17 == {"DV21"}
+
+    def test_cinq_circuits(self, app, competition):
+        """« Outil pour 10 categories, 5 circuits… » (Listes!A1)."""
+        plan = [
+            ClasseurFictif._entete("U11", "U13", "U15", "U17", "U19"),
+            ClasseurFictif._ligne_plan("Z", "Jaune", (True,) * 5, "J6", 1),
+        ]
+        r = importer(competition, ClasseurFictif(plan=plan))
+        assert r.circuits_crees == 5
+        assert BlocCircuit.query.count() == 5
+
+    def test_le_rapport_dit_les_circuits_et_leur_colonne(self, app, competition):
+        """Le chiffre qu'on compare de tête à ce qu'on attend.
+
+        C'est la seule ligne qui aurait montré, en novembre 2025, qu'un circuit
+        sur quatre manquait à l'appel.
+        """
+        plan = [ClasseurFictif._entete("U11", "U13", "U15", "U17")]
+        r = importer(competition, ClasseurFictif(plan=plan))
+        assert r.circuits == ["U11 (colonne J)", "U13 (colonne L)",
+                              "U15 (colonne N)", "U17 (colonne P)"]
+        assert "U17 (colonne P)" in r.resume()
+        assert r.to_dict()["circuits"] == r.circuits
+
+    def test_les_colonnes_de_structure_ne_sont_pas_des_circuits(self, app, competition):
+        """« Dif », « Prises », « N° », « E », « D », « A1 », « A2 » intitulent
+        la ligne 28 du vrai classeur. Aucune n'est un circuit."""
+        importer(competition, ClasseurFictif())
+        assert {c.nom for c in Circuit.query.all()} == {"U11", "U13", "U15"}
 
 
 class TestStructureChangee:

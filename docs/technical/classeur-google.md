@@ -68,12 +68,36 @@ Onglet `Plan`, à partir de la ligne 29, une ligne par bloc :
 | E | 1 | Rang du bloc dans la zone |
 | F | 2 | Couleur de difficulté |
 | H | 4 | Couleur des prises |
-| J, L, N | 6, 8, 10 | `1` si le bloc appartient au circuit U11 / U13 / U15 |
+| **J, L, N, P, R** | **6, 8, 10, 12, 14** | `1` si le bloc appartient à ce circuit — **une colonne sur deux, cinq au plus** |
 | T | 16 | Numéro du bloc dans sa zone |
 | Y | 21 (dernier) | **Numéro de ligne du bloc dans l'onglet `Import`** |
 
 Le contenu du QR code d'un bloc = **colonne D + colonne T** → `Z` + `J6` = `ZJ6`.
-La ligne 28 sert d'en-tête et porte les noms de circuits en J, L, N.
+
+### La ligne 28 : combien de circuits, et où (correctif du 01/09)
+
+La ligne 28 est l'en-tête. Elle porte les noms de circuits, **et eux seuls**,
+dans les colonnes J, L, N, P, R. Les autres intitulés désignent la structure et
+ne bougent jamais :
+
+| Classeur | F | H | J | L | N | **P** | T · U · V · W · X · Y |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| U11 U17 Nov 2025 | `Dif` | `Prises` | `U11` | `U13` | `U15` | **`U17`** | `N°` `E` `D` `A1` `A2` `N°` |
+| U11 U15 Mars 2026 | `Dif` | `Prises` | `U11` | `U13` | `U15` | — | idem |
+| Gestion contest (2024) | `Dif` | `Prises` | `U10` | `U12` | `U14` | — | idem |
+
+⚠️ **Cette section a été écrite sur le classeur de mars 2026, qui n'a que trois
+circuits — et `importer.py` a figé « J, L, N » d'après elle.** Le classeur de
+novembre 2025 en a **quatre** : la colonne P n'était jamais lue, le circuit U17
+n'était jamais créé, et ses **37 blocs** n'étaient rattachés à aucun circuit.
+Conséquence en cascade : le classement `U17` sortait vide (« aucun bloc
+n'appartient au circuit »), et chaque réussite d'un grimpeur U17 comptait pour
+zéro. Rien, nulle part, ne le signalait.
+
+Les colonnes sont désormais **découvertes** dans l'en-tête, jamais figées, et
+l'import **annonce les circuits qu'il a lus avec leur colonne** — « U17 (colonne
+P) » — dans son rapport comme dans le journal. C'est ce chiffre-là qu'on compare
+de tête à ce qu'on attend.
 
 ### Grimpeurs
 

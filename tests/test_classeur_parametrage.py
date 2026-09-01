@@ -401,6 +401,35 @@ class TestNouvelleCompetition:
         assert r.status_code == 409
         assert Participant.query.count() == 3
 
+    def test_en_pleine_competition_on_peut_forcer(self, connecte, jeu, classeur):
+        """La console DOIT pouvoir passer outre — le statut peut etre faux.
+
+        La route acceptait deja `forcer`, mais le bouton « Enregistrer » ne
+        l'envoyait jamais : le refus 409 s'affichait tout en haut d'une page ou
+        l'on etait 180 lignes plus bas, et le geste semblait sans effet. Adrien
+        est reste bloque dessus le 01/09, et a du passer la competition « en
+        preparation » dans une autre vue pour avancer.
+        """
+        jeu["competition"].statut = EN_COURS
+        db.session.commit()
+        r = connecte.post("/admin/classeur", json={
+            "lien": LIEN, "mode": "reinitialiser", "confirmation": "EFFACER",
+            "forcer": True})
+        assert r.status_code == 200
+        assert Participant.query.count() == 0
+
+    def test_forcer_ne_remplace_pas_le_mot_de_confirmation(
+            self, connecte, jeu, classeur):
+        """Deux gestes, deux intentions : la case dit « le statut est faux »,
+        le mot dit « je veux effacer ». Cocher sans frapper n'efface rien."""
+        jeu["competition"].statut = EN_COURS
+        db.session.commit()
+        r = connecte.post("/admin/classeur", json={
+            "lien": LIEN, "mode": "reinitialiser", "confirmation": "",
+            "forcer": True})
+        assert r.status_code == 400
+        assert Participant.query.count() == 3
+
     def test_si_google_refuse_le_vidage_la_base_ne_bouge_pas(
             self, connecte, trois_reussites_envoyees, classeur):
         """Le classeur AVANT la base : l'ordre inverse laisserait une base vide

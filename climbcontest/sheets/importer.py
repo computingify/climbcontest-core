@@ -40,7 +40,20 @@ PLAN_LIGNE_ENTETE = 28          # porte les noms de circuits
 PLAN_PLAGE = "D28:Y"
 I_ZONE = 0                      # colonne D — lettre de zone
 I_COULEUR = 2                   # colonne F — couleur de difficulte
-I_CIRCUITS = (6, 8, 10)         # colonnes J, L, N
+
+# Les colonnes où un circuit PEUT vivre : J, L, N, P, R — une sur deux, cinq au
+# plus. Le classeur se décrit lui-même comme prévu pour « 5 circuits »
+# (`Listes!A1`), et la ligne d'en-tête dit lesquelles servent vraiment.
+#
+# ⚠️ Elles sont DÉCOUVERTES, plus jamais figées. Jusqu'au 01/09, ce tuple valait
+# `(6, 8, 10)` : trois circuits, parce que la structure avait été relevée sur le
+# classeur de mars 2026 qui n'en a que trois. Celui de novembre 2025 en a
+# **quatre** (U11, U13, U15, U17) — le quatrième n'était jamais créé, ses 37
+# blocs n'étaient rattachés à aucun circuit, son classement sortait vide, et
+# tout grimpeur de ce circuit aurait vu chacune de ses réussites comptée pour
+# zéro. Rien, nulle part, ne le disait.
+I_CIRCUITS_POSSIBLES = (6, 8, 10, 12, 14)
+
 I_NUMERO_ZONE = 16              # colonne T — numero dans la zone
 I_NUMERO_IMPORT = 21            # colonne Y — ligne dans l'onglet Import
 PLAN_COLONNES_MINI = 22         # il FAUT aller jusqu'a Y
@@ -69,6 +82,10 @@ class Rapport:
     blocs_crees: int = 0
     blocs_mis_a_jour: int = 0
     circuits_crees: int = 0
+    # Les circuits lus dans l'en-tête, avec leur colonne : « U17 (colonne P) ».
+    # Affiché systématiquement, même quand tout va bien — c'est la seule ligne
+    # qui aurait montré, en novembre 2025, qu'un circuit sur quatre manquait.
+    circuits: list[str] = field(default_factory=list)
     ignores: list[str] = field(default_factory=list)
     avertissements: list[str] = field(default_factory=list)
 
@@ -78,6 +95,7 @@ class Rapport:
                              "mis_a_jour": self.participants_mis_a_jour},
             "blocs": {"crees": self.blocs_crees, "mis_a_jour": self.blocs_mis_a_jour},
             "circuits_crees": self.circuits_crees,
+            "circuits": self.circuits,
             "ignores": self.ignores,
             "avertissements": self.avertissements,
         }
@@ -86,7 +104,23 @@ class Rapport:
         return (f"{self.participants_crees} participant(s) cree(s), "
                 f"{self.participants_mis_a_jour} mis a jour ; "
                 f"{self.blocs_crees} bloc(s) cree(s), {self.blocs_mis_a_jour} mis a jour ; "
+                # Le nombre de circuits LUS, pas seulement les nouveaux : c'est
+                # ce chiffre-la qu'on compare de tete a ce qu'on attend.
+                f"{len(self.circuits)} circuit(s) : {', '.join(self.circuits) or 'aucun'} ; "
                 f"{len(self.ignores)} ligne(s) ignoree(s)")
+
+
+def _lettre(index: int) -> str:
+    """L'index dans `D28:Y` → la lettre de colonne du classeur. 6 → « J ».
+
+    Sert aux messages, et uniquement à eux : c'est en lettres qu'on lit une
+    feuille de calcul, et « colonne 12 » n'aide personne à retrouver la case.
+    """
+    return chr(ord("D") + index)
+
+
+def _colonnes_possibles() -> str:
+    return ", ".join(_lettre(i) for i in I_CIRCUITS_POSSIBLES)
 
 
 def _texte(ligne: list, index: int) -> str | None:
@@ -170,15 +204,22 @@ def importer_blocs(comp: Competition, classeur, rapport: Rapport,
         return
 
     entete, lignes = lignes[0], lignes[1:]
-    noms_circuits = {i: _texte(entete, i) for i in I_CIRCUITS}
-    if not any(noms_circuits.values()):
+    # Seules les colonnes qui portent un nom sont des circuits. Un classeur à
+    # trois circuits et un classeur à cinq passent ici sans qu'on ait à savoir
+    # lequel on lit.
+    noms_circuits = {i: _texte(entete, i) for i in I_CIRCUITS_POSSIBLES}
+    noms_circuits = {i: nom for i, nom in noms_circuits.items() if nom}
+    if not noms_circuits:
         raise ErreurClasseur(
             f"Plan L{PLAN_LIGNE_ENTETE} : aucun nom de circuit dans les colonnes "
-            f"J, L, N. La structure du classeur a change — import interrompu, "
-            f"rien n'a ete modifie.")
+            f"{_colonnes_possibles()}. La structure du classeur a change — import "
+            f"interrompu, rien n'a ete modifie.")
+
+    rapport.circuits = [f"{nom} (colonne {_lettre(i)})"
+                        for i, nom in sorted(noms_circuits.items())]
 
     circuits: dict[str, Circuit] = {}
-    for nom in filter(None, noms_circuits.values()):
+    for nom in noms_circuits.values():
         c = Circuit.query.filter_by(competition_id=comp.id, nom=nom).first()
         if not c:
             c = Circuit(competition_id=comp.id, nom=nom)
@@ -228,9 +269,8 @@ def importer_blocs(comp: Competition, classeur, rapport: Rapport,
         db.session.flush()
 
         # Rattachement aux circuits : une croix dans la colonne du circuit.
-        for i in I_CIRCUITS:
-            nom_circuit = noms_circuits.get(i)
-            if not nom_circuit or not _texte(ligne, i):
+        for i, nom_circuit in noms_circuits.items():
+            if not _texte(ligne, i):
                 continue
             c = circuits[nom_circuit]
             lien = BlocCircuit.query.filter_by(bloc_id=bloc.id, circuit_id=c.id).first()
