@@ -2,18 +2,51 @@
 <html lang="fr">
 <head>
 <meta charset="utf-8">
-<title>Dossards — {{ titre }}</title>
+<title>Fiches — {{ titre }}</title>
 <style>
-  /* Des bandes de quelques centimetres, a decouper. Format repris du classeur
-     (onglet « QR Code »), repete sur des pages A4.
+  /* La fiche du grimpeur, reprise de l'onglet « Fiches » du classeur (spec 023).
+     Elle remplace la bande de trois centimetres, qui ne portait qu'un QR et un
+     numero : le seul papier qu'un grimpeur a en main de la journee doit lui
+     dire QUELS blocs comptent pour lui, et OU ils sont.
+
+     ⚠️ A4 EN PAYSAGE, DEUX FICHES EN LARGEUR, TROIS EN HAUTEUR -- six par
+     feuille. Demande d'Adrien : « prends une feuille A4 en format paysage,
+     deux dossards en largeur et deux ou trois en hauteur ».
+
+     297 x 210 a 6 mm de marge = 285 x 198 de surface utile. Deux colonnes de
+     142,5 mm ; trois lignes de 66 mm. La grille est celle du classeur, qui
+     range lui aussi ses fiches en colonnes.
+
+     La FORME de la fiche vient de l'onglet : elle y occupe douze colonnes de
+     large pour onze lignes de haut. Elle est allongee, et c'est ce qui la rend
+     lisible -- l'identite, les blocs et le mur se lisent cote a cote, d'un
+     coup d'oeil.
+
+     Quatre versions ont ete jetees avant : deux fiches par A4 portrait (« bien
+     trop gros »), un quart carre de 99 x 142,5 (qui ne portait pas deux
+     colonnes lisibles sur 99 mm de large), quatre bandes de 71 mm, puis six
+     bandes de 198 x 47,5 sur un A4 portrait.
 
      Tout est en MILLIMETRES : ce qui compte est la taille physique sur le
-     papier, pas des pixels dont l'imprimante fera ce qu'elle veut. */
-  @page { size: A4 portrait; margin: 8mm; }
+     papier, pas des pixels dont l'imprimante fera ce qu'elle veut.
+
+     AUCUNE dependance exterieure -- ni police, ni image, ni script. On imprime
+     le matin d'une competition, parfois sans reseau. Le QR est genere
+     localement (`qr.py`) ; le classeur, lui, appelle api.qrserver.com, ce qui
+     envoie les dossards a un tiers ET ne marche pas si la connexion tombe. */
+  @page { size: A4 landscape; margin: 6mm; }
+
+  /* Toute la geometrie tient dans ces trois valeurs : c'est ce qui a permis
+     d'essayer 2x2 et 2x3 sans rien rebatir, et de choisir sur pieces. */
+  :root {
+    --fiche-largeur: 142.5mm;    /* 285 / 2 */
+    --fiche-hauteur: 66mm;       /* 198 / 3 */
+    --qr: 24mm;
+  }
 
   * { box-sizing: border-box; }
   body {
-    margin: 0; background: #fff; color: #000;
+    margin: 0; background: #fff; color: #111;
     font-family: system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
   }
 
@@ -21,70 +54,221 @@
   .entete h1 { margin: 0; font-size: 5mm; font-weight: 700; }
   .entete p { margin: 1mm 0 0; font-size: 3.4mm; color: #444; }
 
-  .planche { display: grid; grid-template-columns: 1fr 1fr; gap: 0; }
-
-  .dossard {
-    display: grid;
-    grid-template-columns: 24mm 1fr;
-    align-items: center;
-    gap: 4mm;
-    height: 30mm;
-    padding: 3mm 4mm;
-    /* Le trait de coupe. En pointille : on decoupe dessus, il ne doit pas
-       ressembler a un cadre imprime a garder. */
-    border: 0.3mm dashed #999;
-    /* Une bande ne doit JAMAIS etre coupee en deux par un saut de page :
-       le grimpeur se retrouverait avec un demi-QR. */
-    break-inside: avoid;
-    page-break-inside: avoid;
+  /* QUATRE BANDES de 198 x 71,25 mm : le quart de la surface utile d'un A4 a
+     6 mm de marge, coupe en LARGEUR. La fiche du classeur est allongee -- douze
+     colonnes de large pour onze lignes de haut -- et c'est ce qui la rend
+     lisible : l'identite a gauche, les blocs au milieu, le mur a droite, tout
+     d'un coup d'oeil. Un quart carre (99 x 142,5) obligeait a empiler, et ne
+     portait pas deux colonnes lisibles sur 99 mm. */
+  .planche { display: grid; grid-template-columns: repeat(2, var(--fiche-largeur)); }
+  .fiche {
+    height: var(--fiche-hauteur); padding: 2.5mm 3mm; display: flex; gap: 2.5mm;
+    /* Une fiche coupee en deux par un saut de page donnerait un demi-QR. */
+    break-inside: avoid; page-break-inside: avoid;
+    /* Les traits de coupe. En pointille : on decoupe dessus, ce n'est pas un
+       cadre imprime a garder. La colonne de droite n'a pas de trait a droite,
+       c'est le bord de la feuille. */
+    border-bottom: 0.3mm dashed #aaa; border-right: 0.3mm dashed #aaa;
   }
+  .fiche:nth-child(2n) { border-right: 0; }
 
-  .dossard svg { display: block; width: 22mm; height: 22mm; }
-
+  /* --- L'identite, a gauche ----------------------------------------------- */
+  /* Le QR SOUS l'identite : il se lit comme une carte, et la colonne n'occupe
+     que la largeur du QR au lieu du double. Ce que ca libere va aux blocs. */
+  .fiche header {
+    flex: none; width: calc(var(--qr) + 6mm); display: flex; flex-direction: column;
+    padding-right: 3mm; border-right: 0.4mm solid #111; overflow: hidden;
+  }
+  .qui { min-width: 0; }
+  .ligne-nom { display: flex; align-items: baseline; gap: 1.5mm; }
   .numero {
-    font-size: 11mm; font-weight: 800; line-height: 1;
-    font-variant-numeric: tabular-nums;
+    font-size: 6mm; line-height: 1; font-weight: 800;
+    font-variant-numeric: tabular-nums; letter-spacing: -0.02em;
   }
+  /* Le nom PASSE A LA LIGNE plutot que d'etre coupe : « Gaudissard-Le-Nuz
+     Camilo » existe pour de vrai dans le classeur, et une fiche qui affiche
+     « Gaudissard… » ne permet plus de la donner a la bonne personne. Le
+     `overflow: hidden` du header borne les cas extremes. */
   .nom {
-    font-size: 4.2mm; font-weight: 600; margin-top: 1.5mm;
-    /* Un nom tres long ne doit pas pousser le QR hors de la bande. */
-    overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 62mm;
+    font-size: 3.1mm; font-weight: 700; line-height: 1.1; min-width: 0;
+    overflow-wrap: anywhere;
   }
-  .detail {
-    font-size: 3.2mm; color: #555; margin-top: 0.8mm;
-    overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 62mm;
+  .qui .club { margin-top: 0.6mm; }
+  .qui .quoi { margin-top: 0.4mm; }
+  .club, .quoi {
+    font-size: 2.5mm; color: #555; margin-top: 0.8mm;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+  .quoi b { color: #111; font-size: 2.8mm; }
+  .qr { margin-top: 1.5mm; }
+  /* La largeur vient du CSS et non de l'attribut du SVG : c'est ce qui permet
+     de changer la taille du QR avec le format sans regenerer le code. */
+  .qr svg { display: block; width: var(--qr); height: var(--qr); }
+
+  /* --- Les blocs, au milieu ------------------------------------------------ */
+  h2 {
+    margin: 0 0 1mm; font-size: 2.2mm; font-weight: 700;
+    text-transform: uppercase; letter-spacing: 0.12em; color: #666;
+  }
+  .blocs { flex: 1; min-width: 0; }
+
+  /* Groupes par difficulte, dans l'ordre du classeur : Jaune < Vert < Bleu <
+     Mauve < Rouge < Noir, puis le numero. */
+  /* La colonne de gauche ne porte plus le NOM de la couleur : la pastille le
+     dit, et la premiere lettre du numero aussi (« J6 » = Jaune n° 6). Sur une
+     bande de 47 mm, onze millimetres de libelle repete six fois, c'est une
+     ligne de blocs en moins. */
+  .groupe {
+    display: grid; grid-template-columns: 3.4mm 1fr; gap: 1mm 1.4mm;
+    align-items: center; margin-bottom: 1.2mm;
+  }
+  .pastille {
+    width: 2.8mm; height: 2.8mm; border-radius: 50%;
+    border: 0.2mm solid #555;
+  }
+  /* Les six couleurs de difficulte du classeur (`Listes!A41:A46`). En noir et
+     blanc elles deviennent des gris -- et l'information reste, parce que la
+     PREMIERE LETTRE du numero EST la couleur : « J6 » = Jaune n° 6. */
+  .c-jaune { background: #F2C230; }
+  .c-vert  { background: #3FA45B; }
+  .c-bleu  { background: #3A7BD5; }
+  .c-mauve { background: #8E5FBF; }
+  .c-rouge { background: #D0342C; }
+  .c-noir  { background: #222; }
+  .c-inconnue { background: #fff; }
+
+  /* `auto-fill` + `minmax` : un circuit de cinquante blocs resserre ses cases
+     au lieu de deborder sur la fiche voisine. Aucune ligne de JavaScript. */
+  /* ⚠️ `auto-fit`, PAS `auto-fill`. `auto-fill` cree autant de colonnes que la
+     largeur en contient et laisse vides celles qui n'ont pas de case : un
+     groupe de quatre blocs occupait quatre colonnes sur neuf, et les cinq
+     autres etaient du blanc. `auto-fit` replie les colonnes vides, et les
+     cases s'etalent sur toute la largeur. Signale par Adrien : « tu as trop
+     d'espace vide ». */
+  .cases { display: grid; grid-template-columns: repeat(auto-fit, minmax(8.5mm, 1fr)); gap: 0.6mm; }
+  .case {
+    border: 0.2mm solid #bbb; border-radius: 0.8mm; padding: 0.8mm 0.3mm;
+    text-align: center; line-height: 1.05;
+  }
+  .case .zone { display: block; font-size: 1.9mm; color: #777; }
+  .case .num { display: block; font-size: 3mm; font-weight: 700; }
+
+  .legende { margin: 1.5mm 0 0; font-size: 2.1mm; color: #888; line-height: 1.3; }
+  .manque {
+    margin: 0 0 2mm; font-size: 2.8mm; color: #333;
+    border-left: 0.6mm solid #999; padding-left: 2mm;
+  }
+
+  /* --- Le plan de la salle, a droite --------------------------------------- */
+  /* Sept cases par ligne : la grille du classeur (`Fiches!V4:X11`), ou la
+     premiere cellule vaut une case et les deux suivantes en valent trois. */
+  .mur { flex: none; width: 37mm; border-left: 0.2mm solid #ddd; padding-left: 2.5mm; }
+  .plan { display: grid; grid-template-columns: repeat(7, 1fr); gap: 0.6mm; }
+  .case-plan {
+    height: 5mm; display: flex; align-items: center; justify-content: center;
+    font-size: 2.3mm; border-radius: 0.7mm;
+  }
+  .case-plan.zone { border: 0.2mm solid #ddd; color: #999; font-weight: 600; }
+  /* Les zones OU CE GRIMPEUR a des blocs. C'est ce qui transforme une carte
+     generale en itineraire. */
+  .case-plan.sienne { border-color: #111; background: #111; color: #fff; }
+  /* « Escalier » et « Haut » sont des reperes de la salle, pas des zones. Le
+     classeur les melange aux lettres ; c'est ce qui rend son schema illisible.
+     La largeur vient du gabarit (`grid-column: span N`), calculee en Python :
+     un repere ne tient sur trois cases que si les deux suivantes sont vides. */
+  .case-plan.repere {
+    font-style: italic; font-size: 1.9mm; color: #888;
+    justify-content: flex-start;
+  }
+  .hors-plan {
+    margin: 1mm 0 0; font-size: 2.2mm; color: #333;
+    border-left: 0.5mm solid #999; padding-left: 1.5mm;
   }
 
   .vide { padding: 20mm 0; text-align: center; color: #666; font-size: 4mm; }
 
   @media print {
-    .entete { display: none; }   /* l'encre est pour les dossards */
+    .entete { display: none; }   /* l'encre est pour les fiches */
+  }
+  @media screen {
+    /* Un apercu qui ressemble a la feuille : sinon on ne voit pas ce qu'on
+       imprime avant de l'avoir imprime. */
+    body { background: #ECEAE5; padding: 6mm; }
+    .entete, .planche, .vide { background: #fff; width: max-content; margin-inline: auto; }
+    .planche { box-shadow: 0 1mm 3mm rgba(0, 0, 0, 0.12); padding-inline: 2mm; }
+    .entete { padding-inline: 6mm; }
   }
 </style>
 </head>
 <body>
 
 <div class="entete">
-  <h1>Dossards — {{ titre }}</h1>
-  <p>{{ dossards|length }} à imprimer, puis à découper sur les pointillés.
-     Vérifie l'échelle d'impression : <strong>100 %</strong>, sans « ajuster à la page ».</p>
+  <h1>Fiches — {{ titre }}</h1>
+  <p>{{ fiches|length }} à imprimer, <strong>six par page</strong> (A4 <strong>paysage</strong>), à couper
+     sur les pointillés. Vérifie l'échelle d'impression :
+     <strong>100 %</strong>, sans « ajuster à la page », sinon les QR sortiront
+     trop petits pour être lus.</p>
 </div>
 
-{% if not dossards %}
+{% if not fiches %}
   <div class="vide">
-    Aucun dossard à imprimer : aucun participant ne porte de numéro pour l'instant.
+    Aucune fiche à imprimer : aucun participant ne porte de dossard pour l'instant.
   </div>
 {% else %}
 <div class="planche">
-  {% for d in dossards %}
-  <div class="dossard">
-    {{ d.qr|safe }}
-    <div>
-      <div class="numero">{{ d.dossard }}</div>
-      <div class="nom">{{ d.nom }}</div>
-      <div class="detail">{{ d.detail }}</div>
+  {%- for f in fiches %}
+  <article class="fiche">
+    <header>
+      <div class="qui">
+        <div class="ligne-nom">
+          <span class="numero">{{ f.dossard }}</span>
+          <span class="nom">{{ f.nom }}</span>
+        </div>
+        {% if f.club %}<div class="club">{{ f.club }}</div>{% endif %}
+        <div class="quoi">
+          <b>{{ f.categorie or "sans catégorie" }}</b>{% if f.circuit %} · circuit {{ f.circuit }}{% endif %}
+        </div>
+      </div>
+      <div class="qr">{{ f.qr|safe }}</div>
+    </header>
+
+    <div class="blocs">
+      <h2>{% if f.total %}Tes {{ f.total }} blocs{% else %}Tes blocs{% endif %}</h2>
+      {% if f.manque %}<p class="manque">{{ f.manque }}</p>{% endif %}
+      {% for g in f.groupes %}
+      <div class="groupe">
+        <i class="pastille c-{{ (g.couleur or 'inconnue')|lower }}"
+           title="{{ g.couleur or 'sans couleur' }}"></i>
+        <div class="cases">
+          {% for b in g.blocs %}
+          <div class="case">
+            {% if b.zone %}<span class="zone">{{ b.zone }}</span>{% endif %}
+            <span class="num">{{ b.numero }}</span>
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+      {% endfor %}
     </div>
-  </div>
+
+    <div class="mur">
+      <h2>Le mur</h2>
+      <div class="plan">
+        {%- for ligne in f.plan %}{% for case in ligne -%}
+          {%- if case.repere -%}
+            <span class="case-plan repere" style="grid-column:span {{ case.colonnes }}">{{ case.repere }}</span>
+          {%- elif case.zone -%}
+            <span class="case-plan zone{% if case.sienne %} sienne{% endif %}">{{ case.zone }}</span>
+          {%- else -%}
+            <span class="case-plan"></span>
+          {%- endif -%}
+        {%- endfor %}{% endfor -%}
+      </div>
+      {% if f.hors_plan %}
+      <p class="hors-plan">Hors plan : zone {{ f.hors_plan|join(", ") }}.</p>
+      {% endif %}
+    </div>
+  </article>
   {% endfor %}
 </div>
 {% endif %}

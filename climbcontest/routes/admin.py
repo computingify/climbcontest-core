@@ -31,6 +31,7 @@ from ..contest import (
 )
 from .. import circuits as circuits_module
 from .. import cycle
+from .. import fiches
 from ..models import Archive
 from ..sheets import parametrage
 from ..sheets.client import ErreurClasseur
@@ -466,7 +467,15 @@ def supprimer_reussite_route(reussite_id):
 def page_dossards():
     """La planche a imprimer. `?dossard=42` pour un seul, `?categorie=U13 F` pour un lot.
 
-    Format repris du classeur : des bandes de quelques centimetres, a decouper.
+    Format repris de l'onglet « Fiches » du classeur (spec 023) : une fiche A5
+    par grimpeur, deux par A4. Elle porte son identite et son QR, mais aussi
+    TOUS LES BLOCS DE SON CIRCUIT dans l'ordre de difficulte, et le plan de la
+    salle avec ses zones allumees. La bande de trois centimetres qu'on imprimait
+    avant ne lui disait rien de ce qu'il devait grimper.
+
+    L'adresse garde le mot « dossard » : c'est toujours le numero qu'on imprime,
+    et une URL n'est pas le produit. Seule la console parle de « fiches ».
+
     Le QR est genere LOCALEMENT -- le classeur, lui, appelle api.qrserver.com,
     ce qui envoie les dossards a un tiers et ne marche pas si la connexion
     tombe le matin de la competition.
@@ -491,16 +500,11 @@ def page_dossards():
         titre = comp.nom
 
     participants.sort(key=lambda p: p.dossard)
-    dossards = [{
-        "dossard": p.dossard,
-        "nom": p.nom_complet,
-        "detail": " · ".join(x for x in (p.categorie, p.club) if x),
-        "qr": qr.svg(p.dossard),
-    } for p in participants]
+    planche = fiches.construire(comp, participants)
 
-    logger.info("impression de %d dossard(s) par %s (%s)",
-                len(dossards), g.utilisateur.identifiant, titre)
-    return render_template("dossards.html", dossards=dossards, titre=titre)
+    logger.info("impression de %d fiche(s) par %s (%s)",
+                len(planche), g.utilisateur.identifiant, titre)
+    return render_template("dossards.html", fiches=planche, titre=titre)
 
 
 def _corps_objet():

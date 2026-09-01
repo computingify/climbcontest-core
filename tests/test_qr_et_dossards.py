@@ -1,4 +1,4 @@
-"""Le QR des dossards, et la planche a imprimer (spec 005, IT4).
+"""Le QR des dossards, et la planche a imprimer (spec 005, IT4 ; spec 023).
 
 Le test qui compte est `TestVraimentLisible` : il DECODE ce qu'on produit,
 avec un decodeur independant de l'encodeur. Un QR d'allure correcte mais
@@ -8,6 +8,8 @@ avec 120 dossards deja imprimes.
 C'est arrive pendant l'ecriture de ce module : un encodeur maison produisait
 des matrices parfaitement plausibles que rien ne lisait.
 """
+import re
+
 import pytest
 
 from climbcontest import comptes, qr
@@ -84,6 +86,50 @@ class TestVraimentLisible:
         assert lu == "", "une image vide ne doit rien rendre"
 
 
+class TestLaNormeDuQr:
+    """L'ISO/IEC 18004 exige une zone de silence de QUATRE modules autour d'un
+    QR Code. Nous en posions DEUX. Ca marche sur un fond parfaitement blanc, et
+    ca lache des que le code touche autre chose -- une bordure de case, le trait
+    de coupe voisin : le decodeur les lit comme des modules noirs.
+
+    Le defaut est devenu urgent le 01/09, quand la planche est passee a six
+    fiches par A4 : c'est exactement le moment ou le voisinage se rapproche.
+    """
+
+    def test_la_zone_de_silence_fait_quatre_modules(self):
+        assert qr.ZONE_DE_SILENCE == 4
+
+    @pytest.mark.parametrize("dossard", ["1", "42", "120", "9999"])
+    def test_le_svg_porte_vraiment_cette_marge(self, dossard):
+        """Le `viewBox` compte les modules ET la marge : n + 2 x 4."""
+        cote = len(qr.matrice(dossard))
+        viewbox = re.search(r'viewBox="0 0 (\d+) (\d+)"', qr.svg(dossard)).groups()
+        assert viewbox == (str(cote + 8), str(cote + 8))
+
+    @pytest.mark.parametrize("dossard", ["1", "9999"])
+    def test_un_module_reste_au_dessus_du_plancher(self, dossard):
+        """Un module trop petit n'est plus lu de facon fiable par un appareil
+        photo de telephone, quelle que soit la qualite du code."""
+        from climbcontest import fiches
+        taille = qr.taille_de_module_mm(dossard, fiches.COTE_QR_MM)
+        assert taille >= qr.MODULE_MINI_MM, f"{taille:.2f} mm par module"
+
+    @pytest.mark.skipif(not DECODEUR, reason="opencv absent")
+    def test_il_se_relit_a_la_taille_de_la_fiche(self):
+        """Le vrai test : on rend le QR a la taille qu'il aura SUR LE PAPIER, en
+        300 points par pouce, et on le relit avec un decodeur independant."""
+        from climbcontest import fiches
+        dossard = "9999"
+        modules = len(qr.matrice(dossard)) + 2 * qr.ZONE_DE_SILENCE
+        # 300 ppp : la resolution d'une imprimante de bureau.
+        cote_px = int(fiches.COTE_QR_MM / 25.4 * 300)
+        echelle = max(1, cote_px // modules)
+        image = TestVraimentLisible._image(dossard, echelle=echelle,
+                                           marge=qr.ZONE_DE_SILENCE)
+        lu, _, _ = cv2.QRCodeDetector().detectAndDecode(image)
+        assert lu == dossard
+
+
 class TestSvg:
 
     def test_la_taille_est_en_millimetres(self):
@@ -113,10 +159,10 @@ class TestPageDossards:
         assert r.status_code == 200
         assert r.headers["Content-Type"].startswith("text/html")
 
-    def test_un_dossard_par_participant_numerote(self, connecte, jeu):
+    def test_une_fiche_par_participant_numerote(self, connecte, jeu):
         """Deux des trois participants du jeu portent un numero."""
         page = connecte.get("/admin/dossards").data.decode()
-        assert page.count('class="dossard"') == 2
+        assert page.count('class="fiche"') == 2
 
     def test_le_nom_et_le_numero_sont_la(self, connecte, jeu):
         """Sans le nom, impossible de donner le bon papier a la bonne personne."""
@@ -127,12 +173,12 @@ class TestPageDossards:
     def test_un_seul_dossard(self, connecte, jeu):
         """Le cas de l'arrivant de derniere minute."""
         page = connecte.get("/admin/dossards?dossard=1").data.decode()
-        assert page.count('class="dossard"') == 1
+        assert page.count('class="fiche"') == 1
         assert "Dupont Lea" in page
 
     def test_un_lot_par_categorie(self, connecte, jeu):
         page = connecte.get("/admin/dossards?categorie=U11 F").data.decode()
-        assert page.count('class="dossard"') == 1
+        assert page.count('class="fiche"') == 1
 
     def test_les_dossards_sont_tries(self, connecte, jeu):
         page = connecte.get("/admin/dossards").data.decode()
@@ -152,7 +198,7 @@ class TestPageDossards:
 
         page = client.get("/admin/dossards").data.decode()
 
-        assert "Aucun dossard" in page
+        assert "Aucune fiche" in page
 
     def test_la_page_ne_charge_rien_de_l_exterieur(self, connecte, jeu):
         import re
@@ -161,7 +207,7 @@ class TestPageDossards:
                     if u != "http://www.w3.org/2000/svg"]
         assert not externes, f"ressources externes : {externes}"
 
-    def test_une_bande_ne_peut_pas_etre_coupee_par_un_saut_de_page(self, connecte, jeu):
+    def test_une_fiche_ne_peut_pas_etre_coupee_par_un_saut_de_page(self, connecte, jeu):
         """Le grimpeur se retrouverait avec un demi-QR."""
         page = connecte.get("/admin/dossards").data.decode()
         assert "break-inside: avoid" in page

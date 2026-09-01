@@ -11,40 +11,80 @@
      CDN, ni echouer parce que le wifi de la salle rame. Polices systeme,
      aucune bibliotheque, un seul fichier.
 
-     Le mauve du circuit Mauve distingue la console de la page publique, qui
-     est en bleu : sur un ecran d'organisateur, on doit savoir en un coup
-     d'oeil si on regarde ce que voient les spectateurs, ou ce qu'on peut
-     modifier.
-
      ⚠️ Refonte du 30/08. La navigation etait une rangee de SEPT pastilles
      ajoutees au fil des specs -- « Saisie manuelle », « Dossards »,
      « Appareils », « App juge », « Comptes », « Mon mot de passe »... Ca se
      voyait : deux onglets parlaient des telephones des juges, et « retrouver
      un scan » etait range sous « Appareils » alors qu'on y cherche une
      REUSSITE. Quatre sections desormais, chacune avec une question claire :
-     qui grimpe, qu'est-ce qui a ete valide, quels telephones, et les reglages. */
+     qui grimpe, qu'est-ce qui a ete valide, quels telephones, et les reglages.
+
+     ⚠️ Couleurs refaites, spec 021. Le fond sombre etait IMPOSE : les couleurs
+     etaient figees dans `:root` et rien ne regardait `prefers-color-scheme`.
+     Sur un Mac regle en clair, en plein jour, dans une salle eclairee, on
+     lisait un ecran noir sans l'avoir demande. Le clair est desormais le
+     DEFAUT -- pas un cas particulier -- et le sombre une redefinition sous la
+     requete media. Le systeme decide ; il n'y a aucun reglage dans la console.
+
+     L'accent vient du LOGO DU CLUB : l'ocre des cornes du bouc et du
+     mousqueton. Il remplace le mauve du circuit Mauve et garde sa fonction --
+     distinguer d'un coup d'oeil la console de la page publique projetee, qui
+     reste bleue. Le style ne connait que des ROLES, jamais une couleur : c'est
+     ce qui permet aux deux jeux de coexister sans qu'une regle ait a savoir
+     lequel est actif. */
   :root {
-    --accent: #A87FC7;
-    --accent-fonce: #7A4F99;
-    /* Les gris sont TIRES VERS LE MAUVE plutot que neutres : un gris pur a
-       cote d'un accent colore parait sale. Quelques points de teinte
-       suffisent, et l'ensemble se tient. */
-    --fond: #0D0F14;
-    --surface: #161922;
-    --surface2: #1D2130;
-    --surface3: #262B3B;
-    --trait: #2C3142;
-    --encre: #EFF0F5;
-    --encre2: #9A9FB4;
-    --encre3: #6A7089;
-    --ok: #5FB073; --alerte: #E0705F; --attention: #E5B44A;
+    /* `light dark` : sans ca, les cases a cocher, les <dialog> et les barres de
+       defilement NATIVES resteraient claires sur un fond sombre. */
+    color-scheme: light dark;
+
+    --fond: #FBFAF8;                    /* blanc os, repris du crane du logo */
+    --surface: #FFFFFF;
+    --surface2: #F4F1EB;
+    --surface3: #E9E4DA;
+    --trait: #DDD7CB;
+    --encre: #1B1A17;
+    --encre2: #5C574C;
+    --encre3: #8A8375;
+
+    /* DEUX accents, et c'est necessaire : l'or du logo est trop clair pour
+       ecrire dessus en blanc, et trop clair pour ecrire AVEC sur du blanc.
+       `--accent` porte les aplats et les bordures, `--accent-texte` les liens
+       et le texte, `--sur-accent` ce qu'on ecrit SUR un aplat d'accent. */
+    --accent: #B5761C;
+    --accent-texte: #8A5A0F;
+    --sur-accent: #FFFFFF;
+    --sur-alerte: #FFFFFF;
+
+    --ok: #2E7D4F; --alerte: #B3392A; --attention: #9A6B0B;
     --titre: system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
     --chiffre: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
-    --ombre: 0 18px 48px rgba(0, 0, 0, 0.5);
+    --ombre: 0 10px 30px rgba(27, 26, 23, 0.10);
     --rayon: 14px;
     /* La hauteur de la barre : le tiroir commence dessous, pour que le burger
        reste visible et cliquable quand il est ouvert. */
     --barre: 67px;
+    /* La largeur du tiroir. En variable parce que la grille de l'ecran large
+       s'en sert AUSSI comme largeur de colonne : deux valeurs a tenir
+       synchrones a la main finiraient par diverger. */
+    --tiroir: 310px;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --fond: #14130F;
+      --surface: #1D1B16;
+      --surface2: #26241D;
+      --surface3: #322F26;
+      --trait: #3A3628;
+      --encre: #F2EFE8;
+      --encre2: #B0AA9B;
+      --encre3: #7C766A;
+      --accent: #E0A94A;
+      --accent-texte: #E8BC70;
+      --sur-accent: #1B1A17;
+      --sur-alerte: #1B1A17;
+      --ok: #6FC08A; --alerte: #F08A78; --attention: #E5B44A;
+      --ombre: 0 18px 48px rgba(0, 0, 0, 0.5);
+    }
   }
   * { box-sizing: border-box; }
   html, body { height: 100%; }
@@ -53,7 +93,7 @@
     font-family: var(--titre); font-size: 15px; line-height: 1.55;
     -webkit-font-smoothing: antialiased;
   }
-  a { color: var(--accent); }
+  a { color: var(--accent-texte); }
 
   /* --- Connexion : plein ecran, rien d'autre a l'ecran -------------------- */
   #connexion { max-width: 380px; margin: 0 auto; padding: 14vh 24px 40px; }
@@ -62,7 +102,8 @@
   }
   #connexion .marque .pastille {
     width: 40px; height: 40px; border-radius: 11px; flex: none;
-    background: linear-gradient(145deg, var(--accent), var(--accent-fonce));
+    background: linear-gradient(145deg, var(--accent),
+                color-mix(in srgb, var(--accent) 62%, var(--encre)));
   }
   #connexion h2 { margin: 0; font-size: 1.3rem; font-weight: 800; letter-spacing: -0.02em; }
   #connexion .marque .sous { color: var(--encre2); font-size: 0.86rem; }
@@ -79,7 +120,7 @@
     position: sticky; top: 0; z-index: 60;
     display: flex; align-items: center; gap: 14px;
     padding: 12px 18px;
-    background: rgba(13, 15, 20, 0.86);
+    background: color-mix(in srgb, var(--fond) 86%, transparent);
     backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
     border-bottom: 1px solid var(--trait);
   }
@@ -115,16 +156,22 @@
   }
   @media (max-width: 640px) { .jeton.optionnel { display: none; } }
 
-  /* Le tiroir. Il recouvre : la console n'est pas un tableau de bord qu'on
-     regarde en continu -- on l'ouvre, on fait UNE chose, on referme. */
+  /* Le tiroir. En dessous de 1080 px, il RECOUVRE : la console n'est pas un
+     tableau de bord qu'on regarde en continu -- on l'ouvre, on fait UNE chose,
+     on referme. C'est le comportement pense pour le telephone, et il reste.
+
+     Au-dessus, il est EPINGLE (voir la requete media plus bas). Sur un ecran de
+     1920 px, il restait 1600 px vides a droite du tiroir : le recouvrir puis le
+     refermer n'avait aucun sens, et obligeait a rouvrir le menu a chaque
+     changement de vue. Signale par Adrien le 01/09. */
   .voile {
-    position: fixed; top: var(--barre); left: 0; right: 0; bottom: 0; z-index: 40; background: rgba(0, 0, 0, 0.55);
+    position: fixed; top: var(--barre); left: 0; right: 0; bottom: 0; z-index: 40; background: color-mix(in srgb, var(--encre) 42%, transparent);
     opacity: 0; pointer-events: none; transition: opacity .22s ease;
   }
   .voile.ouvert { opacity: 1; pointer-events: auto; }
   .tiroir {
     position: fixed; top: var(--barre); left: 0; bottom: 0; z-index: 50;
-    width: min(310px, 84vw); display: flex; flex-direction: column;
+    width: min(var(--tiroir), 84vw); display: flex; flex-direction: column;
     background: var(--surface); border-right: 1px solid var(--trait);
     box-shadow: var(--ombre);
     transform: translateX(-101%); transition: transform .24s cubic-bezier(.4, 0, .2, 1);
@@ -167,6 +214,44 @@
   .tiroir .pied button:hover { background: var(--surface2); color: var(--alerte); }
   .tiroir .pied button svg { width: 19px; height: 19px; stroke-width: 1.9; }
 
+  /* --- Le tiroir epingle, spec 021 --------------------------------------- */
+  /*
+     1080 px = les 310 px du tiroir + les 940 px de `main`, moins ce que `main`
+     peut ceder sans gener. En dessous, le contenu deviendrait plus etroit que
+     sur un telephone pose en travers : c'est la que le recouvrement reprend la
+     main.
+
+     C'est une REQUETE MEDIA et pas un test JavaScript : la mise en page ne doit
+     pas attendre l'execution d'un script, et redimensionner la fenetre doit
+     basculer sans qu'on ait rien a recalculer. Le script ne connait le seuil
+     que pour la seule decision qui n'est pas de la mise en page -- refermer ou
+     non apres un clic (`tiroirEpingle()`).
+
+     `grid-template-areas` et non l'ordre du DOM : dans le document, le tiroir
+     precede la barre (il le faut pour que le lecteur d'ecran rencontre la
+     navigation en premier), alors qu'a l'ecran la barre les couvre tous les
+     deux. Nommer les zones evite d'avoir a reordonner le HTML pour une
+     question d'affichage. */
+  @media (min-width: 1080px) {
+    #console {
+      display: grid;
+      grid-template-columns: var(--tiroir) minmax(0, 1fr);
+      grid-template-areas: "barre barre" "tiroir contenu";
+    }
+    .barre  { grid-area: barre; }
+    .tiroir { grid-area: tiroir; }
+    main    { grid-area: contenu; }
+
+    .tiroir {
+      position: sticky; top: var(--barre); bottom: auto; left: auto;
+      width: auto; height: calc(100vh - var(--barre));
+      transform: none; box-shadow: none; z-index: 1;
+    }
+    /* Le voile n'a plus rien a voiler, et le burger plus rien a ouvrir. Un
+       bouton qui ne fait rien est pire qu'un bouton absent. */
+    .voile, .burger { display: none; }
+  }
+
   /* --- Le contenu -------------------------------------------------------- */
   main { padding: 24px 18px 80px; max-width: 940px; margin: 0 auto; }
   .vue[hidden] { display: none; }
@@ -191,7 +276,16 @@
 
   .grille { display: grid; grid-template-columns: repeat(auto-fit, minmax(158px, 1fr)); gap: 12px; }
   label { display: block; font-size: 0.78rem; color: var(--encre2); margin-bottom: 5px; font-weight: 500; }
-  input, select, textarea {
+  /* ⚠️ Les cases a cocher et les boutons radio sont EXCLUS, et c'est le fond du
+     sujet : la regle leur donnait `width: 100%`, un fond, une bordure et 10 px
+     de rembourrage. Une case s'etalait donc sur toute la largeur de sa carte et
+     rejetait son libelle hors du cadre.
+     Deux symptomes du meme defaut, tous deux constates le 01/09 : les
+     categories de « Ce qu'affiche la page de resultats » sortaient du cadre
+     (signale par Adrien), et la case « Effacer quand meme » de la fenetre de
+     confirmation avait son texte a l'autre bout. On corrige la racine, pas
+     chaque carte. */
+  input:not([type="checkbox"]):not([type="radio"]), select, textarea {
     width: 100%; padding: 10px 12px; font: inherit;
     background: var(--surface2); color: var(--encre);
     border: 1px solid var(--trait); border-radius: 9px;
@@ -209,7 +303,7 @@
   dl.etat dt { color: var(--encre3); font-size: 0.78rem; text-transform: uppercase;
                letter-spacing: 0.08em; font-weight: 700; }
   dl.etat dd { margin: 0; overflow-wrap: anywhere; }
-  dl.etat dd a { color: var(--accent); }
+  dl.etat dd a { color: var(--accent-texte); }
   .bon { color: var(--ok); }
   .manque { color: var(--alerte); font-weight: 600; }
 
@@ -226,15 +320,15 @@
   }
   fieldset.choix label:has(input:checked) { border-color: var(--accent); }
   fieldset.choix label.danger:has(input:checked) { border-color: var(--alerte); }
-  fieldset.choix input { width: auto; margin: 3px 0 0; flex: none; }
+  fieldset.choix input { margin: 3px 0 0; flex: none; }
   fieldset.choix b { display: block; font-weight: 600; }
   fieldset.choix i { font-style: normal; color: var(--encre2); font-size: 0.84rem; }
   button.action {
     cursor: pointer; font: inherit; font-weight: 600; margin-top: 14px;
-    background: var(--accent); color: #17111f; border: none;
+    background: var(--accent); color: var(--sur-accent); border: none;
     border-radius: 9px; padding: 11px 20px;
   }
-  button.action:hover { background: color-mix(in srgb, var(--accent) 88%, white); }
+  button.action:hover { background: color-mix(in srgb, var(--accent) 86%, var(--encre)); }
   button.action:disabled { opacity: 0.45; cursor: not-allowed; }
   button.secondaire, a.secondaire {
     cursor: pointer; font: inherit; font-weight: 600; margin-top: 14px;
@@ -244,6 +338,11 @@
   /* Le lien vers le classeur porte l'allure d'un bouton : c'est une ACTION,
      au meme titre que « Tester » ou « Importer ». */
   a.secondaire { display: inline-block; text-decoration: none; }
+  /* ⚠️ `display: inline-block` bat le `[hidden] { display: none }` du
+     navigateur -- question de specificite, pas d'ordre. Sans cette ligne,
+     « Ouvrir le classeur » restait affiche alors qu'AUCUN classeur n'est relie,
+     et proposait d'ouvrir un lien vide. Vu a l'ecran en reorganisant les vues. */
+  a.secondaire[hidden] { display: none; }
   button.secondaire:hover, a.secondaire:hover { background: var(--surface3); }
   button.discret {
     cursor: pointer; font: inherit; font-size: 0.82rem;
@@ -282,13 +381,14 @@
      application fermee. Il doit ressortir sans qu'on ait a lire une colonne de
      chiffres, d'ou la bordure a gauche EN PLUS de la couleur du texte : le
      rouge seul ne se voit pas par tout le monde. */
-  tr.muet td { background: rgba(224, 112, 95, 0.08); }
+  tr.muet td { background: color-mix(in srgb, var(--alerte) 10%, transparent); }
   tr.muet td:first-child { box-shadow: inset 3px 0 0 var(--alerte); }
   .silence { color: var(--alerte); font-weight: 600; }
   .frais { color: var(--ok); }
   .ref { font-family: var(--chiffre); color: var(--encre2); }
 
-  .qr-cadre { background: #fff; display: inline-block; padding: 14px; border-radius: 12px; }
+  .qr-cadre { background: #fff; display: inline-block; padding: 14px; border-radius: 12px;
+               border: 1px solid var(--trait); }
   ol.etapes { margin: 14px 0 0; padding-left: 20px; color: var(--encre2); font-size: 0.88rem; }
   ol.etapes li { margin-bottom: 7px; }
   ol.etapes strong { color: var(--encre); }
@@ -309,7 +409,7 @@
     background: var(--surface); color: var(--encre); box-shadow: var(--ombre);
     max-width: 30rem; width: calc(100vw - 32px);
   }
-  dialog::backdrop { background: rgba(0, 0, 0, 0.45); }
+  dialog::backdrop { background: rgba(0, 0, 0, 0.45); }   /* le seul noir assume : un backdrop natif n'herite d'aucune variable */
   dialog .dedans { padding: 22px 24px; }
   dialog h2 { margin: 0 0 10px; font-size: 1.12rem; }
   dialog .etat { margin: 14px 0; }
@@ -319,15 +419,40 @@
     background: var(--surface2); border-radius: 0 0 14px 14px;
   }
   dialog menu button { margin-top: 0; }
+  /* Le bouton a MAINTENIR (spec 021). Il remplace le mot « EFFACER » qu'il
+     fallait frapper au clavier -- sept caracteres, sur un ordinateur pose sur
+     un coin de table dans une salle d'escalade. Ce que le mot apportait, c'est
+     l'ARRET ; c'est ca qu'on garde, en jetant la frappe. */
   dialog button.detruire {
+    position: relative; overflow: hidden; isolation: isolate;
     cursor: pointer; font: inherit; font-weight: 600;
-    background: var(--alerte); color: #fff; border: 0;
+    background: var(--alerte); color: var(--sur-alerte); border: 0;
     border-radius: 9px; padding: 10px 18px;
+    /* Sans ca, maintenir le doigt sur le bouton fait defiler la page sous lui
+       et le `pointerleave` annule le geste : le bouton devient intenable sur
+       telephone. */
+    touch-action: none;
+    -webkit-user-select: none; user-select: none;
   }
   dialog button.detruire:disabled { opacity: 0.4; cursor: not-allowed; }
+  /* La jauge. `z-index: -1` sous `isolation: isolate` : elle passe au-dessus du
+     fond du bouton et sous son libelle, sans qu'il faille empiler des
+     positions. La duree de la transition est posee par le SCRIPT, pour qu'il
+     n'y ait qu'un seul endroit ou lire « deux secondes ». */
+  dialog button.detruire .remplissage {
+    position: absolute; top: 0; bottom: 0; left: 0; width: 0; z-index: -1;
+    background: color-mix(in srgb, var(--encre) 34%, transparent);
+    transition-property: width; transition-timing-function: linear;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    /* Pas de jauge qui glisse. Le delai, lui, NE CHANGE PAS : c'est une garde,
+       pas une decoration -- et le libelle dit « Maintiens… » pendant ce
+       temps-la. */
+    dialog button.detruire .remplissage { display: none; }
+  }
   .coche { display: flex; gap: 9px; align-items: flex-start; margin: 14px 0;
            font-size: 0.9rem; color: var(--encre2); }
-  .coche input { margin-top: 3px; }
+  .coche input { margin-top: 3px; flex: none; }
 
   /* L'etat de l'edition : trois choix cote a cote, pas une liste deroulante.
      Le statut courant doit se lire sans ouvrir quoi que ce soit. */
@@ -344,6 +469,52 @@
     border-color: var(--accent); background: var(--surface3); color: var(--encre);
   }
   fieldset.rangee input { position: absolute; opacity: 0; pointer-events: none; }
+
+  /* L'INTERRUPTEUR des classements affiches (spec 021, F6).
+     Une case a cocher dit « je consens » ; ces lignes-la disent « c'est allume
+     ou c'est eteint ». Ce n'est pas la meme question, et l'interrupteur de
+     reglages qu'on a dans les mains toute la journee la pose mieux.
+
+     La case a cocher NATIVE est conservee, juste rendue invisible : elle garde
+     le clavier, le focus, l'etat et le lecteur d'ecran (`role="switch"` la fait
+     annoncer « interrupteur, active »). Le visuel est un frere, jamais un
+     pseudo-element sur l'<input> -- un `::after` sur un element remplace tient
+     de la tolerance des navigateurs, et cette console doit marcher le matin
+     d'une competition, pas « en general ». */
+  label.bascule {
+    position: relative; display: flex; align-items: center; gap: 13px;
+    padding: 9px 0; cursor: pointer; font-size: 0.94rem; color: var(--encre);
+    margin: 0;
+  }
+  label.bascule input { position: absolute; opacity: 0; width: 0; height: 0; }
+  .glissiere {
+    position: relative; flex: none; width: 42px; height: 25px;
+    border-radius: 999px; background: var(--surface3);
+    border: 1px solid var(--trait);
+    transition: background-color .18s ease, border-color .18s ease;
+  }
+  .glissiere::after {
+    content: ""; position: absolute; top: 2px; left: 2px;
+    width: 19px; height: 19px; border-radius: 50%;
+    background: var(--surface); box-shadow: 0 1px 2px rgba(0, 0, 0, 0.35);
+    transition: transform .18s ease;
+  }
+  label.bascule input:checked + .glissiere {
+    background: var(--accent); border-color: var(--accent);
+  }
+  label.bascule input:checked + .glissiere::after {
+    transform: translateX(17px); background: var(--sur-accent);
+  }
+  /* Le focus se pose sur l'<input> invisible : sans ca, naviguer au clavier ne
+     montrerait RIEN. */
+  label.bascule input:focus-visible + .glissiere {
+    outline: 2px solid var(--accent); outline-offset: 2px;
+  }
+  label.bascule .quoi { flex: 1; min-width: 0; }
+  label.bascule .combien { color: var(--encre2); font-size: 0.86rem; }
+  @media (prefers-reduced-motion: reduce) {
+    .glissiere, .glissiere::after { transition: none; }
+  }
 </style>
 </head>
 <body>
@@ -389,14 +560,14 @@
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
         <span class="quoi"><b>Participants</b><i>Inscrire, chercher, imprimer</i></span>
       </button>
-      <button data-vue="reussites">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><path d="m9 11 3 3L22 4"/></svg>
-        <span class="quoi"><b>Réussites</b><i>Saisir, retrouver un scan</i></span>
-      </button>
-
       <button data-vue="circuits">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2 4 7v10l8 5 8-5V7Z"/><path d="M12 22V12"/><path d="m20 7-8 5-8-5"/></svg>
         <span class="quoi"><b>Circuits</b><i>Les blocs, et ce qui cloche</i></span>
+      </button>
+
+      <button data-vue="reussites">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><path d="m9 11 3 3L22 4"/></svg>
+        <span class="quoi"><b>Réussites</b><i>Saisir, retrouver un scan</i></span>
       </button>
 
       <div class="groupe">Les juges</div>
@@ -406,13 +577,13 @@
       </button>
 
       <div class="groupe">Administration</div>
+      <button data-vue="general" id="navGeneral" hidden>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M8 21h8"/><path d="M12 17v4"/><path d="M17 4h3a1 1 0 0 1 1 1v2a4 4 0 0 1-4 4"/><path d="M7 4H4a1 1 0 0 0-1 1v2a4 4 0 0 0 4 4"/><path d="M7 3h10v7a5 5 0 0 1-10 0Z"/></svg>
+        <span class="quoi"><b>Général</b><i>L'édition, l'affichage, l'archive</i></span>
+      </button>
       <button data-vue="classeur" id="navClasseur" hidden>
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18"/><path d="M9 21V9"/></svg>
-        <span class="quoi"><b>Classeur</b><i>La feuille Google et son jeton</i></span>
-      </button>
-      <button data-vue="competition" id="navCompetition" hidden>
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M8 21h8"/><path d="M12 17v4"/><path d="M17 4h3a1 1 0 0 1 1 1v2a4 4 0 0 1-4 4"/><path d="M7 4H4a1 1 0 0 0-1 1v2a4 4 0 0 0 4 4"/><path d="M7 3h10v7a5 5 0 0 1-10 0Z"/></svg>
-        <span class="quoi"><b>Compétition</b><i>Importer, archiver, effacer</i></span>
+        <span class="quoi"><b>Classeur</b><i>La feuille, l'import, l'effacement</i></span>
       </button>
       <button data-vue="archives" id="navArchives">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="5" rx="1"/><path d="M4 9v10a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1V9"/><path d="M10 13h4"/></svg>
@@ -493,15 +664,17 @@
       </div>
 
       <div class="carte">
-        <h2>Imprimer les dossards</h2>
-        <p class="aide">Des bandes à découper. Vérifie l'échelle d'impression :
+        <h2>Imprimer les fiches</h2>
+        <p class="aide">Une fiche par grimpeur, <strong>deux par page</strong> :
+           son numéro, son QR, <strong>tous les blocs de son circuit</strong> et
+           le plan de la salle. Vérifie l'échelle d'impression :
            <strong>100 %</strong>, sans « ajuster à la page », sinon les QR
            sortiront trop petits pour être lus.</p>
         <div class="grille" style="max-width:420px">
           <div><label for="dCategorie">Une catégorie (vide = toutes)</label><select id="dCategorie"></select></div>
-          <div><label for="dUnSeul">Ou un seul dossard</label><input id="dUnSeul" inputmode="numeric"></div>
+          <div><label for="dUnSeul">Ou une seule fiche (dossard)</label><input id="dUnSeul" inputmode="numeric"></div>
         </div>
-        <button class="action" id="btnImprimer">Ouvrir la planche</button>
+        <button class="action" id="btnImprimer">Ouvrir les fiches</button>
       </div>
     </section>
 
@@ -597,10 +770,10 @@
     <!-- ================= Classeur (spec 015) ================= -->
     <section class="vue" id="vueClasseur" hidden>
       <div class="titre-vue">
-        <h1>Classeur Google</h1>
-        <p>Où partent les réussites, et avec quelle identité. C'est le réglage
-           qu'on oublie d'une édition à l'autre — il se fait ici, plus en SSH
-           sur le serveur.</p>
+        <h1>Classeur</h1>
+        <p>La feuille Google où partent les réussites, et l'identité avec
+           laquelle on y écrit. C'est le réglage qu'on oublie d'une édition à
+           l'autre — il se fait ici, plus en SSH sur le serveur.</p>
       </div>
 
       <div class="carte">
@@ -613,13 +786,7 @@
           <a class="secondaire" id="ouvrirClasseur" target="_blank" rel="noopener"
              hidden>Ouvrir le classeur ↗</a>
           <button class="secondaire" id="btnTesterClasseur">Tester l'accès</button>
-          <button class="secondaire" id="btnImporterClasseur">Importer le classeur</button>
         </div>
-        <p class="aide" style="margin:14px 0 0">« Importer » relit les onglets
-           <strong>Listes</strong> et <strong>Plan</strong> et met la base à
-           jour : les grimpeurs, les blocs et les circuits. C'est le geste qui
-           suit un changement de feuille. Il n'écrit rien dans le classeur, et
-           il ne touche pas aux participants ajoutés à la main.</p>
         <div id="rapportClasseur" hidden></div>
       </div>
 
@@ -670,6 +837,36 @@
       </div>
 
       <div class="carte">
+        <h2>Importer le classeur</h2>
+        <p class="aide">Relit les onglets <strong>Listes</strong> et
+           <strong>Plan</strong> : les grimpeurs, les blocs, les circuits — et
+           donc le contenu des QR codes, qui en découle. Le classeur n'est
+           jamais modifié, seulement lu.</p>
+
+        <fieldset class="choix">
+          <legend>Et les données déjà en base ?</legend>
+          <label>
+            <input type="radio" name="modeImport" value="mise_a_jour" checked>
+            <span class="quoi"><b>Mise à jour</b>
+              <i>Ajoute ce qui manque et corrige ce qui a changé dans le
+                 classeur. N'efface rien. Les participants ajoutés à la main ne
+                 sont jamais écrasés.</i></span>
+          </label>
+          <label class="danger">
+            <input type="radio" name="modeImport" value="remplacer">
+            <span class="quoi"><b>Remplacement complet</b>
+              <i>Efface participants, blocs, circuits et
+                 <strong>réussites</strong> du serveur, puis importe. Pour
+                 brancher une nouvelle édition sur une base qui porte encore la
+                 précédente.</i></span>
+          </label>
+        </fieldset>
+
+        <button class="action" id="btnImporter">Importer</button>
+        <div id="rapportImport" hidden></div>
+      </div>
+
+      <div class="carte">
         <h2>Jeton Google</h2>
         <p class="aide">Sans jeton, le serveur n'a aucune identité pour écrire :
            les réussites s'empilent en attente et n'arrivent jamais. Produis-le
@@ -685,6 +882,26 @@
            où celui-ci serait le mauvais.</p>
         <button class="action" id="btnPoserJeton">Poser le jeton</button>
       </div>
+      <div class="carte danger">
+        <h2>Effacer les données du serveur</h2>
+        <p class="aide">Pour repartir de zéro sur une nouvelle édition.</p>
+        <dl class="etat">
+          <dt>Effacé</dt>
+          <dd>Participants, blocs, circuits, réussites et réaffectations de
+              dossard de la compétition active</dd>
+          <dt>Conservé</dt>
+          <dd>Les autres compétitions, les comptes de la console,
+              <strong>les archives</strong>, et <strong>le classeur Google —
+              pas une cellule n'est touchée</strong></dd>
+        </dl>
+        <p class="aide">Le classeur reste relié : on efface le plus souvent
+           pour réimporter proprement la même feuille.</p>
+        <button class="secondaire" id="btnEffacer"
+                style="border-color:var(--alerte);color:var(--alerte)">Effacer les données…</button>
+      </div>
+    </section>
+
+    <!-- ================= Archives (spec 018) ================= -->
     </section>
 
     <!-- ================= Circuits (spec 019) ================= -->
@@ -735,17 +952,18 @@
     </section>
 
     <!-- ================= Compétition (spec 018) ================= -->
-    <section class="vue" id="vueCompetition" hidden>
+    <!-- ================= Général (specs 018, 020, 021) ================= -->
+    <section class="vue" id="vueGeneral" hidden>
       <div class="titre-vue">
-        <h1>Compétition</h1>
-        <p>Le cycle d'une édition : on importe le classeur, on grimpe, on
-           archive, on efface, et on recommence. Les quatre gestes sont ici,
-           dans cet ordre.</p>
+        <h1>Général</h1>
+        <p>L'édition en cours : comment elle s'appelle, où elle en est, ce
+           qu'on en montre au public, et comment on la fige quand elle est
+           finie.</p>
       </div>
 
       <div class="carte">
-        <h2>Nom de l'édition</h2>
-        <p class="aide">Ce nom s'affiche dans le bandeau de la page de résultats
+        <h2>L'édition</h2>
+        <p class="aide">Le nom s'affiche dans le bandeau de la page de résultats
            — c'est ce qu'on lit sur le vidéoprojecteur — et il donne son nom au
            fichier d'archive.</p>
         <div class="grille" style="max-width:560px">
@@ -756,11 +974,22 @@
                <input id="dateCompetition" type="date"></div>
         </div>
         <button class="action" id="btnRenommer">Enregistrer</button>
+
+        <fieldset class="rangee" id="rangeeStatut" style="margin-top:22px">
+          <legend>Où en est-elle&nbsp;? Une étiquette, pas un interrupteur :
+             elle ne commande ni les scans, ni le classement, ni les téléphones.
+             C'est elle qui fait demander confirmation deux fois avant
+             d'effacer une compétition en cours.</legend>
+          <label><input type="radio" name="statutCompetition" value="preparation"> En préparation</label>
+          <label><input type="radio" name="statutCompetition" value="en_cours"> En cours</label>
+          <label><input type="radio" name="statutCompetition" value="terminee"> Terminée</label>
+        </fieldset>
+        <dl class="etat" id="etatCompetition" style="margin-top:18px"></dl>
       </div>
 
       <div class="carte">
         <h2>Ce qu'affiche la page de résultats</h2>
-        <p class="aide">Décoche un classement pour le retirer de la page — de la
+        <p class="aide">Éteins un classement pour le retirer de la page — de la
            barre et de la rotation du mur, <strong>et</strong> des téléphones des
            spectateurs. Il continue d'être calculé et archivé : c'est un réglage
            d'affichage, rien n'est perdu.</p>
@@ -768,51 +997,6 @@
            à chaud — apparaît toujours par défaut.</p>
         <div id="listeGroupes"></div>
         <button class="action" id="btnAffichage">Enregistrer l'affichage</button>
-      </div>
-
-      <div class="carte">
-        <h2>État de l'édition</h2>
-        <p class="aide">Une étiquette, pas un interrupteur : elle ne commande
-           ni les scans, ni le classement, ni les téléphones. Elle sert à se
-           dire où on en est — et c'est elle qui fait demander confirmation
-           deux fois avant d'effacer une compétition en cours.</p>
-        <fieldset class="rangee" id="rangeeStatut">
-          <legend>Cette compétition est</legend>
-          <label><input type="radio" name="statutCompetition" value="preparation"> En préparation</label>
-          <label><input type="radio" name="statutCompetition" value="en_cours"> En cours</label>
-          <label><input type="radio" name="statutCompetition" value="terminee"> Terminée</label>
-        </fieldset>
-        <dl class="etat" id="etatCompetition"></dl>
-      </div>
-
-      <div class="carte">
-        <h2>Importer le classeur</h2>
-        <p class="aide">Relit les onglets <strong>Listes</strong> et
-           <strong>Plan</strong> : les grimpeurs, les blocs, les circuits — et
-           donc le contenu des QR codes, qui en découle. Le classeur n'est
-           jamais modifié, seulement lu.</p>
-
-        <fieldset class="choix">
-          <legend>Et les données déjà en base ?</legend>
-          <label>
-            <input type="radio" name="modeImport" value="mise_a_jour" checked>
-            <span class="quoi"><b>Mise à jour</b>
-              <i>Ajoute ce qui manque et corrige ce qui a changé dans le
-                 classeur. N'efface rien. Les participants ajoutés à la main ne
-                 sont jamais écrasés.</i></span>
-          </label>
-          <label class="danger">
-            <input type="radio" name="modeImport" value="remplacer">
-            <span class="quoi"><b>Remplacement complet</b>
-              <i>Efface participants, blocs, circuits et
-                 <strong>réussites</strong> du serveur, puis importe. Pour
-                 brancher une nouvelle édition sur une base qui porte encore la
-                 précédente.</i></span>
-          </label>
-        </fieldset>
-
-        <button class="action" id="btnImporter">Importer</button>
-        <div id="rapportImport" hidden></div>
       </div>
 
       <div class="carte">
@@ -827,27 +1011,8 @@
            l'édition.</p>
         <button class="action" id="btnArchiver">Archiver la compétition</button>
       </div>
-
-      <div class="carte danger">
-        <h2>Effacer les données du serveur</h2>
-        <p class="aide">Pour repartir de zéro sur une nouvelle édition.</p>
-        <dl class="etat">
-          <dt>Effacé</dt>
-          <dd>Participants, blocs, circuits, réussites et réaffectations de
-              dossard de la compétition active</dd>
-          <dt>Conservé</dt>
-          <dd>Les autres compétitions, les comptes de la console,
-              <strong>les archives</strong>, et <strong>le classeur Google —
-              pas une cellule n'est touchée</strong></dd>
-        </dl>
-        <p class="aide">Le classeur reste relié : on efface le plus souvent
-           pour réimporter proprement la même feuille.</p>
-        <button class="secondaire" id="btnEffacer"
-                style="border-color:var(--alerte);color:var(--alerte)">Effacer les données…</button>
-      </div>
     </section>
 
-    <!-- ================= Archives (spec 018) ================= -->
     <section class="vue" id="vueArchives" hidden>
       <div class="titre-vue">
         <h1>Archives</h1>
@@ -944,13 +1109,22 @@
           <span id="dlgTexteForcer"></span>
         </label>
 
-        <label for="dlgMot">Écris <code>EFFACER</code> pour confirmer</label>
-        <input id="dlgMot" autocapitalize="characters" spellcheck="false"
-               autocomplete="off" style="max-width:260px" placeholder="EFFACER">
+        <p class="aide" id="dlgAide" style="margin-bottom:0">Pour confirmer,
+           <strong>maintiens le bouton rouge appuyé deux secondes</strong> — à la
+           souris, au doigt, ou avec Entrée quand il a le focus. Relâcher avant
+           la fin annule.</p>
       </div>
       <menu>
         <button value="annuler" class="secondaire" id="dlgAnnuler">Annuler</button>
-        <button value="ok" class="detruire" id="dlgOk" disabled>Effacer</button>
+        <!-- `type="button"` et non un bouton de soumission : dans un
+             `<form method="dialog">`, un clic simple fermerait la fenetre avec
+             `returnValue="ok"`, ce qui est exactement ce que le maintien est
+             cense empecher. C'est le maintien abouti qui appelle `close("ok")`. -->
+        <button type="button" class="detruire" id="dlgOk" disabled
+                aria-describedby="dlgAide">
+          <i class="remplissage" id="dlgRemplissage" aria-hidden="true"></i>
+          <span id="dlgOkMot">Effacer</span>
+        </button>
       </menu>
     </form>
   </dialog>
@@ -1033,7 +1207,7 @@
       m.textContent = raison;
       m.className = "erreur";
       m.style.cssText = "margin-top:14px;padding:11px 14px;border-radius:8px;" +
-                        "background:var(--carte2);border-left:4px solid var(--alerte)";
+                        "background:var(--surface2);border-left:4px solid var(--alerte)";
       m.hidden = false;
     }
   }
@@ -1050,10 +1224,10 @@
     // administrateur, le serveur repond 403 aux autres. Masquer l'entree evite
     // d'offrir un ecran qui ne repondrait que des refus.
     $("navClasseur").hidden = etat.moi.roles.indexOf("admin") === -1;
-    // « Competition » porte l'archivage et l'effacement : administrateurs.
+    // « General » porte le renommage et l'archivage : administrateurs.
     // « Archives » ne fait que consulter : tout le monde y a droit, et c'est
     // volontaire -- revoir l'edition de l'an dernier n'est pas un privilege.
-    $("navCompetition").hidden = etat.moi.roles.indexOf("admin") === -1;
+    $("navGeneral").hidden = etat.moi.roles.indexOf("admin") === -1;
     chargerReferentiels();
     // Sur QUOI on agit. Sans ca, rien a l'ecran ne distingue la competition
     // de novembre d'une competition de test restee active.
@@ -1085,11 +1259,11 @@
 
   var VUES = {
     participants: { titre: "Participants",         charge: chargerParticipants },
-    reussites:    { titre: "Réussites",            charge: null },
     circuits:     { titre: "Circuits",             charge: chargerCircuits },
+    reussites:    { titre: "Réussites",            charge: null },
     telephones:   { titre: "Téléphones des juges", charge: chargerAppareils },
-    classeur:     { titre: "Classeur Google",      charge: chargerClasseur },
-    competition:  { titre: "Compétition",          charge: chargerCompetition },
+    general:      { titre: "Général",              charge: chargerGeneral },
+    classeur:     { titre: "Classeur",             charge: chargerClasseur },
     archives:     { titre: "Archives",             charge: chargerArchives },
     reglages:     { titre: "Réglages",             charge: chargerComptesSiAdmin }
   };
@@ -1098,7 +1272,18 @@
     if (etat.moi && etat.moi.roles.indexOf("admin") !== -1) chargerComptes();
   }
 
+  // Le SEUL endroit ou le script connait le seuil : la mise en page, elle, est
+  // entierement dans la requete media. On l'interroge au moment du clic et on
+  // ne le met jamais en cache -- un `resize` ne demande alors rien a recalculer,
+  // et il n'y a aucun etat a garder synchrone avec le CSS.
+  var LARGE = window.matchMedia("(min-width: 1080px)");
+  function tiroirEpingle() { return LARGE.matches; }
+
   function ouvrirTiroir(ouvert) {
+    // Epingle : il n'y a rien a ouvrir ni a fermer. On sort AVANT de toucher
+    // aux classes, sinon un `ouvrirTiroir(false)` venu d'un clic d'entree
+    // laisserait `aria-expanded="false"` sur un menu visible en permanence.
+    if (tiroirEpingle()) return;
     $("tiroir").classList.toggle("ouvert", ouvert);
     $("voile").classList.toggle("ouvert", ouvert);
     $("voile").hidden = !ouvert;
@@ -1130,6 +1315,8 @@
   // Echap ferme : un tiroir qui recouvre l'ecran doit toujours avoir une
   // sortie au clavier.
   document.addEventListener("keydown", function (e) {
+    // `ouvrirTiroir` se protege deja quand le tiroir est epingle : Echap sert
+    // alors a la fenetre de confirmation, et a elle seule.
     if (e.key === "Escape") ouvrirTiroir(false);
   });
 
@@ -1786,19 +1973,42 @@
 
   // --- La fenetre de confirmation, partagee (spec 018) -----------------------
   //
-  // Trois gestes detruisent : effacer, remplacer par un import, supprimer une
-  // archive. Ils passent TOUS par ici. Ecrire trois fois la meme mecanique,
-  // c'est se donner trois occasions de la rater -- et c'est sur l'action la
-  // plus destructrice du produit.
+  // QUATRE gestes detruisent : effacer les donnees, remplacer par un import,
+  // supprimer une archive, et relier un classeur en mode « tout effacer ». Ils
+  // passent TOUS par ici. Ecrire quatre fois la meme mecanique, c'est se donner
+  // quatre occasions de la rater -- et c'est sur l'action la plus destructrice
+  // du produit.
   //
   // Rend une promesse : resolue avec {confirmation, forcer} si l'on confirme,
   // JAMAIS resolue si l'on annule (la suite du geste ne doit alors rien faire).
+  //
+  // ⚠️ Spec 021 : on ne frappe plus « EFFACER », on MAINTIENT le bouton. Le mot
+  // continue de partir dans le corps JSON -- le serveur l'exige toujours -- mais
+  // il a change de nature : ce n'est plus un geste humain, c'est un marqueur de
+  // protocole, qui protege la route contre un POST nu, un onglet reste ouvert
+  // ou un script qui l'appellerait sans passer par ici.
+
+  var MARQUEUR_CONFIRMATION = "EFFACER";   // cf. cycle.MOT_DE_CONFIRMATION
+  var MAINTIEN_MS = 2000;                  // le temps qu'il faut TENIR
+
+  /** Ce qu'on detruit, en une phrase courte, pour le libelle du bouton.
+   *
+   *  Le chiffre sous les yeux AU MOMENT du geste est ce qui remplace la frappe
+   *  comme dernier garde-fou : « Effacer 715 reussites » arrete la main que
+   *  « Effacer » ne retient pas.
+   */
+  function volume(c) {
+    if (!c) return "ces données";
+    if (c.reussites) return c.reussites + " réussite(s)";
+    if (c.participants) return c.participants + " participant(s)";
+    return "ces données";
+  }
 
   function confirmer(options) {
     var dlg = $("dlgConfirmer");
     $("dlgTitre").textContent = options.titre;
     $("dlgTexte").textContent = options.texte;
-    $("dlgOk").textContent = options.libelle || "Effacer";
+    $("dlgOkMot").textContent = options.libelle || "Effacer";
 
     var dl = $("dlgCompteurs");
     dl.innerHTML = "";
@@ -1815,30 +2025,92 @@
     $("dlgForcer").checked = false;
     $("dlgTexteForcer").textContent = options.texteForcer || "Effacer quand même";
 
-    $("dlgMot").value = "";
+    var bouton = $("dlgOk");
+    var jauge = $("dlgRemplissage");
+    var libelle = options.libelle || "Effacer";
+    var minuteur = null;
+    var parti = false;
 
+    // La case « quand meme » ne REMPLACE pas le maintien, elle s'y ajoute :
+    // elle dit « je sais que le statut dit en cours », le maintien dit « je
+    // veux detruire ». Deux gestes, deux intentions -- la regle de la spec 018,
+    // inchangee.
     function jauger() {
-      // Le mot ET la case : le forcage s'AJOUTE a la confirmation, il ne la
-      // remplace pas. Deux gestes, deux intentions.
-      var mot = $("dlgMot").value.trim() === "EFFACER";
-      var coche = !options.forcable || $("dlgForcer").checked;
-      $("dlgOk").disabled = !(mot && coche);
+      bouton.disabled = !!options.forcable && !$("dlgForcer").checked;
     }
-    $("dlgMot").oninput = jauger;
-    $("dlgForcer").onchange = jauger;
+
+    /** Remplit (1) ou vide (0) la jauge. Vider est INSTANTANE : sinon la jauge
+     *  redescendrait en deux secondes apres un relachement, et un second
+     *  maintien repartirait d'un etat menteur. */
+    function remplir(part) {
+      jauge.style.transitionDuration = part ? (MAINTIEN_MS / 1000) + "s" : "0s";
+      jauge.style.width = part ? "100%" : "0";
+    }
+
+    function demarrer(e) {
+      if (parti || bouton.disabled || minuteur) return;
+      if (e && e.type === "keydown") {
+        // Entree maintenue re-declenche keydown en rafale : sans ce garde, le
+        // minuteur repartirait a zero cinquante fois et n'aboutirait jamais.
+        if (e.repeat) return;
+        if (e.key !== "Enter" && e.key !== " ") return;
+        e.preventDefault();
+      }
+      remplir(1);
+      $("dlgOkMot").textContent = "Maintiens…";
+      minuteur = setTimeout(aboutir, MAINTIEN_MS);
+    }
+
+    function annuler() {
+      if (parti || !minuteur) return;
+      clearTimeout(minuteur);
+      minuteur = null;
+      remplir(0);
+      $("dlgOkMot").textContent = libelle;
+    }
+
+    function aboutir() {
+      minuteur = null;
+      parti = true;
+      // Desactive AVANT de fermer : deux maintiens tres rapproches ne doivent
+      // produire qu'un seul envoi.
+      bouton.disabled = true;
+      dlg.close("ok");
+    }
+
+    bouton.onpointerdown = demarrer;
+    bouton.onpointerup = annuler;
+    bouton.onpointerleave = annuler;      // curseur sorti du bouton = relache
+    bouton.onpointercancel = annuler;
+    bouton.onkeydown = demarrer;
+    bouton.onkeyup = annuler;
+    bouton.onblur = annuler;
+    // Recocher ou decocher pendant un maintien remet le geste a plat : l'etat
+    // qu'on confirmait n'est plus celui qu'on confirme.
+    $("dlgForcer").onchange = function () { annuler(); jauger(); };
+
+    remplir(0);
+    $("dlgOkMot").textContent = libelle;
     jauger();
 
     return new Promise(function (resoudre) {
       dlg.onclose = function () {
         dlg.onclose = null;
+        // Echap pendant un maintien : la fenetre se ferme, le minuteur doit
+        // mourir avec elle.
+        clearTimeout(minuteur);
+        minuteur = null;
+        remplir(0);
         if (dlg.returnValue === "ok") {
-          resoudre({ confirmation: $("dlgMot").value.trim(),
+          resoudre({ confirmation: MARQUEUR_CONFIRMATION,
                      forcer: options.forcable && $("dlgForcer").checked });
         }
       };
       dlg.returnValue = "";
       dlg.showModal();
-      $("dlgMot").focus();
+      // Le focus va sur « Annuler », jamais sur le bouton rouge : la sortie
+      // doit etre le geste le plus proche de la main.
+      $("dlgAnnuler").focus();
     });
   }
 
@@ -1860,13 +2132,13 @@
       return;
     }
 
-    ligneEtat(dl, "Compétition", d.competition.nom);
+    // ⚠️ Ni le NOM ni le CLASSEUR ici (spec 021, F7). Le nom est dans le champ
+    // juste au-dessus -- le repeter deux centimetres plus bas n'apprend rien ;
+    // et la feuille reliee a sa propre vue, qui en dit bien plus. Ce qui reste
+    // est le seul chiffre que cet ecran doit donner : ce qu'il y a en base.
     var c = d.compteurs;
     ligneEtat(dl, "En base", c.participants + " participant(s), " + c.blocs
                              + " bloc(s), " + c.reussites + " réussite(s)");
-    ligneEtat(dl, "Classeur", d.classeur.relie
-      ? lienVers(d.classeur.url, d.classeur.identifiant)
-      : "aucun classeur relié — l'import n'a rien à lire");
   }
 
   // --- Nom de l'edition et classements affiches (spec 020) -------------------
@@ -1891,24 +2163,34 @@
 
     d.groupes.forEach(function (g) {
       var label = document.createElement("label");
-      label.style.cssText = "display:flex;align-items:center;gap:10px;"
-                          + "padding:7px 0;cursor:pointer";
-      var case_ = document.createElement("input");
-      case_.type = "checkbox";
-      case_.value = g.nom;
-      // Cochee = AFFICHEE. On range l'inverse -- voir cycle.groupes_masques.
-      case_.checked = masques.indexOf(g.nom) === -1;
-      case_.dataset.groupe = "1";
-      label.appendChild(case_);
+      label.className = "bascule";
+
+      // Une case a cocher NATIVE, rendue invisible par le style : elle garde le
+      // clavier, le focus et l'etat. `role="switch"` la fait annoncer
+      // « interrupteur, active » au lieu de « case a cocher, cochee » -- le
+      // navigateur derive `aria-checked` de `checked` tout seul.
+      var interrupteur = document.createElement("input");
+      interrupteur.type = "checkbox";
+      interrupteur.setAttribute("role", "switch");
+      interrupteur.value = g.nom;
+      // Allume = AFFICHE. On range l'inverse -- voir cycle.groupes_masques.
+      interrupteur.checked = masques.indexOf(g.nom) === -1;
+      interrupteur.dataset.groupe = "1";
+      label.appendChild(interrupteur);
+
+      var glissiere = document.createElement("span");
+      glissiere.className = "glissiere";
+      glissiere.setAttribute("aria-hidden", "true");
+      label.appendChild(glissiere);
 
       var texte = document.createElement("span");
+      texte.className = "quoi";
       // textContent : ces noms viennent du classeur.
       texte.textContent = g.nom;
       label.appendChild(texte);
 
       var combien = document.createElement("span");
-      combien.className = "aide";
-      combien.style.marginLeft = "auto";
+      combien.className = "combien";
       combien.textContent = g.participants
         + (g.participants > 1 ? " grimpeurs" : " grimpeur");
       label.appendChild(combien);
@@ -1953,9 +2235,26 @@
     }).catch(signaler).then(function () { bouton.disabled = false; });
   });
 
+  // Les deux vues d'administration lisent la MEME route (`/admin/classeur`) :
+  // elle porte l'edition, les compteurs et l'etat de la feuille. Chacune n'en
+  // affiche que ce qui la regarde -- c'est ce qui a permis de supprimer les
+  // lignes qui se repetaient d'un ecran a l'autre (spec 021, F7).
+  function chargerGeneral() {
+    appeler("/admin/classeur").then(peindreCompetition).catch(signaler);
+    appeler("/admin/competition").then(peindreReglagesCompetition).catch(signaler);
+    // Les archives AUSSI : c'est ce qui permet de dire « cette édition n'a
+    // jamais été archivée » dans la fenêtre de confirmation.
+    if (!etat.archives) chargerArchives();
+  }
+
+  /** Apres un import, un effacement ou un changement de statut : les DEUX
+   *  ecrans d'administration ont vieilli, pas seulement celui ou l'on est. */
   function chargerCompetition() {
     $("rapportImport").hidden = true;
-    appeler("/admin/classeur").then(peindreCompetition).catch(signaler);
+    appeler("/admin/classeur").then(function (d) {
+      peindreCompetition(d);
+      peindreClasseur(d);
+    }).catch(signaler);
     appeler("/admin/competition").then(peindreReglagesCompetition).catch(signaler);
     // Les archives AUSSI : c'est ce qui permet de dire « cette édition n'a
     // jamais été archivée » dans la fenêtre de confirmation. Sans ce
@@ -2007,7 +2306,7 @@
       alerte: alerteArchive(c),
       forcable: !!comp && comp.statut === "en_cours",
       texteForcer: "Cette compétition est marquée EN COURS. Remplacer quand même.",
-      libelle: "Effacer et importer",
+      libelle: "Effacer " + volume(c) + " et importer",
     }).then(function (reponse) {
       lancerImport({ mode: "remplacer", confirmation: reponse.confirmation,
                      forcer: reponse.forcer });
@@ -2059,7 +2358,7 @@
       alerte: alerteArchive(c),
       forcable: !!comp && comp.statut === "en_cours",
       texteForcer: "Cette compétition est marquée EN COURS. Effacer quand même.",
-      libelle: "Effacer définitivement",
+      libelle: "Effacer " + volume(c),
     }).then(function (reponse) {
       appeler("/admin/donnees/effacer", {
         methode: "POST",
@@ -2158,7 +2457,7 @@
       compteurs: [["Édition", a.nom + " — " + (a.date || "sans date")],
                   ["Contient", a.participants + " participant(s), "
                              + a.reussites + " réussite(s)"]],
-      libelle: "Supprimer l'archive",
+      libelle: "Supprimer l'archive « " + a.nom + " »",
     }).then(function (reponse) {
       appeler("/admin/archives/" + a.id, {
         methode: "DELETE", corps: { confirmation: reponse.confirmation },
@@ -2211,7 +2510,9 @@
       ligneEtat(dl, "Compétition", "aucune compétition active", "manque");
       return;
     }
-    ligneEtat(dl, "Compétition", d.competition.nom + " (" + d.competition.statut + ")");
+    // ⚠️ Pas de ligne « Compétition » quand il y en a une (spec 021, F7) : son
+    // nom et son statut sont l'affaire de « Général », qui les montre ET les
+    // laisse changer. Ici on ne parle que de la feuille.
 
     if (d.classeur.relie) {
       ligneEtat(dl, "Classeur", lienVers(d.classeur.url, d.classeur.identifiant));
@@ -2235,14 +2536,21 @@
     ligneEtat(dl, "Réussites", c.reussites + " au total, " + c.reussites_en_attente
                                + " en attente d'envoi",
               c.reussites_en_attente > 0 ? "" : "bon");
-    ligneEtat(dl, "Inscrits", c.participants + " participant(s), " + c.blocs
-                              + " bloc(s), dossard le plus haut : "
-                              + (c.dossard_max === null ? "aucun" : c.dossard_max));
+    // « Inscrits » vivait ici ET dans « Général » sous le nom « En base », avec
+    // les memes chiffres. Un seul endroit desormais. Le dossard le plus haut,
+    // lui, reapparait la ou il sert vraiment : le rapport de « Tester l'accès »,
+    // qui le compare a la largeur de la grille.
   }
 
   function chargerClasseur() {
     $("rapportClasseur").hidden = true;
+    $("rapportImport").hidden = true;
     appeler("/admin/classeur").then(peindreClasseur).catch(signaler);
+    // Les archives : c'est ce qui permet de dire « cette édition n'a jamais été
+    // archivée » dans la fenêtre de confirmation d'« Effacer », qui vit
+    // maintenant sur cet écran. Sans ce chargement, l'avertissement criait au
+    // loup tant qu'on n'avait pas visité la vue « Archives ».
+    if (!etat.archives) chargerArchives();
   }
 
   function peindreRapport(rapport) {
@@ -2285,19 +2593,11 @@
     }).catch(signaler).then(function () { bouton.disabled = false; });
   });
 
-  $("btnImporterClasseur").addEventListener("click", function () {
-    var bouton = this;
-    bouton.disabled = true;
-    appeler("/admin/import/sheet", { methode: "POST" }).then(function (d) {
-      peindreImport(d.rapport);
-      dire("Classeur importé : " + d.rapport.resume, "ok");
-      // Les compteurs de la carte du haut viennent de changer.
-      appeler("/admin/classeur").then(peindreClasseur).catch(signaler);
-    }).catch(signaler).then(function () { bouton.disabled = false; });
-  });
-
   function peindreImport(rapport, bloc) {
-    bloc = bloc || $("rapportClasseur");
+    // `bloc` est desormais TOUJOURS donne : le second appelant -- le bouton
+    // « Importer » de la vue Classeur -- a ete retire (spec 021). Un defaut
+    // sur `rapportClasseur` survivrait comme un piege : il ecrirait le rapport
+    // d'un import dans la carte qui affiche le test d'acces.
     bloc.innerHTML = "";
     bloc.hidden = false;
 
@@ -2419,7 +2719,7 @@
       alerte: alerteArchive(c),
       forcable: !!comp && comp.statut === "en_cours",
       texteForcer: "Cette compétition est marquée EN COURS. Effacer quand même.",
-      libelle: "Effacer et relier",
+      libelle: "Effacer " + volume(c) + " et relier",
     }).then(function (reponse) {
       relierClasseur({ lien: $("lienClasseur").value, mode: mode,
                        confirmation: reponse.confirmation,

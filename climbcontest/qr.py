@@ -37,6 +37,25 @@ import segno
 # modules plus GROS a taille de papier egale, donc plus lisible.
 CORRECTION = "m"
 
+# ⚠️ QUATRE modules de marge blanche, et c'est la NORME, pas un gout.
+#
+# L'ISO/IEC 18004 exige une zone de silence de 4 modules autour d'un QR Code
+# (2 seulement pour un Micro QR, que nous n'emettons jamais -- voir `make_qr`).
+# Sans elle, le decodeur ne sait pas ou s'arrete le symbole : il lit ce qui
+# touche le code -- une bordure de case, le trait de coupe voisin -- comme des
+# modules noirs.
+#
+# Nous en posions DEUX. Ca marche sur un fond parfaitement blanc, et ca lache
+# des qu'on serre les fiches sur une planche a decouper. Corrige le 01/09 en
+# reduisant la taille des fiches : c'est exactement le moment ou le voisinage
+# devient proche.
+ZONE_DE_SILENCE = 4
+
+# En dessous de cette taille, un module imprime n'est plus lu de facon fiable
+# par un appareil photo de telephone. La regle de terrain -- et celle des
+# fabricants de lecteurs -- tourne autour de 0,4 mm ; on se garde une marge.
+MODULE_MINI_MM = 0.5
+
 
 def code(texte: str):
     """Le QR standard d'un dossard. Jamais un Micro QR."""
@@ -52,10 +71,21 @@ def svg(texte: str, cote_mm: float = 22.0) -> str:
     """
     # segno ecrit des OCTETS, meme en SVG : un StringIO leve une TypeError.
     tampon = io.BytesIO()
-    code(texte).save(tampon, kind="svg", scale=1, border=2,
+    code(texte).save(tampon, kind="svg", scale=1, border=ZONE_DE_SILENCE,
                      xmldecl=False, svgversion=None, omitsize=True)
     return tampon.getvalue().decode("utf-8").replace(
         "<svg ", f'<svg width="{cote_mm}mm" height="{cote_mm}mm" ', 1)
+
+
+def taille_de_module_mm(texte: str, cote_mm: float) -> float:
+    """Combien mesure UN module, une fois imprime a `cote_mm`.
+
+    C'est le chiffre qui decide si un QR se lit ou non. La zone de silence
+    compte dans le carre : un QR de version 1 (21 modules) rendu a 25 mm fait
+    25 / (21 + 2 x 4) = 0,86 mm par module.
+    """
+    modules = len(code(texte).matrix) + 2 * ZONE_DE_SILENCE
+    return cote_mm / modules
 
 
 def matrice(texte: str) -> list[list[int]]:
