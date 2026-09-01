@@ -57,13 +57,13 @@
   }
 
   /* --- L'identite, a gauche ----------------------------------------------- */
-  /* Le QR A COTE du texte, et non dessous : sur 43 mm de hauteur utile, les
-     empiler ne laisserait au QR que la moitie de ce qu'il lui faut. */
+  /* Le QR SOUS l'identite : il se lit comme une carte, et la colonne n'occupe
+     que la largeur du QR au lieu du double. Ce que ca libere va aux blocs. */
   .fiche header {
-    flex: none; width: 58mm; display: flex; gap: 2.5mm; align-items: flex-start;
+    flex: none; width: 34mm; display: flex; flex-direction: column;
     padding-right: 3mm; border-right: 0.4mm solid #111; overflow: hidden;
   }
-  .qui { flex: 1; min-width: 0; }
+  .qui { min-width: 0; }
   .ligne-nom { display: flex; align-items: baseline; gap: 1.5mm; }
   .numero {
     font-size: 6mm; line-height: 1; font-weight: 800;
@@ -77,12 +77,14 @@
     font-size: 3.1mm; font-weight: 700; line-height: 1.1; min-width: 0;
     overflow-wrap: anywhere;
   }
+  .qui .club { margin-top: 0.6mm; }
+  .qui .quoi { margin-top: 0.4mm; }
   .club, .quoi {
     font-size: 2.5mm; color: #555; margin-top: 0.8mm;
     overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
   }
   .quoi b { color: #111; font-size: 2.8mm; }
-  .qr { flex: none; }
+  .qr { margin-top: 1.5mm; }
   .qr svg { display: block; width: 24mm; height: 24mm; }
 
   /* --- Les blocs, au milieu ------------------------------------------------ */
@@ -119,7 +121,13 @@
 
   /* `auto-fill` + `minmax` : un circuit de cinquante blocs resserre ses cases
      au lieu de deborder sur la fiche voisine. Aucune ligne de JavaScript. */
-  .cases { display: grid; grid-template-columns: repeat(auto-fill, minmax(8.5mm, 1fr)); gap: 0.6mm; }
+  /* ⚠️ `auto-fit`, PAS `auto-fill`. `auto-fill` cree autant de colonnes que la
+     largeur en contient et laisse vides celles qui n'ont pas de case : un
+     groupe de quatre blocs occupait quatre colonnes sur neuf, et les cinq
+     autres etaient du blanc. `auto-fit` replie les colonnes vides, et les
+     cases s'etalent sur toute la largeur. Signale par Adrien : « tu as trop
+     d'espace vide ». */
+  .cases { display: grid; grid-template-columns: repeat(auto-fit, minmax(8.5mm, 1fr)); gap: 0.6mm; }
   .case {
     border: 0.2mm solid #bbb; border-radius: 0.7mm; padding: 0.3mm 0.2mm;
     text-align: center; line-height: 1;
@@ -136,7 +144,7 @@
   /* --- Le plan de la salle, a droite --------------------------------------- */
   /* Sept cases par ligne : la grille du classeur (`Fiches!V4:X11`), ou la
      premiere cellule vaut une case et les deux suivantes en valent trois. */
-  .mur { flex: none; width: 42mm; border-left: 0.2mm solid #ddd; padding-left: 3mm; }
+  .mur { flex: none; width: 46mm; border-left: 0.2mm solid #ddd; padding-left: 3mm; }
   .plan { display: grid; grid-template-columns: repeat(7, 1fr); gap: 0.5mm; }
   .case-plan {
     height: 4mm; display: flex; align-items: center; justify-content: center;
@@ -193,7 +201,6 @@
   {%- for f in fiches %}
   <article class="fiche">
     <header>
-      <div class="qr">{{ f.qr|safe }}</div>
       <div class="qui">
         <div class="ligne-nom">
           <span class="numero">{{ f.dossard }}</span>
@@ -204,6 +211,7 @@
           <b>{{ f.categorie or "sans catégorie" }}</b>{% if f.circuit %} · circuit {{ f.circuit }}{% endif %}
         </div>
       </div>
+      <div class="qr">{{ f.qr|safe }}</div>
     </header>
 
     <div class="blocs">
