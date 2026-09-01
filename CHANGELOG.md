@@ -19,6 +19,41 @@ qu'on ne met pas à jour le matin d'une compétition :
 
 ## [Non publié]
 
+### Modifié
+
+- **Les scratchs passent avant leurs catégories.** L'ordre — donc celui de la
+  barre, donc celui du cycle sur le mur — va du plus général au plus précis :
+  `Scratch`, `Scratch F`, `Scratch H`, puis `U11 scratch`, `U11 F`, `U11 H`,
+  puis `U13 scratch`… et le cumul par club en dernier. On passe de « U13
+  scratch » à « U13 F » sans traverser la barre.
+- **La rotation se met en pause.** Un bouton ⏸ / ▶ dans le bandeau du mur, pour
+  figer une catégorie — pendant une remise de prix, ou quand quelqu'un demande
+  « laisse la U13 F ». La jauge s'arrête où elle en est et repart de là.
+- **Le temps d'affichage par catégorie est raccourci** : 5 s + 0,3 s par
+  grimpeur, entre 9 et 20 s (au lieu de 8 s + 0,55 s, entre 12 et 35 s).
+- **Le défilement automatique est deux fois plus lent** (~55 px/s) et **remonte
+  aussi doucement qu'il descend**. L'assouplissement est maintenant posé sur
+  chaque intervalle et non sur l'animation entière : appliqué globalement, il
+  rendait la descente rapide et la remontée saccadée.
+- **Les en-têtes de colonnes ne défilent plus** avec le classement : ils vivent
+  au-dessus de la zone qui défile. Dedans, ils repartaient avec les lignes et
+  revenaient d'un à-coup à la fin de la remontée.
+- **Les tranches « 4 → 14 » disparaissent** des en-têtes de colonne : le premier
+  rang de la colonne le disait déjà.
+
+### Corrigé
+
+- **Le score n'est plus tronqué dans une petite catégorie.** Les colonnes d'une
+  ligne se mesuraient en `em` — donc sur la police du conteneur, 16 px — pendant
+  que leur contenu grandissait avec la hauteur de ligne. Sur une catégorie de
+  deux grimpeurs, où cette hauteur monte, « 1473 » s'affichait en 67 px dans une
+  colonne de 83 px. Elles se mesurent maintenant en proportion de la hauteur de
+  ligne, ce qui corrige du même coup le **tableau qui ne suivait pas un
+  redimensionnement de la fenêtre**.
+- La hauteur de ligne des petites catégories est ramenée de 168 à 124 px : un
+  seul grimpeur occupait un quart de mur en caractères de 67 px, ce qui se lit
+  comme une erreur d'affichage.
+
 ## [0.11.0] — 2026-09-01
 
 La page de résultats reprise de fond en comble, et trois classements de plus.

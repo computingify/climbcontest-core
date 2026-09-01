@@ -17,16 +17,29 @@ logger = logging.getLogger(__name__)
 bp = Blueprint("public", __name__, url_prefix="/api/public")
 
 
-# L'ordre d'affichage, et pas l'ordre alphabetique des types : les categories
-# d'abord (le resultat officiel), puis les circuits, puis les scratchs qui les
-# traversent, et le club en dernier. Trie sur `type` seul, « club » se
-# retrouvait AVANT « scratch » -- un detail qui se voit sur le mur, ou l'ordre
-# de la barre est l'ordre du cycle.
-ORDRE_DES_TYPES = {"categorie": 0, "circuit": 1, "scratch": 2, "club": 3}
+# L'ordre d'affichage. C'est aussi l'ordre de la barre, donc l'ordre du cycle
+# sur le mur : il se lit du plus general au plus precis.
+#
+#   Scratch, Scratch F, Scratch H        les trois qui traversent tout
+#   U11 scratch, U11 F, U11 H            un circuit, puis SES categories
+#   U13 scratch, U13 F, U13 H
+#   ...
+#   Clubs
+#
+# Demande d'Adrien (01/09) : « les scratchs avant leurs categories
+# correspondantes, et les scratchs generaux au debut a gauche ». Grouper par
+# circuit met cote a cote des classements qui parlent des memes grimpeurs --
+# on passe de « U13 scratch » a « U13 F » sans traverser la barre.
 
 
 def _ordre(classement):
-    return (ORDRE_DES_TYPES.get(classement.type, 9), classement.groupe)
+    if classement.type == "scratch":            # les generaux, tout a gauche
+        return (0, "", 0, classement.groupe)
+    if classement.type == "club":               # et le cumul par club a la fin
+        return (2, "", 0, classement.groupe)
+    # Un circuit ouvre sa famille, ses categories suivent.
+    return (1, classement.circuit or "",
+            0 if classement.type == "circuit" else 1, classement.groupe)
 
 
 @bp.get("/classement")

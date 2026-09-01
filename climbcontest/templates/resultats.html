@@ -104,6 +104,20 @@
   }
   body.mur .meta { font-size: clamp(0.72rem, 1.1vw, 19px); margin-top: 4px; }
   .meta .perime { color: var(--alerte); font-weight: 700; }
+  /* Le bouton de rotation. Il n'existe qu'en mode mur : c'est l'organisateur,
+     depuis la machine qui projette, qui fige une catégorie — pendant une remise
+     de prix, ou quand quelqu'un demande « laisse la U13 F ». */
+  .commande {
+    display: none; flex: none; cursor: pointer; font: inherit; line-height: 1;
+    background: var(--carte); color: var(--encre2);
+    border: 1px solid var(--trait); border-radius: 999px;
+    width: 2.4em; height: 2.4em; font-size: clamp(1rem, 1.5vw, 1.6rem);
+  }
+  body.mur .commande { display: block; }
+  .commande:hover { background: var(--carte2); color: var(--encre); }
+  .commande[aria-pressed="true"] { border-color: var(--groupe); color: var(--groupe); }
+  .commande:focus-visible { outline: 2px solid var(--groupe); outline-offset: 2px; }
+
   #suivant { color: var(--encre2); font-size: 0.78rem; margin-top: 2px; display: none; }
   body.mur #suivant { display: block; font-size: clamp(0.72rem, 1.15vw, 20px); }
 
@@ -230,6 +244,12 @@
   .pod .blocs { font-size: clamp(14px, 1.2vw, 22px); color: var(--encre2); }
   .pod .ecart { font-size: clamp(14px, 1.2vw, 22px); color: var(--encre2); }
 
+  /* Les en-têtes vivent AU-DESSUS de la zone qui défile, pas dedans : dedans,
+     ils repartaient avec le classement et revenaient d'un à-coup à la fin de la
+     remontée. Un tableau garde ses titres sous les yeux, de toute façon. */
+  #entetes { flex: none; display: grid; gap: 0 26px; margin-bottom: 2px; }
+  #entetes:empty { display: none; }
+
   /* La zone qui défile doucement quand le plateau déborde. */
   #defile { flex: 1; min-height: 0; overflow: hidden; }
   /* Et qui CENTRE quand il ne la remplit pas. Vu en production le 31/08 sur la
@@ -264,6 +284,20 @@
   body.mur #liste {
     display: grid; grid-template-columns: repeat(var(--colonnes, 3), 1fr);
     gap: 0 26px; align-content: start;
+  }
+  /* ⚠️ En mode mur, les colonnes d'une ligne se mesurent en `--h`, pas en `em`.
+     Les `em` se calculent sur la police du CONTENEUR (16 px), alors que le
+     contenu, lui, grandit avec `--h` : sur une catégorie de deux grimpeurs, où
+     `--h` monte à 168 px, le score s'affichait en 67 px dans une colonne de
+     83 px — « 1473 » y était coupé. C'est le défaut vu par Adrien sur U11 F, et
+     c'est le même qui faisait que le tableau ne suivait pas un
+     redimensionnement : la grille ne bougeait pas avec le texte. */
+  body.mur main.d1, body.mur main.d2, body.mur main.d3 {
+    --grille-ligne: calc(var(--h) * .95) minmax(0, 1fr) calc(var(--h) * .75)
+                    calc(var(--h) * 1.3) calc(var(--h) * 1.6);
+  }
+  body.mur main.d4 {
+    --grille-ligne: calc(var(--h) * .85) minmax(0, 1fr) calc(var(--h) * 1.6);
   }
 
   /* Un TABLEAU, pas une pile de cartes. C'est ce que font les services de
@@ -328,18 +362,18 @@
      plutôt que de tout tronquer. Dans l'ordre de ce qu'on peut perdre : le
      numéro de dossard (il est sur le dossard, justement), puis le club, puis
      le compte de blocs. Le nom et le score, jamais. */
-  #liste.d4 .blocs, #liste.d4 .ecart, #podium.serre .club { display: none; }
+  main.d4 .blocs, main.d4 .ecart, #podium.serre .club { display: none; }
   .club:empty { display: none; }
   /* En deux lignes, l'en-tête n'annonce plus que ce qui reste. */
-  #liste.d4 .entete span:nth-child(3), #liste.d4 .entete span:nth-child(4) { display: none; }
+  main.d4 .entete span:nth-child(3), main.d4 .entete span:nth-child(4) { display: none; }
 
   /* Les favoris du spectateur. Une colonne d'étoiles en plus, à droite, et
      seulement sur téléphone : sur le mur, personne ne touche l'écran. */
-  body:not(.mur) #liste { --grille-ligne: 2.6em minmax(0, 1fr) 4.6em 2.4em; }
-  body:not(.mur) #liste.d1 { --grille-ligne: 3.4em minmax(0, 1fr) 3.4em 4.4em 5.2em 2.4em; }
-  body:not(.mur) #liste.d2 { --grille-ligne: 3.2em minmax(0, 1fr) 3.2em 4.2em 5em 2.4em; }
-  body:not(.mur) #liste.d3 { --grille-ligne: 3em minmax(0, 1fr) 3em 4em 4.8em 2.4em; }
-  body:not(.mur) #liste.d4 { --grille-ligne: 2.4em minmax(0, 1fr) 4.4em 2.4em; }
+  body:not(.mur) main { --grille-ligne: 2.6em minmax(0, 1fr) 4.6em 2.4em; }
+  body:not(.mur) main.d1 { --grille-ligne: 3.4em minmax(0, 1fr) 3.4em 4.4em 5.2em 2.4em; }
+  body:not(.mur) main.d2 { --grille-ligne: 3.2em minmax(0, 1fr) 3.2em 4.2em 5em 2.4em; }
+  body:not(.mur) main.d3 { --grille-ligne: 3em minmax(0, 1fr) 3em 4em 4.8em 2.4em; }
+  body:not(.mur) main.d4 { --grille-ligne: 2.4em minmax(0, 1fr) 4.4em 2.4em; }
   body.mur .etoile { display: none; }
 
   .etoile {
@@ -426,6 +460,8 @@
     </div>
     <div id="suivant"></div>
   </div>
+  <button id="pause" class="commande" type="button" hidden
+          aria-label="Mettre la rotation en pause">⏸</button>
 </header>
 
 <div id="barre" role="group" aria-label="Catégories"></div>
@@ -435,6 +471,7 @@
 <main>
   <div id="attente" hidden></div>
   <div id="podium"></div>
+  <div id="entetes"></div>
   <div id="defile"><div id="liste"></div></div>
   <div id="message"></div>
 </main>
@@ -455,8 +492,9 @@
   var PERIME_MS = 60000;       // au-delà, l'âge passe en rouge
   // La rotation suit la TAILLE du plateau : le temps de lecture doit suivre ce
   // qu'il y a à lire. Une catégorie de 8 ne mérite pas les 30 s d'une de 26.
-  var ROTATION_BASE_MS = 8000, ROTATION_PAR_GRIMPEUR_MS = 550;
-  var ROTATION_MIN_MS = 12000, ROTATION_MAX_MS = 35000;
+  // Raccourcie le 01/09 : « le temps d'affichage par catégorie est trop long ».
+  var ROTATION_BASE_MS = 5000, ROTATION_PAR_GRIMPEUR_MS = 300;
+  var ROTATION_MIN_MS = 9000, ROTATION_MAX_MS = 20000;
   var ROTATION_FIXE_MS = parseFloat(params.get("rotation")) * 1000 || null;
 
   // Le mode mur ne montre que les classements SPORTIFS : catégories, circuits
@@ -469,7 +507,10 @@
   var MIN_H = 44, MAX_H = 124;
   // Sous ce nombre de lignes, on s'autorise plus grand : mieux vaut six lignes
   // hautes et lisibles de loin qu'un ruban de six lignes perdu sur un mur.
-  var PEU_DE_LIGNES = 6, MAX_H_PEU = 168;
+  // Une petite catégorie a droit à de plus grandes lignes, mais pas à des
+  // lignes énormes : au-delà, un seul grimpeur occupait un quart de mur en
+  // caractères de 67 px, ce qui se lit comme une erreur d'affichage.
+  var PEU_DE_LIGNES = 6, MAX_H_PEU = 124;
 
   var etat = {
     classements: [],           // dernier classement CONNU. Jamais vidé sur erreur.
@@ -481,7 +522,6 @@
     groupe: null,
     favoris: [],               // { id, nom, dossard } — stockage local du téléphone
     densite: 1,                // 1 = tout tient ; 4 = nom et score seulement
-    entetes: [],               // les rangées d'en-tête, réutilisées
     groupes: [],               // les marches du podium, réutilisées
     enPanne: false,
     messageMetier: null,
@@ -489,6 +529,7 @@
     rangs: {},                 // groupe -> { participant: rang } du rendu précédent
     deltas: {},
     minuteurRotation: null,
+    enPause: false,            // la rotation, figée à la demande
     animationDefilement: null,
   };
 
@@ -501,12 +542,15 @@
     podium: document.getElementById("podium"),
     defile: document.getElementById("defile"),
     liste: document.getElementById("liste"),
+    entetes: document.getElementById("entetes"),
+    principal: document.querySelector("main"),
     message: document.getElementById("message"),
     fraicheur: document.getElementById("fraicheur"),
     horloge: document.getElementById("horloge"),
     reussites: document.getElementById("reussites"),
     competition: document.getElementById("competition"),
     suivant: document.getElementById("suivant"),
+    pause: document.getElementById("pause"),
   };
 
   if (MUR) document.body.classList.add("mur");
@@ -774,7 +818,7 @@
 
     el.titre.textContent = titreTexte;
     el.compte.textContent = compteTexte;
-    el.suivant.textContent = MUR ? prochainLibelle(visibles, groupe) : "";
+    majSuivant();
 
     // Personne n'a encore rien réussi : on l'annonce au lieu de laisser croire
     // à un classement figé. La liste reste affichée — voir les inscrits
@@ -990,12 +1034,22 @@
   /** L'ordre des enfants de la liste : en-têtes et lignes, agencés selon le
    *  sens de lecture choisi. C'est ici, et nulle part ailleurs, que se décide
    *  « on lit en colonnes » ou « on lit en lignes ». */
+  /** Les rangées d'en-tête, au-dessus du classement : une par colonne. */
+  function poserEntetes(colonnes) {
+    el.entetes.style.gridTemplateColumns = "repeat(" + colonnes + ", 1fr)";
+    while (el.entetes.children.length > colonnes) {
+      el.entetes.removeChild(el.entetes.lastChild);
+    }
+    while (el.entetes.children.length < colonnes) {
+      el.entetes.appendChild(noeudEntete());
+    }
+  }
+
   function agencer(suite, colonnes) {
     var enfants = [];
     if (!MUR || colonnes < 2) {
       el.liste.style.gridAutoFlow = "row";
       el.liste.style.gridTemplateRows = "";
-      enfants.push({ entete: true });
       suite.forEach(function (l) { enfants.push({ ligne: l }); });
       return enfants;
     }
@@ -1005,20 +1059,15 @@
     // eux ; et sans l'annonce, rien ne dirait dans quel sens lire.
     var parColonne = Math.ceil(suite.length / colonnes);
     el.liste.style.gridAutoFlow = "column";
-    el.liste.style.gridTemplateRows = "repeat(" + (parColonne + 1) + ", auto)";
-    for (var i = 0; i < colonnes; i++) {
-      var tranche = suite.slice(i * parColonne, (i + 1) * parColonne);
-      if (!tranche.length) continue;
-      enfants.push({ entete: true, de: tranche[0].rang,
-                     a: tranche[tranche.length - 1].rang });
-      tranche.forEach(function (l) { enfants.push({ ligne: l }); });
-    }
+    el.liste.style.gridTemplateRows = "repeat(" + parColonne + ", auto)";
+    suite.forEach(function (l) { enfants.push({ ligne: l }); });
     return enfants;
   }
 
-  function majEntete(n, item) {
-    var rang = n.querySelector("span");
-    rang.textContent = item.de ? item.de + " → " + item.a : "Rang";
+  function majEntete() {
+    // L'en-tête dit ce que contient la colonne, pas où elle commence : la
+    // tranche « 4 → 14 » n'apprenait rien que le premier rang de la colonne ne
+    // dise déjà (Adrien, 01/09).
   }
 
   function peindre(lignes, avecPodium) {
@@ -1087,25 +1136,16 @@
     }
 
     var enfants = suite.length ? agencer(suite, colonnes) : [];
-    if (MUR) {
-      ajuster(Math.ceil(suite.length / colonnes), 1, true);
-    }
+    if (MUR) ajuster(Math.ceil(suite.length / colonnes), 1, false);
+    poserEntetes(suite.length ? (MUR ? colonnes : 1) : 0);
 
-    var utilisees = 0;
     enfants.forEach(function (item, index) {
-      var n;
-      if (item.entete) {
-        n = etat.entetes[utilisees] || (etat.entetes[utilisees] = noeudEntete());
-        utilisees++;
-        majEntete(n, item);
-      } else {
-        n = etat.noeuds[item.ligne.cle];
-        if (!n || !n.classList.contains("ligne")) {
-          n = noeudLigne();
-          etat.noeuds[item.ligne.cle] = n;
-        }
-        remplir(n, item.ligne, avecPodium, meilleur);
+      var n = etat.noeuds[item.ligne.cle];
+      if (!n || !n.classList.contains("ligne")) {
+        n = noeudLigne();
+        etat.noeuds[item.ligne.cle] = n;
       }
+      remplir(n, item.ligne, avecPodium, meilleur);
       if (el.liste.children[index] !== n) {
         el.liste.insertBefore(n, el.liste.children[index] || null);
       }
@@ -1149,7 +1189,7 @@
   function regler_densite(colonnes) {
     var largeur = (el.liste.clientWidth - (colonnes - 1) * 18) / colonnes;
     etat.densite = largeur >= 520 ? 1 : largeur >= 470 ? 2 : largeur >= 430 ? 3 : 4;
-    for (var n = 1; n <= 4; n++) el.liste.classList.toggle("d" + n, n === etat.densite);
+    for (var n = 1; n <= 4; n++) el.principal.classList.toggle("d" + n, n === etat.densite);
   }
 
   /** La hauteur d'une ligne, pour que la catégorie ENTIÈRE tienne à l'écran. */
@@ -1164,7 +1204,7 @@
               - parseFloat(style.paddingTop) - parseFloat(style.paddingBottom);
     var h = Math.floor((dispo - (lignes - 1) * 7) / lignes);
     var plafond = lignes <= PEU_DE_LIGNES ? MAX_H_PEU : MAX_H;
-    el.liste.style.setProperty("--h", Math.max(MIN_H, Math.min(plafond, h)) + "px");
+    el.principal.style.setProperty("--h", Math.max(MIN_H, Math.min(plafond, h)) + "px");
   }
 
   /** Quand le plateau déborde malgré tout, il DÉFILE — doucement, en boucle. */
@@ -1184,17 +1224,25 @@
     el.defile.classList.toggle("defilant", trop > 8);
     if (trop <= 8) return;
 
-    // ~110 px par seconde : la vitesse à laquelle on lit une liste sans la
-    // suivre des yeux. Avec deux pauses, en haut et en bas.
-    var course = Math.max(6000, (trop / 110) * 1000);
-    var duree = course * 2 + 6000;
+    // ~55 px par seconde : la vitesse à laquelle on lit une liste sans la
+    // suivre des yeux. Et la remontée dure EXACTEMENT aussi longtemps que la
+    // descente — l'ancienne version remontait d'un coup.
+    //
+    // L'assouplissement est posé sur chaque intervalle, pas sur l'animation
+    // entière : appliqué globalement, il rendait le milieu (la descente) rapide
+    // et la fin (la remontée) saccadée. Ici, descente et remontée démarrent et
+    // s'arrêtent en douceur, les deux pauses sont plates.
+    var course = Math.max(9000, (trop / 55) * 1000);
+    var arret = 3500;
+    var duree = course * 2 + arret * 2;
+    var bas = "translateY(" + (-trop) + "px)";
     etat.animationDefilement = el.liste.animate([
-      { transform: "translateY(0)",             offset: 0 },
-      { transform: "translateY(0)",             offset: 3000 / duree },
-      { transform: "translateY(" + (-trop) + "px)", offset: (3000 + course) / duree },
-      { transform: "translateY(" + (-trop) + "px)", offset: (6000 + course) / duree },
-      { transform: "translateY(0)",             offset: 1 },
-    ], { duration: duree, iterations: Infinity, easing: "ease-in-out" });
+      { transform: "translateY(0)", offset: 0,                            easing: "linear" },
+      { transform: "translateY(0)", offset: arret / duree,                easing: "ease-in-out" },
+      { transform: bas,             offset: (arret + course) / duree,     easing: "linear" },
+      { transform: bas,             offset: (arret * 2 + course) / duree, easing: "ease-in-out" },
+      { transform: "translateY(0)", offset: 1 },
+    ], { duration: duree, iterations: Infinity, easing: "linear" });
   }
 
   // --- La rotation (mode mur) ----------------------------------------------
@@ -1206,8 +1254,44 @@
            Math.min(ROTATION_MAX_MS, ROTATION_BASE_MS + n * ROTATION_PAR_GRIMPEUR_MS));
   }
 
+  el.pause.hidden = !MUR;
+  el.pause.addEventListener("click", function () {
+    etat.enPause = !etat.enPause;
+    el.pause.textContent = etat.enPause ? "▶" : "⏸";
+    el.pause.setAttribute("aria-pressed", String(etat.enPause));
+    el.pause.setAttribute("aria-label",
+      etat.enPause ? "Reprendre la rotation" : "Mettre la rotation en pause");
+    if (etat.enPause) {
+      clearTimeout(etat.minuteurRotation);
+      figerJauge();
+    } else {
+      programmerRotation();
+    }
+    majSuivant();
+  });
+
+  /** La jauge s'arrête là où elle en est plutôt que de repartir à zéro : on
+   *  reprend la rotation là où on l'a laissée, visuellement aussi. */
+  function figerJauge() {
+    var actif = chipDe(etat.groupe);
+    if (!actif) return;
+    var j = actif.querySelector(".jauge");
+    if (!j) return;
+    var largeur = j.getBoundingClientRect().width;
+    j.style.transition = "none";
+    j.style.width = largeur + "px";
+  }
+
+  function majSuivant() {
+    if (!MUR) { el.suivant.textContent = ""; return; }
+    if (etat.enPause) { el.suivant.textContent = "rotation en pause"; return; }
+    var visibles = groupesVisibles();
+    var groupe = visibles.find(function (c) { return c.groupe === etat.groupe; });
+    el.suivant.textContent = groupe ? prochainLibelle(visibles, groupe) : "";
+  }
+
   function programmerRotation() {
-    if (!MUR) return;
+    if (!MUR || etat.enPause) return;
     clearTimeout(etat.minuteurRotation);
     var visibles = groupesVisibles();
     if (visibles.length < 2) { jauger(0); return; }
