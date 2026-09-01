@@ -1,6 +1,7 @@
 # Spec 022 — Le jeton Google se pose en un clic
 
-> **Statut : rédigée, en attente de la porte 2.**
+> **Statut : validée (porte 2) et codée — 01/09/2026.**
+> Adrien : « oui et dans l'ordre que tu veux ».
 > Demande d'Adrien du 01/09/2026 : « la tuile Jetons Google, ce n'est
 > absolument pas clair ce qu'il faut faire. Fais-moi quelque chose où je puisse
 > générer un jeton Google, l'importer. »
@@ -133,27 +134,34 @@ carte « Jeton Google » de `admin.html`, le runbook, deux messages d'erreur.
 
 ## 4. Critères d'acceptation
 
-- [ ] **A1** — « Connecter le compte Google » emmène chez Google avec les bons
+**A1 à A11 vérifiés le 01/09/2026** — 40 tests (`tests/test_consentement_google.py`),
+aucun ne parle à Google.
+
+⚠️ **Ce qui reste à faire à la main, et qui n'est pas du code** : déclarer l'URI
+de retour et vérifier l'état de publication chez Google (F4), puis un aller-retour
+réel. Tant que ce n'est pas fait, le bouton mène à un `redirect_uri_mismatch`.
+
+- [x] **A1** — « Connecter le compte Google » emmène chez Google avec les bons
   paramètres : scope `spreadsheets`, `access_type=offline`, `prompt=consent`,
   `state` non devinable.
-- [ ] **A2** — Au retour, `token.json` contient un `refresh_token` et la console
+- [x] **A2** — Au retour, `token.json` contient un `refresh_token` et la console
   affiche « jeton posé ».
-- [ ] **A3** — L'ancien `token.json` est conservé en `.precedent`
+- [x] **A3** — L'ancien `token.json` est conservé en `.precedent`
   (non-régression de la spec 015).
-- [ ] **A4** — Un `state` absent ou différent de celui de la session fait
+- [x] **A4** — Un `state` absent ou différent de celui de la session fait
   échouer le retour **sans écrire** quoi que ce soit, et le dit.
-- [ ] **A5** — Un retour avec `error=access_denied` (consentement refusé)
+- [x] **A5** — Un retour avec `error=access_denied` (consentement refusé)
   ramène à la console avec un message clair, pas une 500.
-- [ ] **A6** — `credentials.json` absent : le bouton est **désactivé** et la
+- [x] **A6** — `credentials.json` absent : le bouton est **désactivé** et la
   carte dit où poser le fichier. Pas de 500, pas de bouton qui ne marche pas.
-- [ ] **A7** — Les deux routes sont refusées à un organisateur non
+- [x] **A7** — Les deux routes sont refusées à un organisateur non
   administrateur (403) et à un anonyme (401).
-- [ ] **A8** — Le jeton n'apparaît **jamais** dans un journal, ni dans une
+- [x] **A8** — Le jeton n'apparaît **jamais** dans un journal, ni dans une
   réponse HTTP, ni dans une URL.
-- [ ] **A9** — `POST /admin/classeur/jeton` (le collage) répond exactement comme
+- [x] **A9** — `POST /admin/classeur/jeton` (le collage) répond exactement comme
   avant — **non-régression**.
-- [ ] **A10** — `tools/exporter_jeton.py` fonctionne toujours — **non-régression**.
-- [ ] **A11** — Le runbook porte la manip F4, expiration en mode « Test »
+- [x] **A10** — `tools/exporter_jeton.py` fonctionne toujours — **non-régression**.
+- [x] **A11** — Le runbook porte la manip F4, expiration en mode « Test »
   comprise.
 
 ## 5. Cas limites

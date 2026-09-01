@@ -306,20 +306,58 @@ miroir vers le classeur tourne mais n'écrit jamais — les réussites restent e
 base, `/health` montre `reussites_en_attente` qui monte et
 `miroir_derniere_erreur` qui dit pourquoi.
 
-Le jeton vit sur le Mac (`climbcontest-core/token.pickle`, hors dépôt).
+### Depuis la console, en un clic (spec 022) — le chemin normal
 
-### Depuis la console (spec 015) — le chemin normal
+`/console` → **Classeur** → « Jeton Google » → **Connecter le compte Google**.
+Google demande le consentement, on revient sur la console, le jeton est posé.
+Pas de Mac, pas de terminal, pas de copier-coller d'un secret.
 
-Sur le Mac, convertir le jeton en JSON :
+Le serveur l'écrit dans `/opt/climbcontest/shared/secrets/token.json`, en
+`0600`, et garde le précédent en `.precedent`.
+
+#### ⚠️ Deux choses à régler UNE FOIS chez Google
+
+Dans la Google Cloud Console du projet qui porte `credentials.json` :
+
+1. **Identifiants** → le client OAuth de type « Web » → **URI de redirection
+   autorisés** → ajouter, *au caractère près* :
+
+   ```
+   https://climbcontest.adn-dev.fr/admin/classeur/google/retour
+   http://localhost:5000/admin/classeur/google/retour     ← développement
+   ```
+
+   La console **affiche** cette URI, prête à copier, sous le bouton. Si elle
+   n'est pas déclarée, Google refuse avec `redirect_uri_mismatch` **avant** de
+   revenir chez nous — rien n'est cassé, mais rien n'aboutit non plus.
+
+2. **Écran de consentement** → vérifier l'**état de publication**.
+
+   🔴 **En « Test », Google fait expirer le `refresh_token` au bout de
+   7 jours.** Un jeton posé le lundi serait mort le samedi de la compétition,
+   sans que rien ne prévienne — les réussites s'empileraient toute la journée.
+   L'application doit être **« En production »**. Même avec un seul
+   utilisateur, même non vérifiée : l'écran « application non vérifiée » se
+   franchit par « Paramètres avancés », c'est notre propre compte.
+
+Le scope demandé est `spreadsheets`, et rien de plus : le jeton n'a jamais eu
+à lister ni supprimer des fichiers du Drive.
+
+### Autre méthode — coller un jeton produit sur le Mac (spec 015)
+
+Le chemin de secours, pour le jour où le consentement ne passe pas depuis la
+salle. Replié dans un `<details>` sous le bouton.
+
+Le jeton vit sur le Mac (`climbcontest-core/token.pickle`, hors dépôt). Le
+convertir en JSON :
 
 ```bash
 python3 tools/exporter_jeton.py            # cherche token.pickle dans le dossier courant
 ```
 
-Puis coller la sortie dans `/console` → **Classeur** → « Jeton Google ». Le
-serveur l'écrit dans `/opt/climbcontest/shared/secrets/token.json`, en `0600`,
-et garde le précédent en `.precedent`. La carte du haut affiche aussitôt l'état
-du jeton et sa date d'expiration.
+Puis coller la sortie dans `/console` → **Classeur** → « Jeton Google » →
+« Autre méthode ». Le serveur l'écrit au même endroit, de la même façon, et la
+carte affiche aussitôt l'état du jeton et sa date d'expiration.
 
 ⚠️ Ce JSON est un **secret** : il ouvre le compte Google du classeur. Il ne se
 commit pas, ne se colle pas dans une conversation, et le fichier temporaire qui

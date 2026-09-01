@@ -14,7 +14,8 @@ import logging
 import os
 from urllib.parse import quote
 
-from flask import Blueprint, g, jsonify, render_template, request
+from flask import (Blueprint, Response, g, jsonify, redirect,
+                   render_template, request, session)
 
 from ..auth_session import exige_role, fermer, ouvrir, utilisateur_courant
 from .. import freinage
@@ -33,8 +34,8 @@ from .. import circuits as circuits_module
 from .. import cycle
 from .. import fiches
 from ..models import Archive
-from ..sheets import parametrage
-from ..sheets.client import ErreurClasseur
+from ..sheets import consentement, parametrage
+from ..sheets.client import ErreurClasseur, ecrire_jeton_json
 from ..sheets.importer import importer, lire_tout
 
 logger = logging.getLogger(__name__)
@@ -654,7 +655,17 @@ def classeur_etat():
     moments-la qu'on vient la consulter.
     """
     comp = Competition.query.filter_by(active=True).first()
-    return jsonify({"success": True, **parametrage.etat(comp)}), 200
+    etat = parametrage.etat(comp)
+    # Le consentement se greffe ICI et non dans `parametrage.etat` : l'URI de
+    # retour depend de la REQUETE (l'hote sur lequel on est arrive), et
+    # `parametrage` ne connait pas Flask. `pret: false` desactive le bouton et
+    # affiche pourquoi -- un bouton qui ne peut pas marcher ne doit pas etre
+    # cliquable.
+    etat["jeton"]["consentement"] = {
+        **consentement.disponible(),
+        "uri_retour": uri_de_retour(),
+    }
+    return jsonify({"success": True, **etat}), 200
 
 
 @bp.post("/classeur/test")
@@ -731,6 +742,78 @@ def classeur_relier():
                 g.utilisateur.identifiant, identifiant, effets["mode"])
     return jsonify({"success": True, "effets": effets,
                     **parametrage.etat(comp)}), 200
+
+
+# --- Le consentement Google, depuis la console (spec 022) --------------------
+#
+# Ces deux routes REDIRIGENT, elles ne rendent pas de JSON : c'est une
+# navigation de page entiere, la seule chose que Google accepte. Le resultat
+# revient a la console dans la requete (`/console?jeton=...`), jamais dans le
+# fragment -- la console le lit, l'affiche, et nettoie l'URL.
+
+def uri_de_retour() -> str:
+    """L'URI que Google doit connaitre, au caractere pres."""
+    return f"{base_publique()}/admin/classeur/google/retour"
+
+
+def _retour_console(resultat: str, detail: str = "") -> Response:
+    """Vers /console, avec un code COURT de notre cru.
+
+    Jamais le message brut de Google : on ne recopie pas dans une URL ce qu'un
+    tiers nous a envoye.
+    """
+    suite = f"&d={quote(detail, safe='')}" if detail else ""
+    return redirect(f"/console?jeton={quote(resultat, safe='')}{suite}")
+
+
+@bp.get("/classeur/google/consentement")
+@exige_role(ADMIN)
+def google_consentement():
+    """302 vers Google. Le `state` part en session, jamais dans une reponse."""
+    try:
+        url, etat = consentement.url_de_consentement(uri_de_retour())
+    except ErreurMetier as e:
+        return jsonify({"success": False, "message": e.message}), e.code
+
+    session[consentement.CLE_ETAT] = etat
+    logger.info("%s ouvre le consentement Google", g.utilisateur.identifiant)
+    return redirect(url)
+
+
+@bp.get("/classeur/google/retour")
+@exige_role(ADMIN)
+def google_retour():
+    """Le retour de Google : verifie, echange, ecrit, puis renvoie a la console.
+
+    Le `state` est RETIRE de la session des la premiere lecture : un code
+    d'autorisation ne se rejoue pas, et le `state` non plus.
+    """
+    attendu = session.pop(consentement.CLE_ETAT, None)
+
+    if request.args.get("error"):
+        # Consentement refuse : ce n'est pas une panne, c'est une reponse.
+        logger.info("consentement Google refuse par %s", g.utilisateur.identifiant)
+        return _retour_console("refuse")
+
+    try:
+        consentement.verifier_etat(attendu, request.args.get("state"))
+        contenu = consentement.echanger(request.args.get("code", ""),
+                                        uri_de_retour())
+    except ErreurMetier as e:
+        logger.warning("consentement Google non abouti : %s", e.message)
+        return _retour_console("erreur", e.message)
+
+    try:
+        ecrire_jeton_json(contenu)
+    except OSError as e:
+        logger.exception("jeton non ecrit")
+        return _retour_console("erreur", f"Ecriture impossible : {e}")
+
+    # ⚠️ Le jeton n'apparait NI dans le journal, NI dans la reponse, NI dans
+    # l'URL. Seul le fait qu'il ait ete pose est trace.
+    logger.info("%s a pose un jeton Google par consentement",
+                g.utilisateur.identifiant)
+    return _retour_console("pose")
 
 
 @bp.post("/classeur/jeton")
@@ -1010,6 +1093,22 @@ def archive_supprimer(identifiant: int):
 
 # --- Tracabilite : quel telephone a envoye quoi (spec 011) -------------------
 
+def base_publique() -> str:
+    """« https://climbcontest.adn-dev.fr » — la racine telle qu'on la tape.
+
+    Derriere Caddy, gunicorn voit du http : on force https partout sauf en
+    developpement local. Pas de ProxyFix pour si peu -- mais cette regle sert
+    maintenant a DEUX endroits (le lien de l'app juge, et l'URI de retour du
+    consentement Google), et l'URI de retour doit correspondre AU CARACTERE PRES
+    a celle declaree chez Google. Une seule regle, donc, et un seul endroit ou
+    la changer.
+    """
+    hote = request.host
+    schema = "http" if hote.split(":")[0] in (
+        "localhost", "127.0.0.1", "10.0.2.2") else "https"
+    return f"{schema}://{hote}"
+
+
 @bp.get("/lien-juge")
 @exige_role(ORGANISATEUR)
 def lien_juge():
@@ -1045,12 +1144,7 @@ def lien_juge():
                        "sur le serveur (voir docs/runbook-competition.md).",
         }), 409
 
-    # Derriere Caddy, gunicorn voit du http : on force https partout sauf en
-    # developpement local. Pas de ProxyFix pour si peu.
-    hote = request.host
-    schema = "http" if hote.split(":")[0] in (
-        "localhost", "127.0.0.1", "10.0.2.2") else "https"
-    url = f"{schema}://{hote}/juge?j={quote(cle, safe='')}"
+    url = f"{base_publique()}/juge?j={quote(cle, safe='')}"
     return jsonify({
         "success": True,
         "url": url,
