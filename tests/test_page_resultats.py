@@ -789,3 +789,100 @@ class TestLeTableauEtSesTitresSontAlignes:
         assert "LARGEUR_NOM" in page
         assert "largeur >= 520 ? 1" not in page, \
             "l'ancien seuil sur la largeur totale ne doit pas revenir"
+
+
+class TestPodiumEtColonnesSuiventLaLargeur:
+    """Le podium et les tableaux côte à côte ne dépendent plus du mode mur.
+
+    Adrien, 01/09 : « je veux toujours avoir le podium mais en plus je veux que
+    les participants du podium soient dans le tableau en dessous. Et je veux
+    toujours ton système pour afficher plusieurs tableaux en même temps côte à
+    côte **lorsque la page le permet** ».
+
+    « Lorsque la page le permet » est une condition de LARGEUR, pas de mode. Les
+    deux étaient pourtant réservés à `?mur` depuis la spec 016 : sur le portable
+    de la salle, et sur la relecture d'une archive depuis la console — la même
+    page, sans le paramètre — il n'y avait ni marche ni colonnes, juste un
+    tableau d'une colonne au milieu de 1 800 px.
+
+    C'est le même écran et la même page : ce qui doit trancher, c'est la place
+    disponible. Le téléphone, lui, ne change pas — sous `LARGEUR_PODIUM` il n'y
+    a toujours ni podium ni colonnes, et un podium y mangerait tout l'écran.
+
+    La mise en page ne se simule pas ici : ces tests verrouillent les garde-fous,
+    la vérification s'est faite au navigateur à 1920, 1280, 880 et 390 px.
+    """
+
+    def test_le_podium_ne_depend_plus_du_mode_mur(self, client, jeu):
+        page = client.get("/").data.decode()
+        assert "  #podium.visible { display: flex; }" in page
+        assert "body.mur #podium.visible" not in page
+
+    def test_le_podium_depend_de_la_largeur(self, client, jeu):
+        """`LARGEUR_PODIUM` reste le seul juge : au-dessus il s'affiche, en
+        dessous — un téléphone — jamais."""
+        page = client.get("/").data.decode()
+        assert "var podium = avecPodium && lignes.length > 3" in page
+        assert "var podium = MUR &&" not in page
+        assert "window.innerWidth >= LARGEUR_PODIUM" in page
+
+    def test_les_colonnes_ne_dependent_plus_du_mode_mur(self, client, jeu):
+        """`colonnesPour()` est appelée sans condition, et `.colonnes` porte la
+        grille hors du mur."""
+        page = client.get("/").data.decode()
+        assert "var colonnes = colonnesPour(suite.length);" in page
+        assert 'el.liste.classList.toggle("colonnes", colonnes > 1);' in page
+        assert "body.mur #liste, #liste.colonnes {" in page
+
+    def test_une_colonne_coute_plus_cher_hors_du_mur(self, client, jeu):
+        """Le gabarit hors du mur porte une colonne DE PLUS — l'étoile des
+        favoris — et se mesure en `rem`, pas en multiples de la hauteur de
+        ligne : 389 px de mobilier avant le nom. À 430 px il en resterait 41
+        pour « Nieuviarts Martin ».
+
+        Ce coût n'est pas recopié : il se DÉDUIT des deux constantes dont
+        `regler_densite()` se sert déjà. Écrit en dur, il divergerait le jour où
+        l'une des deux bouge.
+        """
+        page = client.get("/").data.decode()
+        assert "function minColonne(" in page
+        assert ("COUT_TELEPHONE[1].rem * unRem() + COUT_TELEPHONE[1].px + LARGEUR_NOM"
+                in page)
+        assert "var MIN_COLONNE_MUR = 430;" in page
+
+    def test_un_rem_se_lit_au_lieu_d_etre_suppose(self, client, jeu):
+        """Le lecteur qui grossit la police de son navigateur élargit d'autant
+        le gabarit. Les deux calculs qui s'en servent — la densité et le nombre
+        de colonnes — lisent la même valeur, au même endroit."""
+        page = client.get("/").data.decode()
+        assert "function unRem(" in page
+        assert page.count("getComputedStyle(document.documentElement).fontSize") == 1
+
+    def test_le_tableau_reprend_toujours_le_podium(self, client, jeu):
+        """Ce que la 0.13.0 a apporté ne doit pas repartir : les trois premiers
+        restent dans le tableau, sous la marche."""
+        page = client.get("/").data.decode()
+        assert "var suite = lignes;" in page
+        assert "lignes.slice(tete.length)" not in page
+
+    def test_le_classement_par_club_a_des_cles_distinctes(self, client, jeu):
+        """`participant_id` vaut **0** pour toutes les lignes du classement par
+        club — un club n'est pas un participant. Or la clé apparie une ligne à
+        son nœud d'une repeinture à l'autre : à clé partagée, les cinq clubs se
+        disputaient le même nœud, déplacé de l'un à l'autre. Le classement des
+        clubs n'affichait qu'UNE ligne, la dernière — et, depuis que le podium
+        existe hors du mur, deux marches vides à côté d'une troisième.
+        """
+        page = client.get("/").data.decode()
+        assert "function cleDe(" in page
+        assert 'l.participant_id ? String(l.participant_id) : "nom:" + l.nom' in page
+        assert "cle: String(l.participant_id)" not in page
+        assert 'cle: c.groupe + "-" + l.participant_id' not in page
+
+    def test_ni_la_recherche_ni_les_favoris_n_ont_de_podium(self, client, jeu):
+        """Ces deux vues rassemblent des lignes prises dans dix classements :
+        leurs rangs ne se comparent pas entre eux. Trois « 1er » de trois
+        catégories y feraient trois cartes d'or côte à côte, et un favori sorti
+        du classement (rang 0) une marche sans médaille."""
+        page = client.get("/").data.decode()
+        assert "peindre(lignes, !q && !surFavoris);" in page

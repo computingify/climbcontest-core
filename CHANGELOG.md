@@ -19,7 +19,36 @@ qu'on ne met pas à jour le matin d'une compétition :
 
 ## [Non publié]
 
+### Modifié
+
+- **Le podium et les tableaux côte à côte ne dépendent plus du mode mur, mais
+  de la largeur.** Adrien, 01/09 : « je veux toujours avoir le podium […] et je
+  veux toujours ton système pour afficher plusieurs tableaux en même temps côte
+  à côte **lorsque la page le permet** ». « Lorsque la page le permet » est une
+  condition de place, pas de mode — or les deux étaient réservés à `?mur`
+  depuis la spec 016. Sur le portable de la salle, et sur la relecture d'une
+  archive depuis la console (la même page, sans le paramètre), il n'y avait ni
+  marche ni colonnes : un tableau d'une seule colonne au milieu de 1 800 px,
+  1 500 px de blanc entre le nom et le score, et neuf lignes visibles là où il
+  en tient trente. C'est le même écran et la même page ; ce qui tranche est
+  désormais la largeur seule. Le téléphone ne change pas — sous 900 px, ni
+  podium ni colonnes, et un podium y mangerait tout l'écran.
+
+  Une colonne coûte plus cher hors du mur que sur le mur : le gabarit y porte
+  une colonne de plus — l'étoile des favoris — et se mesure en `rem`. Ce coût
+  n'est pas recopié, il se **déduit** des deux constantes dont le calcul de
+  densité se sert déjà (389 px de mobilier, plus 140 px pour lire un nom).
+
 ### Corrigé
+
+- **Le classement par club n'affichait qu'une ligne.** `participant_id` vaut
+  `0` pour toutes ses lignes — un club n'est pas un participant — et c'est lui
+  qui servait de clé pour apparier une ligne à son nœud d'une repeinture à
+  l'autre. Les cinq clubs se disputaient donc le même nœud, déplacé de l'un à
+  l'autre : il n'en restait qu'un à l'écran, le dernier. Le défaut est antérieur
+  et passait inaperçu ; il devient visible dès que le podium existe hors du mur,
+  sous la forme de deux marches vides à côté d'une troisième. La clé retombe sur
+  le nom quand l'identifiant manque.
 
 - **Les titres de colonnes n'étaient au-dessus de leurs colonnes nulle part.**
   Signalé par Adrien sur téléphone : « SCORE » sortait de l'écran et l'étoile
