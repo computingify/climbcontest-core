@@ -29,8 +29,6 @@ attendent la validation du cadrage et les réponses aux décisions D1→D6.
 
 | # prévu | Nom pressenti | Chantier | Bloqué par |
 | --- | --- | --- | --- |
-
-
 | 008 | `helloasso-import` | import des inscriptions en ligne, rapprochement avec les inscriptions sur place | 005 |
 | 009 | `finales` | **tours de finale.** Format tranché le 28/08 : les **N meilleurs de chaque catégorie regrimpent des blocs dédiés**, et le classement final ne tient compte **que du second tour** — le score de qualification ne se reporte pas. Reste à fixer : la valeur de N, et si elle varie selon la catégorie | 004 |
 
