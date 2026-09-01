@@ -15,7 +15,6 @@ rafraîchissement relancerait le calcul complet.
 
 from __future__ import annotations
 
-import json
 import logging
 import threading
 import time
@@ -51,11 +50,15 @@ _cache: dict[int, tuple[float, dict[str, Classement]]] = {}
 
 
 def _options(comp: Competition) -> dict:
-    try:
-        return json.loads(comp.options or "{}")
-    except ValueError:
-        logger.warning("options illisibles pour la competition %s", comp.id)
-        return {}
+    """Les options de l'édition, lues par `cycle` — une seule définition.
+
+    Import tardif : `cycle` importe ce module, et le faire en tête créerait un
+    cycle d'imports. La lecture des options a été écrite en double ici et là
+    jusqu'à la spec 020 ; deux lectures d'un même JSON finissent toujours par
+    diverger sur ce qu'elles tolèrent.
+    """
+    from .cycle import lire_options
+    return lire_options(comp)
 
 
 def couleurs_requises(comp: Competition) -> int:
@@ -225,8 +228,20 @@ def charge_publique(comp: Competition, forcer: bool = False) -> dict:
         .filter(Participant.competition_id == comp.id).count()
     )
 
+    from .cycle import groupes_masques
+
     return {
-        "competition": {"id": comp.id, "nom": comp.nom, "statut": comp.statut},
+        "competition": {
+            "id": comp.id, "nom": comp.nom, "statut": comp.statut,
+            # ⚠️ Un REGLAGE D'AFFICHAGE, pas un filtre. Tous les classements
+            # restent dans la charge, sans exception, pour trois raisons dans
+            # cet ordre : `charge_publique` est aussi ce que `cycle.archiver`
+            # fige, et une archive amputee serait irreparable ; demasquer un
+            # classement l'apres-midi ne doit rien recalculer ; et la reponse
+            # est mise en cache 5 s par Caddy pour tout le monde, donc elle ne
+            # peut pas dependre de qui regarde.
+            "groupes_masques": groupes_masques(comp),
+        },
         "calcule_le": calcule_le,
         "reussites": reussites,
         # L'AGE du calcul, vu par le serveur. Sans lui, la page ne pourrait que

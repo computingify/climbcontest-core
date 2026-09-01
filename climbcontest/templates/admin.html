@@ -744,6 +744,33 @@
       </div>
 
       <div class="carte">
+        <h2>Nom de l'édition</h2>
+        <p class="aide">Ce nom s'affiche dans le bandeau de la page de résultats
+           — c'est ce qu'on lit sur le vidéoprojecteur — et il donne son nom au
+           fichier d'archive.</p>
+        <div class="grille" style="max-width:560px">
+          <div><label for="nomCompetition">Nom</label>
+               <input id="nomCompetition" maxlength="120"
+                      placeholder="Contest Annonay novembre 2026"></div>
+          <div><label for="dateCompetition">Date</label>
+               <input id="dateCompetition" type="date"></div>
+        </div>
+        <button class="action" id="btnRenommer">Enregistrer</button>
+      </div>
+
+      <div class="carte">
+        <h2>Ce qu'affiche la page de résultats</h2>
+        <p class="aide">Décoche un classement pour le retirer de la page — de la
+           barre et de la rotation du mur, <strong>et</strong> des téléphones des
+           spectateurs. Il continue d'être calculé et archivé : c'est un réglage
+           d'affichage, rien n'est perdu.</p>
+        <p class="aide">Une catégorie créée en cours de journée — une inscription
+           à chaud — apparaît toujours par défaut.</p>
+        <div id="listeGroupes"></div>
+        <button class="action" id="btnAffichage">Enregistrer l'affichage</button>
+      </div>
+
+      <div class="carte">
         <h2>État de l'édition</h2>
         <p class="aide">Une étiquette, pas un interrupteur : elle ne commande
            ni les scans, ni le classement, ni les téléphones. Elle sert à se
@@ -1842,9 +1869,94 @@
       : "aucun classeur relié — l'import n'a rien à lire");
   }
 
+  // --- Nom de l'edition et classements affiches (spec 020) -------------------
+
+  function peindreReglagesCompetition(d) {
+    etat.competitionReglages = d;
+    $("nomCompetition").value = d.competition ? d.competition.nom : "";
+    $("dateCompetition").value = (d.competition && d.competition.date) || "";
+
+    var masques = d.groupes_masques || [];
+    var bloc = $("listeGroupes");
+    bloc.innerHTML = "";
+
+    if (!d.groupes.length) {
+      var vide = document.createElement("p");
+      vide.className = "aide";
+      vide.textContent = "Aucun classement pour l'instant — il en apparaîtra "
+                       + "dès la première réussite enregistrée.";
+      bloc.appendChild(vide);
+      return;
+    }
+
+    d.groupes.forEach(function (g) {
+      var label = document.createElement("label");
+      label.style.cssText = "display:flex;align-items:center;gap:10px;"
+                          + "padding:7px 0;cursor:pointer";
+      var case_ = document.createElement("input");
+      case_.type = "checkbox";
+      case_.value = g.nom;
+      // Cochee = AFFICHEE. On range l'inverse -- voir cycle.groupes_masques.
+      case_.checked = masques.indexOf(g.nom) === -1;
+      case_.dataset.groupe = "1";
+      label.appendChild(case_);
+
+      var texte = document.createElement("span");
+      // textContent : ces noms viennent du classeur.
+      texte.textContent = g.nom;
+      label.appendChild(texte);
+
+      var combien = document.createElement("span");
+      combien.className = "aide";
+      combien.style.marginLeft = "auto";
+      combien.textContent = g.participants
+        + (g.participants > 1 ? " grimpeurs" : " grimpeur");
+      label.appendChild(combien);
+
+      bloc.appendChild(label);
+    });
+  }
+
+  $("btnRenommer").addEventListener("click", function () {
+    var bouton = this;
+    bouton.disabled = true;
+    appeler("/admin/competition", {
+      methode: "POST",
+      corps: { nom: $("nomCompetition").value, date: $("dateCompetition").value },
+    }).then(function (d) {
+      dire("Compétition renommée « " + d.competition.nom + " ». La page de "
+           + "résultats suivra au prochain rafraîchissement.", "ok");
+      // La barre du haut dit sur QUOI on agit : elle ne doit pas rester sur
+      // l'ancien nom.
+      $("competitionBarre").textContent = d.competition.nom;
+      chargerCompetition();
+    }).catch(signaler).then(function () { bouton.disabled = false; });
+  });
+
+  $("btnAffichage").addEventListener("click", function () {
+    var masques = [];
+    Array.prototype.forEach.call(
+      $("listeGroupes").querySelectorAll("input[data-groupe]"), function (c) {
+        if (!c.checked) masques.push(c.value);
+      });
+
+    var bouton = this;
+    bouton.disabled = true;
+    appeler("/admin/competition/affichage", {
+      methode: "POST", corps: { groupes_masques: masques },
+    }).then(function (d) {
+      dire(d.groupes_masques.length
+        ? d.groupes_masques.length + " classement(s) masqué(s) : "
+          + d.groupes_masques.join(" · ") + ". La page de résultats suivra au "
+          + "prochain rafraîchissement."
+        : "Tous les classements sont affichés.", "ok");
+    }).catch(signaler).then(function () { bouton.disabled = false; });
+  });
+
   function chargerCompetition() {
     $("rapportImport").hidden = true;
     appeler("/admin/classeur").then(peindreCompetition).catch(signaler);
+    appeler("/admin/competition").then(peindreReglagesCompetition).catch(signaler);
     // Les archives AUSSI : c'est ce qui permet de dire « cette édition n'a
     // jamais été archivée » dans la fenêtre de confirmation. Sans ce
     // chargement, l'avertissement criait au loup tant qu'on n'avait pas

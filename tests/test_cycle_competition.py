@@ -738,3 +738,138 @@ class TestNomDeFichier:
         # Une seule paire de guillemets : le nom ne peut pas s'en échapper.
         assert entete.count('"') == 2
         assert attendu in entete
+
+
+# --- Nommer l'edition et regler ce qu'on affiche (spec 020) ------------------
+
+class TestNommerLEdition:
+    """Le nom part sur un ECRAN PUBLIC et dans le nom de fichier des archives.
+
+    Aucune route ne le changeait : il restait celui donné à la création, et la
+    compétition de production portait le nom de ce qui avait servi à la créer.
+    """
+
+    def test_renommer(self, admin, jeu):
+        r = admin.post("/admin/competition",
+                       json={"nom": "Contest Annonay novembre 2026"})
+        assert r.status_code == 200
+        assert jeu["competition"].nom == "Contest Annonay novembre 2026"
+
+    def test_le_nom_arrive_sur_la_page_de_resultats(self, admin, jeu):
+        admin.post("/admin/competition", json={"nom": "Open de printemps"})
+        d = admin.get("/api/public/classement").get_json()
+        assert d["competition"]["nom"] == "Open de printemps"
+
+    def test_la_date_aussi(self, admin, jeu):
+        admin.post("/admin/competition", json={"date": "2026-11-15"})
+        assert jeu["competition"].date == date(2026, 11, 15)
+
+    def test_un_nom_vide_est_refuse(self, admin, jeu):
+        avant = jeu["competition"].nom
+        r = admin.post("/admin/competition", json={"nom": "   "})
+        assert r.status_code == 400
+        assert jeu["competition"].nom == avant
+
+    def test_un_nom_trop_long_est_refuse_avant_troncature(self, admin, jeu):
+        """SQLite tronquerait en silence, et le nom coupé s'afficherait tel quel
+        sur le vidéoprojecteur sans que personne sache pourquoi."""
+        avant = jeu["competition"].nom
+        r = admin.post("/admin/competition", json={"nom": "x" * 121})
+        assert r.status_code == 400
+        assert jeu["competition"].nom == avant
+
+    def test_une_date_invalide_n_ecrit_PAS_le_nom_non_plus(self, admin, jeu):
+        """Rien n'est écrit si l'un des deux est invalide.
+
+        Un nom accepté et une date refusée dans le même appel laisserait une
+        compétition à moitié renommée, sans moyen de savoir laquelle est passée.
+        """
+        avant = jeu["competition"].nom
+        r = admin.post("/admin/competition",
+                       json={"nom": "Un nom parfaitement valide",
+                             "date": "le 15 novembre"})
+        assert r.status_code == 400
+        assert jeu["competition"].nom == avant
+
+    def test_un_organisateur_ne_renomme_pas(self, organisateur, jeu):
+        assert organisateur.post("/admin/competition",
+                                 json={"nom": "X"}).status_code == 403
+
+    def test_l_etat_se_lit_en_organisateur(self, organisateur, jeu):
+        r = organisateur.get("/admin/competition")
+        assert r.status_code == 200
+        d = r.get_json()
+        assert d["competition"]["nom"] == jeu["competition"].nom
+        assert isinstance(d["groupes"], list)
+
+
+class TestClassementsAffiches:
+    """On range ce qu'on CACHE, jamais ce qu'on montre.
+
+    Une catégorie créée en cours de journée — une inscription à chaud — doit
+    s'afficher par défaut. Avec une liste de « ce qu'on montre », elle
+    disparaîtrait en silence.
+    """
+
+    def test_masquer_un_classement(self, admin, jeu):
+        r = admin.post("/admin/competition/affichage",
+                       json={"groupes_masques": ["U11 F"]})
+        assert r.status_code == 200
+        assert cycle.groupes_masques(jeu["competition"]) == ["U11 F"]
+
+    def test_la_charge_publique_les_annonce_ET_sert_tout(self, admin, jeu):
+        """Un réglage d'AFFICHAGE, pas un filtre.
+
+        Tous les classements restent servis : c'est ce que `cycle.archiver`
+        fige, et démasquer l'après-midi ne doit rien recalculer.
+        """
+        avant = len(admin.get("/api/public/classement").get_json()["classements"])
+        admin.post("/admin/competition/affichage",
+                   json={"groupes_masques": ["U11 F"]})
+        d = admin.get("/api/public/classement").get_json()
+        assert d["competition"]["groupes_masques"] == ["U11 F"]
+        assert len(d["classements"]) == avant
+
+    def test_l_ecriture_n_ecrase_pas_les_autres_options(self, admin, jeu):
+        """`options` est un seul JSON partagé. Y écrire en remplaçant tout
+        ferait disparaître `validation_couleur` — et le classement changerait
+        sans que personne n'ait touché au classement."""
+        jeu["competition"].options = json.dumps({"validation_couleur": 3})
+        db.session.commit()
+
+        admin.post("/admin/competition/affichage",
+                   json={"groupes_masques": ["U11 F"]})
+
+        options = cycle.lire_options(jeu["competition"])
+        assert options["validation_couleur"] == 3
+        assert options["groupes_masques"] == ["U11 F"]
+
+    def test_un_groupe_inconnu_est_accepte_et_range(self, admin, jeu):
+        """Il peut réapparaître au prochain import : le silence serait pire."""
+        admin.post("/admin/competition/affichage",
+                   json={"groupes_masques": ["U19 F"]})
+        assert cycle.groupes_masques(jeu["competition"]) == ["U19 F"]
+
+    def test_tout_demasquer(self, admin, jeu):
+        admin.post("/admin/competition/affichage", json={"groupes_masques": ["U11 F"]})
+        admin.post("/admin/competition/affichage", json={"groupes_masques": []})
+        assert cycle.groupes_masques(jeu["competition"]) == []
+
+    def test_les_doublons_et_les_blancs_sont_nettoyes(self, admin, jeu):
+        admin.post("/admin/competition/affichage",
+                   json={"groupes_masques": ["U11 F", "U11 F", "  ", " U13 H "]})
+        assert cycle.groupes_masques(jeu["competition"]) == ["U11 F", "U13 H"]
+
+    def test_ce_qui_n_est_pas_une_liste_est_refuse(self, admin, jeu):
+        r = admin.post("/admin/competition/affichage",
+                       json={"groupes_masques": "U11 F"})
+        assert r.status_code == 400
+
+    def test_un_organisateur_ne_regle_pas_l_affichage(self, organisateur, jeu):
+        assert organisateur.post("/admin/competition/affichage",
+                                 json={"groupes_masques": []}).status_code == 403
+
+    def test_des_options_abimees_ne_font_pas_tomber_la_page(self, app, jeu):
+        jeu["competition"].options = "{pas du json"
+        db.session.commit()
+        assert cycle.groupes_masques(jeu["competition"]) == []

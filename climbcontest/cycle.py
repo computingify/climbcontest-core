@@ -128,6 +128,116 @@ def exiger_confirmation(confirmation: str) -> None:
             "de confirmation. Rien n'a ete touche.")
 
 
+# --- Nommer, et régler ce qu'on affiche (spec 020) ---------------------------
+
+# La colonne fait 120 caractères. On refuse AVANT d'écrire plutôt que de laisser
+# SQLite tronquer en silence -- un nom coupé au milieu s'afficherait tel quel
+# sur le vidéoprojecteur, et personne ne saurait pourquoi.
+NOM_MAX = 120
+
+
+def renommer(comp, nom=None, date_edition=None) -> dict:
+    """Le nom et la date de l'édition. Les deux valident AVANT d'écrire.
+
+    Rien n'est écrit si l'un des deux est invalide. Un nom accepté et une date
+    refusée dans le même appel laisserait une compétition à moitié renommée --
+    et l'appelant n'aurait aucun moyen de savoir laquelle des deux est passée.
+
+    Le nom part sur un ECRAN PUBLIC (le bandeau de la page de résultats) et dans
+    le nom de fichier des archives. C'est pour ça que la route est réservée aux
+    administrateurs.
+    """
+    modifs = {}
+
+    if nom is not None:
+        valeur = str(nom).strip()
+        if not valeur:
+            raise ErreurMetier(
+                "Le nom de la competition ne peut pas etre vide : il s'affiche "
+                "sur la page de resultats.")
+        if len(valeur) > NOM_MAX:
+            raise ErreurMetier(
+                f"Le nom fait {len(valeur)} caracteres, {NOM_MAX} au maximum. "
+                "Rien n'a ete modifie.")
+        modifs["nom"] = valeur
+
+    if date_edition is not None:
+        valeur = str(date_edition).strip()
+        try:
+            modifs["date"] = datetime.strptime(valeur, "%Y-%m-%d").date()
+        except ValueError:
+            raise ErreurMetier(
+                f"Date illisible « {valeur} » : attendu AAAA-MM-JJ. Rien n'a "
+                "ete modifie.") from None
+
+    # Tout est valide : on ecrit maintenant, et pas avant.
+    ancien = comp.nom
+    for champ, valeur in modifs.items():
+        setattr(comp, champ, valeur)
+    db.session.add(comp)
+    db.session.commit()
+
+    if "nom" in modifs:
+        logger.info("competition %s renommee : %r -> %r", comp.id, ancien, comp.nom)
+    return {"nom": comp.nom,
+            "date": comp.date.isoformat() if comp.date else None}
+
+
+def lire_options(comp) -> dict:
+    """Les options de l'édition. Un contenu abîmé donne un dictionnaire vide."""
+    try:
+        valeur = json.loads(comp.options or "{}")
+    except ValueError:
+        logger.warning("options illisibles pour la competition %s", comp.id)
+        return {}
+    return valeur if isinstance(valeur, dict) else {}
+
+
+def ecrire_options(comp, **champs) -> dict:
+    """Fusionne des options. **N'écrase jamais** les clés qu'on ne touche pas.
+
+    `options` est un seul texte JSON partagé par toutes les options de
+    l'édition. Y écrire `groupes_masques` en remplaçant le document entier
+    ferait disparaître `validation_couleur` -- silencieusement, et le classement
+    changerait sans que personne n'ait touché au classement.
+    """
+    fusion = {**lire_options(comp), **champs}
+    comp.options = json.dumps(fusion, ensure_ascii=False)
+    db.session.add(comp)
+    db.session.commit()
+    return fusion
+
+
+def groupes_masques(comp) -> list[str]:
+    """Les classements que la page de résultats n'affiche pas.
+
+    ⚠️ On range ce qu'on **cache**, jamais ce qu'on montre. Une catégorie qui
+    apparaît en cours de journée -- une inscription à chaud crée « U15 F » qui
+    n'existait pas le matin -- doit s'afficher par défaut. Avec une liste de
+    « ce qu'on montre », elle disparaîtrait en silence, et personne ne
+    comprendrait pourquoi.
+    """
+    valeur = lire_options(comp).get("groupes_masques")
+    if not isinstance(valeur, list):
+        return []
+    return [str(nom) for nom in valeur if isinstance(nom, str) and nom.strip()]
+
+
+def regler_affichage(comp, noms) -> list[str]:
+    """Range la liste des classements masqués.
+
+    Les noms INCONNUS sont acceptes et ranges : un groupe peut reapparaitre au
+    prochain import, et le silence serait pire que l'oubli.
+    """
+    if not isinstance(noms, list):
+        raise ErreurMetier(
+            "Une liste de noms de classements est attendue.")
+    propres = sorted({str(n).strip() for n in noms if str(n).strip()})
+    ecrire_options(comp, groupes_masques=propres)
+    logger.info("competition %s : %d classement(s) masque(s)", comp.id, len(propres))
+    return propres
+
+
 # --- Effacer ----------------------------------------------------------------
 
 def vider_la_base(comp) -> dict:

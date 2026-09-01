@@ -21,6 +21,38 @@ qu'on ne met pas à jour le matin d'une compétition :
 
 ### Ajouté
 
+- **La page de résultats se règle depuis la console** (spec 020). Quatre
+  demandes d'Adrien du 01/09, toutes sur cette page.
+
+- **On peut enfin nommer la compétition.** Le bandeau affichait déjà
+  `competition.nom` — mais **aucune route ne le changeait** : il restait celui
+  donné à la création, et la compétition de production portait le nom de ce qui
+  avait servi à la créer. La date suit, parce qu'elle a le même défaut et
+  qu'elle sort dans le nom de fichier des archives. Les deux valident **avant**
+  d'écrire : une date refusée n'enregistre pas non plus le nom, sinon la
+  compétition resterait à moitié renommée.
+
+- **Choisir les classements affichés, d'une liste de cases à cocher.** Décocher
+  une catégorie la retire de la barre et de la rotation — sur le mur **et** sur
+  les téléphones des spectateurs. Une seule vérité, rien à expliquer le jour J.
+
+  On range **ce qu'on cache**, jamais ce qu'on montre : une catégorie créée en
+  cours de journée — une inscription à chaud — doit apparaître par défaut. Avec
+  une liste de « ce qu'on montre », elle disparaîtrait en silence.
+
+  C'est un réglage d'**affichage** : tous les classements restent calculés,
+  servis et archivés. Filtrer à la source amputerait les archives, et démasquer
+  l'après-midi imposerait un recalcul. Et si **tout** est masqué, le réglage est
+  ignoré plutôt que de servir une page vide — une page vide se lit comme une
+  panne.
+
+- **Un bouton pour masquer la recherche.** Le champ est indispensable sur le
+  téléphone d'un parent et parasite sur un vidéoprojecteur. Il n'était masqué
+  qu'en mode `?mur`, qui emporte aussi la rotation automatique et le grand
+  format — or on projette souvent sans. Le choix est retenu par le navigateur,
+  ce qui compte sur une machine qui projette toute la journée. Masquer vide la
+  recherche en cours : un filtre actif sans champ visible serait indéchiffrable.
+
 - **Les circuits se voient, et le juge est prévenu** (spec 019). Trois choses,
   toutes sorties du test de bout en bout d'Adrien du 01/09.
 
@@ -57,7 +89,42 @@ qu'on ne met pas à jour le matin d'une compétition :
   rattaché à aucun circuit — l'application **se tait**. Un avertissement qu'on ne
   sait pas justifier apprend à ignorer les avertissements.
 
+
+### Modifié
+
+- **La catégorie apparaît sur les scratchs, et seulement là.** Un scratch —
+  général ou par circuit — mélange les catégories, et rien ne disait qui se
+  comparait à qui. Sur « U13 F », elle est déjà dans le titre : la répéter à
+  chaque ligne prendrait la place du club sans rien apprendre.
+
+- **Le podium et les tableaux côte à côte ne dépendent plus du mode mur, mais
+  de la largeur.** Adrien, 01/09 : « je veux toujours avoir le podium […] et je
+  veux toujours ton système pour afficher plusieurs tableaux en même temps côte
+  à côte **lorsque la page le permet** ». « Lorsque la page le permet » est une
+  condition de place, pas de mode — or les deux étaient réservés à `?mur`
+  depuis la spec 016. Sur le portable de la salle, et sur la relecture d'une
+  archive depuis la console (la même page, sans le paramètre), il n'y avait ni
+  marche ni colonnes : un tableau d'une seule colonne au milieu de 1 800 px,
+  1 500 px de blanc entre le nom et le score, et neuf lignes visibles là où il
+  en tient trente. C'est le même écran et la même page ; ce qui tranche est
+  désormais la largeur seule. Le téléphone ne change pas — sous 900 px, ni
+  podium ni colonnes, et un podium y mangerait tout l'écran.
+
+  Une colonne coûte plus cher hors du mur que sur le mur : le gabarit y porte
+  une colonne de plus — l'étoile des favoris — et se mesure en `rem`. Ce coût
+  n'est pas recopié, il se **déduit** des deux constantes dont le calcul de
+  densité se sert déjà (389 px de mobilier, plus 140 px pour lire un nom).
+
+
 ### Corrigé
+
+- **Les options de l'édition se lisaient en deux endroits.**
+  `classement_service` et `cycle` désérialisaient chacun le même JSON, avec
+  leurs propres tolérances. Une seule lecture désormais, dans `cycle` — deux
+  lectures d'un même document finissent toujours par diverger sur ce qu'elles
+  acceptent. L'écriture fusionne au lieu de remplacer : y poser
+  `groupes_masques` ne peut plus faire disparaître `validation_couleur`, ce qui
+  aurait changé le classement sans que personne n'ait touché au classement.
 
 - **L'écran du juge disait « Circuit Jaune ».** C'était faux : « Jaune » est une
   couleur de **difficulté**, le circuit c'est « U13 ». La confusion venait de ce
@@ -69,7 +136,6 @@ qu'on ne met pas à jour le matin d'une compétition :
   bien arrivé », ce qui est vrai et trompeur : il est arrivé, et il ne compte pas.
   Elle le dit maintenant, et renvoie vers la vue « Circuits ».
 
-### Corrigé
 
 - **Le quatrième circuit n'était jamais importé.** `importer.py` figeait les
   colonnes de circuit de l'onglet `Plan` à **J, L, N** — trois — parce que la
@@ -107,27 +173,6 @@ qu'on ne met pas à jour le matin d'une compétition :
   zone de message dans la vue** : un refus ne peut plus passer inaperçu, quelle
   que soit la vue et la longueur de la page.
 
-### Modifié
-
-- **Le podium et les tableaux côte à côte ne dépendent plus du mode mur, mais
-  de la largeur.** Adrien, 01/09 : « je veux toujours avoir le podium […] et je
-  veux toujours ton système pour afficher plusieurs tableaux en même temps côte
-  à côte **lorsque la page le permet** ». « Lorsque la page le permet » est une
-  condition de place, pas de mode — or les deux étaient réservés à `?mur`
-  depuis la spec 016. Sur le portable de la salle, et sur la relecture d'une
-  archive depuis la console (la même page, sans le paramètre), il n'y avait ni
-  marche ni colonnes : un tableau d'une seule colonne au milieu de 1 800 px,
-  1 500 px de blanc entre le nom et le score, et neuf lignes visibles là où il
-  en tient trente. C'est le même écran et la même page ; ce qui tranche est
-  désormais la largeur seule. Le téléphone ne change pas — sous 900 px, ni
-  podium ni colonnes, et un podium y mangerait tout l'écran.
-
-  Une colonne coûte plus cher hors du mur que sur le mur : le gabarit y porte
-  une colonne de plus — l'étoile des favoris — et se mesure en `rem`. Ce coût
-  n'est pas recopié, il se **déduit** des deux constantes dont le calcul de
-  densité se sert déjà (389 px de mobilier, plus 140 px pour lire un nom).
-
-### Corrigé
 
 - **Le classement par club n'affichait qu'une ligne.** `participant_id` vaut
   `0` pour toutes ses lignes — un club n'est pas un participant — et c'est lui

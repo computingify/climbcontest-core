@@ -886,3 +886,73 @@ class TestPodiumEtColonnesSuiventLaLargeur:
         du classement (rang 0) une marche sans médaille."""
         page = client.get("/").data.decode()
         assert "peindre(lignes, !q && !surFavoris);" in page
+
+
+class TestReglagesDeLaPage:
+    """Spec 020. Quatre demandes d'Adrien du 01/09, toutes sur cette page.
+
+    Comme le reste de ce fichier : on verifie ce qu'un test Python peut
+    verifier honnetement -- que le mecanisme est la, avec sa garde. Le rendu se
+    regarde dans un navigateur.
+    """
+
+    def test_la_categorie_n_apparait_que_sur_les_scratchs(self, client, jeu):
+        """« Sur les scratchs, tu m'affiches la categorie uniquement sur les
+        scratchs, pas lors de l'affichage des resultats des categories. »
+
+        Sur « U13 F » elle est deja dans le titre ; la repeter prendrait la
+        place du club sans rien apprendre.
+        """
+        page = client.get("/").data.decode()
+        assert 'groupe.type === "scratch" || groupe.type === "circuit"' in page
+        assert "avecCategorie ? (l.categorie || null) : null" in page
+
+    def test_l_api_envoie_bien_la_categorie_par_ligne(self, client, jeu):
+        """Le mecanisme ci-dessus ne sert a rien si la donnee n'arrive pas."""
+        d = client.get("/api/public/classement").get_json()
+        lignes = [l for c in d["classements"] for l in c["lignes"]
+                  if l.get("participant_id")]
+        assert lignes and all("categorie" in l for l in lignes)
+
+    def test_la_recherche_se_masque_et_le_choix_est_retenu(self, client, jeu):
+        page = client.get("/").data.decode()
+        assert 'id="masquerRecherche"' in page
+        assert "body.sans-recherche #recherche { display: none; }" in page
+        assert "climbcontest.affichage" in page
+
+    def test_le_bouton_de_masquage_existe_HORS_du_mode_mur(self, client, jeu):
+        """`.commande` est masquee par defaut et ne s'affiche qu'en mode mur --
+        c'est la regle de #pause. Ce bouton-la sert justement quand on projette
+        SANS `?mur`, sur le portable branche au videoprojecteur.
+        """
+        page = client.get("/").data.decode()
+        assert ".commande.hors-mur { display: block; }" in page
+        assert "body.mur .commande.hors-mur { display: none; }" in page
+
+    def test_masquer_vide_la_recherche_en_cours(self, client, jeu):
+        """Masquer un filtre encore actif laisserait une liste filtree sans
+        rien pour expliquer pourquoi."""
+        page = client.get("/").data.decode()
+        assert "if (masquee && el.recherche.value)" in page
+        assert "(MUR || etat.sansRecherche)" in page
+
+    def test_la_page_filtre_les_classements_masques(self, client, jeu):
+        page = client.get("/").data.decode()
+        assert "etat.groupesMasques" in page
+        assert "masques.indexOf(c.groupe) === -1" in page
+
+    def test_tout_masquer_n_affiche_pas_une_page_vide(self, client, jeu):
+        """Une page vide se lit comme une panne, et personne n'ira chercher le
+        reglage en pleine competition."""
+        page = client.get("/").data.decode()
+        assert "return restants.length ? restants : tous;" in page
+
+    def test_le_filtre_ne_s_applique_pas_a_une_archive(self, client, jeu):
+        """Une archive fige ce qu'elle fige : on la revoit en entier."""
+        page = client.get("/").data.decode()
+        assert "Array.isArray(etat.competition.groupes_masques)" in page
+
+    def test_le_bandeau_affiche_le_nom_de_la_competition(self, client, jeu):
+        page = client.get("/").data.decode()
+        assert 'id="competition"' in page
+        assert "etat.competition.nom" in page
