@@ -288,7 +288,7 @@ class TestFaitePourEtreProjetee:
         score sortait de sa colonne."""
         page = client.get("/").data.decode()
         assert "body.mur main.d1" in page
-        assert "calc(var(--h) * 1.6)" in page
+        assert "--grille-ligne: calc(var(--h)" in page
 
     def test_le_temps_d_affichage_decoule_du_defilement(self, client, jeu):
         """Adrien, 01/09 : « calcule le temps nécessaire pour faire une descente
@@ -305,6 +305,22 @@ class TestFaitePourEtreProjetee:
         chaque fois, elle repartait du haut et ne remontait jamais."""
         page = client.get("/").data.decode()
         assert "signatureDefilement" in page
+
+    def test_les_titres_de_colonnes_ne_peuvent_pas_se_chevaucher(self, client, jeu):
+        """Ils grandissaient avec la hauteur de ligne — qui monte quand la
+        catégorie est petite — pendant que les colonnes se resserraient avec la
+        fenêtre. Vu par Adrien sur une catégorie à un grimpeur : « GRIMPEUR » et
+        « BLOCS » l'un sur l'autre."""
+        page = client.get("/").data.decode()
+        assert "clamp(0.6rem, calc(var(--h, 64px) * .2), 1.05rem)" in page
+        assert ".entete span { overflow: hidden;" in page
+
+    def test_la_densite_se_mesure_en_hauteurs_de_ligne(self, client, jeu):
+        """Sur le mur tout est proportionnel à la hauteur de ligne : la place
+        laissée au nom doit se mesurer dans cette unité, pas en pixels."""
+        page = client.get("/").data.decode()
+        assert "COUT_CHIFFRES" in page
+        assert "pourLeNom" in page
 
     def test_la_rotation_peut_etre_mise_en_pause(self, client, jeu):
         page = client.get("/").data.decode()

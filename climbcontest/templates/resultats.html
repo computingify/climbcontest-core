@@ -293,11 +293,11 @@
      c'est le même qui faisait que le tableau ne suivait pas un
      redimensionnement : la grille ne bougeait pas avec le texte. */
   body.mur main.d1, body.mur main.d2, body.mur main.d3 {
-    --grille-ligne: calc(var(--h) * .95) minmax(0, 1fr) calc(var(--h) * .75)
-                    calc(var(--h) * 1.3) calc(var(--h) * 1.6);
+    --grille-ligne: calc(var(--h) * .85) minmax(0, 1fr) calc(var(--h) * .62)
+                    calc(var(--h) * 1.1) calc(var(--h) * 1.4);
   }
   body.mur main.d4 {
-    --grille-ligne: calc(var(--h) * .85) minmax(0, 1fr) calc(var(--h) * 1.6);
+    --grille-ligne: calc(var(--h) * .8) minmax(0, 1fr) calc(var(--h) * 1.4);
   }
 
   /* Un TABLEAU, pas une pile de cartes. C'est ce que font les services de
@@ -313,7 +313,14 @@
     font-size: 0.68rem; letter-spacing: 0.1em; text-transform: uppercase;
     font-weight: 700; color: var(--encre3, var(--encre2));
   }
-  body.mur .entete { font-size: calc(var(--h, 64px) * .21); padding-bottom: 8px; }
+  /* ⚠️ Plafonnée, et jamais débordante. Les titres grandissaient avec la
+     hauteur de ligne — qui monte quand la catégorie est petite — pendant que
+     les colonnes se resserraient avec la fenêtre : « GRIMPEUR » et « BLOCS »
+     finissaient l'un sur l'autre. Vu par Adrien sur une catégorie à un seul
+     grimpeur, dans une fenêtre étroite. */
+  body.mur .entete { font-size: clamp(0.6rem, calc(var(--h, 64px) * .2), 1.05rem);
+                     padding-bottom: 8px; }
+  .entete span { overflow: hidden; white-space: nowrap; text-overflow: clip; }
   .entete span:nth-child(1), .entete span:nth-child(3),
   .entete span:nth-child(4), .entete span:nth-child(5) { text-align: right; }
   .entete span:nth-child(1) { text-align: left; }
@@ -1136,13 +1143,13 @@
     if (MUR) {
       colonnes = colonnesPour(suite.length);
       el.liste.style.setProperty("--colonnes", colonnes);
-      regler_densite(colonnes);
-    } else {
-      regler_densite(1);
     }
 
     var enfants = suite.length ? agencer(suite, colonnes) : [];
+    // La hauteur de ligne d'abord, la densité ensuite : sur le mur, la seconde
+    // se mesure en multiples de la première.
     if (MUR) ajuster(Math.ceil(suite.length / colonnes), 1, false);
+    regler_densite(colonnes);
     poserEntetes(suite.length ? (MUR ? colonnes : 1) : 0);
 
     enfants.forEach(function (item, index) {
@@ -1192,9 +1199,27 @@
    * en « Les Lezards Vagab… », on l'enlève. Le nom et le score ne partent
    * jamais : ce sont les deux seules choses qu'on vient lire.
    */
+  // Ce que coûtent les quatre colonnes chiffrées, en multiples de la hauteur de
+  // ligne : rang .85 + blocs .62 + écart 1.1 + score 1.4.
+  var COUT_CHIFFRES = 3.97;
+
   function regler_densite(colonnes) {
-    var largeur = (el.liste.clientWidth - (colonnes - 1) * 18) / colonnes;
-    etat.densite = largeur >= 520 ? 1 : largeur >= 470 ? 2 : largeur >= 430 ? 3 : 4;
+    var largeur = (el.liste.clientWidth - (colonnes - 1) * 26) / colonnes;
+    if (!MUR) {
+      etat.densite = largeur >= 520 ? 1 : largeur >= 470 ? 2 : largeur >= 430 ? 3 : 4;
+    } else {
+      // Sur le mur, tout est proportionnel à la hauteur de ligne : la place qui
+      // reste au nom se mesure donc DANS CETTE UNITÉ, pas en pixels. Une
+      // catégorie d'un seul grimpeur a des lignes de 124 px, où les colonnes
+      // chiffrées coûtent près de 500 px — ce qu'une fenêtre étroite ne peut
+      // pas payer.
+      var h = parseFloat(getComputedStyle(el.principal).getPropertyValue("--h")) || 48;
+      var pourLeNom = (largeur - h * COUT_CHIFFRES) / h;
+      // Un nom de seize lettres écrit en 0,38 h occupe environ 3 h. En dessous
+      // de 1,8 h de colonne, il n'en reste plus assez pour lire un nom : on
+      // replie le tableau en deux lignes plutôt que de tout tronquer.
+      etat.densite = pourLeNom >= 2.2 ? 1 : pourLeNom >= 2 ? 2 : pourLeNom >= 1.8 ? 3 : 4;
+    }
     for (var n = 1; n <= 4; n++) el.principal.classList.toggle("d" + n, n === etat.densite);
   }
 
