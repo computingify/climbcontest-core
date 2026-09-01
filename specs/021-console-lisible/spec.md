@@ -181,6 +181,41 @@ compétition, pas « en général ».
 Le texte d'aide suit : « **Éteins** un classement pour le retirer » — « décoche »
 ne veut plus rien dire quand il n'y a plus de case.
 
+### F7 — Deux écrans d'administration, sans redites
+
+*Demandé par Adrien pendant l'implémentation.*
+
+**« Compétition » devient « Général »** — même icône, le trophée — et ne garde
+que ce qui décrit l'édition :
+
+| Général | Classeur |
+| --- | --- |
+| **L'édition** : nom, date, état, ce qu'il y a en base | **La feuille** : classeur relié, jeton, réussites en attente |
+| Ce qu'affiche la page de résultats | Relier un autre classeur |
+| Archiver l'édition | **Importer le classeur** *(venu de Compétition)* |
+| | Jeton Google |
+| | **Effacer les données du serveur** *(venu de Compétition)* |
+
+« Importer » et « Effacer » ne parlent que de la relation entre la feuille et la
+base : ils rejoignent la feuille. « Ce qu'affiche la page de résultats » reste
+côté Général — c'est un réglage d'affichage public, il n'a rien à voir avec le
+classeur (choix tranché avec Adrien).
+
+**Trois redites disparaissent** :
+
+- « Nom de l'édition » et « État de l'édition » étaient **deux cartes pour une
+  seule question**. Elles fusionnent en **« L'édition »** ;
+- le `dl` d'état de Général répétait le **nom** (dans le champ juste au-dessus)
+  et le **classeur relié** (qui a sa propre vue). Il ne garde que « En base » ;
+- « Inscrits » (Classeur) et « En base » (Général) donnaient **les mêmes
+  chiffres**. Un seul endroit désormais ; le dossard le plus haut reparaît là où
+  il sert vraiment — le rapport de « Tester l'accès », qui le compare à la
+  largeur de la grille.
+
+**L'ordre du tiroir** suit : Participants, **Circuits, Réussites** (on regarde
+les blocs pour savoir ce qui existe, puis ce qui a été validé dessus),
+Téléphones, **Général**, Classeur, Archives, Réglages.
+
 ## 3. Périmètre
 
 **Inclus** : `admin.html` uniquement (structure, style, script), et les deux
@@ -231,6 +266,12 @@ et 36 vérifications pilotées dans un vrai Chrome.
 - [x] **A15** — Les classements affichés sont des interrupteurs, pilotables à la
   souris **et** au clavier, annoncés `switch`, et l'état survit à un
   enregistrement suivi d'un rechargement.
+- [x] **A16** — Le tiroir annonce Participants · Circuits · Réussites ·
+  Téléphones · Général · Classeur · Archives · Réglages.
+- [x] **A17** — « Général » porte l'édition, l'affichage et l'archive ;
+  « Classeur » porte la feuille, l'import et l'effacement.
+- [x] **A18** — Aucun chiffre ni aucun nom n'apparaît deux fois entre les deux
+  écrans.
 
 ## 5. Cas limites
 

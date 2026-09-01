@@ -338,6 +338,11 @@
   /* Le lien vers le classeur porte l'allure d'un bouton : c'est une ACTION,
      au meme titre que « Tester » ou « Importer ». */
   a.secondaire { display: inline-block; text-decoration: none; }
+  /* ⚠️ `display: inline-block` bat le `[hidden] { display: none }` du
+     navigateur -- question de specificite, pas d'ordre. Sans cette ligne,
+     « Ouvrir le classeur » restait affiche alors qu'AUCUN classeur n'est relie,
+     et proposait d'ouvrir un lien vide. Vu a l'ecran en reorganisant les vues. */
+  a.secondaire[hidden] { display: none; }
   button.secondaire:hover, a.secondaire:hover { background: var(--surface3); }
   button.discret {
     cursor: pointer; font: inherit; font-size: 0.82rem;
@@ -555,14 +560,14 @@
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
         <span class="quoi"><b>Participants</b><i>Inscrire, chercher, imprimer</i></span>
       </button>
-      <button data-vue="reussites">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><path d="m9 11 3 3L22 4"/></svg>
-        <span class="quoi"><b>Réussites</b><i>Saisir, retrouver un scan</i></span>
-      </button>
-
       <button data-vue="circuits">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2 4 7v10l8 5 8-5V7Z"/><path d="M12 22V12"/><path d="m20 7-8 5-8-5"/></svg>
         <span class="quoi"><b>Circuits</b><i>Les blocs, et ce qui cloche</i></span>
+      </button>
+
+      <button data-vue="reussites">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><path d="m9 11 3 3L22 4"/></svg>
+        <span class="quoi"><b>Réussites</b><i>Saisir, retrouver un scan</i></span>
       </button>
 
       <div class="groupe">Les juges</div>
@@ -572,13 +577,13 @@
       </button>
 
       <div class="groupe">Administration</div>
+      <button data-vue="general" id="navGeneral" hidden>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M8 21h8"/><path d="M12 17v4"/><path d="M17 4h3a1 1 0 0 1 1 1v2a4 4 0 0 1-4 4"/><path d="M7 4H4a1 1 0 0 0-1 1v2a4 4 0 0 0 4 4"/><path d="M7 3h10v7a5 5 0 0 1-10 0Z"/></svg>
+        <span class="quoi"><b>Général</b><i>L'édition, l'affichage, l'archive</i></span>
+      </button>
       <button data-vue="classeur" id="navClasseur" hidden>
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18"/><path d="M9 21V9"/></svg>
-        <span class="quoi"><b>Classeur</b><i>La feuille Google et son jeton</i></span>
-      </button>
-      <button data-vue="competition" id="navCompetition" hidden>
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M8 21h8"/><path d="M12 17v4"/><path d="M17 4h3a1 1 0 0 1 1 1v2a4 4 0 0 1-4 4"/><path d="M7 4H4a1 1 0 0 0-1 1v2a4 4 0 0 0 4 4"/><path d="M7 3h10v7a5 5 0 0 1-10 0Z"/></svg>
-        <span class="quoi"><b>Compétition</b><i>Importer, archiver, effacer</i></span>
+        <span class="quoi"><b>Classeur</b><i>La feuille, l'import, l'effacement</i></span>
       </button>
       <button data-vue="archives" id="navArchives">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="5" rx="1"/><path d="M4 9v10a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1V9"/><path d="M10 13h4"/></svg>
@@ -782,12 +787,6 @@
              hidden>Ouvrir le classeur ↗</a>
           <button class="secondaire" id="btnTesterClasseur">Tester l'accès</button>
         </div>
-        <p class="aide" style="margin:14px 0 0">Les deux actions de cette carte
-           ne font que <strong>lire</strong>. Pour relire les onglets
-           <strong>Listes</strong> et <strong>Plan</strong> et mettre la base à
-           jour — les grimpeurs, les blocs, les circuits — c'est
-           <strong>Compétition → Importer le classeur</strong> : le mode s'y
-           choisit, et le rapport s'y affiche.</p>
         <div id="rapportClasseur" hidden></div>
       </div>
 
@@ -838,6 +837,36 @@
       </div>
 
       <div class="carte">
+        <h2>Importer le classeur</h2>
+        <p class="aide">Relit les onglets <strong>Listes</strong> et
+           <strong>Plan</strong> : les grimpeurs, les blocs, les circuits — et
+           donc le contenu des QR codes, qui en découle. Le classeur n'est
+           jamais modifié, seulement lu.</p>
+
+        <fieldset class="choix">
+          <legend>Et les données déjà en base ?</legend>
+          <label>
+            <input type="radio" name="modeImport" value="mise_a_jour" checked>
+            <span class="quoi"><b>Mise à jour</b>
+              <i>Ajoute ce qui manque et corrige ce qui a changé dans le
+                 classeur. N'efface rien. Les participants ajoutés à la main ne
+                 sont jamais écrasés.</i></span>
+          </label>
+          <label class="danger">
+            <input type="radio" name="modeImport" value="remplacer">
+            <span class="quoi"><b>Remplacement complet</b>
+              <i>Efface participants, blocs, circuits et
+                 <strong>réussites</strong> du serveur, puis importe. Pour
+                 brancher une nouvelle édition sur une base qui porte encore la
+                 précédente.</i></span>
+          </label>
+        </fieldset>
+
+        <button class="action" id="btnImporter">Importer</button>
+        <div id="rapportImport" hidden></div>
+      </div>
+
+      <div class="carte">
         <h2>Jeton Google</h2>
         <p class="aide">Sans jeton, le serveur n'a aucune identité pour écrire :
            les réussites s'empilent en attente et n'arrivent jamais. Produis-le
@@ -853,6 +882,26 @@
            où celui-ci serait le mauvais.</p>
         <button class="action" id="btnPoserJeton">Poser le jeton</button>
       </div>
+      <div class="carte danger">
+        <h2>Effacer les données du serveur</h2>
+        <p class="aide">Pour repartir de zéro sur une nouvelle édition.</p>
+        <dl class="etat">
+          <dt>Effacé</dt>
+          <dd>Participants, blocs, circuits, réussites et réaffectations de
+              dossard de la compétition active</dd>
+          <dt>Conservé</dt>
+          <dd>Les autres compétitions, les comptes de la console,
+              <strong>les archives</strong>, et <strong>le classeur Google —
+              pas une cellule n'est touchée</strong></dd>
+        </dl>
+        <p class="aide">Le classeur reste relié : on efface le plus souvent
+           pour réimporter proprement la même feuille.</p>
+        <button class="secondaire" id="btnEffacer"
+                style="border-color:var(--alerte);color:var(--alerte)">Effacer les données…</button>
+      </div>
+    </section>
+
+    <!-- ================= Archives (spec 018) ================= -->
     </section>
 
     <!-- ================= Circuits (spec 019) ================= -->
@@ -903,17 +952,18 @@
     </section>
 
     <!-- ================= Compétition (spec 018) ================= -->
-    <section class="vue" id="vueCompetition" hidden>
+    <!-- ================= Général (specs 018, 020, 021) ================= -->
+    <section class="vue" id="vueGeneral" hidden>
       <div class="titre-vue">
-        <h1>Compétition</h1>
-        <p>Le cycle d'une édition : on importe le classeur, on grimpe, on
-           archive, on efface, et on recommence. Les quatre gestes sont ici,
-           dans cet ordre.</p>
+        <h1>Général</h1>
+        <p>L'édition en cours : comment elle s'appelle, où elle en est, ce
+           qu'on en montre au public, et comment on la fige quand elle est
+           finie.</p>
       </div>
 
       <div class="carte">
-        <h2>Nom de l'édition</h2>
-        <p class="aide">Ce nom s'affiche dans le bandeau de la page de résultats
+        <h2>L'édition</h2>
+        <p class="aide">Le nom s'affiche dans le bandeau de la page de résultats
            — c'est ce qu'on lit sur le vidéoprojecteur — et il donne son nom au
            fichier d'archive.</p>
         <div class="grille" style="max-width:560px">
@@ -924,6 +974,17 @@
                <input id="dateCompetition" type="date"></div>
         </div>
         <button class="action" id="btnRenommer">Enregistrer</button>
+
+        <fieldset class="rangee" id="rangeeStatut" style="margin-top:22px">
+          <legend>Où en est-elle&nbsp;? Une étiquette, pas un interrupteur :
+             elle ne commande ni les scans, ni le classement, ni les téléphones.
+             C'est elle qui fait demander confirmation deux fois avant
+             d'effacer une compétition en cours.</legend>
+          <label><input type="radio" name="statutCompetition" value="preparation"> En préparation</label>
+          <label><input type="radio" name="statutCompetition" value="en_cours"> En cours</label>
+          <label><input type="radio" name="statutCompetition" value="terminee"> Terminée</label>
+        </fieldset>
+        <dl class="etat" id="etatCompetition" style="margin-top:18px"></dl>
       </div>
 
       <div class="carte">
@@ -939,51 +1000,6 @@
       </div>
 
       <div class="carte">
-        <h2>État de l'édition</h2>
-        <p class="aide">Une étiquette, pas un interrupteur : elle ne commande
-           ni les scans, ni le classement, ni les téléphones. Elle sert à se
-           dire où on en est — et c'est elle qui fait demander confirmation
-           deux fois avant d'effacer une compétition en cours.</p>
-        <fieldset class="rangee" id="rangeeStatut">
-          <legend>Cette compétition est</legend>
-          <label><input type="radio" name="statutCompetition" value="preparation"> En préparation</label>
-          <label><input type="radio" name="statutCompetition" value="en_cours"> En cours</label>
-          <label><input type="radio" name="statutCompetition" value="terminee"> Terminée</label>
-        </fieldset>
-        <dl class="etat" id="etatCompetition"></dl>
-      </div>
-
-      <div class="carte">
-        <h2>Importer le classeur</h2>
-        <p class="aide">Relit les onglets <strong>Listes</strong> et
-           <strong>Plan</strong> : les grimpeurs, les blocs, les circuits — et
-           donc le contenu des QR codes, qui en découle. Le classeur n'est
-           jamais modifié, seulement lu.</p>
-
-        <fieldset class="choix">
-          <legend>Et les données déjà en base ?</legend>
-          <label>
-            <input type="radio" name="modeImport" value="mise_a_jour" checked>
-            <span class="quoi"><b>Mise à jour</b>
-              <i>Ajoute ce qui manque et corrige ce qui a changé dans le
-                 classeur. N'efface rien. Les participants ajoutés à la main ne
-                 sont jamais écrasés.</i></span>
-          </label>
-          <label class="danger">
-            <input type="radio" name="modeImport" value="remplacer">
-            <span class="quoi"><b>Remplacement complet</b>
-              <i>Efface participants, blocs, circuits et
-                 <strong>réussites</strong> du serveur, puis importe. Pour
-                 brancher une nouvelle édition sur une base qui porte encore la
-                 précédente.</i></span>
-          </label>
-        </fieldset>
-
-        <button class="action" id="btnImporter">Importer</button>
-        <div id="rapportImport" hidden></div>
-      </div>
-
-      <div class="carte">
         <h2>Archiver l'édition</h2>
         <p class="aide">Fige le classement complet et passe la compétition en
            <strong>terminée</strong>. <strong>Rien n'est effacé</strong> :
@@ -995,27 +1011,8 @@
            l'édition.</p>
         <button class="action" id="btnArchiver">Archiver la compétition</button>
       </div>
-
-      <div class="carte danger">
-        <h2>Effacer les données du serveur</h2>
-        <p class="aide">Pour repartir de zéro sur une nouvelle édition.</p>
-        <dl class="etat">
-          <dt>Effacé</dt>
-          <dd>Participants, blocs, circuits, réussites et réaffectations de
-              dossard de la compétition active</dd>
-          <dt>Conservé</dt>
-          <dd>Les autres compétitions, les comptes de la console,
-              <strong>les archives</strong>, et <strong>le classeur Google —
-              pas une cellule n'est touchée</strong></dd>
-        </dl>
-        <p class="aide">Le classeur reste relié : on efface le plus souvent
-           pour réimporter proprement la même feuille.</p>
-        <button class="secondaire" id="btnEffacer"
-                style="border-color:var(--alerte);color:var(--alerte)">Effacer les données…</button>
-      </div>
     </section>
 
-    <!-- ================= Archives (spec 018) ================= -->
     <section class="vue" id="vueArchives" hidden>
       <div class="titre-vue">
         <h1>Archives</h1>
@@ -1227,10 +1224,10 @@
     // administrateur, le serveur repond 403 aux autres. Masquer l'entree evite
     // d'offrir un ecran qui ne repondrait que des refus.
     $("navClasseur").hidden = etat.moi.roles.indexOf("admin") === -1;
-    // « Competition » porte l'archivage et l'effacement : administrateurs.
+    // « General » porte le renommage et l'archivage : administrateurs.
     // « Archives » ne fait que consulter : tout le monde y a droit, et c'est
     // volontaire -- revoir l'edition de l'an dernier n'est pas un privilege.
-    $("navCompetition").hidden = etat.moi.roles.indexOf("admin") === -1;
+    $("navGeneral").hidden = etat.moi.roles.indexOf("admin") === -1;
     chargerReferentiels();
     // Sur QUOI on agit. Sans ca, rien a l'ecran ne distingue la competition
     // de novembre d'une competition de test restee active.
@@ -1262,11 +1259,11 @@
 
   var VUES = {
     participants: { titre: "Participants",         charge: chargerParticipants },
-    reussites:    { titre: "Réussites",            charge: null },
     circuits:     { titre: "Circuits",             charge: chargerCircuits },
+    reussites:    { titre: "Réussites",            charge: null },
     telephones:   { titre: "Téléphones des juges", charge: chargerAppareils },
+    general:      { titre: "Général",              charge: chargerGeneral },
     classeur:     { titre: "Classeur",             charge: chargerClasseur },
-    competition:  { titre: "Compétition",          charge: chargerCompetition },
     archives:     { titre: "Archives",             charge: chargerArchives },
     reglages:     { titre: "Réglages",             charge: chargerComptesSiAdmin }
   };
@@ -2135,13 +2132,13 @@
       return;
     }
 
-    ligneEtat(dl, "Compétition", d.competition.nom);
+    // ⚠️ Ni le NOM ni le CLASSEUR ici (spec 021, F7). Le nom est dans le champ
+    // juste au-dessus -- le repeter deux centimetres plus bas n'apprend rien ;
+    // et la feuille reliee a sa propre vue, qui en dit bien plus. Ce qui reste
+    // est le seul chiffre que cet ecran doit donner : ce qu'il y a en base.
     var c = d.compteurs;
     ligneEtat(dl, "En base", c.participants + " participant(s), " + c.blocs
                              + " bloc(s), " + c.reussites + " réussite(s)");
-    ligneEtat(dl, "Classeur", d.classeur.relie
-      ? lienVers(d.classeur.url, d.classeur.identifiant)
-      : "aucun classeur relié — l'import n'a rien à lire");
   }
 
   // --- Nom de l'edition et classements affiches (spec 020) -------------------
@@ -2238,9 +2235,26 @@
     }).catch(signaler).then(function () { bouton.disabled = false; });
   });
 
+  // Les deux vues d'administration lisent la MEME route (`/admin/classeur`) :
+  // elle porte l'edition, les compteurs et l'etat de la feuille. Chacune n'en
+  // affiche que ce qui la regarde -- c'est ce qui a permis de supprimer les
+  // lignes qui se repetaient d'un ecran a l'autre (spec 021, F7).
+  function chargerGeneral() {
+    appeler("/admin/classeur").then(peindreCompetition).catch(signaler);
+    appeler("/admin/competition").then(peindreReglagesCompetition).catch(signaler);
+    // Les archives AUSSI : c'est ce qui permet de dire « cette édition n'a
+    // jamais été archivée » dans la fenêtre de confirmation.
+    if (!etat.archives) chargerArchives();
+  }
+
+  /** Apres un import, un effacement ou un changement de statut : les DEUX
+   *  ecrans d'administration ont vieilli, pas seulement celui ou l'on est. */
   function chargerCompetition() {
     $("rapportImport").hidden = true;
-    appeler("/admin/classeur").then(peindreCompetition).catch(signaler);
+    appeler("/admin/classeur").then(function (d) {
+      peindreCompetition(d);
+      peindreClasseur(d);
+    }).catch(signaler);
     appeler("/admin/competition").then(peindreReglagesCompetition).catch(signaler);
     // Les archives AUSSI : c'est ce qui permet de dire « cette édition n'a
     // jamais été archivée » dans la fenêtre de confirmation. Sans ce
@@ -2496,7 +2510,9 @@
       ligneEtat(dl, "Compétition", "aucune compétition active", "manque");
       return;
     }
-    ligneEtat(dl, "Compétition", d.competition.nom + " (" + d.competition.statut + ")");
+    // ⚠️ Pas de ligne « Compétition » quand il y en a une (spec 021, F7) : son
+    // nom et son statut sont l'affaire de « Général », qui les montre ET les
+    // laisse changer. Ici on ne parle que de la feuille.
 
     if (d.classeur.relie) {
       ligneEtat(dl, "Classeur", lienVers(d.classeur.url, d.classeur.identifiant));
@@ -2520,14 +2536,21 @@
     ligneEtat(dl, "Réussites", c.reussites + " au total, " + c.reussites_en_attente
                                + " en attente d'envoi",
               c.reussites_en_attente > 0 ? "" : "bon");
-    ligneEtat(dl, "Inscrits", c.participants + " participant(s), " + c.blocs
-                              + " bloc(s), dossard le plus haut : "
-                              + (c.dossard_max === null ? "aucun" : c.dossard_max));
+    // « Inscrits » vivait ici ET dans « Général » sous le nom « En base », avec
+    // les memes chiffres. Un seul endroit desormais. Le dossard le plus haut,
+    // lui, reapparait la ou il sert vraiment : le rapport de « Tester l'accès »,
+    // qui le compare a la largeur de la grille.
   }
 
   function chargerClasseur() {
     $("rapportClasseur").hidden = true;
+    $("rapportImport").hidden = true;
     appeler("/admin/classeur").then(peindreClasseur).catch(signaler);
+    // Les archives : c'est ce qui permet de dire « cette édition n'a jamais été
+    // archivée » dans la fenêtre de confirmation d'« Effacer », qui vit
+    // maintenant sur cet écran. Sans ce chargement, l'avertissement criait au
+    // loup tant qu'on n'avait pas visité la vue « Archives ».
+    if (!etat.archives) chargerArchives();
   }
 
   function peindreRapport(rapport) {

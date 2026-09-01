@@ -9,6 +9,12 @@
      numero : le seul papier qu'un grimpeur a en main de la journee doit lui
      dire QUELS blocs comptent pour lui, et OU ils sont.
 
+     ⚠️ QUATRE FICHES PAR FEUILLE, et c'est la taille du classeur.
+     Elle se deduit de `Listes!C29:C34`, qui compte les feuilles a imprimer par
+     categorie : « 5 » pour 17 grimpeurs, « 6 » pour 21, « 7 » pour 28, « 3 »
+     pour 11 -- soit ceil(n / 4) a chaque fois. Une premiere version imprimait
+     deux fiches par A4 ; Adrien, en la voyant : « bien trop gros ».
+
      Tout est en MILLIMETRES : ce qui compte est la taille physique sur le
      papier, pas des pixels dont l'imprimante fera ce qu'elle veut.
 
@@ -28,66 +34,62 @@
   .entete h1 { margin: 0; font-size: 5mm; font-weight: 700; }
   .entete p { margin: 1mm 0 0; font-size: 3.4mm; color: #444; }
 
-  /* 142,5 mm = (297 - 2 x 6) / 2 : la moitie EXACTE de la hauteur utile d'un
-     A4 a 6 mm de marge. Deux fiches par page, et le trait de coupe tombe au
-     milieu. */
+  /* Deux colonnes de 99 mm, des lignes de 142,5 mm : le quart exact de la
+     surface utile d'un A4 a 6 mm de marge. On coupe en croix. */
+  .planche { display: grid; grid-template-columns: 1fr 1fr; }
   .fiche {
-    height: 142.5mm; padding: 4mm 2mm; display: flex; flex-direction: column;
+    height: 142.5mm; padding: 3.5mm 4mm; display: flex; flex-direction: column;
     /* Une fiche coupee en deux par un saut de page donnerait un demi-QR. */
     break-inside: avoid; page-break-inside: avoid;
-    /* Le trait de coupe. En pointille : on decoupe dessus, il ne doit pas
-       ressembler a un cadre imprime a garder. */
-    border-bottom: 0.3mm dashed #999;
+    /* Les traits de coupe. En pointille : on decoupe dessus, ce n'est pas un
+       cadre imprime a garder. */
+    border-right: 0.3mm dashed #aaa; border-bottom: 0.3mm dashed #aaa;
   }
+  .fiche:nth-child(2n) { border-right: 0; }
 
   /* --- L'identite, en haut ------------------------------------------------ */
   .fiche header {
-    display: flex; align-items: flex-start; gap: 5mm;
-    padding-bottom: 3mm; border-bottom: 0.4mm solid #111;
+    display: flex; align-items: flex-start; gap: 3mm;
+    padding-bottom: 2.5mm; border-bottom: 0.4mm solid #111;
   }
+  .qui { flex: 1; min-width: 0; }
+  .ligne-nom { display: flex; align-items: baseline; gap: 2.5mm; }
   .numero {
-    font-size: 15mm; line-height: 1; font-weight: 800;
+    font-size: 9mm; line-height: 1; font-weight: 800;
     font-variant-numeric: tabular-nums; letter-spacing: -0.02em;
   }
-  .qui { flex: 1; min-width: 0; padding-top: 1mm; }
   .nom {
-    font-size: 6mm; font-weight: 700; line-height: 1.1;
+    font-size: 4.4mm; font-weight: 700; line-height: 1.1; min-width: 0;
     /* Un nom tres long ne doit pas pousser le QR hors de la fiche. */
     overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
   }
-  .club {
-    font-size: 3.6mm; color: #555; margin-top: 1mm;
+  .club, .quoi {
+    font-size: 3.1mm; color: #555; margin-top: 1.2mm;
     overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
   }
-  .quoi { text-align: right; padding-top: 1mm; }
-  .categorie { font-size: 5.5mm; font-weight: 700; line-height: 1; }
-  .circuit { font-size: 3.4mm; color: #555; margin-top: 1.2mm; }
+  .quoi b { color: #111; font-size: 3.4mm; }
   .qr { flex: none; }
-  .qr svg { display: block; width: 28mm; height: 28mm; }
+  .qr svg { display: block; width: 22mm; height: 22mm; }
 
-  /* --- Le corps : les blocs a gauche, le mur a droite --------------------- */
-  .corps {
-    flex: 1; min-height: 0; display: flex; gap: 5mm; padding-top: 3mm;
+  /* --- Les blocs ---------------------------------------------------------- */
+  h2 {
+    margin: 2.5mm 0 1.5mm; font-size: 2.6mm; font-weight: 700;
+    text-transform: uppercase; letter-spacing: 0.12em; color: #666;
   }
-  .corps h2 {
-    margin: 0 0 2mm; font-size: 3mm; font-weight: 700; text-transform: uppercase;
-    letter-spacing: 0.12em; color: #666;
-  }
-  .blocs { flex: 1; min-width: 0; }
-  .mur { flex: none; width: 62mm; border-left: 0.2mm solid #ccc; padding-left: 4mm; }
+  .blocs { flex: 1; min-height: 0; }
 
-  /* Les blocs, groupes par difficulte. L'ordre est celui du classeur :
-     Jaune < Vert < Bleu < Mauve < Rouge < Noir, puis le numero. */
+  /* Groupes par difficulte, dans l'ordre du classeur : Jaune < Vert < Bleu <
+     Mauve < Rouge < Noir, puis le numero. */
   .groupe {
-    display: grid; grid-template-columns: 16mm 1fr; gap: 1.5mm 2mm;
-    align-items: start; margin-bottom: 1.8mm;
+    display: grid; grid-template-columns: 11mm 1fr; gap: 1mm 1.5mm;
+    align-items: start; margin-bottom: 1.2mm;
   }
   .difficulte {
-    display: flex; align-items: center; gap: 1.2mm;
-    font-size: 2.9mm; color: #444; padding-top: 1mm;
+    display: flex; align-items: center; gap: 1mm;
+    font-size: 2.4mm; color: #444; padding-top: 0.8mm;
   }
   .pastille {
-    width: 2.6mm; height: 2.6mm; border-radius: 50%; flex: none;
+    width: 2.2mm; height: 2.2mm; border-radius: 50%; flex: none;
     border: 0.2mm solid #555;
   }
   /* Les six couleurs de difficulte du classeur (`Listes!A41:A46`). En noir et
@@ -101,49 +103,46 @@
   .c-noir  { background: #222; }
   .c-inconnue { background: #fff; }
 
-  .cases { display: grid; grid-template-columns: repeat(auto-fill, minmax(13mm, 1fr)); gap: 1.2mm; }
   /* `auto-fill` + `minmax` : un circuit de cinquante blocs resserre ses cases
      au lieu de deborder sur la fiche voisine. Aucune ligne de JavaScript. */
+  .cases { display: grid; grid-template-columns: repeat(auto-fill, minmax(10mm, 1fr)); gap: 0.8mm; }
   .case {
-    border: 0.2mm solid #bbb; border-radius: 1mm; padding: 0.8mm 0.5mm;
-    text-align: center; line-height: 1.1;
+    border: 0.2mm solid #bbb; border-radius: 0.8mm; padding: 0.4mm 0.3mm;
+    text-align: center; line-height: 1.05;
   }
-  .case .zone {
-    display: block; font-size: 2.4mm; color: #777; letter-spacing: 0.06em;
-  }
-  .case .num { display: block; font-size: 3.4mm; font-weight: 700; }
+  .case .zone { display: block; font-size: 1.9mm; color: #777; }
+  .case .num { display: block; font-size: 2.8mm; font-weight: 700; }
 
-  .legende { margin: 2.5mm 0 0; font-size: 2.6mm; color: #777; }
+  .legende { margin: 1.5mm 0 0; font-size: 2.1mm; color: #888; line-height: 1.3; }
   .manque {
-    margin: 0 0 2mm; font-size: 3.2mm; color: #333;
+    margin: 0 0 2mm; font-size: 2.8mm; color: #333;
     border-left: 0.6mm solid #999; padding-left: 2mm;
   }
 
-  /* --- Le plan de la salle ------------------------------------------------ */
+  /* --- Le plan de la salle, en bas ---------------------------------------- */
   /* Sept cases par ligne : la grille du classeur (`Fiches!V4:X11`), ou la
      premiere cellule vaut une case et les deux suivantes en valent trois. */
-  .plan {
-    display: grid; grid-template-columns: repeat(7, 1fr); gap: 1mm;
-  }
+  .mur { flex: none; border-top: 0.2mm solid #ddd; padding-top: 1mm; }
+  .plan { display: grid; grid-template-columns: repeat(7, 1fr); gap: 0.7mm; }
   .case-plan {
-    height: 6mm; display: flex; align-items: center; justify-content: center;
-    font-size: 3mm; border-radius: 1mm;
+    height: 4.4mm; display: flex; align-items: center; justify-content: center;
+    font-size: 2.4mm; border-radius: 0.8mm;
   }
   .case-plan.zone { border: 0.2mm solid #ddd; color: #999; font-weight: 600; }
   /* Les zones OU CE GRIMPEUR a des blocs. C'est ce qui transforme une carte
      generale en itineraire. */
   .case-plan.sienne { border-color: #111; background: #111; color: #fff; }
   /* « Escalier » et « Haut » sont des reperes de la salle, pas des zones. Le
-     classeur les melange aux lettres ; c'est ce qui rend son schema illisible. */
-  /* La largeur vient du gabarit (`grid-column: span N`), calculee en Python :
+     classeur les melange aux lettres ; c'est ce qui rend son schema illisible.
+     La largeur vient du gabarit (`grid-column: span N`), calculee en Python :
      un repere ne tient sur trois cases que si les deux suivantes sont vides. */
   .case-plan.repere {
-    font-style: italic; font-size: 2.6mm; color: #888;
+    font-style: italic; font-size: 2.1mm; color: #888;
     justify-content: flex-start;
   }
   .hors-plan {
-    margin: 2.5mm 0 0; font-size: 2.8mm; color: #333;
-    border-left: 0.6mm solid #999; padding-left: 2mm;
+    margin: 1mm 0 0; font-size: 2.2mm; color: #333;
+    border-left: 0.5mm solid #999; padding-left: 1.5mm;
   }
 
   .vide { padding: 20mm 0; text-align: center; color: #666; font-size: 4mm; }
@@ -155,9 +154,8 @@
     /* Un apercu qui ressemble a la feuille : sinon on ne voit pas ce qu'on
        imprime avant de l'avoir imprime. */
     body { background: #ECEAE5; padding: 6mm; }
-    .entete, .fiche, .vide { background: #fff; max-width: 198mm; margin-inline: auto; }
-    .fiche { box-shadow: 0 1mm 3mm rgba(0, 0, 0, 0.12); margin-bottom: 4mm;
-             padding-left: 6mm; padding-right: 6mm; }
+    .entete, .planche, .vide { background: #fff; max-width: 198mm; margin-inline: auto; }
+    .planche { box-shadow: 0 1mm 3mm rgba(0, 0, 0, 0.12); }
     .entete { padding-inline: 6mm; }
   }
 </style>
@@ -166,9 +164,10 @@
 
 <div class="entete">
   <h1>Fiches — {{ titre }}</h1>
-  <p>{{ fiches|length }} à imprimer, deux par page, à couper sur les pointillés.
-     Vérifie l'échelle d'impression : <strong>100 %</strong>, sans « ajuster à la
-     page », sinon les QR sortiront trop petits pour être lus.</p>
+  <p>{{ fiches|length }} à imprimer, <strong>quatre par page</strong>, à couper
+     en croix sur les pointillés. Vérifie l'échelle d'impression :
+     <strong>100 %</strong>, sans « ajuster à la page », sinon les QR sortiront
+     trop petits pour être lus.</p>
 </div>
 
 {% if not fiches %}
@@ -176,69 +175,69 @@
     Aucune fiche à imprimer : aucun participant ne porte de dossard pour l'instant.
   </div>
 {% else %}
+<div class="planche">
   {% for f in fiches %}
   <article class="fiche">
     <header>
-      <div class="numero">{{ f.dossard }}</div>
       <div class="qui">
-        <div class="nom">{{ f.nom }}</div>
+        <div class="ligne-nom">
+          <span class="numero">{{ f.dossard }}</span>
+          <span class="nom">{{ f.nom }}</span>
+        </div>
         {% if f.club %}<div class="club">{{ f.club }}</div>{% endif %}
-      </div>
-      <div class="quoi">
-        <div class="categorie">{{ f.categorie or "—" }}</div>
-        {% if f.circuit %}<div class="circuit">circuit {{ f.circuit }}</div>{% endif %}
+        <div class="quoi">
+          <b>{{ f.categorie or "sans catégorie" }}</b>{% if f.circuit %} · circuit {{ f.circuit }}{% endif %}
+        </div>
       </div>
       <div class="qr">{{ f.qr|safe }}</div>
     </header>
 
-    <div class="corps">
-      <section class="blocs">
-        <h2>{% if f.total %}Tes {{ f.total }} blocs{% else %}Tes blocs{% endif %}</h2>
-        {% if f.manque %}<p class="manque">{{ f.manque }}</p>{% endif %}
-        {% for g in f.groupes %}
-        <div class="groupe">
-          <div class="difficulte">
-            <i class="pastille c-{{ (g.couleur or 'inconnue')|lower }}"></i>
-            <span>{{ g.couleur or "sans couleur" }}</span>
-          </div>
-          <div class="cases">
-            {% for b in g.blocs %}
-            <div class="case">
-              {% if b.zone %}<span class="zone">{{ b.zone }}</span>{% endif %}
-              <span class="num">{{ b.numero }}</span>
-            </div>
-            {% endfor %}
-          </div>
+    <div class="blocs">
+      <h2>{% if f.total %}Tes {{ f.total }} blocs{% else %}Tes blocs{% endif %}</h2>
+      {% if f.manque %}<p class="manque">{{ f.manque }}</p>{% endif %}
+      {% for g in f.groupes %}
+      <div class="groupe">
+        <div class="difficulte">
+          <i class="pastille c-{{ (g.couleur or 'inconnue')|lower }}"></i>
+          <span>{{ g.couleur or "?" }}</span>
         </div>
-        {% endfor %}
-        {% if f.groupes %}
-        <p class="legende">La lettre du numéro donne la difficulté —
-           J&nbsp;Jaune · V&nbsp;Vert · B&nbsp;Bleu · M&nbsp;Mauve · R&nbsp;Rouge ·
-           N&nbsp;Noir. La lettre au-dessus est la zone.</p>
-        {% endif %}
-      </section>
+        <div class="cases">
+          {% for b in g.blocs %}
+          <div class="case">
+            {% if b.zone %}<span class="zone">{{ b.zone }}</span>{% endif %}
+            <span class="num">{{ b.numero }}</span>
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+      {% endfor %}
+      {% if f.groupes %}
+      <p class="legende">La lettre du numéro donne la difficulté —
+         J&nbsp;Jaune · V&nbsp;Vert · B&nbsp;Bleu · M&nbsp;Mauve · R&nbsp;Rouge ·
+         N&nbsp;Noir. La lettre au-dessus est la zone.</p>
+      {% endif %}
+    </div>
 
-      <section class="mur">
-        <h2>Le mur</h2>
-        <div class="plan">
-          {%- for ligne in f.plan %}{% for case in ligne -%}
-            {%- if case.repere -%}
-              <span class="case-plan repere" style="grid-column:span {{ case.colonnes }}">{{ case.repere }}</span>
-            {%- elif case.zone -%}
-              <span class="case-plan zone{% if case.sienne %} sienne{% endif %}">{{ case.zone }}</span>
-            {%- else -%}
-              <span class="case-plan"></span>
-            {%- endif -%}
-          {%- endfor %}{% endfor -%}
-        </div>
-        {% if f.hors_plan %}
-        <p class="hors-plan">Hors plan : zone
-           {{ f.hors_plan|join(", ") }} — demande à un ouvreur.</p>
-        {% endif %}
-      </section>
+    <div class="mur">
+      <h2>Le mur</h2>
+      <div class="plan">
+        {%- for ligne in f.plan %}{% for case in ligne -%}
+          {%- if case.repere -%}
+            <span class="case-plan repere" style="grid-column:span {{ case.colonnes }}">{{ case.repere }}</span>
+          {%- elif case.zone -%}
+            <span class="case-plan zone{% if case.sienne %} sienne{% endif %}">{{ case.zone }}</span>
+          {%- else -%}
+            <span class="case-plan"></span>
+          {%- endif -%}
+        {%- endfor %}{% endfor -%}
+      </div>
+      {% if f.hors_plan %}
+      <p class="hors-plan">Hors plan : zone {{ f.hors_plan|join(", ") }}.</p>
+      {% endif %}
     </div>
   </article>
   {% endfor %}
+</div>
 {% endif %}
 
 </body>

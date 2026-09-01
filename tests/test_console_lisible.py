@@ -88,8 +88,12 @@ class TestImporterNExistePlusEnDouble:
     def test_le_vrai_bouton_reste(self, page):
         assert 'id="btnImporter"' in page
 
-    def test_la_carte_renvoie_vers_le_bon_endroit(self, page):
-        assert "Compétition → Importer le classeur" in page
+    def test_les_deux_cartes_vivent_dans_le_meme_ecran(self, page):
+        """Depuis F7, « Importer » a rejoint la vue Classeur : la carte du haut
+        n'a plus a renvoyer ailleurs, la suivante est juste en dessous."""
+        vue = page.split('id="vueClasseur"')[1].split("</section>")[0]
+        assert "<h2>Importer le classeur</h2>" in vue
+        assert "Compétition → Importer" not in page
 
 
 class TestConfirmerSeMaintient:
@@ -257,6 +261,12 @@ class TestClairEtSombre:
         assert 'input:not([type="checkbox"]):not([type="radio"])' in page
         # Et surtout : plus aucune regle nue qui ratisserait tous les `input`.
         assert "\n  input, select, textarea {" not in page
+
+    def test_un_lien_bouton_masque_reste_masque(self, page):
+        """`display: inline-block` bat le `[hidden]` du navigateur. Sans la
+        regle, « Ouvrir le classeur » s'affichait alors qu'aucun classeur n'est
+        relie, et proposait d'ouvrir un lien vide."""
+        assert "a.secondaire[hidden] { display: none; }" in page
 
     def test_le_qr_reste_sur_du_blanc(self, page):
         """Un QR sur fond sombre ne se lit pas. Le cadre reste blanc dans les

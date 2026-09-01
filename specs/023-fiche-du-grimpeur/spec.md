@@ -37,12 +37,20 @@ main de la journée.
 
 ## 2. Ce qu'on fait
 
-### F1 — Une fiche A5, deux par A4
+### F1 — Une fiche, quatre par A4
 
-`/admin/dossards` rend des fiches de **142,5 mm de haut** sur toute la largeur
-utile — la moitié exacte d'un A4 portrait à 6 mm de marge. On coupe au milieu,
-on obtient deux fiches. Les paramètres `?dossard=` et `?categorie=` ne changent
-pas.
+> ⚠️ **Corrigé après coup.** Cette section disait « deux par A4 » — le choix
+> qu'Adrien avait fait à la porte 2, sur description. En voyant la planche
+> imprimée : « bien trop gros ». La taille du classeur se déduit de
+> `Listes!C29:C34`, qui compte les feuilles à imprimer par catégorie : « 5 »
+> pour 17 grimpeurs, « 6 » pour 21, « 7 » pour 28, « 3 » pour 11 — soit
+> `ceil(n / 4)` à chaque fois. **Quatre fiches par feuille**, donc, et c'est ce
+> qui est livré.
+
+
+`/admin/dossards` rend des fiches de **99 × 142,5 mm** — le quart exact de la
+surface utile d'un A4 portrait à 6 mm de marge. On coupe en croix, on obtient
+quatre fiches. Les paramètres `?dossard=` et `?categorie=` ne changent pas.
 
 ```
 ┌──────────────────────────────────────────────────────────────────────┐
@@ -161,11 +169,11 @@ carte de la console.
 ## 4. Critères d'acceptation
 
 **Tous vérifiés le 01/09/2026** — 47 tests (`tests/test_fiches.py`,
-`tests/test_qr_et_dossards.py`) et un PDF mesuré : 8 fiches → 4 pages, 142,5 mm
-de haut au pixel près.
+`tests/test_qr_et_dossards.py`) et un PDF mesuré : 8 fiches → 2 pages,
+99 × 142,5 mm au pixel près.
 
-- [x] **A1** — Une fiche par participant numéroté, deux par page A4, jamais
-  coupée par un saut de page.
+- [x] **A1** — Une fiche par participant numéroté, **quatre par page A4**,
+  jamais coupée par un saut de page.
 - [x] **A2** — La fiche porte : dossard, nom, club, catégorie, circuit, QR.
 - [x] **A3** — Le QR contient le dossard nu et se relit par un décodeur
   indépendant à sa taille d'impression — **non-régression** du test qui existe.
