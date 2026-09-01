@@ -54,13 +54,25 @@ test("la couleur survit à l'aller-retour versJson/depuisJson", () => {
   assert.equal(apres.couleurDuBloc("ZJ1"), "Jaune");
 });
 
-test("un catalogue rangé AVANT les couleurs reste utilisable", () => {
-  // Le format d'hier, tel qu'il dort déjà sur les téléphones : pas de champ
-  // `couleurs`. Il ne doit être ni jeté ni cassé.
+test("un catalogue rangé sans couleur reste utilisable", () => {
+  // Un bloc dont le classeur ne donne pas la difficulté : il doit rester
+  // scannable, l'écran garde simplement sa teinte neutre.
+  const c = Catalogue.depuisJson({
+    format: 3, version: 2,
+    participants: { 1: { n: "Dupont Lea" } }, blocs: { ZJ1: { t: "ZJ1" } },
+  });
+  assert.equal(c.bloc("ZJ1"), "ZJ1");
+  assert.equal(c.couleurDuBloc("ZJ1"), null);
+});
+
+test("le format 2, qui dort sur les téléphones, force un rechargement", () => {
+  // La forme a changé à la spec 019 : chaque entrée est un objet, plus une
+  // chaîne. Un catalogue de l'ancienne forme est ILLISIBLE — et comme le
+  // serveur répond 304 tant que la version ne bouge pas, il ne serait JAMAIS
+  // remplacé. Le marqueur de format existe exactement pour ça.
   const c = Catalogue.depuisJson({
     format: 2, version: 2,
     participants: { 1: "Dupont Lea" }, blocs: { ZJ1: "ZJ1" },
   });
-  assert.equal(c.bloc("ZJ1"), "ZJ1");
-  assert.equal(c.couleurDuBloc("ZJ1"), null);
+  assert.equal(c.estVide, true);
 });

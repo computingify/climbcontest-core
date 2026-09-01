@@ -197,7 +197,19 @@ class Bloc(db.Model):
     tag = Column(String(20), nullable=False)          # « ZJ6 », le QR code
     numero = Column(Integer, nullable=False)          # ligne dans l'onglet Import
     zone = Column(String(5))                          # « Z »
+
+    # ⚠️ DEUX couleurs, et elles ne servent pas à la même chose.
+    #
+    # `couleur` est la couleur de DIFFICULTÉ (colonne F du `Plan`) : elle est
+    # ordonnée — Jaune < Vert < Bleu < Mauve < Rouge < Noir — et c'est elle que
+    # lit la validation par couleur du classement.
+    #
+    # `couleur_prises` est la couleur des PRISES sur le mur (colonne H). Elle
+    # n'est ordonnée par rien et n'entre dans aucun calcul : c'est ce qu'on
+    # cherche des yeux quand deux blocs de même difficulté sont dans la même
+    # zone. Elle n'était simplement jamais lue avant la spec 019.
     couleur = Column(String(20))                      # « Jaune » … « Noir »
+    couleur_prises = Column(String(20))               # « Bleu », « Fluo »…
 
     competition = relationship("Competition", back_populates="blocs")
     circuits = relationship("BlocCircuit", back_populates="bloc",
@@ -211,6 +223,7 @@ class Bloc(db.Model):
             "tag": self.tag,
             "numero": self.numero,
             "couleur": self.couleur,
+            "couleur_prises": self.couleur_prises,
             "circuits": [bc.circuit.nom for bc in self.circuits],
         }
 
@@ -300,6 +313,23 @@ class Success(db.Model):
     appareil_id = Column(String(40), index=True)
     appareil_nom = Column(String(60))
     ref_client = Column(String(40), index=True)
+
+    # Le juge a vu « ce bloc n'est pas dans son circuit » et a envoyé quand même
+    # (spec 019). C'est une trace du GESTE, pas un état du monde.
+    #
+    # ⚠️ Nullable et sans défaut, et les trois valeurs disent trois choses
+    # différentes :
+    #   NULL  — on ne sait pas : une réussite d'avant la spec 019, une saisie
+    #           manuelle, un import, un téléphone qui n'envoie pas le champ ;
+    #   False — le téléphone a vérifié, et c'était bon ;
+    #   True  — le téléphone a vérifié, ce n'était pas bon, et on a forcé.
+    # Confondre le premier avec le deuxième ferait dire à la console que tout a
+    # été vérifié alors que rien ne l'a été.
+    #
+    # Le statut COURANT — ce bloc est-il aujourd'hui dans le circuit ? — n'est
+    # pas ici : il se calcule à la lecture. Corriger le classeur doit faire
+    # disparaître l'anomalie, pas la figer.
+    hors_circuit_force = Column(Boolean)
 
     participant = relationship("Participant", back_populates="reussites")
     bloc = relationship("Bloc", back_populates="reussites")

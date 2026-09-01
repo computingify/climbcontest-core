@@ -394,6 +394,11 @@
         <span class="quoi"><b>Réussites</b><i>Saisir, retrouver un scan</i></span>
       </button>
 
+      <button data-vue="circuits">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2 4 7v10l8 5 8-5V7Z"/><path d="M12 22V12"/><path d="m20 7-8 5-8-5"/></svg>
+        <span class="quoi"><b>Circuits</b><i>Les blocs, et ce qui cloche</i></span>
+      </button>
+
       <div class="groupe">Les juges</div>
       <button data-vue="telephones">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="2" width="14" height="20" rx="2"/><path d="M12 18h.01"/></svg>
@@ -679,6 +684,53 @@
            Google du classeur. L'ancien jeton est conservé côté serveur, au cas
            où celui-ci serait le mauvais.</p>
         <button class="action" id="btnPoserJeton">Poser le jeton</button>
+      </div>
+    </section>
+
+    <!-- ================= Circuits (spec 019) ================= -->
+    <section class="vue" id="vueCircuits" hidden>
+      <div class="titre-vue">
+        <h1>Circuits</h1>
+        <p>Ce que le classeur a donné : quels blocs composent quel circuit, et
+           quelles catégories les grimpent. C'est la vérification à faire
+           <strong>avant</strong> la compétition — pas pendant.</p>
+      </div>
+
+      <!-- Le contrôle de cohérence. Masqué quand tout va bien : le voir en
+           permanence apprendrait à ne plus le lire. -->
+      <div class="carte danger" id="carteAnomalies" hidden>
+        <h2>Ce qui cloche</h2>
+        <p class="aide">Ces trois anomalies sont <strong>silencieuses</strong> :
+           rien n'échoue, rien n'est journalisé, et elles se paient à la remise
+           des prix.</p>
+        <div id="listeAnomalies"></div>
+      </div>
+
+      <div class="carte">
+        <h2>Les circuits</h2>
+        <div class="scroll"><table>
+          <thead>
+            <tr><th>Circuit</th><th>Blocs</th><th>Grimpeurs</th><th>Catégories</th></tr>
+          </thead>
+          <tbody id="corpsCircuits"></tbody>
+        </table></div>
+      </div>
+
+      <div class="carte">
+        <h2>Les blocs</h2>
+        <label for="filtreCircuit">N'afficher qu'un circuit</label>
+        <select id="filtreCircuit" style="max-width:260px">
+          <option value="">Tous les circuits</option>
+        </select>
+        <div class="scroll" style="margin-top:14px"><table>
+          <thead>
+            <tr><th>QR</th><th>Zone</th><th>N°</th><th>Difficulté</th>
+                <th>Prises</th><th>Circuits</th><th>Catégories</th></tr>
+          </thead>
+          <tbody id="corpsBlocs"></tbody>
+        </table></div>
+        <p class="aide" id="aucunBloc" hidden>Aucun bloc en base — importe le
+           classeur depuis la vue « Compétition ».</p>
       </div>
     </section>
 
@@ -1007,6 +1059,7 @@
   var VUES = {
     participants: { titre: "Participants",         charge: chargerParticipants },
     reussites:    { titre: "Réussites",            charge: null },
+    circuits:     { titre: "Circuits",             charge: chargerCircuits },
     telephones:   { titre: "Téléphones des juges", charge: chargerAppareils },
     classeur:     { titre: "Classeur Google",      charge: chargerClasseur },
     competition:  { titre: "Compétition",          charge: chargerCompetition },
@@ -1311,6 +1364,155 @@
     }).catch(signaler);
   }
 
+  // --- Circuits (spec 019) ---------------------------------------------------
+  //
+  // La vue repond a deux questions : « quels blocs composent le circuit U13 ? »
+  // et, la vraie raison d'etre de cet ecran, « le classeur a-t-il ete lu
+  // correctement ? ». Les trois anomalies qu'elle montre sont SILENCIEUSES
+  // aujourd'hui -- rien n'echoue, rien n'est journalise, et elles se paient a la
+  // remise des prix.
+
+  var ANOMALIES = [
+    ["blocs_sans_circuit", "Bloc(s) rattaché(s) à aucun circuit",
+     "Ces blocs ne comptent pour personne. Soit la croix manque dans le "
+     + "classeur, soit leur colonne de circuit n'a pas été lue."],
+    ["circuits_sans_bloc", "Circuit(s) sans aucun bloc",
+     "Leur classement sortira vide, sur « aucun bloc n'appartient au circuit »."],
+    ["categories_sans_circuit", "Catégorie(s) dont le circuit n'existe pas",
+     "Le plus coûteux des trois : ces grimpeurs scannent normalement, et "
+     + "chacune de leurs réussites compte pour zéro."],
+  ];
+
+  function chargerCircuits() {
+    appeler("/admin/circuits").then(function (d) {
+      etat.circuits = d;
+      peindreAnomalies(d.anomalies);
+      peindreCircuits(d.circuits);
+      remplirFiltreCircuit(d.circuits);
+      peindreBlocs(d.blocs);
+    }).catch(signaler);
+  }
+
+  function peindreAnomalies(anomalies) {
+    var bloc = $("listeAnomalies");
+    bloc.innerHTML = "";
+    var aQuelqueChose = false;
+
+    ANOMALIES.forEach(function (a) {
+      var liste = (anomalies && anomalies[a[0]]) || [];
+      if (!liste.length) return;
+      aQuelqueChose = true;
+      var titre = document.createElement("p");
+      titre.style.cssText = "margin-top:14px;font-weight:600";
+      titre.textContent = liste.length + " " + a[1];
+      bloc.appendChild(titre);
+
+      var quoi = document.createElement("p");
+      quoi.className = "aide";
+      quoi.textContent = a[2];
+      bloc.appendChild(quoi);
+
+      var noms = document.createElement("p");
+      noms.style.cssText = "margin-top:8px;font-family:ui-monospace,monospace;"
+                         + "font-size:.86rem;word-break:break-word";
+      // textContent : ces noms viennent du classeur, saisis a la main.
+      noms.textContent = liste.join(" · ");
+      bloc.appendChild(noms);
+    });
+
+    // Masquee quand tout va bien. La voir en permanence apprendrait a ne plus
+    // la lire -- et c'est le jour ou elle aurait quelque chose a dire.
+    $("carteAnomalies").hidden = !aQuelqueChose;
+  }
+
+  function peindreCircuits(circuits) {
+    var corps = $("corpsCircuits");
+    corps.innerHTML = "";
+    if (!circuits.length) {
+      corps.appendChild(ligneVide(4, "Aucun circuit — le classeur n'a pas encore "
+                                   + "été importé."));
+      return;
+    }
+    circuits.forEach(function (c) {
+      var tr = document.createElement("tr");
+      [c.nom, String(c.blocs), String(c.participants),
+       c.categories.join(" · ") || "—"].forEach(function (texte, i) {
+        var td = document.createElement("td");
+        td.textContent = texte;
+        // Un circuit sans bloc ne rend rien : ca se voit ici aussi, pas
+        // seulement dans le bloc d'anomalies qu'on a peut-etre ferme.
+        if (i === 1 && !c.blocs) td.className = "manque";
+        tr.appendChild(td);
+      });
+      corps.appendChild(tr);
+    });
+  }
+
+  function remplirFiltreCircuit(circuits) {
+    var select = $("filtreCircuit");
+    var choisi = select.value;
+    select.innerHTML = "";
+    var tous = document.createElement("option");
+    tous.value = "";
+    tous.textContent = "Tous les circuits";
+    select.appendChild(tous);
+    circuits.forEach(function (c) {
+      var o = document.createElement("option");
+      o.value = c.nom;
+      o.textContent = c.nom + " — " + c.blocs + " bloc(s)";
+      select.appendChild(o);
+    });
+    // Le filtre survit au rechargement de la vue tant que le circuit existe.
+    select.value = choisi;
+  }
+
+  function peindreBlocs(blocs) {
+    var filtre = $("filtreCircuit").value;
+    var visibles = filtre
+      ? blocs.filter(function (b) { return b.circuits.indexOf(filtre) !== -1; })
+      : blocs;
+
+    var corps = $("corpsBlocs");
+    corps.innerHTML = "";
+    $("aucunBloc").hidden = blocs.length > 0;
+
+    if (!visibles.length) {
+      corps.appendChild(ligneVide(7, filtre
+        ? "Aucun bloc dans le circuit « " + filtre + " »."
+        : "Aucun bloc en base."));
+      return;
+    }
+
+    visibles.forEach(function (b) {
+      var tr = document.createElement("tr");
+      var cellules = [
+        b.tag, b.zone || "—", String(b.numero),
+        b.couleur || "—", b.couleur_prises || "—",
+        b.circuits.join(" · "), b.categories.join(" · "),
+      ];
+      cellules.forEach(function (texte, i) {
+        var td = document.createElement("td");
+        // Un bloc sans circuit : la case reste vide et muette sinon.
+        if (i === 5 && !b.circuits.length) {
+          td.textContent = "aucun";
+          td.className = "manque";
+        } else if (i === 6 && !b.categories.length) {
+          td.textContent = "—";
+        } else {
+          td.textContent = texte;
+        }
+        tr.appendChild(td);
+      });
+      corps.appendChild(tr);
+    });
+  }
+
+  $("filtreCircuit").addEventListener("change", function () {
+    // Rien a redemander au serveur : le filtre ne fait que masquer des lignes
+    // deja chargees.
+    if (etat.circuits) peindreBlocs(etat.circuits.blocs);
+  });
+
   function ligneVide(colonnes, texte) {
     var tr = document.createElement("tr");
     var td = document.createElement("td");
@@ -1400,7 +1602,19 @@
         tr.appendChild(celluleRef);
         corps.appendChild(tr);
       });
-      dire("Trouvé : ce scan est bien arrivé sur le serveur.", "ok");
+      // Un bloc hors du circuit du grimpeur ne compte PAS au classement. Le
+      // dire ici, c'est repondre a la vraie question de celui qui cherche :
+      // « il dit qu'il a valide, pourquoi son score ne bouge pas ? »
+      var horsCircuit = d.reussites.filter(function (r) { return r.hors_circuit; });
+      if (horsCircuit.length) {
+        dire("Trouvé — mais " + (horsCircuit.length > 1
+               ? "ces blocs ne sont pas" : "ce bloc n'est pas")
+             + " dans le circuit du grimpeur : la réussite est bien enregistrée, "
+             + "et elle ne compte pas au classement. Vérifie la vue « Circuits ».",
+             "attention");
+      } else {
+        dire("Trouvé : ce scan est bien arrivé sur le serveur.", "ok");
+      }
     }).catch(signaler);
   }
 

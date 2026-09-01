@@ -230,7 +230,8 @@ def _donnees_brutes(comp) -> dict:
         ],
         "blocs": [
             {"id": b.id, "tag": b.tag, "numero": b.numero, "zone": b.zone,
-             "couleur": b.couleur, "circuits": sorted(filter(None, par_bloc.get(b.id, [])))}
+             "couleur": b.couleur, "couleur_prises": b.couleur_prises,
+             "circuits": sorted(filter(None, par_bloc.get(b.id, [])))}
             for b in blocs
         ],
         "reussites": [

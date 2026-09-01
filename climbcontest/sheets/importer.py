@@ -40,6 +40,7 @@ PLAN_LIGNE_ENTETE = 28          # porte les noms de circuits
 PLAN_PLAGE = "D28:Y"
 I_ZONE = 0                      # colonne D — lettre de zone
 I_COULEUR = 2                   # colonne F — couleur de difficulte
+I_COULEUR_PRISES = 4            # colonne H — couleur des prises sur le mur
 
 # Les colonnes où un circuit PEUT vivre : J, L, N, P, R — une sur deux, cinq au
 # plus. Le classeur se décrit lui-même comme prévu pour « 5 circuits »
@@ -254,16 +255,19 @@ def importer_blocs(comp: Competition, classeur, rapport: Rapport,
 
         tag = f"{zone}{numero_zone}"
         couleur = _texte(ligne, I_COULEUR)
+        couleur_prises = _texte(ligne, I_COULEUR_PRISES)
 
         bloc = Bloc.query.filter_by(competition_id=comp.id, tag=tag).first()
         if bloc:
-            if (bloc.numero, bloc.couleur) != (numero, couleur):
+            if ((bloc.numero, bloc.couleur, bloc.couleur_prises)
+                    != (numero, couleur, couleur_prises)):
                 bloc.numero, bloc.couleur = numero, couleur
+                bloc.couleur_prises = couleur_prises
                 rapport.blocs_mis_a_jour += 1
             db.session.add(bloc)
         else:
             bloc = Bloc(competition_id=comp.id, tag=tag, numero=numero,
-                        zone=zone, couleur=couleur)
+                        zone=zone, couleur=couleur, couleur_prises=couleur_prises)
             db.session.add(bloc)
             rapport.blocs_crees += 1
         db.session.flush()

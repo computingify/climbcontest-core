@@ -31,7 +31,7 @@ const PERIODE_BOUCLE_MS = 1000;
 const PERIODE_PRESENCE_MS = 30_000;
 
 const etat = {
-  dossard: null, grimpeur: null, bloc: null,
+  dossard: null, grimpeur: null, bloc: null, horsCircuit: false,
   // La couleur du circuit du bloc scanné (« Jaune », « Vert »…) : c'est elle
   // qui teinte l'écran. `null` = teinte neutre.
   couleurBloc: null,
@@ -140,6 +140,14 @@ function dire(texte, genre) {
 
 // --- L'écran ----------------------------------------------------------------
 
+/** Un fragment en gras. `textContent`, jamais `innerHTML` : ces noms
+ *  viennent du classeur et sont saisis a la main. */
+function gras(texte) {
+  const b = document.createElement("b");
+  b.textContent = texte || "?";
+  return b;
+}
+
 function redessiner() {
   const grimpeurFait = etat.dossard !== null;
   const blocFait = etat.bloc !== null;
@@ -152,8 +160,14 @@ function redessiner() {
   $("carteBloc").classList.toggle("fait", blocFait);
   $("valeurBloc").textContent = etat.bloc || "À scanner";
   $("valeurBloc").classList.toggle("attente", !blocFait);
-  $("detailBloc").textContent =
-    blocFait && etat.couleurBloc ? `Circuit ${etat.couleurBloc}` : "";
+  // ⚠️ Ce detail disait « Circuit Jaune ». C'etait FAUX : « Jaune » est une
+  // couleur de DIFFICULTE, pas un circuit -- le circuit, c'est « U13 ». La
+  // confusion venait de ce qu'aucun circuit reel n'etait disponible sur le
+  // telephone avant la spec 019. Maintenant qu'ils le sont, on dit les deux, et
+  // chacun sous son vrai nom.
+  const circuitsDuBloc = blocFait ? (catalogue.circuitsDuBloc(etat.bloc) || []) : [];
+  $("detailBloc").textContent = !blocFait ? ""
+    : [circuitsDuBloc.join(" · "), etat.couleurBloc].filter(Boolean).join(" — ");
 
   // La couleur du circuit prend l'écran dès que le bloc est scanné — le même
   // principe que sur Android. Deux variables CSS suffisent : la teinte, et
@@ -168,8 +182,39 @@ function redessiner() {
     racine.removeProperty("--encre-circuit");
   }
 
+  // Le garde-fou de la spec 019, recalcule ICI et pas dans `retenir()` : le
+  // grimpeur peut etre scanne APRES le bloc, et l'option « garder le grimpeur
+  // entre deux blocs » enchaine les blocs sans le rescanner. Un etat derive
+  // recalcule a chaque rendu ne peut pas se desynchroniser.
+  //
+  // `null` — dossard inconnu, tag inconnu, participant sans categorie, bloc
+  // rattache a aucun circuit — veut dire « je ne sais pas », et on se TAIT. Un
+  // avertissement qu'on ne sait pas justifier apprend a ignorer les
+  // avertissements.
+  etat.horsCircuit = grimpeurFait && blocFait
+    && catalogue.estDansLeCircuit(etat.dossard, etat.bloc) === false;
+
+  const avertissement = $("horsCircuit");
+  avertissement.hidden = !etat.horsCircuit;
+  if (etat.horsCircuit) {
+    const duBloc = catalogue.circuitsDuBloc(etat.bloc) || [];
+    const duGrimpeur = catalogue.circuitDuGrimpeur(etat.dossard);
+    avertissement.replaceChildren();
+    avertissement.append(
+      "Ce bloc est ", gras(duBloc.join(" · ")),
+      " — ce grimpeur est ", gras(duGrimpeur), ".",
+      document.createElement("br"),
+      "La réussite ne comptera pas dans son classement.",
+    );
+  }
+
   const pret = grimpeurFait && blocFait && !etat.envoiEnCours;
   $("envoyer").disabled = !pret;
+  // On n'empeche JAMAIS l'envoi : le classeur peut etre faux, et un juge
+  // bloque en pleine competition n'a aucun recours. Le bouton dit seulement ce
+  // qu'il fait vraiment.
+  $("envoyer").textContent = etat.horsCircuit ? "Envoyer quand même" : "Envoyer";
+  $("envoyer").classList.toggle("force", etat.horsCircuit);
   $("aide").hidden = pret;
 
   // La file ne s'affiche que quand elle a quelque chose à dire.
@@ -191,6 +236,7 @@ async function rafraichirLesCompteurs() {
 function effacer() {
   etat.dossard = etat.grimpeur = etat.bloc = null;
   etat.couleurBloc = null;
+  etat.horsCircuit = false;
   redessiner();
 }
 
@@ -315,6 +361,10 @@ async function envoyer() {
     ref: nouvelleRef(), bib: etat.dossard, bloc: etat.bloc,
     at: new Date().toISOString(),
   };
+  // Ce que le juge a VU au moment d'appuyer. Le serveur, lui, recalculera le
+  // statut courant a la lecture : corriger le classeur doit faire disparaitre
+  // l'anomalie, pas la figer.
+  if (etat.horsCircuit) reussite.hors_circuit = true;
   try {
     // L'ordre compte : la file d'abord. Elle porte la réussite ; le journal
     // n'en garde qu'une trace. Si l'écriture du journal échouait, on perdrait

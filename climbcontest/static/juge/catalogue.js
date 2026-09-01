@@ -22,21 +22,38 @@
  * Le marqueur force un rechargement complet quand la forme change. Il a été
  * ajouté après être tombé exactement dans ce piège en développant.
  */
-export const FORMAT = 2;
+export const FORMAT = 3;
+
+/** « U13 F » → « U13 ». La même règle que `Participant.circuit`, côté serveur. */
+function circuitDe(categorie) {
+  if (typeof categorie !== "string") return null;
+  const valeur = categorie.trim();
+  if (!valeur) return null;
+  const espace = valeur.lastIndexOf(" ");
+  return espace === -1 ? valeur : valeur.slice(0, espace);
+}
 
 export class Catalogue {
-  constructor({ version = 0, participants = {}, blocs = {}, couleurs = {} } = {}) {
+  /**
+   * ⚠️ Forme **3**. Chaque entrée est un objet, là où les formes 1 et 2
+   * rangeaient des chaînes et une table de couleurs à côté :
+   *
+   *     participants : { "42": { n: "Dupont Lea", c: "U13" } }
+   *     blocs        : { "ZJ6": { t: "ZJ6", k: "Jaune", c: ["U11","U13"] } }
+   *
+   * Les clés sont courtes parce que ce JSON est stocké tel quel sur le
+   * téléphone, une fois par bloc et par grimpeur.
+   *
+   * On garde le **circuit** (« U13 »), jamais la catégorie complète
+   * (« U13 F ») : la remarque de `depuisReponseServeur` sur les données de
+   * mineurs entreposées sur vingt-cinq téléphones de bénévoles reste valable,
+   * et le genre n'apprend rien au test d'appartenance.
+   */
+  constructor({ version = 0, participants = {}, blocs = {} } = {}) {
     this.version = version;
     this.parDossard = new Map(Object.entries(participants));
     this.parTag = new Map(
-      Object.entries(blocs).map(([tag, libelle]) => [tag.toUpperCase(), libelle]),
-    );
-    // tag → couleur de circuit (« Jaune », « Vert »…). Ajoutée pour porter la
-    // refonte visuelle : l'écran prend la couleur du bloc scanné, comme sur
-    // Android. Table SÉPARÉE de `parTag` pour que le contrat existant — et le
-    // catalogue déjà rangé sur les téléphones — ne bougent pas.
-    this.couleurParTag = new Map(
-      Object.entries(couleurs).map(([tag, c]) => [tag.toUpperCase(), c]),
+      Object.entries(blocs).map(([tag, bloc]) => [tag.toUpperCase(), bloc]),
     );
   }
 
@@ -46,17 +63,47 @@ export class Catalogue {
 
   /** Le nom du grimpeur, ou `null`. C'est ce que le juge lit pour confirmer. */
   grimpeur(dossard) {
-    return this.parDossard.get(String(dossard ?? "").trim()) ?? null;
+    return this.parDossard.get(String(dossard ?? "").trim())?.n ?? null;
   }
 
-  /** La couleur du circuit d'un bloc, ou null — jamais une erreur. */
+  /** Le circuit du grimpeur (« U13 »), ou null. */
+  circuitDuGrimpeur(dossard) {
+    return this.parDossard.get(String(dossard ?? "").trim())?.c ?? null;
+  }
+
+  /** La couleur de difficulté d'un bloc, ou null — jamais une erreur. */
   couleurDuBloc(tag) {
     if (typeof tag !== "string") return null;
-    return this.couleurParTag.get(tag.trim().toUpperCase()) ?? null;
+    return this.parTag.get(tag.trim().toUpperCase())?.k ?? null;
+  }
+
+  /** Les circuits auxquels ce bloc appartient, ou `null` s'il est inconnu. */
+  circuitsDuBloc(tag) {
+    const bloc = this.parTag.get(String(tag ?? "").trim().toUpperCase());
+    if (!bloc) return null;
+    return Array.isArray(bloc.c) ? bloc.c : [];
   }
 
   bloc(tag) {
-    return this.parTag.get(String(tag ?? "").trim().toUpperCase()) ?? null;
+    return this.parTag.get(String(tag ?? "").trim().toUpperCase())?.t ?? null;
+  }
+
+  /**
+   * Ce grimpeur a-t-il ce bloc à faire ? `true`, `false`, ou **`null`**.
+   *
+   * `null` veut dire « je ne sais pas », et c'est un troisième cas à part
+   * entière, jamais un `false` déguisé : dossard inconnu, tag inconnu,
+   * participant sans catégorie, bloc rattaché à aucun circuit. Dans tous ces
+   * cas l'application **se tait**. Un avertissement qu'on ne sait pas
+   * justifier apprend à ignorer les avertissements — et le seul moment où
+   * celui-ci compte, c'est le jour J.
+   */
+  estDansLeCircuit(dossard, tag) {
+    const circuit = this.circuitDuGrimpeur(dossard);
+    if (!circuit) return null;
+    const circuits = this.circuitsDuBloc(tag);
+    if (!circuits || !circuits.length) return null;
+    return circuits.includes(circuit);
   }
 
   versJson() {
@@ -65,7 +112,6 @@ export class Catalogue {
       version: this.version,
       participants: Object.fromEntries(this.parDossard),
       blocs: Object.fromEntries(this.parTag),
-      couleurs: Object.fromEntries(this.couleurParTag),
     };
   }
 
@@ -83,11 +129,6 @@ export class Catalogue {
       version,
       participants: estUnDictionnaire(donnees.participants) ? donnees.participants : {},
       blocs: estUnDictionnaire(donnees.blocs) ? donnees.blocs : {},
-      // Tolérant : un catalogue rangé AVANT l'arrivée des couleurs n'en a
-      // pas, et il doit rester utilisable tel quel — même leçon que sur
-      // Android, où un catalogue jeté au premier champ manquant renvoyait
-      // tous les scans vers le réseau.
-      couleurs: estUnDictionnaire(donnees.couleurs) ? donnees.couleurs : {},
     });
   }
 
@@ -102,11 +143,16 @@ export class Catalogue {
    *   "blocs":        [{ "id": 1, "tag": "ZJ1", "couleur": "Jaune", ... }] }
    * ```
    *
-   * Nous n'en gardons que deux tables de correspondance : dossard → nom et
-   * tag → tag, plus tag → couleur de circuit depuis la refonte visuelle — la
-   * couleur porte de l'information, ce n'est pas du décor. Le reste — club,
-   * catégorie, circuits — ne sert pas au geste du juge, et ne pas le garder
-   * évite d'entreposer des données de mineurs sur vingt-cinq téléphones de
+   * Nous n'en gardons que ce qui sert au geste du juge : le nom (le seul
+   * contrôle humain avant de valider), la couleur de difficulté (elle donne sa
+   * teinte à l'écran), et depuis la spec 019 le **circuit** de part et d'autre
+   * — c'est ce qui permet de dire « ce bloc n'est pas dans son circuit »
+   * **sans réseau**, avant l'envoi.
+   *
+   * Ce qu'on continue de jeter : le club, l'identifiant, le numéro d'import,
+   * et surtout la **catégorie complète** (« U13 F »). On n'en garde que le
+   * circuit (« U13 ») : le genre n'apprend rien au test d'appartenance, et
+   * n'entrepose pas une donnée de plus sur les vingt-cinq téléphones de
    * bénévoles.
    *
    * J'avais d'abord écrit ce module en supposant que le serveur envoyait déjà
@@ -126,21 +172,35 @@ export class Catalogue {
       const nom = typeof p.nom === "string" ? p.nom.trim() : "";
       // Un participant SANS dossard existe : il est inscrit, il n'a pas encore
       // son papier. Il n'a rien à faire dans une table indexée par dossard.
-      if (dossard && nom) participants[dossard] = nom;
+      if (!dossard || !nom) continue;
+      const entree = { n: nom };
+      // Facultatif : le classeur produit des lignes sans catégorie (risque R5)
+      // et l'import les garde exprès. Le grimpeur reste scannable ; il ne
+      // déclenchera simplement aucun avertissement de circuit.
+      const circuit = circuitDe(p.categorie);
+      if (circuit) entree.c = circuit;
+      participants[dossard] = entree;
     }
     const blocs = {};
-    const couleurs = {};
     for (const b of Array.isArray(corps.blocs) ? corps.blocs : []) {
       if (!b || typeof b !== "object") continue;
       const tag = typeof b.tag === "string" ? b.tag.trim() : "";
       if (!tag) continue;
-      blocs[tag.toUpperCase()] = tag;
+      const entree = { t: tag };
       if (typeof b.couleur === "string" && b.couleur.trim()) {
-        couleurs[tag.toUpperCase()] = b.couleur.trim();
+        entree.k = b.couleur.trim();
       }
+      // Un bloc rattaché à aucun circuit reste scannable : c'est une anomalie
+      // du classeur, pas une raison de refuser une réussite. Il ne déclenchera
+      // aucun avertissement — on ne sait pas qui doit le faire.
+      if (Array.isArray(b.circuits) && b.circuits.length) {
+        entree.c = b.circuits.filter((c) => typeof c === "string" && c.trim())
+                             .map((c) => c.trim());
+      }
+      blocs[tag.toUpperCase()] = entree;
     }
     return new Catalogue({ version: Number(corps.version) || 0, participants,
-                           blocs, couleurs });
+                           blocs });
   }
 }
 

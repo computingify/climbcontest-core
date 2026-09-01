@@ -19,6 +19,56 @@ qu'on ne met pas à jour le matin d'une compétition :
 
 ## [Non publié]
 
+### Ajouté
+
+- **Les circuits se voient, et le juge est prévenu** (spec 019). Trois choses,
+  toutes sorties du test de bout en bout d'Adrien du 01/09.
+
+- **La couleur des prises entre en base.** L'onglet `Plan` porte deux couleurs
+  par bloc : la **difficulté** en colonne F (ordonnée, elle sert au classement)
+  et les **prises** en colonne H — celle qu'on cherche des yeux quand deux blocs
+  de même difficulté sont dans la même zone. La seconde n'était simplement
+  jamais lue.
+
+- **Une vue « Circuits » dans la console.** Quels blocs composent quel circuit,
+  quelles catégories les grimpent, et surtout un **contrôle de cohérence** :
+  blocs rattachés à aucun circuit, circuits sans aucun bloc, catégories dont le
+  circuit n'existe pas. Les trois anomalies sont **silencieuses** aujourd'hui —
+  rien n'échoue, rien n'est journalisé, et elles se paient à la remise des prix.
+  C'est cet écran qui aurait montré, en une seconde, les 37 blocs orphelins du
+  correctif précédent. Il est masqué quand tout va bien : le voir en permanence
+  apprendrait à ne plus le lire.
+
+- **L'application juge prévient quand le bloc n'est pas dans le circuit du
+  grimpeur.** Adrien, en scannant : « ce participant-là n'est pas censé le
+  réaliser […] il faut l'afficher sur l'application avant même de l'envoyer ».
+  La réussite partait, et ne comptait pour rien — le classement filtre déjà par
+  circuit. Le juge croyait avoir validé, le grimpeur croyait avoir marqué.
+
+  Le contrôle se fait **hors ligne**, sur le téléphone, avant l'envoi :
+  `/api/v2/catalog` envoyait déjà la catégorie et les circuits, c'est le
+  catalogue local qui les jetait. **Aucun changement d'API.**
+
+  Il **avertit**, il ne bloque jamais : le classeur peut être faux — il l'a été
+  le 01/09 — et un juge bloqué en pleine compétition n'a aucun recours. Le
+  bouton devient « Envoyer quand même », et le forçage est tracé.
+
+  Quand l'information manque — dossard inconnu, participant sans catégorie, bloc
+  rattaché à aucun circuit — l'application **se tait**. Un avertissement qu'on ne
+  sait pas justifier apprend à ignorer les avertissements.
+
+### Corrigé
+
+- **L'écran du juge disait « Circuit Jaune ».** C'était faux : « Jaune » est une
+  couleur de **difficulté**, le circuit c'est « U13 ». La confusion venait de ce
+  qu'aucun circuit réel n'était disponible sur le téléphone. Il affiche
+  maintenant les deux, chacun sous son vrai nom : « U11 · U13 — Jaune ».
+
+- **La console répondait « Trouvé » sur un scan qui ne compte pas.** Chercher la
+  référence d'une réussite posée sur un bloc hors circuit répondait « ce scan est
+  bien arrivé », ce qui est vrai et trompeur : il est arrivé, et il ne compte pas.
+  Elle le dit maintenant, et renvoie vers la vue « Circuits ».
+
 ### Corrigé
 
 - **Le quatrième circuit n'était jamais importé.** `importer.py` figeait les
