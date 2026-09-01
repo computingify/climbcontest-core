@@ -176,11 +176,18 @@
 
   /* Le podium, en MARCHES : le premier au centre et plus haut, le deuxième à
      gauche, le troisième à droite et plus bas encore. C'est la forme qu'on
-     reconnaît sans la lire — demandée par Adrien le 31/08. Il n'existe qu'en
-     mode mur : sur un téléphone, il mangerait tout l'écran. */
+     reconnaît sans la lire — demandée par Adrien le 31/08.
+
+     ⚠️ Il ne dépend PLUS du mode mur, mais de la LARGEUR (Adrien, 01/09) :
+     « je veux toujours avoir le podium […] lorsque la page le permet ». Le
+     portable de la salle et la relecture d'une archive l'affichent donc comme
+     le vidéoprojecteur — c'est la même page, et rien dans un podium n'appelait
+     un vidéoprojecteur plutôt qu'un écran. Sur un téléphone, où il mangerait
+     tout l'écran, il ne s'affiche toujours pas : c'est `peindre()` qui tranche,
+     sur `LARGEUR_PODIUM`. */
   #podium { flex: none; display: none; gap: 20px; align-items: end;
             height: clamp(150px, 23vh, 250px); }
-  body.mur #podium.visible { display: flex; }
+  #podium.visible { display: flex; }
 
   /* UNE MARCHE PAR RANG, et les ex æquo la partagent — ils sont à égalité, ils
      doivent être au même niveau (Adrien, 31/08). La marche porte donc un
@@ -347,7 +354,12 @@
      de gauche à droite) : enchaîner sur des colonnes qui se lisent de haut en
      bas obligeait l'œil à changer de sens au milieu de l'écran. Maintenant tout
      se lit dans le même sens — 4, 5, 6 puis 7, 8, 9. */
-  body.mur #liste {
+  /* `.colonnes` est posée par `peindre()` dès qu'il y a plus d'une colonne :
+     c'est elle qui porte les tableaux côte à côte HORS du mur. Le mur, lui,
+     reste en grille même à une seule colonne — il y règle des hauteurs de
+     ligne fixes, et faire passer sa boîte de flex à grille selon l'effectif
+     ferait sauter le plateau à chaque bascule. */
+  body.mur #liste, #liste.colonnes {
     display: grid; grid-template-columns: repeat(var(--colonnes, 3), 1fr);
     gap: 0 26px; align-content: start;
   }
@@ -769,6 +781,20 @@
     return avec;
   }
 
+  /** La clé qui apparie une ligne à son nœud d'une repeinture à l'autre.
+   *
+   * ⚠️ Ce n'est PAS toujours `participant_id`. Le classement par club en donne
+   * un pour tout le monde : `0` — un club n'est pas un participant. Les cinq
+   * clubs se disputaient donc le même nœud, qui était déplacé de l'un à
+   * l'autre : le classement des clubs n'affichait qu'UNE ligne, la dernière, et
+   * depuis que le podium existe hors du mur, deux marches vides à côté d'une
+   * troisième. Le nom fait l'affaire là où l'identifiant manque : c'est ce qui
+   * identifie un club, et le classement est groupé dessus.
+   */
+  function cleDe(l) {
+    return l.participant_id ? String(l.participant_id) : "nom:" + l.nom;
+  }
+
   function sansMouvement() {
     return window.matchMedia("(prefers-reduced-motion: reduce)").matches;
   }
@@ -912,7 +938,7 @@
         (c.lignes || []).forEach(function (l) {
           if ((l.nom || "").toLowerCase().indexOf(q) !== -1
               || String(l.dossard || "").indexOf(q) !== -1) {
-            lignes.push({ cle: c.groupe + "-" + l.participant_id,
+            lignes.push({ cle: c.groupe + "-" + cleDe(l),
                           participant_id: l.participant_id, rang: l.rang,
                           score: l.score, blocs: l.blocs, nom: l.nom, club: l.club,
                           dossard: l.dossard, contexte: libelleDe(c) });
@@ -928,7 +954,7 @@
                                                        : " grimpeur suivi");
     } else {
       lignes = (groupe.lignes || []).map(function (l) {
-        return { cle: String(l.participant_id), participant_id: l.participant_id,
+        return { cle: cleDe(l), participant_id: l.participant_id,
                  rang: l.rang, score: l.score, blocs: l.blocs, nom: l.nom,
                  club: l.club, dossard: l.dossard, contexte: null };
       });
@@ -962,7 +988,13 @@
 
     calculerDeltas(titreTexte, lignes);
     var avant = positions();
-    peindre(lignes, !q);
+    // ⚠️ Ni pendant une recherche, ni sur « Mes favoris » : ces deux vues sont
+    // composées de lignes prises dans DIX classements différents. Leurs rangs
+    // ne se comparent pas entre eux — trois « 1er » de trois catégories y
+    // feraient trois cartes d'or côte à côte, et un favori sorti du classement
+    // (rang 0) une marche sans médaille. Le podium ne veut dire quelque chose
+    // que sur un classement, et un seul.
+    peindre(lignes, !q && !surFavoris);
     glisser(avant);
     programmerDefilement();
   }
@@ -1182,7 +1214,7 @@
 
   function agencer(suite, colonnes) {
     var enfants = [];
-    if (!MUR || colonnes < 2) {
+    if (colonnes < 2) {
       el.liste.style.gridAutoFlow = "row";
       el.liste.style.gridTemplateRows = "";
       suite.forEach(function (l) { enfants.push({ ligne: l }); });
@@ -1216,7 +1248,11 @@
   function clePodium(l) { return "pod:" + l.cle; }
 
   function peindre(lignes, avecPodium) {
-    var podium = MUR && avecPodium && lignes.length > 3
+    // ⚠️ Plus de `MUR &&` ici. Ce qui décide, c'est la PLACE : un podium tient
+    // sur un portable de la salle comme sur le mur, et il ne tient sur aucun
+    // téléphone. `avecPodium` reste faux pendant une recherche et sur les
+    // favoris — un podium n'a de sens que sur UN classement.
+    var podium = avecPodium && lignes.length > 3
               && window.innerWidth >= LARGEUR_PODIUM;
     el.podium.classList.toggle("visible", podium);
     el.podium.classList.toggle("serre", window.innerWidth < 1150);
@@ -1280,18 +1316,21 @@
       el.podium.removeChild(el.podium.lastChild);
     }
 
-    var colonnes = 1;
-    if (MUR) {
-      colonnes = colonnesPour(suite.length);
-      el.liste.style.setProperty("--colonnes", colonnes);
-    }
+    // Plusieurs tableaux côte à côte DÈS QUE LA LARGEUR LES PORTE, sur le mur
+    // comme ailleurs (Adrien, 01/09). Un classement de cent lignes sur une
+    // seule colonne large de 1 800 px, c'est 1 500 px de blanc entre le nom et
+    // le score, et neuf lignes visibles là où il en tient trente.
+    var colonnes = colonnesPour(suite.length);
+    el.liste.style.setProperty("--colonnes", colonnes);
+    el.liste.classList.toggle("colonnes", colonnes > 1);
 
     var enfants = suite.length ? agencer(suite, colonnes) : [];
     // La hauteur de ligne d'abord, la densité ensuite : sur le mur, la seconde
-    // se mesure en multiples de la première.
+    // se mesure en multiples de la première. Ailleurs, la ligne garde sa
+    // hauteur naturelle et c'est la page qui défile.
     if (MUR) ajuster(Math.ceil(suite.length / colonnes), 1, false);
     regler_densite(colonnes);
-    poserEntetes(suite.length ? (MUR ? colonnes : 1) : 0);
+    poserEntetes(suite.length ? colonnes : 0);
 
     enfants.forEach(function (item, index) {
       var n = etat.noeuds[item.ligne.cle];
@@ -1326,13 +1365,30 @@
    * un nom n'y tient plus. On prend donc le MINIMUM des deux contraintes, et on
    * recalcule à chaque redimensionnement.
    */
+  // 430 px par colonne SUR LE MUR. Le tableau y coûte ~300 px de gabarit fixe
+  // (rang, blocs, écart, score) : en dessous, il ne reste plus de place pour un
+  // nom, et c'est le nom qu'on vient lire. Mieux vaut deux colonnes lisibles
+  // que trois colonnes de « Nieuv… ».
+  var MIN_COLONNE_MUR = 430;
+
+  /** Ce que coûte une colonne, au minimum, pour qu'un nom y tienne encore.
+   *
+   * Hors du mur, ce n'est pas 430 px : le gabarit y porte une colonne DE PLUS —
+   * l'étoile des favoris — et se mesure en `rem`, pas en multiples de la
+   * hauteur de ligne. La réponse est déjà écrite plus bas, dans les deux
+   * constantes dont `regler_densite()` se sert : le mobilier de la densité 1,
+   * plus ce qu'il faut pour lire un nom. La recopier en dur, c'est se donner
+   * rendez-vous avec une divergence — 389 + 140, et le jour où l'un des deux
+   * bouge, l'autre non.
+   */
+  function minColonne() {
+    if (MUR) return MIN_COLONNE_MUR;
+    return COUT_TELEPHONE[1].rem * unRem() + COUT_TELEPHONE[1].px + LARGEUR_NOM;
+  }
+
   function colonnesPour(nombre) {
     var largeur = el.liste.clientWidth || window.innerWidth;
-    // 430 px par colonne. Le tableau coûte ~300 px de gabarit fixe (rang,
-    // blocs, écart, score) : en dessous, il ne reste plus de place pour un nom,
-    // et c'est le nom qu'on vient lire. Mieux vaut deux colonnes lisibles que
-    // trois colonnes de « Nieuv… ».
-    var parLargeur = Math.max(1, Math.min(3, Math.floor(largeur / 430)));
+    var parLargeur = Math.max(1, Math.min(3, Math.floor(largeur / minColonne())));
     var parNombre = nombre > 12 ? 3 : nombre > 4 ? 2 : 1;
     return Math.min(parLargeur, parNombre);
   }
@@ -1369,6 +1425,13 @@
   // Alexandre », 221 px) s'abrègent sur l'ellipse : un nom coupé se comprend.
   var LARGEUR_NOM = 140;
 
+  /** Un `rem`, en pixels. Le lecteur qui grossit la police de son navigateur
+   *  élargit d'autant le gabarit : les deux calculs qui s'en servent — la
+   *  densité et le nombre de colonnes — doivent le lire, pas le supposer. */
+  function unRem() {
+    return parseFloat(getComputedStyle(document.documentElement).fontSize) || 16;
+  }
+
   function regler_densite(colonnes) {
     var largeur = (el.liste.clientWidth - (colonnes - 1) * 26) / colonnes;
     if (!MUR) {
@@ -1376,7 +1439,7 @@
       // l'étoile, et les gouttières, et le rembourrage. À 470 px de fenêtre, la
       // page choisissait donc la densité 3 en laissant 75 px au nom — « Vialle
       // Jade » en demande 88. On mesure maintenant ce qui reste vraiment au nom.
-      var rem = parseFloat(getComputedStyle(document.documentElement).fontSize) || 16;
+      var rem = unRem();
       etat.densite = 4;
       for (var d = 1; d <= 3; d++) {
         var cout = COUT_TELEPHONE[d];
