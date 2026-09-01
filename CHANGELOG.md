@@ -19,6 +19,17 @@ qu'on ne met pas à jour le matin d'une compétition :
 
 ## [Non publié]
 
+## [0.13.0] — 2026-09-01
+
+Le pilotage d'une édition passe entièrement dans la console — la créer, régler
+son état, tester le classeur en écriture, importer, effacer, archiver, revoir
+une archive dans la vraie page de résultats (spec 018). Plus besoin de SSH ni de
+SQL un dimanche matin.
+
+Et l'écran projeté finit sa passe de lisibilité : le classement se lit d'un
+seul bloc, podium compris, les cartes ne débordent plus, et aucun nombre ne se
+coupe plus au milieu.
+
 ### Ajouté
 
 - **Le cycle de vie d'une édition se pilote depuis la console** (spec 018).
