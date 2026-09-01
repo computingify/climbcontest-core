@@ -17,6 +17,171 @@ qu'on ne met pas à jour le matin d'une compétition :
 - **MINEUR** — nouvelle fonctionnalité, compatible.
 - **CORRECTIF** — correction, compatible.
 
+## [0.15.0] — 2026-09-01
+
+Quatre specs, toutes sorties d'une même session de pilotage de la console par
+Adrien le 01/09 au soir.
+
+### Ajouté
+
+- **Le jeton Google se pose en un clic** (spec 022). Classeur → **« Connecter
+  le compte Google »** : l'écran de consentement, le retour, le jeton écrit.
+
+  Il fallait jusqu'ici **cinq gestes, dont deux en ligne de commande** —
+  retrouver un Mac où `token.pickle` existe, y créer un environnement Python
+  avec `google-auth`, lancer `tools/exporter_jeton.py`, copier une ligne de JSON
+  qui contient un `refresh_token` (un secret au même titre qu'un mot de passe),
+  la coller. Cinq gestes pour un écran dont toute la raison d'être est de
+  **remplacer le SSH**. Et aucun ne produit un jeton neuf : ils recopient celui
+  qui existait déjà. Le jour où il meurt — révoqué, expiré, compte changé — la
+  carte ne savait rien faire.
+
+  `parametrage.py` disait en tête : « ce qui n'est pas ici : le consentement
+  OAuth (il demande un navigateur) ». C'était vrai de la ligne de commande. La
+  console, elle, **est** un navigateur.
+
+  Le `state` est aléatoire, rangé en session, comparé à temps constant puis
+  **retiré** : sans lui, n'importe quel site pourrait faire aboutir chez nous un
+  code obtenu ailleurs, et poser **son** compte Google comme identité du
+  serveur. Le flux demande `prompt=consent`, sans quoi Google ne redonne **pas**
+  de `refresh_token` à un compte qui a déjà consenti — on reposerait un jeton
+  qui meurt dans l'heure, et la panne se découvrirait le lendemain matin. Un
+  jeton sans `refresh_token` est refusé et **n'est pas écrit**. Rien du jeton ne
+  sort : ni journal, ni réponse, ni URL.
+
+  Le collage JSON **reste**, replié sous « Autre méthode » : le flux dépend de
+  trois choses hors de notre code, et s'il lâche le matin de la compétition,
+  supprimer le repli laisserait le serveur sans **aucun** moyen de recevoir un
+  jeton.
+
+  ⚠️ **Deux réglages à faire une fois chez Google, sinon le bouton ne mène
+  nulle part.** Déclarer l'URI de retour — la console **l'affiche, prête à
+  copier**, sous le bouton. Et surtout vérifier l'**état de publication** de
+  l'écran de consentement : 🔴 **en « Test », Google fait expirer le
+  `refresh_token` au bout de 7 jours**. Un jeton posé le lundi serait mort le
+  samedi de la compétition, sans que rien ne prévienne. Voir
+  `docs/runbook-competition.md`.
+
+- **Les étiquettes de blocs à coller au mur** (spec 024). Le juge scanne
+  **deux** QR : celui du grimpeur, puis celui du bloc. Le second est collé au
+  mur, et rien ne savait l'imprimer — préparer une compétition demandait encore
+  d'ouvrir le classeur et d'imprimer son onglet `Fiches`, dont les QR sont
+  produits par `api.qrserver.com` : un appel vers un tiers, qui ne marche pas
+  si la connexion tombe la veille au soir, quand on colle les étiquettes.
+
+  `/admin/etiquettes`, **huit par A4**, filtrable par zone ou par bloc. Le
+  numéro est le plus gros élément (18 mm) : c'est ce qu'on lit à deux mètres
+  pour savoir si on est devant le bon bloc. Le QR fait 40 mm — il se scanne d'un
+  bras tendu, pas à trente centimètres.
+
+  **Une zone par page** : on prend la page de la zone Z, on va coller ses cinq
+  étiquettes, on ne trie rien à la main.
+
+  Et l'étiquette dit **pour qui le bloc compte**. Un bloc rattaché à aucun
+  circuit ne compte pour personne : c'est l'anomalie que la vue Circuits traque
+  depuis la spec 019, et le papier qu'on va coller est le dernier moment pour la
+  rattraper. Elle l'écrit en rouge.
+
+### Modifié
+
+- **La console suit le thème du système** (spec 021). Les couleurs étaient
+  figées dans `:root` et rien ne regardait `prefers-color-scheme` : sur un Mac
+  réglé en clair, en plein jour, dans une salle éclairée, on lisait un écran
+  noir sans l'avoir demandé. Le clair devient le **défaut**, le sombre une
+  redéfinition. **Aucun réglage dans la console** — rien à choisir, rien à
+  mémoriser, rien qui puisse rester coincé sur un mauvais choix.
+
+  L'accent mauve laisse la place à l'**ocre du logo du club**, qui garde sa
+  fonction : distinguer d'un coup d'œil la console de la page publique
+  projetée, qui reste bleue.
+
+- **Le tiroir reste ouvert quand l'écran le permet** — au-delà de 1080 px, dans
+  le flux, sans voile ni burger. Sur un écran de 1920 px il restait 1600 px
+  vides à droite : le recouvrir puis le refermer obligeait à rouvrir le menu à
+  chaque changement de vue. C'est une **requête média**, pas un test
+  JavaScript : redimensionner bascule sans rien recalculer.
+
+- **Confirmer une destruction, c'est maintenir le bouton deux secondes** — à la
+  souris, au doigt, ou avec Entrée. Il fallait frapper `EFFACER` : sept
+  caractères au clavier, sur un ordinateur posé sur un coin de table dans une
+  salle d'escalade. Ce que le mot apportait, c'est l'**arrêt** ; c'est lui qu'on
+  garde, en jetant la frappe. Le libellé nomme ce qu'on détruit — « Effacer 715
+  réussite(s) » — et ce chiffre sous les yeux remplace la frappe comme dernier
+  garde-fou.
+
+  **Le contrat HTTP ne bouge pas** : `cycle.exiger_confirmation()` exige
+  toujours `confirmation: "EFFACER"`. Le mot cesse d'être un geste humain pour
+  devenir un **marqueur de protocole**, qui ferme la route à un `POST` nu, à un
+  onglet resté ouvert, à un script qui l'appellerait sans passer par la fenêtre.
+
+- **Deux écrans d'administration au lieu d'un et demi.** « Compétition » devient
+  **« Général »** — l'édition, ce qu'on en montre, l'archive — et « Importer »
+  et « Effacer » rejoignent **« Classeur »** : ils ne parlent que de la relation
+  entre la feuille et la base. Trois redites disparaissent, dont deux cartes qui
+  posaient la même question et un compteur affiché à deux endroits.
+
+  Le tiroir se lit désormais : Participants · **Circuits · Réussites** ·
+  Téléphones · Général · Classeur · Archives · Réglages — on regarde les blocs
+  pour savoir ce qui existe, puis ce qui a été validé dessus.
+
+- **Les classements affichés se règlent à l'interrupteur.** Une case à cocher
+  dit « je consens » ; ces lignes-là disent « c'est allumé ou c'est éteint ».
+
+- **La fiche du grimpeur remplace la bande à découper** (spec 023).
+  `/admin/dossards` imprimait des bandes de 30 mm : un QR, un numéro, un nom.
+  Le classeur, lui, imprime une **fiche** (onglet `Fiches`) qui porte ce qui
+  manquait : **quels blocs comptent pour ce grimpeur, et où ils sont dans la
+  salle**. C'est le seul papier qu'il a en main de la journée.
+
+  **A4 paysage, six fiches en 2 × 3.** Identité, catégorie, circuit, QR ; tous
+  les blocs de son circuit groupés par difficulté, dans l'ordre du classeur —
+  `Plan!AM` trie sur la couleur puis la **chaîne** (« J10 » avant « J9 »), on
+  reproduit sans corriger pour que les deux listes se lisent dans le même
+  ordre ; et le **plan de la salle**, relevé de `Fiches!V4:X11` et identique
+  dans les trois classeurs archivés, avec **les zones du grimpeur allumées**.
+
+  Deux ajouts sur le classeur : la **zone** au-dessus de chaque numéro — sans
+  elle « J6 » ne dit pas où aller, ni à quoi sert le plan — et une zone **hors
+  plan** qui se dit au lieu de disparaître.
+
+  La fiche s'imprime **toujours**, même quand il n'y a rien à y mettre : c'est
+  elle qui porte le QR. Les quatre cas — pas de catégorie, circuit inconnu,
+  circuit vide, aucun bloc — se disent en toutes lettres.
+
+### Corrigé
+
+- **Les QR ne respectaient pas la norme.** L'ISO/IEC 18004 exige une zone de
+  silence de **quatre modules** autour d'un QR Code ; nous en posions **deux**.
+  Ça marche sur un fond parfaitement blanc et ça lâche dès que le code touche
+  autre chose — une bordure de case, le trait de coupe voisin — que le décodeur
+  lit alors comme des modules noirs. C'est précisément ce que rapprochent des
+  fiches serrées sur une planche. Deux gardes qui n'existaient pas
+  l'accompagnent : `qr.taille_de_module_mm()` et un plancher
+  `qr.MODULE_MINI_MM`, vérifiés à la taille réelle d'impression.
+
+- **Les cases à cocher s'étalaient sur toute la largeur de leur carte**, leur
+  libellé rejeté hors du cadre : la règle globale des champs de saisie
+  s'appliquait aussi à elles. Visible dans « Ce qu'affiche la page de
+  résultats » et dans la fenêtre de confirmation. Corrigé à la racine.
+
+- **« Ouvrir le classeur » s'affichait alors qu'aucun classeur n'est relié**, et
+  proposait d'ouvrir un lien vide : `display: inline-block` bat le `[hidden]` du
+  navigateur.
+
+- **Le bouton pause de la page projetée ne disait pas son état.** Il ne recevait
+  `aria-pressed` qu'au **premier clic** — le seul moment où l'attribut n'apprend
+  plus rien. Avant ça, un lecteur d'écran annonçait « bouton » et non « bouton à
+  bascule, non activé » : rien ne disait que la rotation tourne, ni qu'on peut
+  l'arrêter. Son voisin, pourtant la même sorte de bouton, portait l'attribut
+  depuis toujours.
+
+- **La compétition de test mentait sur deux points** (`tools/semer_competition_test.py`).
+  Ses 24 blocs n'avaient **aucune couleur de prises** et vivaient **tous en zone
+  Z** : la colonne « Prises » de la vue Circuits affichait « — » partout, ce qui
+  donnait l'impression que l'import ne lisait pas la colonne H du `Plan` — il la
+  lit depuis la spec 019, c'est la donnée semée qui n'existait pas. Et une seule
+  zone rendait invérifiables le plan des fiches comme la planche d'étiquettes.
+
 ## [0.14.0] — 2026-09-01
 
 ### Ajouté
