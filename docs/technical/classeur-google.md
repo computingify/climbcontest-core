@@ -300,7 +300,7 @@ compétition). Le détail est dans [la spec](../../specs/015-classeur-parametrab
 
 | Fichier | Contenu | Posé par |
 | --- | --- | --- |
-| `token.json` | le JSON de `Credentials.to_json()` | **la console**, ou `tools/exporter_jeton.py` + `scp` |
+| `token.json` | le JSON de `Credentials.to_json()` | **la console** — consentement OAuth en un clic (spec 022), ou collage du JSON de `tools/exporter_jeton.py` |
 | `token.pickle` | l'objet `Credentials` sérialisé | `scp` (chemin historique) |
 | `token.base64` | le même, en base64 | repli pour un hébergement sans fichier binaire |
 
@@ -311,6 +311,17 @@ La console n'accepte **que** le JSON : recevoir un pickle par HTTP ferait
 appeler `pickle.loads()` sur du contenu venu du réseau, et une session
 d'administrateur volée deviendrait une exécution de code sur la VM.
 `tools/exporter_jeton.py` convertit un `token.pickle` existant, sur le Mac.
+
+**Depuis la spec 022, la console fait le consentement elle-même**
+(`sheets/consentement.py`) : un bouton, l'écran Google, le jeton posé. Le flux
+demande `access_type=offline` **et** `prompt=consent` — sans le second, Google
+ne redonne pas de `refresh_token` à un compte qui a déjà consenti, et on
+reposerait un jeton qui meurt dans l'heure. Le `state` est aléatoire, rangé en
+session, comparé puis **retiré** : un code d'autorisation ne se rejoue pas.
+
+⚠️ **Le piège d'exploitation** : si l'écran de consentement du projet Google est
+en état « Test », le `refresh_token` expire au bout de **7 jours**. Voir
+[runbook-competition.md](../runbook-competition.md#poser-le-jeton-google).
 
 Un jeton rafraîchi est **réécrit** dans `token.json` : sans ça, chaque
 redémarrage du service repart d'un jeton périmé et redemande un rafraîchissement

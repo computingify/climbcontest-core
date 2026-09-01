@@ -868,19 +868,38 @@
 
       <div class="carte">
         <h2>Jeton Google</h2>
-        <p class="aide">Sans jeton, le serveur n'a aucune identité pour écrire :
-           les réussites s'empilent en attente et n'arrivent jamais. Produis-le
-           sur ton Mac, là où le jeton existe déjà :</p>
-        <p class="aide"><code>python3 tools/exporter_jeton.py</code> — puis colle
-           sa sortie ci-dessous.</p>
-        <label for="jetonJson">Le JSON du jeton</label>
-        <textarea id="jetonJson" spellcheck="false" autocapitalize="none"
-                  placeholder='{"token": "ya29…", "refresh_token": "1//…", "client_id": "…", "client_secret": "…"}'></textarea>
-        <p class="aide" style="margin-top:12px">⚠️ Ce texte est un
-           <strong>secret</strong>, comme un mot de passe : il ouvre le compte
-           Google du classeur. L'ancien jeton est conservé côté serveur, au cas
-           où celui-ci serait le mauvais.</p>
-        <button class="action" id="btnPoserJeton">Poser le jeton</button>
+        <p class="aide">Le serveur écrit dans le classeur avec un compte Google.
+           C'est ce compte que tu autorises ici — celui qui a accès à la
+           feuille. Sans lui, les réussites s'empilent en attente et n'arrivent
+           jamais.</p>
+        <dl class="etat" id="etatJeton"></dl>
+        <button class="action" id="btnConsentement">Connecter le compte Google</button>
+        <p class="aide" id="aideConsentement" hidden
+           style="margin:14px 0 0;border-left:4px solid var(--attention);padding-left:12px"></p>
+
+        <!-- ⚠️ Le collage reste, replié. Le flux OAuth dépend de trois choses
+             hors de notre code — credentials.json présent, URI de retour
+             déclarée chez Google, écran de consentement en bon état. Si l'une
+             lâche le matin de la compétition, supprimer le chemin de secours
+             laisserait le serveur sans AUCUN moyen de recevoir un jeton, et
+             les réussites s'empileraient toute la journée. Le coût de le
+             garder est un <details> fermé. -->
+        <details style="margin-top:20px">
+          <summary style="cursor:pointer;font-size:0.87rem;color:var(--encre2)">
+            Autre méthode : coller un jeton produit sur le Mac</summary>
+          <p class="aide" style="margin-top:12px">Pour le jour où Google refuse
+             le consentement depuis la salle. Sur ton Mac, là où le jeton existe
+             déjà : <code>python3 tools/exporter_jeton.py</code> — puis colle sa
+             sortie ici.</p>
+          <label for="jetonJson">Le JSON du jeton</label>
+          <textarea id="jetonJson" spellcheck="false" autocapitalize="none"
+                    placeholder='{"token": "ya29…", "refresh_token": "1//…", "client_id": "…", "client_secret": "…"}'></textarea>
+          <p class="aide" style="margin-top:12px">⚠️ Ce texte est un
+             <strong>secret</strong>, comme un mot de passe : il ouvre le compte
+             Google du classeur. L'ancien jeton est conservé côté serveur, au cas
+             où celui-ci serait le mauvais.</p>
+          <button class="action" id="btnPoserJeton">Poser le jeton</button>
+        </details>
       </div>
       <div class="carte danger">
         <h2>Effacer les données du serveur</h2>
@@ -947,7 +966,21 @@
           <tbody id="corpsBlocs"></tbody>
         </table></div>
         <p class="aide" id="aucunBloc" hidden>Aucun bloc en base — importe le
-           classeur depuis la vue « Compétition ».</p>
+           classeur depuis la vue « Classeur ».</p>
+      </div>
+
+      <div class="carte">
+        <h2>Imprimer les étiquettes de blocs</h2>
+        <p class="aide">Le papier qu'on colle au mur, à côté du départ de chaque
+           bloc : la zone, le numéro en gros, la couleur des prises, le QR que
+           scanne le juge, et <strong>pour quels circuits le bloc compte</strong>.
+           Six par page, <strong>une zone par page</strong> — on prend la page de
+           la zone, on va coller ses étiquettes.</p>
+        <div class="grille" style="max-width:420px">
+          <div><label for="eZone">Une zone (vide = toutes)</label><select id="eZone"></select></div>
+          <div><label for="eBloc">Ou une seule étiquette</label><input id="eBloc" placeholder="ZJ6"></div>
+        </div>
+        <button class="action" id="btnEtiquettes">Ouvrir les étiquettes</button>
       </div>
     </section>
 
@@ -1552,6 +1585,15 @@
     if (e.key === "Enter") $("btnChercherRef").click();
   });
 
+  $("btnEtiquettes").addEventListener("click", function () {
+    var bloc = $("eBloc").value.trim();
+    var zone = $("eZone").value.trim();
+    var url = "/admin/etiquettes";
+    if (bloc) url += "?bloc=" + encodeURIComponent(bloc);
+    else if (zone) url += "?zone=" + encodeURIComponent(zone);
+    window.open(url, "_blank");
+  });
+
   $("btnImprimer").addEventListener("click", function () {
     var un = $("dUnSeul").value.trim();
     var cat = $("dCategorie").value.trim();
@@ -1603,8 +1645,23 @@
       peindreAnomalies(d.anomalies);
       peindreCircuits(d.circuits);
       remplirFiltreCircuit(d.circuits);
+      remplirZones(d.blocs);
       peindreBlocs(d.blocs);
     }).catch(signaler);
+  }
+
+  /** Les zones qui portent AU MOINS un bloc, dans l'ordre du Plan.
+   *
+   *  Les zones vides ne sont pas proposees : le classeur en prevoit vingt, sept
+   *  n'avaient aucun bloc en mars 2026, et offrir de les imprimer donnerait une
+   *  page blanche.
+   */
+  function remplirZones(blocs) {
+    var vues = [];
+    blocs.forEach(function (b) {
+      if (b.zone && vues.indexOf(b.zone) === -1) vues.push(b.zone);
+    });
+    remplir($("eZone"), vues, "Toutes les zones");
   }
 
   function peindreAnomalies(anomalies) {
@@ -2521,16 +2578,13 @@
                                 + "en base, rien n'est perdu", "manque");
     }
 
-    var jeton = d.jeton;
-    if (!jeton.present) {
-      ligneEtat(dl, "Jeton", "absent — aucune écriture n'est possible", "manque");
-    } else if (jeton.valide === false) {
-      ligneEtat(dl, "Jeton", jeton.message || "invalide", "manque");
-    } else {
-      var texte = "posé (" + jeton.source + ")";
-      if (jeton.expire_le) texte += ", jeton d'accès valable jusqu'au " + jeton.expire_le;
-      ligneEtat(dl, "Jeton", texte, "bon");
+    if (!d.jeton.present || d.jeton.valide === false) {
+      // La seule fois ou le jeton doit se voir depuis cette carte : quand il
+      // manque. Le reste de son etat vit dans sa propre carte, plus bas.
+      ligneEtat(dl, "Jeton", d.jeton.message || "absent — aucune écriture "
+                             + "n'est possible", "manque");
     }
+    peindreJeton(d.jeton);
 
     var c = d.compteurs;
     ligneEtat(dl, "Réussites", c.reussites + " au total, " + c.reussites_en_attente
@@ -2727,6 +2781,78 @@
     });
   });
 
+  /** L'etat du jeton, et ce que le bouton de consentement peut faire. */
+  function peindreJeton(jeton) {
+    var dl = $("etatJeton");
+    dl.innerHTML = "";
+
+    if (!jeton.present) {
+      ligneEtat(dl, "Compte", "aucun jeton — le serveur n'a pas d'identité "
+                              + "pour écrire", "manque");
+    } else if (jeton.valide === false) {
+      ligneEtat(dl, "Compte", jeton.message || "jeton invalide", "manque");
+    } else {
+      var texte = "connecté (" + jeton.source + ")";
+      if (jeton.expire_le) texte += ", accès valable jusqu'au " + jeton.expire_le;
+      ligneEtat(dl, "Compte", texte, "bon");
+      if (jeton.scopes && jeton.scopes.length) {
+        // Le scope DIT ce que le serveur a le droit de faire. Un jeton qui
+        // n'a que la lecture se comporte exactement comme un bon jeton
+        // jusqu'au premier lot du miroir.
+        ligneEtat(dl, "Autorisation", jeton.scopes.map(function (s) {
+          return s.split("/").pop();
+        }).join(", "));
+      }
+    }
+
+    var c = jeton.consentement || {};
+    $("btnConsentement").disabled = !c.pret;
+    var aide = $("aideConsentement");
+    if (c.pret) {
+      // L'URI de retour, affichee EN PERMANENCE et prete a copier : c'est ce
+      // qui rend « redirect_uri_mismatch » reparable sans lire une
+      // documentation. Google l'exige au caractere pres.
+      aide.hidden = false;
+      aide.innerHTML = "";
+      aide.appendChild(document.createTextNode(
+        "À déclarer une fois chez Google (Identifiants → le client OAuth → "
+        + "URI de redirection autorisés) : "));
+      var uri = document.createElement("code");
+      uri.textContent = c.uri_retour;
+      aide.appendChild(uri);
+    } else {
+      aide.hidden = false;
+      aide.textContent = c.message || "Consentement indisponible sur ce serveur.";
+    }
+  }
+
+  $("btnConsentement").addEventListener("click", function () {
+    // Une NAVIGATION de page entiere, pas un fetch : Google refuse d'etre
+    // appele en XHR ou affiche dans un cadre, et c'est tant mieux -- on doit
+    // voir la barre d'adresse de Google au moment de donner un acces.
+    window.location.href = "/admin/classeur/google/consentement";
+  });
+
+  /** Le retour du consentement arrive dans la requete. On le dit, puis on
+   *  NETTOIE l'URL : un rechargement ne doit pas rejouer le message. */
+  function lireRetourJeton() {
+    var params = new URLSearchParams(window.location.search);
+    var resultat = params.get("jeton");
+    if (!resultat) return;
+
+    if (resultat === "pose") {
+      dire("Compte Google connecté. Teste l'accès en écriture pour vérifier "
+           + "qu'il ouvre bien le classeur.", "ok");
+    } else if (resultat === "refuse") {
+      dire("Consentement refusé chez Google. L'ancien jeton, s'il y en avait "
+           + "un, est toujours en place.", "attention");
+    } else {
+      dire(params.get("d") || "Le consentement Google n'a pas abouti.", "erreur");
+    }
+    history.replaceState(null, "", window.location.pathname);
+    montrerVue("classeur");
+  }
+
   $("btnPoserJeton").addEventListener("click", function () {
     var bouton = this;
     bouton.disabled = true;
@@ -2748,7 +2874,7 @@
   fetch("/admin/moi", { cache: "no-store" })
     .then(function (r) { return r.ok ? r.json() : null; })
     .then(function (d) {
-      if (d && d.success) { etat.moi = d; montrerConsole(); }
+      if (d && d.success) { etat.moi = d; montrerConsole(); lireRetourJeton(); }
       else montrerConnexion();
     })
     .catch(function () { montrerConnexion(); });

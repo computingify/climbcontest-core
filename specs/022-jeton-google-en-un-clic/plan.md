@@ -2,21 +2,21 @@
 
 ## Étapes
 
-1. [ ] `client.chemin_credentials()` / `etat_credentials()` — chercher
+1. [x] `client.chemin_credentials()` / `etat_credentials()` — chercher
    `credentials.json` dans les mêmes dossiers que le jeton, dire ce qu'on a
    trouvé sans jamais lever.
-2. [ ] `sheets/consentement.py` — `disponible()`, `url_de_consentement()`,
+2. [x] `sheets/consentement.py` — `disponible()`, `url_de_consentement()`,
    `echanger()`. Aucune écriture disque, aucun Flask hors `session`.
-3. [ ] `routes/admin.py` — extraire `base_publique()` de `lien_juge()` (et
+3. [x] `routes/admin.py` — extraire `base_publique()` de `lien_juge()` (et
    l'appeler depuis `lien_juge`, pour qu'il n'y ait qu'une règle), puis les deux
    routes du flux.
-4. [ ] `GET /admin/classeur` — le bloc `consentement` dans `jeton`.
-5. [ ] Tests (tableau ci-dessous), avec un `Flow` factice — **aucun appel
+4. [x] `GET /admin/classeur` — le bloc `consentement` dans `jeton`.
+5. [x] Tests (tableau ci-dessous), avec un `Flow` factice — **aucun appel
    réseau**.
-6. [ ] `admin.html` — la carte refaite : état, bouton, URI de retour à copier,
+6. [x] `admin.html` — la carte refaite : état, bouton, URI de retour à copier,
    `<details>` « Autre méthode », lecture de `?jeton=` et nettoyage de l'URL.
-7. [ ] `client._identifiants()` — le message d'erreur de F5.
-8. [ ] `docs/runbook-competition.md` — la manip Google (F4), expiration en mode
+7. [x] `client._identifiants()` — le message d'erreur de F5.
+8. [x] `docs/runbook-competition.md` — la manip Google (F4), expiration en mode
    « Test » comprise. `docs/technical/classeur-google.md` § 5 ter — l'origine
    « console (OAuth) » dans le tableau des formes de jeton.
 9. [ ] Essai réel de bout en bout, une fois l'URI déclarée chez Google.

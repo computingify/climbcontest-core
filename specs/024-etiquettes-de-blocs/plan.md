@@ -2,13 +2,13 @@
 
 ## Étapes
 
-1. [ ] `fiches.etiquettes()` — regroupement par zone, ordre `Bloc.numero`,
+1. [x] `fiches.etiquettes()` — regroupement par zone, ordre `Bloc.numero`,
    `numero` sans préfixe, drapeau de coupure. Deux requêtes.
-2. [ ] Tests de `fiches.etiquettes()` — le tableau ci-dessous.
-3. [ ] `templates/etiquettes.html` — grille par zone, QR 45 mm.
-4. [ ] `routes/admin.py` — `GET /admin/etiquettes` et son journal.
-5. [ ] `templates/admin.html` — la carte dans la vue **Circuits**.
-6. [ ] Tests de route.
+2. [x] Tests de `fiches.etiquettes()` — le tableau ci-dessous.
+3. [x] `templates/etiquettes.html` — grille par zone, QR 45 mm.
+4. [x] `routes/admin.py` — `GET /admin/etiquettes` et son journal.
+5. [x] `templates/admin.html` — la carte dans la vue **Circuits**.
+6. [x] Tests de route.
 7. [ ] Impression réelle : une planche, coupée, scannée avec un vrai téléphone.
 
 ## Plan de test

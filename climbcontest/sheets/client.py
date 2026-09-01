@@ -40,6 +40,7 @@ logger = logging.getLogger(__name__)
 # c'est le seul que la console sait écrire, donc le seul qui peut être plus
 # récent que les autres.
 FICHIER_JSON = "token.json"
+FICHIER_CREDENTIALS = "credentials.json"
 FICHIER_PICKLE = "token.pickle"
 FICHIER_BASE64 = "token.base64"
 
@@ -153,7 +154,8 @@ class ClasseurGoogle:
             else:
                 raise ErreurClasseur(
                     "Jeton Google invalide et non rafraichissable : refaire le "
-                    "consentement depuis une machine avec navigateur."
+                    "consentement depuis la console -- Classeur, « Connecter le "
+                    "compte Google »."
                 )
         return creds
 
@@ -493,6 +495,52 @@ class ClasseurGoogle:
 def chemin_jeton_json() -> Path:
     """Ou la console ECRIT le jeton : le premier dossier de la liste."""
     return ClasseurGoogle._dossiers_de_jeton()[0] / FICHIER_JSON
+
+
+def chemin_credentials() -> Path | None:
+    """Le `credentials.json` de l'application OAuth, ou None.
+
+    C'est l'identite de l'APPLICATION (client_id, client_secret), pas celle du
+    compte : il ne change jamais d'une competition a l'autre. Cherche dans les
+    memes dossiers que le jeton, et dans le meme ordre.
+    """
+    for dossier in ClasseurGoogle._dossiers_de_jeton():
+        chemin = dossier / FICHIER_CREDENTIALS
+        if chemin.exists():
+            return chemin
+    return None
+
+
+def etat_credentials() -> dict:
+    """`{"pret", "chemin", "message"}`. Ne leve jamais.
+
+    Un `credentials.json` absent est un etat NORMAL d'une installation neuve,
+    pas une panne : la console doit l'AFFICHER et desactiver le bouton, pas
+    rendre une 500 ni offrir un bouton qui ne marchera pas.
+    """
+    chemin = chemin_credentials()
+    if chemin is None:
+        cherches = [str(d / FICHIER_CREDENTIALS)
+                    for d in ClasseurGoogle._dossiers_de_jeton()]
+        return {"pret": False, "chemin": None,
+                "message": "Aucun " + FICHIER_CREDENTIALS + ". Attendu dans "
+                           + cherches[0] + "."}
+
+    try:
+        contenu = json.loads(chemin.read_text())
+    except (OSError, ValueError) as e:
+        return {"pret": False, "chemin": str(chemin),
+                "message": f"{chemin.name} illisible : {e}"}
+
+    # Google produit soit `{"web": {...}}`, soit `{"installed": {...}}`. Le
+    # notre est de type « web », le seul qui accepte une URI de retour HTTPS.
+    if not isinstance(contenu, dict) or not (
+            contenu.get("web") or contenu.get("installed")):
+        return {"pret": False, "chemin": str(chemin),
+                "message": f"{chemin.name} ne porte ni « web » ni « installed » : "
+                           "ce n'est pas un identifiant client OAuth."}
+
+    return {"pret": True, "chemin": str(chemin), "message": None}
 
 
 def trouver_jeton():

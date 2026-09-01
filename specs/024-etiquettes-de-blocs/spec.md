@@ -1,6 +1,7 @@
 # Spec 024 — Les étiquettes de blocs à coller au mur
 
-> **Statut : rédigée, en attente de la porte 2.**
+> **Statut : validée (porte 2) et codée — 01/09/2026.**
+> Adrien : « oui très bien fait le 22 et 24 maintenant ».
 > Demande d'Adrien du 01/09/2026, à la validation des specs 021-023 : « il me
 > faudra aussi les étiquettes de blocs ». C'est le papier que la spec 023 avait
 > explicitement laissé de côté — la zone gauche de l'onglet `Fiches`.
@@ -44,7 +45,18 @@ couleurs de papier — voir F3.
 
 ## 3. Ce qu'on fait
 
-### F1 — Une planche d'étiquettes, six par A4
+### F1 — Une planche d'étiquettes, huit par A4
+
+> ⚠️ **Corrigé après coup.** Cette section disait « six par A4 », en disposition
+> verticale (99 × 105 mm). Adrien, en la voyant : « tu dois pouvoir les
+> condenser un peu plus ». Trois densités lui ont été rendues — 8, 12 et 15 par
+> page — et il a tranché **8**.
+>
+> La disposition passe à l'**horizontale** : QR à gauche, texte à droite. Une
+> étiquette se colle au-dessus du départ d'un bloc, où la place est large et
+> basse ; empiler verticalement gaspillait la moitié de la hauteur. C'est aussi
+> ce qui permet de descendre à 71 mm sans rien perdre.
+
 
 Nouvelle page `GET /admin/etiquettes`, réservée à un organisateur, sur le modèle
 exact de `/admin/dossards` :
@@ -55,27 +67,29 @@ exact de `/admin/dossards` :
 | `?zone=Z` | Les blocs d'une zone — celle qu'on va coller maintenant |
 | `?bloc=ZJ6` | Une seule étiquette : celle qu'on a décollée ou perdue |
 
-Six étiquettes par A4 (2 colonnes × 3 lignes, 99 × 105 mm chacune) :
+Huit étiquettes par A4 (2 colonnes × 4 lignes, **99 × 71,25 mm** chacune) :
 
 ```
-┌───────────────────────────┐
-│        ZONE  Z            │
-│                           │
-│         J 6               │   ← le numéro, en très gros
-│                           │
-│      ┌───────────┐        │
-│      │           │        │
-│      │    QR     │  45mm  │   ← contenu : « ZJ6 »
-│      │           │        │
-│      └───────────┘        │
-│  Prises : Blanc           │
-│  Compte pour : U11 · U13  │
-└───────────────────────────┘
+┌──────────────────────────────────────┐
+│  ┌───────────┐   ZONE Z              │
+│  │    QR     │   ┌──┐                │
+│  │   40 mm   │   │J6│  ← 18 mm       │
+│  │  « ZJ6 »  │   └──┘                │
+│  └───────────┘   ● Jaune             │
+│                  Prises : Blanc      │
+│                  U11 · U13           │
+└──────────────────────────────────────┘
+              99 × 71,25 mm
 ```
 
 Le numéro est le plus gros élément : c'est ce qu'on lit à deux mètres pour
-savoir si on est devant le bon bloc. Le QR, lui, se scanne à trente centimètres,
-45 mm suffisent largement — c'est deux fois la taille d'un QR de dossard.
+savoir si on est devant le bon bloc. Le QR fait 40 mm — près du double de celui
+d'une fiche, parce qu'il est collé au mur, souvent en hauteur, et scanné d'un
+bras tendu.
+
+Toute la géométrie tient dans trois variables CSS (`--etiquette-largeur`,
+`--etiquette-hauteur`, `--qr`) : c'est ce qui a permis de rendre les trois
+densités et de choisir sur pièces.
 
 ### F2 — Une zone par page
 
@@ -85,9 +99,9 @@ range. Un **saut de page à chaque changement de zone** : on prend la page de la
 zone `Z`, on va coller les cinq étiquettes de la zone `Z`, on ne trie rien à la
 main.
 
-Les cinq blocs par zone du classeur tiennent donc sur une page, avec une place
-en rab. Une zone de plus de six blocs continue sur la page suivante, sans rien
-casser.
+Les cinq blocs par zone du classeur tiennent donc sur une page, avec trois
+places en rab. Une zone de plus de huit blocs continue sur la page suivante,
+sans rien casser.
 
 Une zone **sans bloc** ne produit aucune page — c'est ce que fait le classeur
 avec son filtre `Plan!AY` (« la zone a-t-elle au moins un bloc de circuit ? »),
@@ -111,7 +125,7 @@ va coller : c'est le dernier moment où on peut la rattraper.
 
 ### F4 — Le QR, généré localement
 
-`qr.svg(bloc.tag, cote_mm=45)`. Contenu : `ZJ6` — zone + numéro, collés, ce que
+`qr.svg(bloc.tag, cote_mm=45)` — rendu à 40 mm par le CSS. Contenu : `ZJ6` — zone + numéro, collés, ce que
 l'application juge attend et ce que `bloc_par_tag()` sait relire. Pas un
 caractère de plus.
 
@@ -130,28 +144,32 @@ Aucun appel réseau, comme pour les dossards depuis la spec 005.
   l'impression : une autre spec ;
 - **la variante A** du classeur (numéro répété au-dessus et au-dessous). Elle
   n'apporte rien qu'une seule impression bien cadrée ne donne ;
-- **le format autocollant planche A4 du commerce** (Avery et consorts). Six
+- **le format autocollant planche A4 du commerce** (Avery et consorts). Huit
   étiquettes régulières se découpent aux ciseaux ; caler des marges au dixième
   de millimètre pour une planche précise se fera si le besoin apparaît.
 
 ## 5. Critères d'acceptation
 
-- [ ] **A1** — `GET /admin/etiquettes` rend une étiquette par bloc de la
-  compétition active, six par A4.
-- [ ] **A2** — L'étiquette porte : zone, numéro, QR, couleur des prises,
+**Tous vérifiés le 01/09/2026** — 36 tests (`tests/test_etiquettes.py`) et un PDF
+mesuré à `preferCSSPageSize` : 210 × 297 mm, huit étiquettes de 99 × 71,25 mm
+par page, une zone par page.
+
+- [x] **A1** — `GET /admin/etiquettes` rend une étiquette par bloc de la
+  compétition active, **huit par A4**.
+- [x] **A2** — L'étiquette porte : zone, numéro, QR, couleur des prises,
   circuits.
-- [ ] **A3** — Le QR contient `zone + numéro` (`ZJ6`) et se relit par un
+- [x] **A3** — Le QR contient `zone + numéro` (`ZJ6`) et se relit par un
   décodeur indépendant à 45 mm.
-- [ ] **A4** — `?zone=Z` ne rend que cette zone ; `?bloc=ZJ6` une seule
+- [x] **A4** — `?zone=Z` ne rend que cette zone ; `?bloc=ZJ6` une seule
   étiquette.
-- [ ] **A5** — Saut de page à chaque changement de zone ; une étiquette n'est
+- [x] **A5** — Saut de page à chaque changement de zone ; une étiquette n'est
   jamais coupée.
-- [ ] **A6** — Les blocs sortent dans l'ordre de `Bloc.numero`.
-- [ ] **A7** — Un bloc sans circuit le dit sur son étiquette.
-- [ ] **A8** — Une zone sans bloc ne produit aucune page.
-- [ ] **A9** — Aucune ressource extérieure dans la page.
-- [ ] **A10** — Anonyme → 401, rôle insuffisant → 403, comme `/admin/dossards`.
-- [ ] **A11** — Le nombre de requêtes SQL ne dépend pas du nombre de blocs.
+- [x] **A6** — Les blocs sortent dans l'ordre de `Bloc.numero`.
+- [x] **A7** — Un bloc sans circuit le dit sur son étiquette.
+- [x] **A8** — Une zone sans bloc ne produit aucune page.
+- [x] **A9** — Aucune ressource extérieure dans la page.
+- [x] **A10** — Anonyme → 401, rôle insuffisant → 403, comme `/admin/dossards`.
+- [x] **A11** — Le nombre de requêtes SQL ne dépend pas du nombre de blocs.
 
 ## 6. Cas limites
 
