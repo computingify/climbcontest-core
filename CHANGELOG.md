@@ -19,6 +19,56 @@ qu'on ne met pas à jour le matin d'une compétition :
 
 ## [Non publié]
 
+## [0.12.0] — 2026-09-01
+
+La passe de lisibilité sur l'écran projeté, faite en le regardant tourner :
+l'ordre des classements, les colonnes qui suivent la taille du texte, les
+en-têtes qui restent en place, un défilement qui ne saccade plus, et un bouton
+pour figer une catégorie.
+
+### Modifié
+
+- **Les scratchs passent avant leurs catégories.** L'ordre — donc celui de la
+  barre, donc celui du cycle sur le mur — va du plus général au plus précis :
+  `Scratch`, `Scratch F`, `Scratch H`, puis `U11 scratch`, `U11 F`, `U11 H`,
+  puis `U13 scratch`… et le cumul par club en dernier. On passe de « U13
+  scratch » à « U13 F » sans traverser la barre.
+- **La rotation se met en pause.** Un bouton ⏸ / ▶ dans le bandeau du mur, pour
+  figer une catégorie — pendant une remise de prix, ou quand quelqu'un demande
+  « laisse la U13 F ». La jauge s'arrête où elle en est et repart de là.
+- **Le temps d'affichage d'une catégorie découle du défilement**, et non d'une
+  formule : une catégorie qui déborde reste le temps de descendre et de remonter
+  en entier — à ~55 px/s, plus trois respirations de 2,5 s. Une catégorie qui
+  tient à l'écran n'a rien à faire défiler : elle garde le plancher de 10 s.
+  Mesuré : 10 s pour « U11 F », 40 s pour le scratch général et ses 891 px de
+  débordement. `?mur&rotation=30` force toujours une durée fixe.
+- **Le défilement automatique est deux fois plus lent** (~55 px/s) et **remonte
+  aussi doucement qu'il descend**. L'assouplissement est maintenant posé sur
+  chaque intervalle et non sur l'animation entière : appliqué globalement, il
+  rendait la descente rapide et la remontée saccadée.
+- **Les en-têtes de colonnes ne défilent plus** avec le classement : ils vivent
+  au-dessus de la zone qui défile. Dedans, ils repartaient avec les lignes et
+  revenaient d'un à-coup à la fin de la remontée.
+- **Les tranches « 4 → 14 » disparaissent** des en-têtes de colonne : le premier
+  rang de la colonne le disait déjà.
+
+### Corrigé
+
+- **Le défilement remonte à nouveau.** Les données sont relues toutes les quinze
+  secondes, et chaque relecture recréait l'animation : elle repartait du haut
+  avant d'avoir eu le temps de remonter, donc la remontée n'arrivait jamais. Une
+  animation qui court sur le même plateau est maintenant laissée en place.
+- **Le score n'est plus tronqué dans une petite catégorie.** Les colonnes d'une
+  ligne se mesuraient en `em` — donc sur la police du conteneur, 16 px — pendant
+  que leur contenu grandissait avec la hauteur de ligne. Sur une catégorie de
+  deux grimpeurs, où cette hauteur monte, « 1473 » s'affichait en 67 px dans une
+  colonne de 83 px. Elles se mesurent maintenant en proportion de la hauteur de
+  ligne, ce qui corrige du même coup le **tableau qui ne suivait pas un
+  redimensionnement de la fenêtre**.
+- La hauteur de ligne des petites catégories est ramenée de 168 à 124 px : un
+  seul grimpeur occupait un quart de mur en caractères de 67 px, ce qui se lit
+  comme une erreur d'affichage.
+
 ## [0.11.0] — 2026-09-01
 
 La page de résultats reprise de fond en comble, et trois classements de plus.
@@ -866,7 +916,8 @@ livrer — spec 001, itération 3.
 - Les données et les secrets vivent dans `shared/`, hors des releases : un
   déploiement ou un retour arrière ne peut pas les toucher.
 
-[Non publié]: https://github.com/computingify/climbcontest-core/compare/v0.11.0...HEAD
+[Non publié]: https://github.com/computingify/climbcontest-core/compare/v0.12.0...HEAD
+[0.12.0]: https://github.com/computingify/climbcontest-core/releases/tag/v0.12.0
 [0.11.0]: https://github.com/computingify/climbcontest-core/releases/tag/v0.11.0
 [0.10.0]: https://github.com/computingify/climbcontest-core/releases/tag/v0.10.0
 [0.6.0]: https://github.com/computingify/climbcontest-core/releases/tag/v0.6.0

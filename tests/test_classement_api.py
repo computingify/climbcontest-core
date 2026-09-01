@@ -246,13 +246,39 @@ class TestIsolationDesCompetitions:
 
 class TestOrdreDesClassements:
     """L'ordre de la réponse est l'ordre de la barre, donc l'ordre du cycle sur
-    le mur. Trié sur le seul nom de type, « club » passait AVANT « scratch »."""
+    le mur : du plus général au plus précis, et chaque circuit ouvre SA famille.
 
-    def test_categories_puis_circuits_puis_scratchs_puis_club(self, client, jeu):
+        Scratch, Scratch F, Scratch H
+        U11 scratch, U11 F, U11 H
+        U13 scratch, U13 F, U13 H
+        Clubs
+
+    Demandé par Adrien le 01/09 : les scratchs avant leurs catégories, les
+    généraux tout à gauche.
+    """
+
+    def test_les_scratchs_generaux_ouvrent_la_liste(self, client, jeu):
         from climbcontest.contest import enregistrer_reussite
         enregistrer_reussite(jeu["participants"][0], jeu["blocs"][0])
         d = client.get("/api/public/classement").get_json()
         types = [c["type"] for c in d["classements"]]
-        attendu = {"categorie": 0, "circuit": 1, "scratch": 2, "club": 3}
-        rangs = [attendu[t] for t in types]
-        assert rangs == sorted(rangs), f"ordre inattendu : {types}"
+        if "scratch" in types:
+            assert types.index("scratch") == 0
+        assert types[-1] == "club", "le cumul par club ferme la marche"
+
+    def test_chaque_circuit_ouvre_sa_famille(self, client, jeu):
+        """« U13 » vient avant « U13 F » et « U13 H », et rien d'un autre
+        circuit ne s'intercale."""
+        from climbcontest.contest import enregistrer_reussite
+        enregistrer_reussite(jeu["participants"][0], jeu["blocs"][0])
+        d = client.get("/api/public/classement").get_json()
+        sportifs = [c for c in d["classements"] if c["type"] in ("circuit", "categorie")]
+        circuits = [c["circuit"] for c in sportifs]
+        # les circuits se suivent sans se mélanger
+        assert circuits == sorted(circuits, key=lambda x: (circuits.index(x)))
+        for i, c in enumerate(sportifs):
+            if c["type"] == "circuit":
+                continue
+            precedents = [x for x in sportifs[:i] if x["circuit"] == c["circuit"]]
+            assert precedents and precedents[0]["type"] == "circuit", \
+                f"« {c['groupe']} » n'est pas précédé de son circuit"

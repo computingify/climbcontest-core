@@ -222,7 +222,7 @@ class TestFaitePourEtreProjetee:
         page = client.get("/").data.decode()
         assert "function regler_densite(" in page
         assert "etat.densite" in page
-        assert "#liste.d4 .blocs" in page
+        assert "main.d4 .blocs" in page
 
     def test_le_podium_est_en_marches(self, client, jeu):
         """Premier au centre et plus haut, deuxième à gauche, troisième à droite
@@ -273,6 +273,44 @@ class TestFaitePourEtreProjetee:
         assert "climbcontest.favoris" in page
         assert "document.cookie" not in page
         assert "range.competition === id" in page
+
+    def test_les_entetes_ne_defilent_pas_avec_le_classement(self, client, jeu):
+        """Dedans, ils repartaient avec les lignes et revenaient d'un à-coup à
+        la fin de la remontée (Adrien, 01/09). Un tableau garde ses titres sous
+        les yeux, de toute façon."""
+        page = client.get("/").data.decode()
+        assert 'id="entetes"' in page
+        assert "function poserEntetes(" in page
+
+    def test_la_grille_des_colonnes_suit_la_taille_du_texte(self, client, jeu):
+        """En `em`, elle se calculait sur la police du conteneur (16 px) pendant
+        que le contenu grandissait avec `--h` : sur une petite catégorie, le
+        score sortait de sa colonne."""
+        page = client.get("/").data.decode()
+        assert "body.mur main.d1" in page
+        assert "calc(var(--h) * 1.6)" in page
+
+    def test_le_temps_d_affichage_decoule_du_defilement(self, client, jeu):
+        """Adrien, 01/09 : « calcule le temps nécessaire pour faire une descente
+        puis une remontée avant de passer à la catégorie suivante, avec un temps
+        minimum pour les petites catégories ». C'est le défilement qui commande
+        la rotation, et non l'inverse."""
+        page = client.get("/").data.decode()
+        assert "VITESSE_DEFILEMENT" in page
+        assert "DUREE_MIN_MS" in page
+        assert "etat.dureeAffichage" in page
+
+    def test_le_defilement_survit_a_un_rafraichissement(self, client, jeu):
+        """Les données sont relues toutes les 15 s : en recréant l'animation à
+        chaque fois, elle repartait du haut et ne remontait jamais."""
+        page = client.get("/").data.decode()
+        assert "signatureDefilement" in page
+
+    def test_la_rotation_peut_etre_mise_en_pause(self, client, jeu):
+        page = client.get("/").data.decode()
+        assert 'id="pause"' in page
+        assert "etat.enPause" in page
+        assert "function figerJauge(" in page
 
     def test_le_balayage_change_de_categorie(self, client, jeu):
         page = client.get("/").data.decode()
