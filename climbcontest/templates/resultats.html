@@ -201,13 +201,7 @@
   /* La place dans la RANGÉE vient du rang affiché (1er au centre), la médaille
      vient du rang réel : deux ex æquo en tête portent deux fois l'or. C'est la
      MARCHE qui porte la position — voir `.marche.place-N` plus bas. */
-  /* La carte est son propre CONTENEUR de requête : ce qui décide de montrer
-     l'écart et les blocs, c'est la largeur de LA CARTE, pas celle de l'écran.
-     Une carte de podium peut être étroite sur un grand écran (six ex æquo) et
-     large sur un petit (un seul rang) — une media query se tromperait dans les
-     deux sens. */
   .pod {
-    container-type: inline-size;
     /* ⚠️ `minmax(0, 1fr)` et surtout PAS `1fr`. Le `min-width` par defaut
        d'une piste de grille vaut `auto` : la colonne ne peut alors jamais
        devenir plus etroite que son contenu le plus large. Or `.chiffres` est
@@ -251,26 +245,22 @@
               white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .pod .club { font-size: clamp(14px, 1.1vw, 20px); color: var(--encre2);
                white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .pod .chiffres { display: flex; align-items: baseline; gap: 12px; margin-top: 4px;
+  /* Le score, et lui seul. Le compte de blocs et l'écart au premier vivaient
+     ici sans étiquette, à côté d'un score écrit deux fois plus gros : « 7 blocs
+     −199 » se déchiffrait au lieu de se lire. Ils sont maintenant dans le
+     tableau, deux lignes plus bas, sous un en-tête qui les nomme — et la
+     largeur qu'ils prenaient revient au nom, qui en manquait dès que deux
+     ex æquo se partagent une marche.
+
+     `min-width: 0; overflow: hidden` reste, et reste utile : `nowrap` élargit
+     la cellule au lieu de la rogner, ce qui suffisait à faire déborder la carte
+     — c'est le défaut corrigé juste avant. Il ne reste qu'un nombre court à y
+     tenir, mais la garde ne coûte rien. */
+  .pod .chiffres { display: flex; align-items: baseline; margin-top: 4px;
                    flex-wrap: nowrap; white-space: nowrap;
-                   /* Rogne au lieu de pousser : le score est en tete, c'est
-                      donc l'ecart qui disparait en premier si la carte est
-                      trop etroite. Sans ca, `nowrap` elargit la cellule. */
                    min-width: 0; overflow: hidden; }
   .pod .score { font-size: clamp(32px, 3.2vw, 60px); font-weight: 900; line-height: 1;
                 font-variant-numeric: tabular-nums; }
-  .pod .blocs { font-size: clamp(14px, 1.2vw, 22px); color: var(--encre2); }
-  .pod .ecart { font-size: clamp(14px, 1.2vw, 22px); color: var(--encre2); }
-
-  /* ⚠️ UN NOMBRE COUPÉ MENT ; un nom coupé, non.
-     `.chiffres` est en `nowrap` : quand la carte est trop étroite, l'écart
-     était rogné au milieu et « −1700 » s'affichait « −17 ». Sur un mur, ça se
-     lit comme un écart de dix-sept points. Le nom, lui, se coupe sur une
-     ellipse et se comprend comme tronqué.
-     L'écart part donc en premier, les blocs ensuite. Les deux se relisent dans
-     le tableau juste en dessous ; le score et le nom, non. */
-  @container (max-width: 430px) { .pod .ecart { display: none; } }
-  @container (max-width: 330px) { .pod .blocs { display: none; } }
 
   /* ⚠️ PLUSIEURS EX ÆQUO SUR LA MÊME MARCHE.
      La largeur de la marche se divise entre les cartes — mais le MOBILIER de
@@ -312,11 +302,6 @@
      score valent mieux qu'une ligne de club illisible. */
   .groupe.c5 .pod .club, .groupe.c6 .pod .club { display: none; }
   .groupe.c4 .pod .club { font-size: clamp(11px, 0.8vw, 14px); }
-  /* Les blocs et l'écart sont les premiers à partir : ils se relisent dans le
-     tableau juste en dessous, le nom non. */
-  .groupe.c4 .pod .blocs, .groupe.c4 .pod .ecart,
-  .groupe.c5 .pod .blocs, .groupe.c5 .pod .ecart,
-  .groupe.c6 .pod .blocs, .groupe.c6 .pod .ecart { display: none; }
 
   /* Les en-têtes vivent AU-DESSUS de la zone qui défile, pas dedans : dedans,
      ils repartaient avec le classement et revenaient d'un à-coup à la fin de la
@@ -407,35 +392,48 @@
   .ligne:nth-of-type(even) { background: var(--zebre); }
   body.mur .ligne { height: var(--h, 64px); padding: 0 14px; }
 
-  /* Le podium reste marqué dans le tableau — utile quand il n'y a pas de
-     bandeau (téléphone, fenêtre étroite). */
+  /* Le podium est marqué dans le tableau, TOUJOURS — le tableau le reprend
+     désormais en entier. Sur le mur, c'est ce liseré qui relie la première
+     ligne à la carte en or juste au-dessus ; sur un téléphone, où aucune marche
+     n'est dessinée, c'est la seule chose qui dise que ces trois-là sont sur le
+     podium. */
   .ligne.p1, .ligne.p2, .ligne.p3 { background: var(--carte2); }
   .ligne.p1 { box-shadow: inset 5px 0 0 var(--or); }
   .ligne.p2 { box-shadow: inset 5px 0 0 var(--argent); }
   .ligne.p3 { box-shadow: inset 5px 0 0 var(--bronze); }
 
+  /* ⚠️ `body.mur .ligne .X` et pas `body.mur .X`.
+     `.nom`, `.club` et `.score` existent des DEUX côtés : sur une ligne de
+     tableau et sur une carte de podium. Sans `.ligne`, ces règles-ci
+     l'emportaient sur `.pod .nom` — même nombre de classes, mais un `body` en
+     plus — et une carte de podium se dessinait donc à la taille d'une ligne de
+     tableau. Elle valait 16,72 px là où la carte demandait 40 : le podium était
+     réglé sur la hauteur du classement, pas sur la sienne, depuis la spec 016.
+     Invisible tant que TOUTES les cartes tombaient dedans ; flagrant depuis que
+     `.groupe.cN` en sort les marches à plusieurs ex æquo, et qu'une marche à
+     une seule carte se retrouvait deux fois plus petite que sa voisine. */
   .rang { font-weight: 800; color: var(--encre2); text-align: right;
           font-variant-numeric: tabular-nums; font-size: 1.15rem; }
-  body.mur .rang { font-size: calc(var(--h, 64px) * .40); }
+  body.mur .ligne .rang { font-size: calc(var(--h, 64px) * .40); }
   .qui { min-width: 0; }
   .nom { font-weight: 700; font-size: 1.05rem;
          white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  body.mur .nom { font-size: calc(var(--h, 64px) * .38); }
+  body.mur .ligne .nom { font-size: calc(var(--h, 64px) * .38); }
   .club { color: var(--encre2); font-size: 0.8rem;
           white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  body.mur .club { font-size: calc(var(--h, 64px) * .21); }
+  body.mur .ligne .club { font-size: calc(var(--h, 64px) * .21); }
   .score { font-weight: 800; font-size: 1.2rem; font-variant-numeric: tabular-nums;
            text-align: right; }
-  body.mur .score { font-size: calc(var(--h, 64px) * .40); }
+  body.mur .ligne .score { font-size: calc(var(--h, 64px) * .40); }
   .blocs { color: var(--encre2); font-size: 0.9rem; text-align: right;
            font-variant-numeric: tabular-nums; }
-  body.mur .blocs { font-size: calc(var(--h, 64px) * .28); }
+  body.mur .ligne .blocs { font-size: calc(var(--h, 64px) * .28); }
   /* L'écart au premier : la deuxième colonne que tout service de résultats
      affiche, après la position. « 1287 » ne dit rien seul ; « 1287, à −368 »
      dit la course. */
   .ecart { color: var(--encre2); text-align: right; font-variant-numeric: tabular-nums;
            font-size: 0.9rem; }
-  body.mur .ecart { font-size: calc(var(--h, 64px) * .28); }
+  body.mur .ligne .ecart { font-size: calc(var(--h, 64px) * .28); }
 
   /* Une place gagnée ou perdue se VOIT : la flèche dit de combien, la ligne
      glisse jusqu'à sa nouvelle place, et celui qui monte pulse une fois. */
@@ -1008,7 +1006,14 @@
     return n;
   }
 
-  /** Une carte de podium. */
+  /** Une carte de podium : la place, le nom, le club, le score. Rien d'autre.
+   *
+   * Ni compte de blocs ni écart depuis que le tableau reprend le podium
+   * (Adrien, 01/09) : ces deux nombres sont maintenant DEUX LIGNES PLUS BAS,
+   * sous un en-tête qui les nomme. Sur la carte ils n'avaient pas d'étiquette
+   * — « 7 blocs −199 » se déchiffre — et ils volaient au nom la largeur qui lui
+   * manque justement quand plusieurs ex æquo se partagent une marche.
+   */
   function noeudPodium() {
     var n = div("pod");
     div("place", n);
@@ -1016,8 +1021,6 @@
     div("club", n);
     var chiffres = div("chiffres", n);
     div("score", chiffres, "span");
-    div("blocs", chiffres, "span");
-    div("ecart", chiffres, "span");
     return n;
   }
 
@@ -1061,8 +1064,15 @@
     return n;
   }
 
-  function remplir(n, l, avecPodium, tete) {
+  function remplir(n, l, tete) {
     var d = etat.deltas[l.cle];
+    // ⚠️ Déclaré ICI, avant le premier usage. Il l'était vingt lignes plus bas :
+    // `var` hissait le nom sans la valeur, et les trois tests de la ligne
+    // d'appoint le lisaient donc `undefined`. Une carte de podium se remplissait
+    // comme une ligne de tableau — club perdu en densité 3, dossard perdu
+    // partout ailleurs qu'en densité 1, et « 7 blocs · −199 » recollé dans le
+    // club en densité 4.
+    var estPodium = n.classList.contains("pod");
     n.querySelector(".place, .rang").textContent = l.rang;
 
     var nom = n.querySelector(".nom");
@@ -1093,28 +1103,31 @@
     n.querySelector(".club").textContent = appoint.filter(Boolean).join(" · ");
     n.querySelector(".score").textContent = l.score;
 
-    var estPodium = n.classList.contains("pod");
-    n.querySelector(".blocs").textContent = estPodium
-      ? l.blocs + (l.blocs > 1 ? " blocs" : " bloc")
-      : l.blocs;                       // en tableau, l'en-tête dit déjà « Blocs »
+    // Les colonnes chiffrées n'existent que dans le tableau : une carte de
+    // podium n'a plus ni l'une ni l'autre.
+    var blocs = n.querySelector(".blocs");
+    if (blocs) blocs.textContent = l.blocs;   // l'en-tête dit déjà « Blocs »
 
     // L'écart au premier : ce que tout service de résultats affiche juste après
     // la position. Le premier n'a pas d'écart — un « 0 » ferait croire à une
-    // égalité avec lui-même.
+    // égalité avec lui-même ; un tiret garde la colonne alignée.
     var ecart = n.querySelector(".ecart");
     if (ecart) {
       var retard = (tete || 0) - l.score;
-      // Sur une marche, le premier n'affiche rien du tout ; dans le tableau, un
-      // tiret garde la colonne alignée.
-      ecart.textContent = retard > 0 ? "−" + retard : (estPodium ? "" : "—");
+      ecart.textContent = retard > 0 ? "−" + retard : "—";
     }
 
     if (estPodium) {
       n.className = "pod";
     } else {
       var favori = !MUR && estFavori(Number(l.participant_id));
+      // Le liseré de médaille, TOUJOURS. Il était supprimé dès que la page
+      // pouvait montrer une marche — c'est-à-dire presque partout, y compris
+      // sur un téléphone qui n'en affiche jamais : les trois premiers y
+      // passaient inaperçus. Maintenant que le tableau reprend le podium, c'est
+      // lui qui relie la ligne 1 à la carte en or juste au-dessus.
       n.className = "ligne"
-        + (l.rang <= 3 && l.rang > 0 && !avecPodium ? " p" + l.rang : "")
+        + (l.rang > 0 && l.rang <= 3 ? " p" + l.rang : "")
         + (favori ? " favori" : "");
       var etoile = n.querySelector(".etoile");
       if (etoile) {
@@ -1171,6 +1184,16 @@
     // dise déjà (Adrien, 01/09).
   }
 
+  /** La clé de la CARTE d'un grimpeur, distincte de celle de sa ligne.
+   *
+   * Depuis que le tableau reprend le podium, un grimpeur des trois premiers
+   * rangs a deux nœuds à l'écran : sa carte sur la marche, et sa ligne dans le
+   * tableau. Sous une clé unique, chaque repeinte détruisait celui que l'autre
+   * venait de créer — et le mouvement, qui ne déplace que les nœuds qui
+   * survivent d'une repeinte à l'autre, ne partait jamais.
+   */
+  function clePodium(l) { return "pod:" + l.cle; }
+
   function peindre(lignes, avecPodium) {
     var podium = MUR && avecPodium && lignes.length > 3
               && window.innerWidth >= LARGEUR_PODIUM;
@@ -1189,7 +1212,13 @@
     el.podium.classList.toggle("visible", podium);
 
     var tete = podium ? surLePodium : [];
-    var suite = podium ? lignes.slice(tete.length) : lignes;
+    // Le tableau reprend TOUT LE MONDE, podium compris (Adrien, 01/09). Il
+    // commençait au rang 4, et il fallait remonter les yeux à l'autre bout de
+    // l'écran pour savoir ce qu'avait fait le premier — quand la marche le
+    // disait encore, parce qu'à quatre ex æquo elle ne disait plus rien. Un
+    // classement lisible se lit d'un bloc, de 1 à N ; la marche est le
+    // projecteur qu'on braque dessus, pas un morceau qu'on lui retire.
+    var suite = lignes;
 
     // Une marche par RANG : le premier au centre et plus haut, le deuxième à
     // gauche, le troisième à droite et plus bas. Les ex æquo partagent leur
@@ -1209,12 +1238,12 @@
                   + " c" + Math.min(6, m.lignes.length);
       var cartes = g.querySelector(".cartes");
       m.lignes.forEach(function (l, j) {
-        var carte = etat.noeuds[l.cle];
-        if (!carte || !carte.classList.contains("pod")) {
+        var carte = etat.noeuds[clePodium(l)];
+        if (!carte) {
           carte = noeudPodium();
-          etat.noeuds[l.cle] = carte;
+          etat.noeuds[clePodium(l)] = carte;
         }
-        remplir(carte, l, avecPodium, meilleur);
+        remplir(carte, l, meilleur);
         if (cartes.children[j] !== carte) {
           cartes.insertBefore(carte, cartes.children[j] || null);
         }
@@ -1245,11 +1274,11 @@
 
     enfants.forEach(function (item, index) {
       var n = etat.noeuds[item.ligne.cle];
-      if (!n || !n.classList.contains("ligne")) {
+      if (!n) {
         n = noeudLigne();
         etat.noeuds[item.ligne.cle] = n;
       }
-      remplir(n, item.ligne, avecPodium, meilleur);
+      remplir(n, item.ligne, meilleur);
       if (el.liste.children[index] !== n) {
         el.liste.insertBefore(n, el.liste.children[index] || null);
       }
@@ -1259,8 +1288,12 @@
     }
 
     // Les nœuds disparus (changement de groupe, recherche) sortent de la table.
+    // Une carte sort aussi dès que son grimpeur quitte la marche, alors que sa
+    // ligne, elle, reste : c'est ce qui fait qu'une descente du podium au rang 4
+    // se voit glisser au lieu de clignoter.
     var vivants = {};
     lignes.forEach(function (l) { vivants[l.cle] = true; });
+    tete.forEach(function (l) { vivants[clePodium(l)] = true; });
     Object.keys(etat.noeuds).forEach(function (cle) {
       if (!vivants[cle]) delete etat.noeuds[cle];
     });

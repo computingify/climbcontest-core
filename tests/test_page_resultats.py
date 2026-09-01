@@ -241,6 +241,65 @@ class TestFaitePourEtreProjetee:
         assert "derniere.rang === l.rang" in page
         assert ".groupe .cartes" in page
 
+    def test_le_tableau_reprend_le_podium(self, client, jeu):
+        """Adrien, 01/09 : « mets les participants qui sont sur le podium aussi
+        dans le tableau en dessous ».
+
+        Le tableau commençait au rang 4 : pour savoir ce qu'avait fait le
+        premier, il fallait remonter les yeux à l'autre bout de l'écran — et à
+        quatre ex aequo, la marche ne le disait plus. Un classement se lit d'un
+        bloc, de 1 a N ; la marche est le projecteur qu'on braque dessus, pas un
+        morceau qu'on lui retire.
+        """
+        page = client.get("/").data.decode()
+        assert "var suite = lignes;" in page
+        assert "lignes.slice(tete.length)" not in page, \
+            "le tableau ne doit plus sauter les grimpeurs du podium"
+
+    def test_un_grimpeur_du_podium_a_deux_noeuds_donc_deux_cles(self, client, jeu):
+        """La condition du mouvement, une fois le podium repris dans le tableau.
+
+        Carte et ligne coexistent a l'ecran. Sous une seule cle, chaque repeinte
+        detruisait celui que l'autre venait de creer, et l'animation — qui ne
+        deplace que ce qui survit d'une repeinte a l'autre — ne partait jamais.
+        """
+        page = client.get("/").data.decode()
+        assert "function clePodium(" in page
+        assert 'return "pod:" + l.cle;' in page
+        assert "vivants[clePodium(l)]" in page, \
+            "une carte doit sortir de la table quand son grimpeur quitte la marche"
+
+    def test_la_carte_de_podium_ne_repete_pas_les_colonnes_du_tableau(self, client, jeu):
+        """« Si besoin, dans l'affichage du podium tu peux retirer quelques
+        informations » (Adrien, 01/09).
+
+        Le compte de blocs et l'ecart vivaient sur la carte sans etiquette, a
+        cote d'un score deux fois plus gros : « 7 blocs −199 » se dechiffrait au
+        lieu de se lire. Ils sont maintenant deux lignes plus bas, sous un
+        en-tete qui les nomme — et la largeur qu'ils prenaient revient au nom,
+        qui en manque des que deux ex aequo se partagent une marche.
+        """
+        page = client.get("/").data.decode()
+        assert ".pod .blocs" not in page and ".pod .ecart" not in page, \
+            "la carte n'affiche plus ni blocs ni ecart"
+        # Le nom et le score, jamais : ce sont les deux choses qu'on vient lire.
+        assert ".pod .nom {" in page
+        assert ".pod .score {" in page
+
+    def test_le_podium_reste_marque_dans_le_tableau(self, client, jeu):
+        """Le lisere de medaille, TOUJOURS.
+
+        Il etait supprime des que la page pouvait montrer une marche — donc
+        presque partout, y compris sur un telephone qui n'en affiche jamais : les
+        trois premiers y passaient inapercus. C'est lui qui relie la ligne 1 a la
+        carte en or juste au-dessus.
+        """
+        page = client.get("/").data.decode()
+        assert ".ligne.p1 { box-shadow: inset 5px 0 0 var(--or); }" in page
+        assert "l.rang > 0 && l.rang <= 3 ? \" p\" + l.rang" in page
+        assert "!avecPodium ? \" p\" + l.rang" not in page, \
+            "le marquage ne depend plus de la presence d'une marche"
+
     def test_le_classement_est_un_tableau(self, client, jeu):
         """Ce que font les services de résultats sportifs : un en-tête de
         colonnes, l'écart au premier, des chiffres tabulaires alignés."""
@@ -612,11 +671,39 @@ class TestPodiumExAequo:
 
     def test_un_nombre_ne_se_coupe_jamais_en_deux(self, client, jeu):
         """Un « −1700 » rogné en « −17 » se lit comme un écart de dix-sept
-        points. Un nom coupé sur une ellipse, lui, se comprend."""
+        points. Un nom coupé sur une ellipse, lui, se comprend.
+
+        La garde etait une requete de conteneur : l'ecart disparaissait sous
+        430 px de carte, les blocs sous 330. Elle n'a plus d'objet — la carte ne
+        porte plus ces deux nombres du tout, ils sont dans le tableau juste en
+        dessous, sous un en-tete qui les nomme (voir
+        `test_la_carte_de_podium_ne_repete_pas_les_colonnes_du_tableau`). Ce qui
+        reste a tenir, c'est qu'ils ne reviennent pas sur la carte sans elle.
+        """
         page = client.get("/").data.decode()
-        assert "@container (max-width: 430px) { .pod .ecart { display: none; } }" in page
-        assert "@container (max-width: 330px) { .pod .blocs { display: none; } }" in page
-        assert "container-type: inline-size;" in page
+        assert ".pod .ecart" not in page and ".pod .blocs" not in page, \
+            "un nombre sans etiquette n'a pas sa place sur la carte"
+        # Le score, lui, ne se rogne pas : c'est le mobilier qui cede avant.
+        assert ".groupe.c6 .pod .score" in page
+
+    def test_la_carte_de_podium_garde_sa_propre_typographie(self, client, jeu):
+        """`.nom`, `.club` et `.score` existent des DEUX cotes — ligne de
+        tableau et carte de podium.
+
+        `body.mur .nom` l'emportait donc sur `.pod .nom` : meme nombre de
+        classes, mais un `body` en plus. Une carte se dessinait a la taille
+        d'une ligne de tableau — 16,72 px la ou elle demandait 40 — et le podium
+        etait regle sur la hauteur du classement, pas sur la sienne, depuis la
+        spec 016. Invisible tant que TOUTES les cartes tombaient dedans ;
+        flagrant des que `.groupe.cN` en a sorti les marches a plusieurs ex
+        aequo : une marche a une seule carte se retrouvait deux fois plus petite
+        que sa voisine.
+        """
+        page = client.get("/").data.decode()
+        for classe in ("rang", "nom", "club", "score", "blocs", "ecart"):
+            assert f"body.mur .ligne .{classe} {{" in page
+            assert f"body.mur .{classe} {{" not in page, \
+                f"« body.mur .{classe} » retombe sur la carte de podium"
 
     def test_le_mobilier_suit_le_nombre_d_ex_aequo(self, client, jeu):
         page = client.get("/").data.decode()
