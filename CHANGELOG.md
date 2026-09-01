@@ -19,6 +19,12 @@ qu'on ne met pas à jour le matin d'une compétition :
 
 ## [Non publié]
 
+## [0.11.0] — 2026-09-01
+
+La page de résultats reprise de fond en comble, et trois classements de plus.
+Le fil qui les relie : ce qu'on projette doit se lire d'un coup d'œil à huit
+mètres, et ce qu'on tient dans la main doit se manipuler au pouce.
+
 ### Ajouté
 
 - **Le spectateur peut suivre des grimpeurs.** Une **étoile** sur chaque ligne —
@@ -860,7 +866,8 @@ livrer — spec 001, itération 3.
 - Les données et les secrets vivent dans `shared/`, hors des releases : un
   déploiement ou un retour arrière ne peut pas les toucher.
 
-[Non publié]: https://github.com/computingify/climbcontest-core/compare/v0.10.0...HEAD
+[Non publié]: https://github.com/computingify/climbcontest-core/compare/v0.11.0...HEAD
+[0.11.0]: https://github.com/computingify/climbcontest-core/releases/tag/v0.11.0
 [0.10.0]: https://github.com/computingify/climbcontest-core/releases/tag/v0.10.0
 [0.6.0]: https://github.com/computingify/climbcontest-core/releases/tag/v0.6.0
 [0.5.1]: https://github.com/computingify/climbcontest-core/releases/tag/v0.5.1
