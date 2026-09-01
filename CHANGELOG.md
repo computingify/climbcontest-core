@@ -19,6 +19,24 @@ qu'on ne met pas à jour le matin d'une compétition :
 
 ## [Non publié]
 
+## [0.12.1] — 2026-09-01
+
+Deux défauts d'affichage de l'écran projeté, vus en le regardant tourner.
+
+### Corrigé
+
+- **La colonne des noms récupère la place que les colonnes chiffrées gardaient
+  pour elles.** Leurs largeurs avaient été réglées sur un écran 1920, où la
+  ligne fait 96 px ; à 830 px de haut la ligne tombe vers 48 px et les mêmes
+  proportions laissaient 77 px à un nombre de quatre chiffres. Des noms étaient
+  tronqués alors qu'il restait de la largeur ailleurs.
+- **Les titres de colonnes ne se superposent plus** quand une catégorie ne
+  compte qu'un grimpeur. La ligne s'étire alors pour remplir le plateau et les
+  titres, proportionnels à cette hauteur, grandissaient pendant que la fenêtre
+  resserrait les colonnes : « GRIMPEUR » et « BLOCS » finissaient imprimés l'un
+  sur l'autre. Le titre est plafonné, et la densité — qui décide des colonnes à
+  retirer — se mesure désormais en hauteurs de ligne et non en pixels.
+
 ## [0.12.0] — 2026-09-01
 
 La passe de lisibilité sur l'écran projeté, faite en le regardant tourner :
