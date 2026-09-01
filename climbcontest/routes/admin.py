@@ -508,6 +508,40 @@ def page_dossards():
     return render_template("dossards.html", fiches=planche, titre=titre)
 
 
+@bp.get("/etiquettes")
+@exige_role(ORGANISATEUR)
+def page_etiquettes():
+    """La planche a coller au mur. `?zone=Z` pour une zone, `?bloc=ZJ6` pour une.
+
+    Le juge scanne DEUX QR : celui du grimpeur, puis celui du bloc. Le second
+    est colle au mur, et rien ne savait l'imprimer -- preparer une competition
+    demandait encore d'ouvrir le classeur et d'imprimer son onglet « Fiches ».
+    Ces QR-la etaient produits par api.qrserver.com : un appel vers un tiers,
+    qui ne marche pas si la connexion tombe la veille au soir, quand on colle
+    les etiquettes.
+    """
+    try:
+        comp = competition_active()
+    except ErreurMetier as e:
+        return jsonify({"success": False, "message": e.message}), e.code
+
+    zone = (request.args.get("zone") or "").strip() or None
+    tag = (request.args.get("bloc") or "").strip() or None
+    planche = fiches.etiquettes(comp, zone=zone, tag=tag)
+
+    if tag:
+        filtre, titre = f"le bloc {tag}", f"bloc {tag}"
+    elif zone:
+        filtre, titre = f"la zone {zone}", f"zone {zone}"
+    else:
+        filtre, titre = None, comp.nom
+
+    logger.info("impression de %d etiquette(s) par %s (%s)",
+                len(planche), g.utilisateur.identifiant, titre)
+    return render_template("etiquettes.html", groupes=fiches.par_zone(planche),
+                           total=len(planche), titre=titre, filtre=filtre)
+
+
 def _corps_objet():
     """Le corps JSON s'il est bien un objet, sinon None.
 

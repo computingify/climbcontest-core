@@ -1,4 +1,4 @@
-"""Ce qu'on imprime pour un grimpeur — spec 023.
+"""Ce qu'on imprime : la fiche du grimpeur (spec 023), l'étiquette du bloc (024).
 
 La bande de trois centimètres qu'on imprimait jusqu'ici portait un QR, un
 numéro et un nom. Le classeur, lui, imprime une **fiche** (onglet `Fiches`), et
@@ -16,6 +16,11 @@ from . import qr
 from .classement import COULEURS
 from .extensions import db
 from .models import Bloc, BlocCircuit, Circuit
+
+# La taille du QR d'une ÉTIQUETTE, zone de silence comprise. Deux fois celui
+# d'une fiche : il est collé au mur, souvent en hauteur, et scanné d'un bras
+# tendu — pas tenu à trente centimètres comme une fiche.
+COTE_QR_ETIQUETTE_MM = 45.0
 
 # La taille du QR sur le papier, zone de silence comprise. 24 mm donnent
 # 0,83 mm par module sur un dossard à quatre chiffres — plus du double du
@@ -222,3 +227,74 @@ def construire(comp, participants) -> list[dict]:
             "manque": manque,
         })
     return planche
+
+
+# --- Les étiquettes de blocs, à coller au mur (spec 024) ---------------------
+
+
+def etiquettes(comp, zone: str | None = None, tag: str | None = None) -> list[dict]:
+    """Les blocs à coller au mur, dans l'ordre du `Plan`.
+
+    L'ordre est celui de `Bloc.numero` — le numéro de ligne dans l'onglet
+    `Import`, qui suit le `Plan` : les blocs sortent donc zone par zone, comme
+    le classeur les range. On prend la page de la zone Z, on va coller les cinq
+    étiquettes de la zone Z, on ne trie rien à la main.
+
+    Deux requêtes, quel que soit le nombre de blocs.
+
+    `coupure` vaut vrai sur le **premier** bloc de chaque zone, sauf le tout
+    premier : c'est ce que le gabarit traduit en saut de page. Le calcul est
+    fait ici et pas en Jinja — une boucle de gabarit qui compare avec l'élément
+    précédent est exactement ce qu'on relit trois fois sans le croire.
+    """
+    requete = Bloc.query.filter_by(competition_id=comp.id)
+    if tag:
+        requete = requete.filter(Bloc.tag == tag)
+    elif zone:
+        requete = requete.filter(Bloc.zone == zone)
+    blocs = requete.order_by(Bloc.numero).all()
+
+    circuits = {c.id: c.nom
+                for c in Circuit.query.filter_by(competition_id=comp.id).all()}
+    par_bloc: dict[int, list[str]] = defaultdict(list)
+    if circuits and blocs:
+        liens = (db.session.query(BlocCircuit.bloc_id, BlocCircuit.circuit_id)
+                 .filter(BlocCircuit.circuit_id.in_(circuits),
+                         BlocCircuit.bloc_id.in_([b.id for b in blocs])).all())
+        for bloc_id, circuit_id in liens:
+            par_bloc[bloc_id].append(circuits[circuit_id])
+
+    planche = []
+    zone_precedente = None
+    for i, bloc in enumerate(blocs):
+        planche.append({
+            "tag": bloc.tag,
+            "zone": bloc.zone,
+            "numero": numero(bloc),
+            "couleur": bloc.couleur,
+            "couleur_prises": bloc.couleur_prises,
+            "circuits": sorted(par_bloc.get(bloc.id, ())),
+            # Le QR porte le tag COMPLET — « ZJ6 » — c'est ce que l'application
+            # juge attend et ce que `bloc_par_tag()` sait relire. Pas un
+            # caractère de plus.
+            "qr": qr.svg(bloc.tag, cote_mm=COTE_QR_ETIQUETTE_MM),
+            "coupure": i > 0 and bloc.zone != zone_precedente,
+        })
+        zone_precedente = bloc.zone
+    return planche
+
+
+def par_zone(etiquettes_: list[dict]) -> list[dict]:
+    """Les étiquettes regroupées par zone, dans l'ordre où elles arrivent.
+
+    Le gabarit boucle sur des GROUPES et non sur une liste plate : une grille
+    par zone, et c'est le conteneur qui porte le saut de page. `break-before`
+    sur un enfant de grille est mal supporté — refermer la grille à chaque zone
+    l'évite complètement.
+    """
+    groupes: list[dict] = []
+    for etiquette in etiquettes_:
+        if not groupes or etiquette["coupure"]:
+            groupes.append({"zone": etiquette["zone"], "etiquettes": []})
+        groupes[-1]["etiquettes"].append(etiquette)
+    return groupes

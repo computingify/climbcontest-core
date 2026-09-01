@@ -63,7 +63,11 @@ def semer(spreadsheet_id: str | None) -> Competition:
         # colonne H du `Plan` depuis la spec 019 — c'est la donnée SEMÉE qui
         # n'existait pas. Et une seule zone rendait le plan de la salle des
         # fiches (spec 023) invérifiable.
-        zone = ZONES[(i - 1) % len(ZONES)]
+        # `// 5` et non `% 5` : le vrai `Plan` range CINQ blocs consecutifs par
+        # zone (« 20 zones, 5 blocs par zone » dit le classeur en Listes!A1).
+        # En alternant, la planche d'etiquettes -- une zone par page -- sortait
+        # une page par etiquette.
+        zone = ZONES[min((i - 1) // 5, len(ZONES) - 1)]
         b = Bloc(competition_id=c.id, tag=f"{zone}{couleur[0]}{i}", numero=i,
                  zone=zone, couleur=couleur,
                  couleur_prises=COULEURS_PRISES[(i - 1) % len(COULEURS_PRISES)])

@@ -1,6 +1,7 @@
 # Spec 024 — Les étiquettes de blocs à coller au mur
 
-> **Statut : rédigée, en attente de la porte 2.**
+> **Statut : validée (porte 2) et codée — 01/09/2026.**
+> Adrien : « oui très bien fait le 22 et 24 maintenant ».
 > Demande d'Adrien du 01/09/2026, à la validation des specs 021-023 : « il me
 > faudra aussi les étiquettes de blocs ». C'est le papier que la spec 023 avait
 > explicitement laissé de côté — la zone gauche de l'onglet `Fiches`.
@@ -136,22 +137,26 @@ Aucun appel réseau, comme pour les dossards depuis la spec 005.
 
 ## 5. Critères d'acceptation
 
-- [ ] **A1** — `GET /admin/etiquettes` rend une étiquette par bloc de la
+**Tous vérifiés le 01/09/2026** — 36 tests (`tests/test_etiquettes.py`) et un PDF
+mesuré à `preferCSSPageSize` : 210 × 297 mm, six étiquettes de 99 × 95 mm par
+page, une zone par page.
+
+- [x] **A1** — `GET /admin/etiquettes` rend une étiquette par bloc de la
   compétition active, six par A4.
-- [ ] **A2** — L'étiquette porte : zone, numéro, QR, couleur des prises,
+- [x] **A2** — L'étiquette porte : zone, numéro, QR, couleur des prises,
   circuits.
-- [ ] **A3** — Le QR contient `zone + numéro` (`ZJ6`) et se relit par un
+- [x] **A3** — Le QR contient `zone + numéro` (`ZJ6`) et se relit par un
   décodeur indépendant à 45 mm.
-- [ ] **A4** — `?zone=Z` ne rend que cette zone ; `?bloc=ZJ6` une seule
+- [x] **A4** — `?zone=Z` ne rend que cette zone ; `?bloc=ZJ6` une seule
   étiquette.
-- [ ] **A5** — Saut de page à chaque changement de zone ; une étiquette n'est
+- [x] **A5** — Saut de page à chaque changement de zone ; une étiquette n'est
   jamais coupée.
-- [ ] **A6** — Les blocs sortent dans l'ordre de `Bloc.numero`.
-- [ ] **A7** — Un bloc sans circuit le dit sur son étiquette.
-- [ ] **A8** — Une zone sans bloc ne produit aucune page.
-- [ ] **A9** — Aucune ressource extérieure dans la page.
-- [ ] **A10** — Anonyme → 401, rôle insuffisant → 403, comme `/admin/dossards`.
-- [ ] **A11** — Le nombre de requêtes SQL ne dépend pas du nombre de blocs.
+- [x] **A6** — Les blocs sortent dans l'ordre de `Bloc.numero`.
+- [x] **A7** — Un bloc sans circuit le dit sur son étiquette.
+- [x] **A8** — Une zone sans bloc ne produit aucune page.
+- [x] **A9** — Aucune ressource extérieure dans la page.
+- [x] **A10** — Anonyme → 401, rôle insuffisant → 403, comme `/admin/dossards`.
+- [x] **A11** — Le nombre de requêtes SQL ne dépend pas du nombre de blocs.
 
 ## 6. Cas limites
 
