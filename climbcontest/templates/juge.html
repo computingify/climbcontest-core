@@ -145,6 +145,24 @@
   .carte .detail { font-size: 0.9rem; color: var(--encre2); letter-spacing: 0.04em; }
   #carteBloc.fait .detail { color: color-mix(in srgb, var(--circuit) 90%, transparent); }
 
+  /* « Ce bloc n'est pas dans son circuit » — spec 019.
+
+     Volontairement PAS un rouge d'erreur : rien n'est cassé, et l'envoi reste
+     possible. Le jaune d'attention dit « regarde », pas « c'est refusé ». */
+  #horsCircuit {
+    margin: -4px 0 0; padding: 12px 14px; border-radius: 12px;
+    background: color-mix(in srgb, var(--attention) 12%, transparent);
+    border-left: 4px solid var(--attention);
+    color: var(--encre); font-size: 0.95rem; line-height: 1.45;
+  }
+  #horsCircuit b { color: var(--attention); }
+
+  /* Le bouton dit ce qu'il fait vraiment quand on force. */
+  #envoyer.force {
+    background: var(--attention); color: #12140F;
+    font-size: 1.35rem; letter-spacing: 0.06em;
+  }
+
   #envoyer {
     width: 100%; height: 104px; border-radius: 22px; font: inherit;
     font-size: 1.9rem; font-weight: 800; letter-spacing: 0.12em;
@@ -337,6 +355,8 @@
     <span class="valeur attente" id="valeurBloc">À scanner</span>
     <span class="detail" id="detailBloc"></span>
   </button>
+
+  <p id="horsCircuit" hidden role="status"></p>
 
   <button id="envoyer" disabled>Envoyer</button>
   <p id="aide">Scannez le grimpeur puis le bloc</p>

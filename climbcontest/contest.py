@@ -75,7 +75,8 @@ def enregistrer_reussite(participant: Participant, bloc: Bloc,
                          scanne_le: datetime | None = None,
                          saisie_par: str | None = None,
                          appareil: dict | None = None,
-                         ref_client: str | None = None) -> tuple[Success, bool]:
+                         ref_client: str | None = None,
+                         hors_circuit_force: bool | None = None) -> tuple[Success, bool]:
     """Enregistre une réussite. Renvoie (réussite, était_nouvelle).
 
     **Idempotent.** Un double appui sur « Envoyer », ou deux juges qui valident
@@ -110,6 +111,9 @@ def enregistrer_reussite(participant: Participant, bloc: Bloc,
         appareil_id=(appareil or {}).get("id"),
         appareil_nom=(appareil or {}).get("nom"),
         ref_client=ref_client,
+        # Ce que le juge a vu au moment d'appuyer (spec 019). `None` quand
+        # personne n'a verifie -- saisie manuelle, import, telephone d'avant.
+        hors_circuit_force=hors_circuit_force,
     )
     db.session.add(reussite)
     try:
@@ -342,6 +346,7 @@ def enregistrer_lot(elements: list[dict], appareil: dict | None = None) -> list[
                 scanne_le=_horodatage_client(element.get("at")),
                 appareil=appareil,
                 ref_client=str(ref) if ref else None,
+                hors_circuit_force=_hors_circuit(element),
             )
         except Exception as e:
             # On NE marque PAS l'element comme traite : l'application le garde
@@ -354,6 +359,24 @@ def enregistrer_lot(elements: list[dict], appareil: dict | None = None) -> list[
         resultats.append({"ref": ref,
                           "etat": "enregistree" if nouvelle else "deja_connue"})
     return resultats
+
+
+def _hors_circuit(element: dict) -> bool | None:
+    """Le drapeau envoye par le telephone, ou `None` s'il n'en envoie pas.
+
+    Le meme principe que `identite_appareil` : une valeur mal formee est
+    IGNOREE, jamais rejetee. Perdre une reussite parce qu'un champ facultatif
+    est bizarre serait le pire des echanges -- et un juge n'a aucun moyen de
+    comprendre un tel refus le jour J.
+
+    ⚠️ On distingue « absent » de « faux » : une application qui n'envoie pas le
+    champ n'a rien verifie, et le dire serait mentir. Voir le commentaire de
+    `Success.hors_circuit_force`.
+    """
+    if "hors_circuit" not in element:
+        return None
+    valeur = element.get("hors_circuit")
+    return bool(valeur) if isinstance(valeur, bool) else None
 
 
 def identite_appareil(valeur) -> dict | None:
@@ -573,4 +596,28 @@ def reussites_tracees(comp: Competition, ref: str | None = None,
         "horodatage": r.horodatage.isoformat() if r.horodatage else None,
         "source": r.source,
         "saisie_par": r.saisie_par,
+        # Ce que le juge a vu au moment d'appuyer…
+        "hors_circuit_force": r.hors_circuit_force,
+        # …et ce qui est vrai MAINTENANT. Les deux, parce qu'ils divergent des
+        # qu'on corrige le classeur -- et c'est precisement ce qu'on veut voir.
+        "hors_circuit": _hors_du_circuit(r),
     } for r in lignes]
+
+
+def _hors_du_circuit(reussite: Success) -> bool | None:
+    """Ce bloc est-il, AUJOURD'HUI, hors du circuit de ce grimpeur ?
+
+    Calcule a la lecture, jamais stocke : corriger le classeur doit faire
+    disparaitre l'anomalie. `None` quand on ne peut pas trancher -- participant
+    sans categorie, ou bloc rattache a aucun circuit.
+    """
+    participant, bloc = reussite.participant, reussite.bloc
+    if participant is None or bloc is None:
+        return None
+    circuit = participant.circuit
+    if not circuit:
+        return None
+    circuits = {bc.circuit.nom for bc in bloc.circuits}
+    if not circuits:
+        return None
+    return circuit not in circuits

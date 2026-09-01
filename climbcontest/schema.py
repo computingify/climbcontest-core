@@ -243,6 +243,12 @@ COLONNES_AJOUTEES = {
         "appareil_id": "TEXT",
         "appareil_nom": "TEXT",
         "ref_client": "TEXT",
+        "hors_circuit_force": "BOOLEAN",
+    },
+    "bloc": {
+        # La couleur des PRISES (colonne H du `Plan`), jamais lue avant la
+        # spec 019. Distincte de `couleur`, qui est la difficulte.
+        "couleur_prises": "TEXT",
     },
 }
 

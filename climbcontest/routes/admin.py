@@ -29,6 +29,7 @@ from ..contest import (
     participant_par_dossard, reaffecter_dossard, reussites_tracees,
     supprimer_reussite,
 )
+from .. import circuits as circuits_module
 from .. import cycle
 from ..models import Archive
 from ..sheets import parametrage
@@ -608,6 +609,28 @@ def dernier_rapport():
         return jsonify({"success": True, "rapport": None,
                         "message": "Aucun import depuis le demarrage"}), 200
     return jsonify({"success": True, "rapport": _dernier_rapport}), 200
+
+
+@bp.get("/circuits")
+@exige_role(ORGANISATEUR)
+def lister_circuits():
+    """Les circuits, leurs blocs, et ce qui cloche — spec 019.
+
+    `ORGANISATEUR` et non `ADMIN` : cette route ne fait que lire, et c'est la
+    verification qu'on veut faire AVANT une competition, avec qui est la.
+
+    L'interet principal n'est pas le tableau, c'est `anomalies` : un bloc
+    rattache a aucun circuit ne compte pour personne, un circuit sans bloc rend
+    un classement vide, et une categorie dont le circuit n'existe pas fait
+    compter chaque reussite pour zero. Les trois sont SILENCIEUSES aujourd'hui
+    et se paient a la remise des prix.
+    """
+    try:
+        comp = competition_active()
+    except ErreurMetier as e:
+        return jsonify({"success": False, "message": e.message}), e.code
+
+    return jsonify({"success": True, **circuits_module.inventaire(comp)}), 200
 
 
 # --- Le classeur Google (spec 015) ------------------------------------------

@@ -105,8 +105,8 @@ test("un bail neuf dure trente secondes", () => {
 
 const UN_CATALOGUE = new Catalogue({
   version: 3,
-  participants: { "42": "Dupont Lea" },
-  blocs: { ZJ6: "ZJ6" },
+  participants: { "42": { n: "Dupont Lea", c: "U13" } },
+  blocs: { ZJ6: { t: "ZJ6", c: ["U13"] } },
 });
 
 test("un grimpeur connu rend son nom", () => {

@@ -26,7 +26,8 @@ class ClasseurFictif:
     COLONNES = (6, 8, 10, 12, 14)
 
     @staticmethod
-    def _ligne_plan(zone, couleur, circuits, numero_zone, numero_import):
+    def _ligne_plan(zone, couleur, circuits, numero_zone, numero_import,
+                    couleur_prises=None):
         """Construit une ligne D:Y (22 colonnes), comme le vrai classeur.
 
         `circuits` est aussi long qu'il y a de circuits dans l'en-tête : trois
@@ -34,6 +35,8 @@ class ClasseurFictif:
         """
         l = [""] * 22
         l[0], l[2] = zone, couleur
+        if couleur_prises:
+            l[4] = couleur_prises               # colonne H
         for i, actif in zip(ClasseurFictif.COLONNES, circuits):
             l[i] = "1" if actif else ""
         l[16], l[21] = numero_zone, str(numero_import)
@@ -167,6 +170,51 @@ class TestBlocLigneCourte:
         importer(competition, ClasseurFictif())
         assert Bloc.query.filter_by(tag="ZJ6").one().numero == 1
         assert Bloc.query.filter_by(tag="DV21").one().numero == 3
+
+
+class TestCouleurDesPrises:
+    """Colonne H — jamais lue avant la spec 019.
+
+    À ne pas confondre avec la couleur de DIFFICULTÉ (colonne F), qui est
+    ordonnée et sert au classement. Celle-ci ne sert qu'à retrouver le bloc des
+    yeux sur le mur.
+    """
+
+    def test_la_colonne_H_est_lue(self, app, competition):
+        plan = [
+            ClasseurFictif._entete("U11", "U13", "U15"),
+            ClasseurFictif._ligne_plan("Z", "Jaune", (True, False, False), "J6", 1,
+                                       couleur_prises="Fluo"),
+        ]
+        importer(competition, ClasseurFictif(plan=plan))
+        bloc = Bloc.query.filter_by(tag="ZJ6").one()
+        assert bloc.couleur == "Jaune"           # difficulté, colonne F
+        assert bloc.couleur_prises == "Fluo"     # prises, colonne H
+
+    def test_colonne_H_vide_ne_gene_personne(self, app, competition):
+        """Le classeur de 2024 ne la remplissait pas partout."""
+        r = importer(competition, ClasseurFictif())
+        assert all(b.couleur_prises is None for b in Bloc.query.all())
+        assert r.avertissements == []
+
+    def test_un_changement_de_couleur_de_prises_compte_comme_une_mise_a_jour(
+            self, app, competition):
+        """Sinon un ré-import ne corrigerait jamais une prise repeinte."""
+        def plan(prises):
+            return [ClasseurFictif._entete("U11", "U13", "U15"),
+                    ClasseurFictif._ligne_plan("Z", "Jaune", (True, False, False),
+                                               "J6", 1, couleur_prises=prises)]
+        importer(competition, ClasseurFictif(plan=plan("Fluo")))
+        r = importer(competition, ClasseurFictif(plan=plan("Bleu")))
+        assert r.blocs_mis_a_jour == 1
+        assert Bloc.query.filter_by(tag="ZJ6").one().couleur_prises == "Bleu"
+
+    def test_le_catalogue_de_l_application_la_porte(self, app, competition):
+        importer(competition, ClasseurFictif(plan=[
+            ClasseurFictif._entete("U11"),
+            ClasseurFictif._ligne_plan("Z", "Jaune", (True,), "J6", 1,
+                                       couleur_prises="Fluo")]))
+        assert Bloc.query.filter_by(tag="ZJ6").one().to_dict()["couleur_prises"] == "Fluo"
 
 
 class TestNombreDeCircuits:

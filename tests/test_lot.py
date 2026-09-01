@@ -299,3 +299,85 @@ class TestReaffectationEtFileDAttente:
         enregistrer_reussite(jeu["participants"][0], jeu["blocs"][0])
         with pytest.raises(ErreurMetier):
             reaffecter_dossard(jeu["participants"][2], 1)
+
+
+class TestHorsCircuit:
+    """Le juge a forcé un bloc hors du circuit du grimpeur (spec 019).
+
+    Le serveur ne refuse RIEN : il enregistre et il trace. Refuser casserait
+    l'idempotence et laisserait une file bloquée sur un téléphone, pour une
+    réussite que le classement ignore déjà.
+    """
+
+    def test_le_forcage_est_trace(self, client, jeu):
+        # Dupont (dossard 1) est « U11 F » ; DV21 n'est que dans U13.
+        r = envoyer(client, [{"ref": "a", "bib": "1", "bloc": "DV21",
+                              "hors_circuit": True}])
+        assert etats(r) == ["enregistree"]
+        assert Success.query.one().hors_circuit_force is True
+
+    def test_un_scan_verifie_et_bon_se_distingue_d_un_non_verifie(self, client, jeu):
+        """`False` et `NULL` ne disent pas la même chose.
+
+        `False` = le téléphone a vérifié et c'était bon. `NULL` = personne n'a
+        vérifié. Les confondre ferait dire à la console que tout a été contrôlé
+        alors que rien ne l'a été.
+        """
+        envoyer(client, [{"ref": "a", "bib": "1", "bloc": "ZJ6",
+                          "hors_circuit": False}])
+        envoyer(client, [{"ref": "b", "bib": "1", "bloc": "ZJ7"}])
+        par_ref = {s.ref_client: s.hors_circuit_force for s in Success.query.all()}
+        assert par_ref["a"] is False
+        assert par_ref["b"] is None
+
+    def test_une_application_qui_n_envoie_pas_le_champ_marche_comme_avant(
+            self, client, jeu):
+        r = envoyer(client, [{"ref": "a", "bib": "1", "bloc": "ZJ6"}])
+        assert etats(r) == ["enregistree"]
+        assert Success.query.one().hors_circuit_force is None
+
+    def test_une_valeur_mal_formee_est_ignoree_jamais_rejetee(self, client, jeu):
+        """Perdre une réussite pour un champ facultatif bizarre serait le pire
+        des échanges — et un juge n'a aucun moyen de comprendre le refus."""
+        for valeur in ["oui", 1, {}, None, []]:
+            Success.query.delete()
+            db.session.commit()
+            r = envoyer(client, [{"ref": "a", "bib": "1", "bloc": "ZJ6",
+                                  "hors_circuit": valeur}])
+            assert etats(r) == ["enregistree"], valeur
+            assert Success.query.one().hors_circuit_force is None, valeur
+
+    def test_le_statut_courant_est_calcule_pas_stocke(self, client, jeu):
+        """Corriger le classeur doit faire DISPARAÎTRE l'anomalie.
+
+        `hors_circuit_force` garde ce que le juge a vu ; `hors_circuit` dit ce
+        qui est vrai maintenant. Les deux divergent dès qu'on rattache le bloc
+        au bon circuit — et c'est exactement ce qu'on veut voir.
+        """
+        from climbcontest.contest import reussites_tracees
+        from climbcontest.models import BlocCircuit
+
+        envoyer(client, [{"ref": "a", "bib": "1", "bloc": "DV21",
+                          "hors_circuit": True}])
+        ligne = reussites_tracees(jeu["competition"], ref="a")[0]
+        assert ligne["hors_circuit_force"] is True
+        assert ligne["hors_circuit"] is True
+
+        # Le classeur est corrigé : DV21 entre dans U11.
+        dv21 = next(b for b in jeu["blocs"] if b.tag == "DV21")
+        u11 = next(c for c in jeu["circuits"] if c.nom == "U11")
+        db.session.add(BlocCircuit(bloc_id=dv21.id, circuit_id=u11.id))
+        db.session.commit()
+
+        ligne = reussites_tracees(jeu["competition"], ref="a")[0]
+        assert ligne["hors_circuit"] is False        # l'anomalie a disparu
+        assert ligne["hors_circuit_force"] is True   # le geste, lui, reste
+
+    def test_un_participant_sans_categorie_ne_tranche_rien(self, client, jeu):
+        from climbcontest.contest import reussites_tracees
+        sans = Participant(competition_id=jeu["competition"].id, nom="Sans",
+                           categorie=None, dossard=77)
+        db.session.add(sans)
+        db.session.commit()
+        envoyer(client, [{"ref": "z", "bib": "77", "bloc": "ZJ6"}])
+        assert reussites_tracees(jeu["competition"], ref="z")[0]["hors_circuit"] is None
