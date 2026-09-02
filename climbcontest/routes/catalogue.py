@@ -9,6 +9,11 @@ Le mécanisme est un simple numéro de version :
     GET /api/v2/catalog?depuis=41             → 304 si rien n'a bougé, sinon tout
     GET /api/v2/catalog  If-None-Match: "41"  → idem, en HTTP standard
 
+Il transporte aussi **le plan de la salle** (spec 029). C'est de la donnée de
+référence partagée, comme les blocs — et surtout, la faire voyager ici la rend
+versionnée : servie par une route à part, un client garderait un mur périmé sans
+aucun moyen de le savoir.
+
 Pourquoi renvoyer **tout** plutôt qu'un vrai delta : 98 participants et 67 blocs
 font 6 à 8 ko compressés. Un delta économiserait quelques kilo-octets au prix
 d'un suivi des suppressions et des conflits — de la complexité pour rien à cette
@@ -35,6 +40,7 @@ from flask import Blueprint, jsonify, make_response, request
 
 from ..auth import exige_cle_api
 from ..contest import ErreurMetier, competition_active
+from .. import fiches
 from ..models import Bloc, Circuit, Participant
 
 logger = logging.getLogger(__name__)
@@ -91,6 +97,21 @@ def catalogue():
         "participants": [p.to_dict() for p in participants if p.dossard is not None],
         "blocs": [b.to_dict() for b in blocs],
         "circuits": [c.nom for c in circuits],
+        # ⚠️ LE PLAN DE LA SALLE voyage avec le catalogue, et pas par une route
+        # a lui (demande d'Adrien du 02/09 : « pourquoi tu ne pousses pas le
+        # plan sur l'application ou le navigateur, [...] comme la base grimpeur
+        # avec un systeme d'update ? »).
+        #
+        # Trois raisons, et la troisieme est la vraie :
+        # 1. c'est de la donnee de REFERENCE partagee, comme les blocs ;
+        # 2. le `304` la rend gratuite quand elle n'a pas bouge -- et elle ne
+        #    bouge presque jamais ;
+        # 3. surtout, elle devient VERSIONNEE. Servie a part, un client
+        #    garderait un mur perime sans aucun moyen de le savoir.
+        #
+        # Enregistrer un plan incremente donc `catalogue_version`
+        # (`plan_du_mur.ecrire`), exactement comme ajouter un participant.
+        "plan": fiches.plan_courant(),
     })
     reponse.headers["ETag"] = etiquette
     # `no-cache` ne veut pas dire « ne cache pas » : il veut dire « revalide

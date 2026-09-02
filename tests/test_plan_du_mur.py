@@ -222,3 +222,60 @@ class TestLeDossardSuitLePlanEnregistre:
         page = connecte_orga.get("/admin/dossards").data.decode()
         assert 'data-zone="Q"' in page
         assert 'data-zone="X"' not in page, "l'ancien plan ne doit plus apparaitre"
+
+
+class TestLePlanVoyageAvecLeCatalogue:
+    """⚠️ Adrien : « pourquoi tu ne pousses pas le plan sur l'application ou le
+    navigateur [...] comme la base grimpeur avec un système d'update ? »
+
+    La vraie raison de le faire n'est pas l'économie de requêtes : c'est que le
+    plan devient **versionné**. Servi par une route à part, un client garderait
+    un mur périmé sans aucun moyen de le savoir.
+    """
+
+    def test_le_catalogue_porte_le_plan(self, client, jeu):
+        d = client.get("/api/v2/catalog").get_json()
+        assert "plan" in d
+        assert [m["zone"] for m in d["plan"]["murs"]][:2] == ["X", "Y"]
+
+    def test_il_porte_le_plan_ENREGISTRE_pas_celui_d_usine(self, connecte_orga, jeu):
+        connecte_orga.post("/admin/plan", json=_plan())
+        d = connecte_orga.get("/api/v2/catalog").get_json()
+        assert [m["zone"] for m in d["plan"]["murs"]] == ["A"]
+
+    def test_enregistrer_un_plan_incremente_la_version(self, connecte_orga, jeu):
+        avant = connecte_orga.get("/api/v2/catalog").get_json()["version"]
+        connecte_orga.post("/admin/plan", json=_plan())
+        apres = connecte_orga.get("/api/v2/catalog").get_json()["version"]
+        assert apres > avant, "sans ca, les clients garderaient un mur perime"
+
+    def test_un_client_a_jour_avant_le_changement_recoit_le_nouveau_plan(
+            self, connecte_orga, jeu):
+        """Le scenario complet : un telephone a la version N, on enregistre un
+        plan, il redemande avec N -- il doit recevoir 200 et le nouveau mur, pas
+        un 304."""
+        version = connecte_orga.get("/api/v2/catalog").get_json()["version"]
+        assert connecte_orga.get(f"/api/v2/catalog?depuis={version}").status_code == 304
+
+        connecte_orga.post("/admin/plan", json=_plan())
+
+        r = connecte_orga.get(f"/api/v2/catalog?depuis={version}")
+        assert r.status_code == 200
+        assert [m["zone"] for m in r.get_json()["plan"]["murs"]] == ["A"]
+
+    def test_le_retour_a_l_usine_incremente_aussi(self, connecte_orga, jeu):
+        connecte_orga.post("/admin/plan", json=_plan())
+        avant = connecte_orga.get("/api/v2/catalog").get_json()["version"]
+        connecte_orga.delete("/admin/plan")
+        assert connecte_orga.get("/api/v2/catalog").get_json()["version"] > avant
+
+    def test_le_304_fonctionne_toujours_quand_rien_ne_bouge(self, client, jeu):
+        version = client.get("/api/v2/catalog").get_json()["version"]
+        assert client.get(f"/api/v2/catalog?depuis={version}").status_code == 304
+
+    def test_dessiner_hors_saison_ne_fait_pas_echouer(self, connecte_orga, app):
+        """Aucune compétition active : il n'y a personne à prévenir, et
+        dessiner le plan en janvier est parfaitement legitime."""
+        r = connecte_orga.post("/admin/plan", json=_plan())
+        assert r.status_code == 200
+        assert [m["zone"] for m in fiches.plan_courant()["murs"]] == ["A"]

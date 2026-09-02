@@ -139,6 +139,25 @@ def valider(brut: dict) -> dict:
             "murs": tuple(murs), "reperes": tuple(reperes)}
 
 
+def _signaler_le_changement() -> None:
+    """Incrémente la version du catalogue : les clients doivent se remettre à jour.
+
+    ⚠️ Sans ça, un plan enregistré resterait invisible pour tout ce qui a déjà
+    téléchargé le catalogue — le mur changerait sur le papier et pas à l'écran,
+    et personne n'aurait de moyen de s'en apercevoir. C'est le même geste que
+    pour un participant ajouté à 14 h.
+
+    Import tardif : `contest` importe déjà ce qui touche au modèle.
+    """
+    from .contest import ErreurMetier, competition_active, incrementer_catalogue
+    try:
+        incrementer_catalogue(competition_active())
+    except ErreurMetier:
+        # Pas de compétition active : rien à prévenir. Dessiner le plan hors
+        # saison est parfaitement légitime.
+        logger.info("plan : aucune competition active, version non incrementee")
+
+
 def lire():
     """Le plan enregistré, ou `None` s'il n'y en a pas — ou s'il est abîmé.
 
@@ -171,6 +190,7 @@ def ecrire(brut: dict, par: str | None = None) -> dict:
         db.session.add(ligne)
     ligne.valeur = texte
     ligne.modifie_par = par
+    _signaler_le_changement()
     db.session.commit()
     return propre
 
@@ -181,5 +201,6 @@ def effacer() -> bool:
     if not ligne:
         return False
     db.session.delete(ligne)
+    _signaler_le_changement()
     db.session.commit()
     return True
