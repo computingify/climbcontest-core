@@ -49,9 +49,11 @@ qu'on ne met pas à jour le matin d'une compétition :
 
   Le **retard normal se distingue de la panne** : redessiner le mur renumérote
   toutes les éditions d'un coup, donc tous les téléphones passent à l'ambre en
-  même temps pendant quelques minutes. La console le dit en ocre — « ils se
-  remettent à jour tout seuls, rien à faire » — au lieu de laisser croire à un
-  organisateur qui vient d'enregistrer son plan qu'il a cassé sa flotte.
+  même temps. La console le dit en ocre, et **distingue deux populations** —
+  écran allumé l'application rafraîchit toutes les trente secondes, écran
+  éteint elle ne fait rien du tout. La phrase donne donc le geste qui débloque
+  un téléphone en veille (rallumer son écran) au lieu de promettre qu'il n'y en
+  a pas.
 
 - **Le module `climbcontest/version.py`.** Le tag git était lu par une fonction
   privée de `routes/sante.py` : trois appelants en avaient besoin, aucun ne

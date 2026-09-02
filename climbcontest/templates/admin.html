@@ -1980,10 +1980,19 @@
     var calme = $("rattrapageAnnonces");
     calme.hidden = rattrapage === 0;
     if (rattrapage > 0) {
+      // ⚠️ Deux populations, et pas un delai unique. Un telephone EN SERVICE
+      // reprend le catalogue en moins d'une minute -- la boucle de l'app
+      // rafraichit toutes les trente secondes, et tout de suite si la reponse
+      // d'un envoi lui a appris le nouveau numero. Mais un telephone EN VEILLE
+      // ne fait RIEN : sa boucle sort des la premiere ligne quand l'ecran est
+      // eteint. Promettre « rien a faire » enverrait un organisateur attendre
+      // devant trois telephones poses sur une table, alors que le geste utile
+      // -- rallumer l'ecran -- tient en une seconde.
       calme.textContent = "Le catalogue vient de changer : " + rattrapage
         + (rattrapage > 1 ? " téléphones ne l'ont" : " téléphone ne l'a")
-        + " pas encore repris. Ils se remettent à jour tout seuls — comptez"
-        + " cinq minutes. Rien à faire.";
+        + " pas encore repris. Ceux qui sont en service le reprennent en moins"
+        + " d'une minute ; un téléphone en veille attend qu'on rallume son"
+        + " écran — c'est le seul geste utile.";
     }
 
     var perdues = a.annonces_perdues || 0;

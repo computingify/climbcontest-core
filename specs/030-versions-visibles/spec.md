@@ -35,7 +35,8 @@ sa console, ne peuvent le savoir. Les deux pannes que ça produit sont connues :
 2. une coquille périmée fait tourner un correctif qu'on croit déployé.
 
 Et il n'y a **aucun geste** à la portée du juge : le catalogue se rafraîchit
-tout seul, sur un minuteur de cinq minutes, sans bouton pour dire « maintenant ».
+tout seul, sur un minuteur, sans bouton pour dire « maintenant » — et sans rien
+qui dise ce qu'il contient.
 
 ## 2. Ce qu'on fait
 
@@ -45,8 +46,9 @@ tout seul, sur un minuteur de cinq minutes, sans bouton pour dire « maintenant 
 branches** : le `200` et le `304`.
 
 ⚠️ Le `304` est le cas **majoritaire** le jour J — le catalogue ne bouge presque
-jamais, et la PWA revalide toutes les cinq minutes. Un en-tête posé seulement
-sur le `200` serait un en-tête qui n'arrive presque jamais.
+jamais, et la PWA revalide **toutes les trente secondes** tant que l'écran est
+allumé. Un en-tête posé seulement sur le `200` serait un en-tête qui n'arrive
+presque jamais.
 
 Pourquoi cette route et pas `/health` : Caddy ferme `/health` depuis Internet, et
 la PWA le sait déjà (`juge.js`, la sonde de connexion passe délibérément par le
@@ -148,9 +150,19 @@ fermeture de l'incohérence du plan (PR #85), redessiner le mur donne un numéro
 neuf à **toutes** les éditions d'un coup : un organisateur qui retouche le plan
 en pleine compétition verrait ses vingt-cinq téléphones passer à l'ambre **en
 même temps**, et croirait avoir tout cassé. Ils sont bien en retard — c'est le
-correctif qui veut ça — mais ils se remettent à jour seuls en cinq minutes. La
-carte affiche donc une phrase calme, en ocre et non en rouge : « le catalogue
-vient de changer, N téléphones ne l'ont pas encore repris, rien à faire ».
+correctif qui veut ça — mais un téléphone **en service** reprend le numéro en
+moins d'une minute. La carte affiche donc une phrase calme, en ocre et non en
+rouge.
+
+⚠️ Elle distingue **deux populations**, et ce n'est pas du zèle. Écran allumé,
+la boucle de l'application rafraîchit toutes les trente secondes, et tout de
+suite si la réponse d'un envoi lui a appris le nouveau numéro. Écran éteint,
+elle ne fait **rien du tout** — `boucle()` sort dès sa première ligne. Annoncer
+« ils se remettent à jour tout seuls, rien à faire » enverrait donc un
+organisateur attendre devant trois téléphones posés sur une table pendant la
+pause, alors que le geste utile — rallumer l'écran — tient en une seconde. La
+phrase dit les deux : « ceux qui sont en service le reprennent en moins d'une
+minute ; un téléphone en veille attend qu'on rallume son écran ».
 
 Ce qui sépare ce cas de la vraie panne, c'est la **fraîcheur de l'annonce de
 catalogue** : ici elle date de quelques secondes — le téléphone parle, il n'a
@@ -241,6 +253,8 @@ simplification qu'une relecture pressée propose.
       moins de six minutes est présenté comme **en train de rattraper**, pas
       comme une panne — et un téléphone dont les annonces sont absorbées par un
       cache ne l'est **jamais**, même si ses lots continuent d'arriver.
+- [ ] **A18** — Aucun écran ne promet « rien à faire » : la phrase du
+      rattrapage nomme le geste qui débloque un téléphone en veille.
 
 ## 5. Cas limites
 

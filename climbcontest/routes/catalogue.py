@@ -37,8 +37,8 @@ Deux mécanismes plutôt qu'un, parce qu'ils ne servent pas au même :
 
 Trois en-têtes **facultatifs** — `X-Device-Id`, `X-Device-Name`,
 `X-App-Version` — permettent au téléphone de dire qui il est et quelle version
-il exécute, **sans une requête de plus** : il en fait déjà une toutes les cinq
-minutes. Le serveur répond avec `X-Server-Version`, sur les deux branches, et
+il exécute, **sans une requête de plus** : écran allumé, il en fait déjà une
+toutes les trente secondes. Le serveur répond avec `X-Server-Version`, sur les deux branches, et
 le téléphone sait ainsi s'il est en retard sans appeler `/health`, que Caddy
 lui ferme.
 
@@ -81,7 +81,7 @@ def catalogue():
     #
     # La garde ci-dessous fait un RETOUR ANTICIPE sur le 304 : tout ce qui la
     # suit n'est jamais atteint quand le telephone est deja a jour. Or c'est le
-    # cas MAJORITAIRE le jour J -- la PWA revalide toutes les cinq minutes et le
+    # cas MAJORITAIRE le jour J -- la PWA revalide toutes les trente secondes et le
     # catalogue ne bouge presque jamais. Une annonce enregistree apres la garde
     # ne montrerait dans la console que les telephones EN RETARD : l'exact
     # inverse de ce qu'on veut voir, avec un telephone parfaitement a jour

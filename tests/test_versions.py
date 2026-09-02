@@ -6,7 +6,7 @@ doit pouvoir faire échouer une requête de catalogue.
 
 ⚠️ Le test le plus important du fichier est
 `test_l_annonce_est_enregistree_meme_sur_un_304`. Le `304` est le cas
-**majoritaire** le jour J : la PWA revalide toutes les cinq minutes et le
+**majoritaire** le jour J : la PWA revalide toutes les trente secondes et le
 catalogue ne bouge presque jamais. Une annonce enregistrée après la garde du
 `304` ne montrerait dans la console que les téléphones en retard — l'exact
 inverse de ce qu'on cherche à voir.

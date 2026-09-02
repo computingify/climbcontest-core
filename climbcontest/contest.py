@@ -524,14 +524,21 @@ def reussites_en_attente() -> int:
 SILENCE_S = 600
 
 #: Au-dela, on considere que les ANNONCES de ce telephone ne nous arrivent plus.
-#: La PWA s'annonce toutes les cinq minutes ; un quart d'heure laisse passer
-#: deux occasions manquees sans crier au loup.
+#: Ecran allume, la PWA s'annonce toutes les TRENTE SECONDES (`juge.js`,
+#: `PERIODE_PRESENCE_MS`) : un quart d'heure laisse donc passer une trentaine
+#: d'occasions avant de crier au loup. Le seuil est genereux exprès -- une
+#: alerte qui se declenche pour un creux de wifi apprend a ignorer les alertes.
 SILENCE_ANNONCE_S = 900
 
 #: En deca, un telephone en retard sur le catalogue est simplement en train de
-#: le RATTRAPER : il s'est annonce il y a moins d'un cycle de rafraichissement
-#: et reprendra le catalogue tout seul. Six minutes = les cinq du cycle, plus
-#: une de marge.
+#: le RATTRAPER : il s'est annonce tres recemment, donc il est en service, donc
+#: il reprendra le numero tout seul dans la minute. Six minutes plutot que
+#: trente secondes pour absorber un creux de wifi sans changer de discours.
+#:
+#: ⚠️ Au-dela, il ne devient pas « en panne » : il sort simplement du cas
+#: benin. C'est ce qui fait qu'un telephone EN VEILLE -- dont la boucle ne
+#: tourne plus du tout -- cesse d'etre annonce comme « se remet a jour tout
+#: seul », ce qui serait faux : il attend qu'on rallume son ecran.
 PERIODE_RATTRAPAGE_S = 360
 
 #: Au-dela, un telephone sort du tableau de la console s'il n'a rien envoye sur
@@ -720,8 +727,15 @@ def _annonce_perdue(annonce: Appareil, fiche: dict,
       l'application Android, et son silence est normal ;
     - il a envoye une reussite recemment -- sinon il est simplement eteint, ce
       que `silencieux` dit deja ;
-    - sa derniere annonce date de plus d'un quart d'heure, alors que la PWA
-      s'annonce toutes les cinq minutes.
+    - sa derniere annonce date de plus d'un quart d'heure, alors qu'ecran
+      allume la PWA s'annonce toutes les trente secondes.
+
+    ⚠️ La deuxieme condition n'est pas un confort, c'est ce qui rend le
+    detecteur SUR : la boucle de l'application sort des sa premiere ligne quand
+    l'ecran est eteint, donc un telephone en veille n'envoie rien ET ne
+    s'annonce plus. Exiger une reussite recente elimine ce cas -- il ne reste
+    que celui ou les lots passent pendant que les annonces disparaissent, ce
+    qui ne peut venir que d'un cache pose devant le GET.
     """
     if not annonce.version_app:
         return False
@@ -745,8 +759,8 @@ def _rattrapage(annonce: Appareil, fiche: dict, maintenant: datetime) -> bool:
     la fermeture de l'incoherence du plan : redessiner le mur donne un numero
     NEUF a toutes les editions d'un coup. Le jour ou un organisateur retouche
     le plan en pleine competition, les vingt-cinq telephones passent en ambre
-    EN MEME TEMPS -- et il croira avoir tout casse, alors qu'ils se remettent a
-    jour tout seuls dans les cinq minutes.
+    EN MEME TEMPS -- et il croira avoir tout casse, alors que ceux qui sont en
+    service reprennent le numero dans la minute.
 
     Ce qui separe ce cas de la vraie panne : ici l'annonce de catalogue est
     FRAICHE. Le telephone parle, il n'a simplement pas encore repris le nouveau

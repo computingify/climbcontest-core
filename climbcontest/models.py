@@ -572,8 +572,8 @@ class Appareil(db.Model):
     # le numero courant du serveur au moment du contact -- et non celui qu'il a
     # annonce. Un `304` signifie qu'ils sont egaux ; un `200` que le telephone
     # vient de recevoir le courant. Enregistrer le numero ANNONCE ferait
-    # clignoter en ambre, pendant cinq minutes apres chaque import, des
-    # telephones qui viennent precisement de se mettre a jour.
+    # clignoter en ambre, apres chaque import, des telephones qui viennent
+    # precisement de se mettre a jour.
     catalogue_version = Column(Integer)
     catalogue_vu_le = Column(DateTime)
 

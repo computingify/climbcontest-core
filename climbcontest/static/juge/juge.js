@@ -476,8 +476,8 @@ async function vider({ forcer = false } = {}) {
 /**
  * Ce que le téléphone dit de lui au serveur, sur la requête qu'il fait déjà.
  *
- * Pas une requête de plus : le catalogue se rafraîchit toutes les cinq minutes
- * de toute façon. C'est ce qui permet à la console de dire quel téléphone est
+ * Pas une requête de plus : écran allumé, le catalogue se rafraîchit toutes
+ * les trente secondes de toute façon (`PERIODE_PRESENCE_MS`). C'est ce qui permet à la console de dire quel téléphone est
  * en retard sans qu'on aille les lire un par un — y compris le matin, avant la
  * première réussite envoyée.
  */
