@@ -23,78 +23,22 @@ jour où quelqu'un déplacerait la garde ailleurs sans la faire marcher.
 """
 import os
 import shutil
-import socket
-import subprocess
 import tempfile
-import threading
-import time
 from datetime import date
 from pathlib import Path
-from wsgiref.simple_server import make_server
 
 import pytest
 
-RACINE = Path(__file__).resolve().parent.parent
+from tests.navigateur import CHROME, page_harnais, piloter, servir
 
-CHEMINS_CHROME = [
-    os.environ.get("CLIMBCONTEST_CHROME", ""),
-    str(Path.home() / "Library/Caches/ms-playwright/chromium_headless_shell-1234"
-        "/chrome-headless-shell-mac-arm64/chrome-headless-shell"),
-    "/usr/bin/chromium",
-    "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
-    "chromium", "google-chrome",
-]
-
-
-def trouver_chrome():
-    for chemin in CHEMINS_CHROME:
-        if not chemin:
-            continue
-        if os.path.isfile(chemin) and os.access(chemin, os.X_OK):
-            return chemin
-        trouve = shutil.which(chemin)
-        if trouve:
-            return trouve
-    return None
-
-
-CHROME = trouver_chrome()
 pytestmark = pytest.mark.skipif(
     CHROME is None, reason="aucun navigateur : ce test se saute, il n'echoue pas")
 
-
-# Le pilote. Il rend son verdict par un `fetch`, et NON par le titre du
-# document : `--virtual-time-budget` fait courir les minuteries plus vite que le
-# reseau, et une attente de huit secondes virtuelles expire avant qu'une requete
-# reelle soit revenue.
-PILOTE = r"""
-const etapes = [];
-const note = (n, v) => etapes.push(n + "=" + String(v).replace(/[ |]/g, "_"));
-const rendre = (v) => fetch("/__verdict", { method: "POST", body: v });
-function attendre(quoi, cond, ms = 15000) {
-  return new Promise((ok, ko) => {
-    const t0 = Date.now();
-    (function b() {
-      let r; try { r = cond(); } catch (e) { r = false; }
-      if (r) return ok(r);
-      if (Date.now() - t0 > ms) return ko(new Error("delai sur " + quoi));
-      setTimeout(b, 50);
-    })();
-  });
-}
-(async function () {
-  try {
-    const cadre = document.getElementById("page");
-    // ⚠️ `contentDocument` rend d'abord le `about:blank` INITIAL, dont le
-    // `readyState` vaut deja « complete ». On attend un contenu reel, et on
-    // relit `contentDocument` a chaque acces : la reference d'avant navigation
-    // pointe sur un document qui n'existe plus.
-    const $ = (s) => cadre.contentDocument.querySelector(s);
-    const $$ = (s) => [...cadre.contentDocument.querySelectorAll(s)];
-    const vue = () => cadre.contentWindow;
+# Le corps du pilote. `attendre`, `$`, `$$` et `vue()` viennent du preambule
+# partage, tout comme le renvoi du verdict par `fetch`.
+SONDE = """
     await attendre("classement archive",
       () => $$(".ligne[data-participant]").length > 0);
-
     const ligne = $$(".ligne[data-participant]")[0];
     note("nom", ligne.textContent.trim().slice(0, 20));
     note("id", ligne.dataset.participant);
@@ -111,19 +55,7 @@ function attendre(quoi, cond, ms = 15000) {
     vue().location.hash = "#g=" + ligne.dataset.participant;
     await new Promise((r) => setTimeout(r, 1200));
     note("feuilleApresDiese", !!$(".sf-feuille"));
-
-    rendre("OK " + etapes.join(" "));
-  } catch (e) {
-    rendre("ECHEC " + etapes.join(" ") + " || " + e.message);
-  }
-})();
 """
-
-
-def port_libre() -> int:
-    with socket.socket() as s:
-        s.bind(("127.0.0.1", 0))
-        return s.getsockname()[1]
 
 
 def _semer(app):
@@ -237,39 +169,15 @@ def serveur():
 
     @app.get("/__harnais/<int:i>")
     def harnais(i):
-        return Response(
-            "<!doctype html><meta charset=utf-8><title>harnais</title>"
-            f"<iframe id=page src='/__rejeu/{i}' "
-            "style='width:390px;height:844px;border:0'></iframe>"
-            f"<script>{PILOTE}</script>", mimetype="text/html")
+        return Response(page_harnais(f"/__rejeu/{i}", SONDE),
+                        mimetype="text/html")
 
-    port = port_libre()
-    httpd = make_server("127.0.0.1", port, app)
-    threading.Thread(target=httpd.serve_forever, daemon=True).start()
+    url, arreter = servir(app)
     try:
-        yield f"http://127.0.0.1:{port}", identifiant, repris, verdict
+        yield url, identifiant, repris, verdict
     finally:
-        httpd.shutdown()
-        httpd.server_close()
+        arreter()
         shutil.rmtree(dossier, ignore_errors=True)
-
-
-def piloter(url, verdict, secondes=45):
-    with tempfile.TemporaryDirectory() as profil:
-        navigateur = subprocess.Popen(
-            [CHROME, "--headless", "--disable-gpu", "--no-sandbox",
-             f"--user-data-dir={profil}", "--window-size=390,844", url],
-            stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-        try:
-            fin = time.time() + secondes
-            while time.time() < fin:
-                if verdict["texte"] is not None:
-                    return verdict["texte"]
-                time.sleep(0.2)
-            return "ECHEC || le pilote n'a rien rendu"
-        finally:
-            navigateur.terminate()
-            navigateur.wait(timeout=10)
 
 
 class TestLaFicheNExistePasEnRejeuDArchive:

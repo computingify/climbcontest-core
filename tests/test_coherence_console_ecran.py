@@ -33,6 +33,10 @@ vérité doivent s'accorder — et ils tiennent quel que soit le dénominateur.
 from datetime import date
 from pathlib import Path
 
+import os
+import shutil
+import tempfile
+
 import pytest
 
 from climbcontest import comptes
@@ -425,220 +429,6 @@ def _est_gris(hexa: str) -> bool:
     return v[0:2].lower() == v[2:4].lower() == v[4:6].lower()
 
 
-# --- La couture 4 : une zone que le plan ne connaît plus ---------------------
-#
-# ⚠️ Ce cas n'existe QUE depuis la spec 029. Tant que `PLAN` était une
-# constante, une zone nommée dans une adresse était forcément dessinable ; la
-# console peut maintenant la faire disparaître entre le moment où le lien est
-# partagé et celui où il est ouvert.
-
-import html                                                        # noqa: E402
-import os                                                          # noqa: E402
-import shutil                                                      # noqa: E402
-import socket                                                      # noqa: E402
-import subprocess                                                  # noqa: E402
-import tempfile                                                    # noqa: E402
-import threading                                                   # noqa: E402
-import time                                                        # noqa: E402
-
-CHEMINS_CHROME = [
-    os.environ.get("CLIMBCONTEST_CHROME", ""),
-    str(Path.home() / "Library/Caches/ms-playwright/chromium_headless_shell-1234"
-        "/chrome-headless-shell-mac-arm64/chrome-headless-shell"),
-    "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
-    "chromium", "google-chrome",
-]
-
-
-def _trouver_chrome():
-    for chemin in CHEMINS_CHROME:
-        if not chemin:
-            continue
-        if os.path.isfile(chemin) and os.access(chemin, os.X_OK):
-            return chemin
-        trouve = shutil.which(chemin)
-        if trouve:
-            return trouve
-    return None
-
-
-CHROME = _trouver_chrome()
-
-# Le pilote : on arrive DIRECTEMENT sur une adresse qui vise une zone absente
-# du plan — exactement ce que fait un lien partagé le matin et ouvert l'après-
-# midi, une fois le mur redessiné.
-PILOTE_ZONE_ABSENTE = r"""
-const etapes = [];
-const note = (n, v) => etapes.push(n + "=" + String(v).replace(/ /g, "_"));
-function attendre(quoi, cond, ms = 8000) {
-  return new Promise((ok, ko) => {
-    const t0 = Date.now();
-    (function b() {
-      let r; try { r = cond(); } catch (e) { r = false; }
-      if (r) return ok(r);
-      if (Date.now() - t0 > ms) return ko(new Error("delai sur " + quoi));
-      setTimeout(b, 50);
-    })();
-  });
-}
-(async function () {
-  try {
-    const cadre = document.getElementById("page");
-    await attendre("chargement", () => cadre.contentDocument
-      && cadre.contentDocument.querySelectorAll(".ligne[data-participant]").length > 0);
-    const doc = cadre.contentDocument;
-    const vue = cadre.contentWindow;
-    const $ = (s) => doc.querySelector(s);
-    const $$ = (s) => [...doc.querySelectorAll(s)];
-
-    await attendre("mur", () => $(".sf-feuille svg.plan") || $(".sf-feuille"));
-    note("zonesDessinees", $$(".sf-feuille g[data-zone]").length);
-    note("visee", $$(".sf-feuille g[data-zone].visee").length);
-    const titre = $(".sf-mur-tete b");
-    note("titre", titre ? titre.textContent.trim() : "(aucun)");
-    note("diese", vue.location.hash);
-    document.title = "OK " + etapes.join(" ");
-  } catch (e) {
-    document.title = "ECHEC " + etapes.join(" ") + " || " + e.message;
-  }
-})();
-"""
-
-
-@pytest.mark.skipif(CHROME is None,
-                    reason="aucun navigateur : ce test se saute, il n'echoue pas")
-class TestUneZoneQueLePlanNeConnaitPlus:
-    """Spec 029 (le plan bouge) × spec 026 F6 (la page refuse ce qu'elle ne sait
-    pas dessiner).
-
-    La 026 valide DÉJÀ la zone d'un bloc contre le plan — `ZONES_DU_PLAN.has()`
-    rend la case inerte, et c'est son critère A14. Le même contrôle n'est pas
-    appliqué à la zone qui vient de **l'adresse**. La page ouvre alors un
-    panneau titré « Zone A » au-dessus d'un dessin où aucune zone A n'existe :
-    le parent lit un nom de mur et n'a rien à regarder.
-
-    Ce n'est pas symétrique avec le reste de la spec : un grimpeur inconnu dans
-    l'adresse est refusé ET l'adresse est nettoyée (A11). La zone, non.
-    """
-
-    def test_le_mur_ne_titre_pas_une_zone_qu_il_ne_dessine_pas(self):
-        """⚠️ Base sur FICHIER et application dediee, comme
-        `test_navigateur_fiche.py` : le serveur tourne dans un autre fil, et la
-        base en memoire des autres tests ne s'y partage pas."""
-        url, cible = _serveur_avec_plan_a_trois_zones()
-
-        verdict = _piloter(url + "/__harnais_zone")
-        assert verdict.startswith("OK "), verdict
-        mesures = dict(m.split("=", 1) for m in verdict[3:].split(" ") if "=" in m)
-
-        # Le plan redessine est bien celui qu'on voit : trois zones, pas dix-sept.
-        assert mesures["zonesDessinees"] == "3"
-        # Aucune zone n'est mise en evidence, et c'est normal : il n'y a pas de A.
-        assert mesures["visee"] == "0"
-        # ⚠️ C'EST L'ASSERTION QUI TOMBE AUJOURD'HUI. Le panneau ne doit pas
-        # nommer un mur que le dessin ne porte pas.
-        assert mesures["titre"] != "Zone_A", (
-            "le panneau titre « Zone A » alors qu'aucune zone A n'est dessinee : "
-            "la zone venue de l'adresse n'est pas controlee contre le plan, "
-            "alors que celle d'un bloc l'est (resultats.html, ZONES_DU_PLAN)")
-
-
-def _serveur_avec_plan_a_trois_zones():
-    """Une application a part, sa base sur fichier, son mur redessine."""
-    from flask import Response
-
-    from climbcontest import creer_app, plan_du_mur
-    from climbcontest.config import Config
-
-    dossier = tempfile.mkdtemp(prefix="climbcontest-coherence-")
-    os.environ["CLIMBCONTEST_TEST"] = "1"
-
-    class ConfigNavigateur(Config):
-        SQLALCHEMY_DATABASE_URI = "sqlite:///" + os.path.join(dossier, "nav.db")
-        SHEETS_ACTIF = False
-        API_KEY_STRICTE = False
-        SESSION_COOKIE_SECURE = False
-
-    app = creer_app(ConfigNavigateur)
-    with app.app_context():
-        db.create_all()
-        comp = Competition(nom="Coherence", date=date(2026, 11, 15),
-                           statut=EN_COURS, active=True)
-        db.session.add(comp)
-        db.session.flush()
-        circuit = Circuit(competition_id=comp.id, nom="U13")
-        db.session.add(circuit)
-        db.session.flush()
-
-        blocs = {}
-        for i, (tag, zone, couleur) in enumerate(CIRCUIT, 1):
-            b = Bloc(competition_id=comp.id, tag=tag, numero=i, zone=zone,
-                     couleur=couleur)
-            db.session.add(b)
-            db.session.flush()
-            db.session.add(BlocCircuit(bloc_id=b.id, circuit_id=circuit.id))
-            blocs[tag] = b
-
-        p = Participant(competition_id=comp.id, nom="Lea", prenom="X",
-                        club="Les Lezards", categorie="U13 F", dossard=1,
-                        present=True)
-        db.session.add(p)
-        db.session.flush()
-        for tag in REUSSIS:
-            db.session.add(Success(participant_id=p.id, bloc_id=blocs[tag].id))
-        db.session.commit()
-        cible = p.id
-
-        # La console redessine le mur SANS la zone A, ou ce grimpeur a des blocs.
-        plan_du_mur.ecrire(plan_a_trois_zones(), par="chef")
-
-    @app.get("/__harnais_zone")
-    def harnais_zone():
-        return Response(
-            "<!doctype html><meta charset=utf-8><title>en cours</title>"
-            f"<iframe id=page src='/#g={cible}&z=A' "
-            "style='width:390px;height:844px;border:0'></iframe>"
-            f"<script>{PILOTE_ZONE_ABSENTE}</script>",
-            mimetype="text/html")
-
-    port = _port_libre()
-    threading.Thread(
-        target=lambda: app.run(host="127.0.0.1", port=port, use_reloader=False),
-        daemon=True).start()
-    _attendre_le_serveur(port)
-    return f"http://127.0.0.1:{port}", cible
-
-
-def _port_libre() -> int:
-    with socket.socket() as s:
-        s.bind(("127.0.0.1", 0))
-        return s.getsockname()[1]
-
-
-def _attendre_le_serveur(port):
-    import urllib.request
-    for _ in range(100):
-        try:
-            urllib.request.urlopen(f"http://127.0.0.1:{port}/", timeout=1)
-            return
-        except Exception:
-            time.sleep(0.1)
-    pytest.fail("le serveur de test n'a pas demarre")
-
-
-def _piloter(url: str) -> str:
-    with tempfile.TemporaryDirectory() as profil:
-        sortie = subprocess.run(
-            [CHROME, "--headless", "--disable-gpu", "--no-sandbox",
-             f"--user-data-dir={profil}", "--window-size=400,900",
-             "--virtual-time-budget=25000", "--dump-dom", url],
-            capture_output=True, text=True, timeout=120)
-    dom = sortie.stdout
-    debut, fin = dom.find("<title>"), dom.find("</title>")
-    assert debut >= 0 and fin > debut, "pas de titre : " + dom[:400]
-    return html.unescape(dom[debut + 7:fin])
-
-
 class TestUnSeulMurPourTroisConsommateurs:
     """Le plan est GLOBAL, et il part vers trois écrans par trois chemins.
 
@@ -702,3 +492,128 @@ class TestUnSeulMurPourTroisConsommateurs:
             "revenir au plan d'usine ne previent pas le telephone du juge")
         from climbcontest.fiches import PLAN
         assert self.zones(catalogue["plan"]["murs"]) == self.zones(PLAN["murs"])
+
+
+# --- La couture 4 : une zone que le plan ne connaît plus ---------------------
+#
+# ⚠️ Ce cas n'existe QUE depuis la spec 029. Tant que `PLAN` était une
+# constante, une zone nommée dans une adresse était forcément dessinable ; la
+# console peut maintenant la faire disparaître entre le moment où le lien est
+# partagé et celui où il est ouvert.
+
+from tests.navigateur import (                                     # noqa: E402
+    CHROME, page_harnais, piloter, servir)
+
+SONDE_ZONE = """
+    await attendre("mur", () => $(".sf-feuille"));
+    note("zonesDessinees", $$(".sf-feuille g[data-zone]").length);
+    note("visee", $$(".sf-feuille g[data-zone].visee").length);
+    const titre = $(".sf-mur-tete b");
+    note("titre", titre ? titre.textContent.trim() : "(aucun)");
+    note("diese", vue().location.hash || "(vide)");
+"""
+
+
+@pytest.mark.skipif(CHROME is None,
+                    reason="aucun navigateur : ce test se saute, il n'echoue pas")
+class TestUneZoneQueLePlanNeConnaitPlus:
+    """Spec 029 (le plan bouge) × spec 026 F6 (la page refuse ce qu'elle ne sait
+    pas dessiner).
+
+    La 026 valide la zone d'un **bloc** contre le plan — `ZONES_DU_PLAN.has()`
+    rend la case inerte, c'est son critère A14. La zone qui vient de
+    **l'adresse** demande le même contrôle, et pour une raison plus forte : un
+    lien se partage le matin et s'ouvre l'après-midi, sur un mur que la console
+    a redessiné entre-temps.
+    """
+
+    def test_le_mur_ne_titre_pas_une_zone_qu_il_ne_dessine_pas(self):
+        """La zone A a disparu du plan. Le mur doit se dessiner quand même, ne
+        viser personne, et ne pas annoncer un mur qu'il ne montre pas."""
+        from flask import request
+
+        from climbcontest import creer_app, plan_du_mur
+        from climbcontest.config import Config
+
+        dossier = tempfile.mkdtemp(prefix="climbcontest-zone-")
+        os.environ["CLIMBCONTEST_TEST"] = "1"
+
+        class ConfigZone(Config):
+            SQLALCHEMY_DATABASE_URI = "sqlite:///" + os.path.join(dossier, "z.db")
+            SHEETS_ACTIF = False
+            API_KEY_STRICTE = False
+            SESSION_COOKIE_SECURE = False
+
+        app = creer_app(ConfigZone)
+        verdict = {"texte": None}
+        with app.app_context():
+            db.create_all()
+            cible = _semer_une_salle()
+            plan_du_mur.ecrire(plan_a_trois_zones(), par="chef")
+
+        @app.post("/__verdict")
+        def poser():
+            verdict["texte"] = request.get_data(as_text=True)
+            return "", 204
+
+        @app.get("/__harnais")
+        def harnais():
+            from flask import Response
+            return Response(page_harnais(f"/#g={cible}&z=A", SONDE_ZONE),
+                            mimetype="text/html")
+
+        url, arreter = servir(app)
+        try:
+            rendu = piloter(url + "/__harnais", verdict)
+        finally:
+            arreter()
+            shutil.rmtree(dossier, ignore_errors=True)
+
+        assert rendu.startswith("OK "), rendu
+        mesures = dict(m.split("=", 1) for m in rendu[3:].split(" ") if "=" in m)
+
+        # Le plan redessine est bien celui qu'on voit : trois zones, pas dix-sept.
+        assert mesures["zonesDessinees"] == "3"
+        # Aucune zone visee, et c'est normal : il n'y a pas de A a viser.
+        assert mesures["visee"] == "0"
+        # Le panneau ne nomme pas un mur que le dessin ne porte pas, et
+        # l'adresse est nettoyee de sa zone -- comme elle l'est deja d'un
+        # grimpeur inconnu (A11).
+        assert mesures["titre"] != "Zone_A", (
+            "le panneau titre « Zone A » alors qu'aucune zone A n'est dessinee")
+        assert "z=A" not in mesures["diese"], (
+            "l'adresse garde une zone que le plan ne connait pas : " + mesures["diese"])
+
+
+def _semer_une_salle() -> int:
+    """La même salle que la fixture `salle`, hors contexte de test Flask.
+
+    Le serveur du navigateur tourne dans un autre fil : il lui faut une base
+    sur FICHIER, donc une application a part, donc son propre semis.
+    """
+    comp = Competition(nom="Coherence", date=date(2026, 11, 15),
+                       statut=EN_COURS, active=True, spreadsheet_id="fictif")
+    db.session.add(comp)
+    db.session.flush()
+    circuit = Circuit(competition_id=comp.id, nom="U13")
+    db.session.add(circuit)
+    db.session.flush()
+
+    blocs = {}
+    for i, (tag, zone, couleur) in enumerate(CIRCUIT, 1):
+        b = Bloc(competition_id=comp.id, tag=tag, numero=i, zone=zone,
+                 couleur=couleur)
+        db.session.add(b)
+        db.session.flush()
+        db.session.add(BlocCircuit(bloc_id=b.id, circuit_id=circuit.id))
+        blocs[tag] = b
+
+    p = Participant(competition_id=comp.id, nom="Lea", prenom="X",
+                    club="Les Lezards", categorie="U13 F", dossard=1,
+                    present=True)
+    db.session.add(p)
+    db.session.flush()
+    for tag in REUSSIS:
+        db.session.add(Success(participant_id=p.id, bloc_id=blocs[tag].id))
+    db.session.commit()
+    return p.id
