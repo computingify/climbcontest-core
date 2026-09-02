@@ -128,7 +128,15 @@ code.
 `annonces_perdues` compte les téléphones qui **savent s'annoncer** (on connaît
 leur version d'application), qui ont **envoyé une réussite dans les dix
 dernières minutes**, et dont l'annonce de catalogue date de **plus d'un quart
-d'heure**. Zéro en marche normale — écran allumé, la PWA s'annonce toutes les
+d'heure**.
+
+⚠️ **Ce croisement repose sur une hypothèse à surveiller : aucun lot ne part
+hors du premier plan.** Elle tient aujourd'hui — la boucle de `juge.js` teste
+`visibilityState`, les autres chemins d'envoi sont des gestes du juge, et
+`sw.js` n'écoute ni `sync` ni `periodicsync`. Ajouter une synchronisation en
+arrière-plan ferait partir des lots sans annonce, et le détecteur accuserait un
+cache sur un téléphone en veille parfaitement sain. L'avertissement est posé
+dans `sw.js`, à l'endroit exact où on écrirait cet écouteur. Zéro en marche normale — écran allumé, la PWA s'annonce toutes les
 trente secondes.
 Au-dessus de zéro, la console nomme la cause : quelque chose met
 `/api/v2/catalog` en cache entre les téléphones et le serveur.

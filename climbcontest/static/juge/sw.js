@@ -80,6 +80,21 @@ self.addEventListener("install", (evenement) => {
   );
 });
 
+// ⚠️ AVANT D'AJOUTER UN ECOUTEUR `sync` OU `periodicsync` ICI -- vider la file
+// en arriere-plan est une evolution naturelle pour une application hors ligne,
+// et elle casserait un detecteur situe a l'autre bout du systeme.
+//
+// La console repere un cache pose devant `/api/v2/catalog` en croisant deux
+// signaux : des lots qui arrivent, et des annonces qui n'arrivent plus
+// (`contest._annonce_perdue`). Ce croisement n'est valable que parce
+// qu'AUCUN lot ne part hors du premier plan : la boucle de `juge.js` teste
+// `visibilityState`, et les autres chemins d'envoi sont des gestes du juge.
+//
+// Un envoi en arriere-plan romprait ce lien : des lots partiraient sans
+// annonce, et la console accuserait un cache sur un telephone en veille
+// parfaitement sain. Si on ajoute cette synchronisation, il faut rendre
+// l'annonce solidaire de l'envoi -- ou changer le detecteur, en connaissance
+// de cause.
 self.addEventListener("activate", (evenement) => {
   evenement.waitUntil(
     caches.keys()

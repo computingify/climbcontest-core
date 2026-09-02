@@ -736,6 +736,16 @@ def _annonce_perdue(annonce: Appareil, fiche: dict,
     s'annonce plus. Exiger une reussite recente elimine ce cas -- il ne reste
     que celui ou les lots passent pendant que les annonces disparaissent, ce
     qui ne peut venir que d'un cache pose devant le GET.
+
+    ⚠️ **CE RAISONNEMENT REPOSE SUR UNE HYPOTHESE : aucun lot ne part hors du
+    premier plan.** Elle est vraie aujourd'hui -- les cinq chemins d'envoi de
+    `juge.js` sont soit la boucle (qui teste `visibilityState`), soit un geste
+    du juge -- et `sw.js` n'ecoute ni `sync` ni `periodicsync`. Le jour ou
+    quelqu'un ajoutera une synchronisation en arriere-plan pour vider la file
+    hors ligne -- une evolution naturelle pour une PWA offline-first -- des
+    lots partiront sans annonce, et ce detecteur criera au cache sur un
+    telephone en veille parfaitement sain. Verifier `sw.js` avant de conclure,
+    et rendre alors l'annonce solidaire de l'envoi.
     """
     if not annonce.version_app:
         return False
