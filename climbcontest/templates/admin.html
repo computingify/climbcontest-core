@@ -1020,6 +1020,13 @@
            vraiment. Un téléphone qui n'a pas la même ligne que le serveur
            travaille sur d'autres données que les autres juges.</p>
         <dl class="etat" id="etatVersions"></dl>
+        <!-- Le retard NORMAL : juste apres un import ou un plan redessine,
+             tous les telephones sont en retard d'un numero pendant quelques
+             minutes, et ils le rattrapent seuls. Sans cette phrase, un
+             organisateur qui vient d'enregistrer son plan voit sa flotte
+             entiere virer a l'ambre et croit avoir tout casse. -->
+        <p class="aide" id="rattrapageAnnonces" hidden
+           style="border-left:4px solid var(--accent);padding-left:12px;margin-top:14px"></p>
         <!-- Le detecteur de cache. Invisible en marche normale : s'il
              s'affiche, c'est qu'un intermediaire absorbe les requetes de
              catalogue, et la cause est nommee plutot que laissee a deviner. -->
@@ -1967,6 +1974,18 @@
     // HORS du depot -- un cache active dans la configuration du proxy -- que
     // nul test ne peut voir. Sans lui, le tableau ci-dessous se viderait tout
     // seul et on croirait les telephones eteints.
+    // Le retard qui se repare tout seul. Affiche AVANT l'alerte, parce que
+    // c'est le cas frequent et benin : un import, un plan redessine.
+    var rattrapage = a.rattrapage || 0;
+    var calme = $("rattrapageAnnonces");
+    calme.hidden = rattrapage === 0;
+    if (rattrapage > 0) {
+      calme.textContent = "Le catalogue vient de changer : " + rattrapage
+        + (rattrapage > 1 ? " téléphones ne l'ont" : " téléphone ne l'a")
+        + " pas encore repris. Ils se remettent à jour tout seuls — comptez"
+        + " cinq minutes. Rien à faire.";
+    }
+
     var perdues = a.annonces_perdues || 0;
     var alerte = $("alerteAnnonces");
     alerte.hidden = perdues === 0;

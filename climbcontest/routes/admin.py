@@ -1465,6 +1465,11 @@ def lister_versions():
             "muets": sum(1 for a in liste if a.get("silencieux")),
             # Le detecteur de cache (spec 030, F8). Zero en marche normale.
             "annonces_perdues": sum(1 for a in liste if a.get("annonce_perdue")),
+            # Ceux qui sont en retard sur le catalogue mais le rattrapent tout
+            # seuls -- typiquement juste apres un import ou un plan redessine,
+            # qui renumerote toutes les editions d'un coup. Ce n'est pas une
+            # panne, et la console doit le dire au lieu de virer au rouge.
+            "rattrapage": sum(1 for a in liste if a.get("rattrapage")),
         },
     }), 200
 

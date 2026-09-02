@@ -528,6 +528,12 @@ SILENCE_S = 600
 #: deux occasions manquees sans crier au loup.
 SILENCE_ANNONCE_S = 900
 
+#: En deca, un telephone en retard sur le catalogue est simplement en train de
+#: le RATTRAPER : il s'est annonce il y a moins d'un cycle de rafraichissement
+#: et reprendra le catalogue tout seul. Six minutes = les cinq du cycle, plus
+#: une de marge.
+PERIODE_RATTRAPAGE_S = 360
+
 #: Au-dela, un telephone sort du tableau de la console s'il n'a rien envoye sur
 #: l'edition en cours. Sans cette fenetre, les telephones de toutes les editions
 #: passees s'y empileraient -- et la question posee par cet ecran est « qui
@@ -649,6 +655,7 @@ def appareils(comp: Competition, maintenant: datetime | None = None) -> list[dic
             "app_a_jour": None,
             "catalogue_a_jour": None,
             "annonce_perdue": False,
+            "rattrapage": False,
         }
 
     depuis = maintenant - timedelta(seconds=FENETRE_APPAREIL_S)
@@ -686,6 +693,7 @@ def appareils(comp: Competition, maintenant: datetime | None = None) -> list[dic
             None if annonce.catalogue_version is None
             else annonce.catalogue_version == comp.catalogue_version)
         fiche["annonce_perdue"] = _annonce_perdue(annonce, fiche, maintenant)
+        fiche["rattrapage"] = _rattrapage(annonce, fiche, maintenant)
 
     resultat = list(par_id.values())
     # Trie sur la derniere ACTIVITE, quelle qu'elle soit : un telephone qui
@@ -727,6 +735,35 @@ def _annonce_perdue(annonce: Appareil, fiche: dict,
     if reference is None:
         return False
     return (maintenant - reference).total_seconds() >= SILENCE_ANNONCE_S
+
+
+def _rattrapage(annonce: Appareil, fiche: dict, maintenant: datetime) -> bool:
+    """Ce telephone est-il en retard sur le catalogue, mais en train de le
+    rattraper ? (spec 030)
+
+    ⚠️ La distinction existe pour une raison precise, et elle est arrivee avec
+    la fermeture de l'incoherence du plan : redessiner le mur donne un numero
+    NEUF a toutes les editions d'un coup. Le jour ou un organisateur retouche
+    le plan en pleine competition, les vingt-cinq telephones passent en ambre
+    EN MEME TEMPS -- et il croira avoir tout casse, alors qu'ils se remettent a
+    jour tout seuls dans les cinq minutes.
+
+    Ce qui separe ce cas de la vraie panne : ici l'annonce de catalogue est
+    FRAICHE. Le telephone parle, il n'a simplement pas encore repris le nouveau
+    numero. Quand un cache absorbe les annonces, c'est l'inverse -- elles
+    vieillissent, et `_annonce_perdue` s'allume.
+
+    ⚠️ On regarde `catalogue_vu_le`, et surtout pas `vu_le` : ce dernier avance
+    aussi a chaque lot, donc un telephone dont les annonces sont mangees par un
+    cache passerait pour un simple rattrapage. Les deux horodatages sont
+    distincts exactement pour ca.
+    """
+    if fiche["catalogue_a_jour"] is not False:
+        return False
+    if annonce.catalogue_vu_le is None:
+        return False
+    age = (maintenant - annonce.catalogue_vu_le).total_seconds()
+    return age < PERIODE_RATTRAPAGE_S
 
 
 def reussites_tracees(comp: Competition, ref: str | None = None,

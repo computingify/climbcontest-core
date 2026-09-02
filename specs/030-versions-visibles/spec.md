@@ -143,6 +143,22 @@ envoyer** : c'est le cas du matin, quand les juges ouvrent l'application avant
 la première grimpe. Un téléphone qui n'a jamais parlé ne peut pas apparaître,
 mais c'est déjà un renseignement — il en manque un à l'appel.
 
+⚠️ **Le retard normal se distingue de la panne, en toutes lettres.** Depuis la
+fermeture de l'incohérence du plan (PR #85), redessiner le mur donne un numéro
+neuf à **toutes** les éditions d'un coup : un organisateur qui retouche le plan
+en pleine compétition verrait ses vingt-cinq téléphones passer à l'ambre **en
+même temps**, et croirait avoir tout cassé. Ils sont bien en retard — c'est le
+correctif qui veut ça — mais ils se remettent à jour seuls en cinq minutes. La
+carte affiche donc une phrase calme, en ocre et non en rouge : « le catalogue
+vient de changer, N téléphones ne l'ont pas encore repris, rien à faire ».
+
+Ce qui sépare ce cas de la vraie panne, c'est la **fraîcheur de l'annonce de
+catalogue** : ici elle date de quelques secondes — le téléphone parle, il n'a
+simplement pas encore repris le numéro. Quand un cache absorbe les annonces,
+c'est l'inverse : elles vieillissent, et c'est l'alerte rouge de F8 qui
+s'allume. Les deux ne peuvent pas se confondre, et c'est la raison pour
+laquelle `vu_le` et `catalogue_vu_le` sont deux colonnes distinctes.
+
 ### F8 — Le cache qui casserait tout ça ne pourra pas s'installer en silence
 
 L'annonce voyage sur un `GET`. Un cache posé un jour devant `/api/v2/catalog` —
@@ -221,6 +237,10 @@ simplification qu'une relecture pressée propose.
       `appareil` **sans** toucher à `catalogue_version` ni à `catalogue_vu_le`.
 - [ ] **A16** — Un téléphone qui envoie des réussites mais ne s'est plus annoncé
       depuis un quart d'heure est signalé dans la console, avec la cause nommée.
+- [ ] **A17** — Un téléphone en retard sur le catalogue mais annoncé il y a
+      moins de six minutes est présenté comme **en train de rattraper**, pas
+      comme une panne — et un téléphone dont les annonces sont absorbées par un
+      cache ne l'est **jamais**, même si ses lots continuent d'arriver.
 
 ## 5. Cas limites
 

@@ -47,6 +47,12 @@ qu'on ne met pas à jour le matin d'une compétition :
   avec `X-Server-Version`, sur le `200` **comme sur le `304`**, qui est le cas
   majoritaire le jour J.
 
+  Le **retard normal se distingue de la panne** : redessiner le mur renumérote
+  toutes les éditions d'un coup, donc tous les téléphones passent à l'ambre en
+  même temps pendant quelques minutes. La console le dit en ocre — « ils se
+  remettent à jour tout seuls, rien à faire » — au lieu de laisser croire à un
+  organisateur qui vient d'enregistrer son plan qu'il a cassé sa flotte.
+
 - **Le module `climbcontest/version.py`.** Le tag git était lu par une fonction
   privée de `routes/sante.py` : trois appelants en avaient besoin, aucun ne
   pouvait l'atteindre sans importer une route.

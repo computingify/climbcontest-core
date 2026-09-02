@@ -348,6 +348,61 @@ class TestDetecteurDeCache:
         assert ligne["annonce_perdue"] is False
 
 
+class TestRattrapage:
+    """Le retard NORMAL, celui qui se répare tout seul.
+
+    Il est devenu fréquent avec la fermeture de l'incohérence du plan :
+    redessiner le mur donne un numéro neuf à **toutes** les éditions d'un coup.
+    Un organisateur qui retouche le plan en pleine compétition verrait sinon
+    ses vingt-cinq téléphones virer à l'ambre en même temps et croirait avoir
+    tout cassé — alors qu'ils se remettent à jour dans les cinq minutes.
+    """
+
+    def test_en_retard_mais_vu_a_l_instant(self, client, jeu):
+        annonce(client)
+        jeu["competition"].catalogue_version += 5      # le mur est redessiné
+        db.session.commit()
+
+        ligne = appareils(jeu["competition"])[0]
+        assert ligne["catalogue_a_jour"] is False
+        assert ligne["rattrapage"] is True, (
+            "il s'est annonce il y a dix secondes : il rattrape, il n'est pas "
+            "en panne")
+
+    def test_en_retard_depuis_une_heure_n_est_pas_un_rattrapage(self, client, jeu):
+        annonce(client)
+        a = db.session.get(Appareil, TELEPHONE)
+        a.catalogue_vu_le = datetime.now() - timedelta(hours=1)
+        db.session.commit()
+        jeu["competition"].catalogue_version += 5
+        db.session.commit()
+
+        assert appareils(jeu["competition"])[0]["rattrapage"] is False
+
+    def test_un_cache_qui_mange_les_annonces_n_est_pas_un_rattrapage(
+            self, client, jeu):
+        """⚠️ Le piège que les deux horodatages existent pour éviter.
+
+        Les lots continuent d'arriver (POST, jamais mis en cache) et font
+        avancer `vu_le` ; seules les annonces sont absorbées. Si le rattrapage
+        se jugeait sur `vu_le`, cette panne passerait pour un retard bénin.
+        """
+        annonce(client)
+        a = db.session.get(Appareil, TELEPHONE)
+        a.catalogue_vu_le = datetime.now() - timedelta(minutes=20)
+        db.session.commit()
+        client.post("/api/v3/successes", json={
+            "appareil": {"id": TELEPHONE, "app": "v9.9.9"},
+            "items": [{"ref": "abc123", "bib": "1", "bloc": "ZJ6"}],
+        })
+        jeu["competition"].catalogue_version += 5
+        db.session.commit()
+
+        ligne = appareils(jeu["competition"])[0]
+        assert ligne["rattrapage"] is False
+        assert ligne["annonce_perdue"] is True
+
+
 class TestRouteVersions:
     def test_fermee_sans_session(self, client, app, jeu):
         # La cle est posee sans se connecter : sans elle, la route repondrait
