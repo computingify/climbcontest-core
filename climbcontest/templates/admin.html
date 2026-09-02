@@ -2659,13 +2659,12 @@
      celles qui tiennent, donc une phrase ne fait qu'ajouter. Ce qu'elles
      peuvent, c'est mentir a qui les ecrit. */
 
-  // ⚠️ La spec 027 introduit la MEME table pour la vue « Circuits ». A la
-  // fusion il ne doit en rester qu'UNE : deux tables de teintes qui divergent,
-  // c'est le meme bloc peint de deux couleurs selon l'ecran qu'on regarde.
-  var TEINTES = {
-    "jaune": "#F2C230", "vert": "#3FA45B", "bleu": "#3A7BD5",
-    "mauve": "#8E5FBF", "rouge": "#D0342C", "noir": "#222222"
-  };
+  // ⚠️ La table `TEINTES` est celle de la vue « Circuits » (spec 027), plus
+  // haut dans ce fichier. Elle porte les six couleurs de DIFFICULTE et, en
+  // plus, celles des PRISES. Ne pas en redeclarer une seconde ici : `var` en
+  // redeclare une dans la meme portee sans un mot, la derniere ecrite gagne, et
+  // les couleurs de prises disparaitraient de « Circuits » sans que rien ne
+  // casse visiblement.
 
   /* ===== debut du controle pur (miroir de climbcontest/cascade.py) =========
      Ce bloc ne touche NI au DOM NI a l'etat de la page : il est extrait tel

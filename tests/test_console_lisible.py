@@ -354,3 +354,19 @@ class TestCarteCascade:
         """Il ne doit crier qu'une fois la règle écartée de celle du classeur."""
         assert 'id="avertCascade" hidden' in page
 
+    def test_une_seule_table_de_teintes(self, page):
+        """⚠️ Deux `var TEINTES` dans la meme portee, c'est legal en JavaScript
+        et silencieux : la derniere ecrite gagne.
+
+        Le cas s'est produit : la spec 025 et la spec 027 ont chacune ajoute la
+        sienne, a des endroits differents du fichier. Git les a fusionnees sans
+        conflit, et la table de la cascade -- qui ne porte que les six couleurs
+        de difficulte -- a efface celle de « Circuits », qui porte aussi les
+        couleurs de PRISES. Rien ne cassait : les pastilles de prises devenaient
+        seulement hachurees, comme des couleurs inconnues.
+        """
+        assert page.count("var TEINTES") == 1
+        # Et elle porte bien les deux familles.
+        for couleur in ("jaune", "noir", "blanc", "fluo"):
+            assert '"%s":' % couleur in page
+
