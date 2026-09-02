@@ -11,6 +11,8 @@ from flask import Blueprint, jsonify, request
 
 from ..classement_service import charge_publique, classements
 from ..contest import ErreurMetier, competition_active
+from ..models import Participant
+from ..suivi import fiche
 
 logger = logging.getLogger(__name__)
 bp = Blueprint("public", __name__, url_prefix="/api/public")
@@ -44,6 +46,62 @@ def classement():
                                  if c["groupe"] == demande]
 
     return jsonify(charge), 200
+
+
+@bp.get("/grimpeur/<int:identifiant>")
+def grimpeur(identifiant: int):
+    """La fiche d'un grimpeur : ses blocs, et ou il en est. Spec 026.
+
+    Appelee au clic sur une ligne du classement, donc RAREMENT -- une requete
+    par fiche ouverte, la ou la charge de classement est relue toutes les 15 s
+    par soixante telephones. C'est pour ca qu'elle est a part : mettre ces
+    blocs dans la charge publique ferait payer a tout le monde ce qu'une
+    personne consulte.
+
+    Elle n'expose rien de neuf : le nom, le club et la categorie de ceux qui
+    sont AU CLASSEMENT sont deja dans la charge publique, et les blocs reussis
+    sont annonces au micro et lisibles sur le mur. Le plan de la salle, lui,
+    n'est pas ici : il part une fois avec la page.
+
+    ⚠️ DEUX GARDES, et la seconde n'est pas une politesse.
+
+    404 si le grimpeur n'est pas de la competition ACTIVE : sans elle,
+    l'identifiant lirait les participants des editions passees, qui vivent dans
+    la meme base.
+
+    404 s'il ne figure dans AUCUN classement. Un inscrit sans categorie n'est
+    indexe par aucun groupe (`calculer_tout`) : il n'apparait donc nulle part
+    sur la page publique, et le rendre ici l'exposerait alors que rien d'autre
+    ne le montre. Les identifiants sont sequentiels et rien ne limite le debit :
+    sans cette garde, un balayage de `1..N` rendait le trombinoscope complet —
+    nom, prenom, club, dossard. Le depot est public et les classeurs portent des
+    noms de mineurs (regle 7).
+    """
+    try:
+        comp = competition_active()
+    except ErreurMetier as e:
+        return jsonify({"success": False, "message": e.message}), e.code
+
+    participant = Participant.query.filter_by(
+        id=identifiant, competition_id=comp.id).first()
+    if participant is None or not _est_classe(comp, participant):
+        return jsonify({"success": False,
+                        "message": "Grimpeur inconnu dans cette competition"}), 404
+
+    return jsonify(fiche(comp, participant)), 200
+
+
+def _est_classe(comp, participant) -> bool:
+    """Ce grimpeur apparait-il quelque part sur la page publique ?
+
+    On interroge les classements DEJA CALCULES — ils sont en cache cinq
+    secondes, la question ne coute donc rien de plus que ce que la page paie
+    deja.
+    """
+    tous, _ = classements(comp)
+    return any(ligne.participant_id == participant.id
+               for classement in tous.values()
+               for ligne in classement.lignes)
 
 
 @bp.get("/groupes")

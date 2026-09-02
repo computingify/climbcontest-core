@@ -574,6 +574,231 @@
   @media (prefers-reduced-motion: reduce) {
     * { animation: none !important; transition: none !important; }
   }
+
+  /* ======================================================================
+     LA FICHE DU GRIMPEUR, ET LE MUR — spec 026.
+
+     Tout ce bloc est prefixe `sf-` (suivi/fiche). Ce n'est pas de la
+     coquetterie : cette feuille porte deja le style de l'application ET celui
+     du contenu, et deux collisions y ont ete payees. Un nom generique pris
+     deux fois s'applique aux deux, en silence, et le defaut ne ressemble pas a
+     sa cause.
+     ====================================================================== */
+
+  .sf-voile { position: fixed; inset: 0; background: rgba(9, 13, 20, .42);
+              z-index: 40; }
+  .sf-feuille {
+    position: fixed; left: 0; right: 0; bottom: 0; top: 8vh; z-index: 41;
+    display: flex; flex-direction: column; overflow: hidden;
+    background: var(--carte); color: var(--encre);
+    border: 1px solid var(--trait); border-bottom: 0;
+    border-radius: 18px 18px 0 0;
+    box-shadow: 0 -14px 44px -20px rgba(9, 13, 20, .55);
+    /* La barre d'accueil de l'iPhone mange le dernier bloc sans ca. */
+    padding-bottom: env(safe-area-inset-bottom, 0);
+  }
+  @media (min-width: 760px) {
+    .sf-feuille { left: 50%; right: auto; transform: translateX(-50%);
+                  width: 660px; top: 6vh; bottom: 6vh; border-radius: 16px;
+                  border-bottom: 1px solid var(--trait); }
+  }
+  .sf-poignee { width: 40px; height: 4px; border-radius: 2px; flex: none;
+                background: var(--trait); margin: 8px auto 0; }
+
+  /* Les deux vues glissent l'une sur l'autre. La fiche RESTE montee sous le
+     mur : y revenir doit etre un retour, pas un rechargement. */
+  .sf-pile { flex: 1; min-height: 0; display: flex; width: 200%;
+             transition: transform 320ms cubic-bezier(.32,.72,.28,1); }
+  .sf-pile.au-mur { transform: translateX(-50%); }
+  .sf-vue { width: 50%; display: flex; flex-direction: column; min-height: 0; }
+
+  .sf-tete { display: grid; grid-template-columns: auto minmax(0,1fr) auto;
+             align-items: center; gap: 14px; padding: 12px 18px; flex: none;
+             border-bottom: 1px solid var(--trait); }
+  .sf-dossard { font-size: 2.3rem; font-weight: 850; line-height: .9;
+                letter-spacing: -.04em; color: var(--groupe);
+                font-variant-numeric: tabular-nums; }
+  .sf-dossard small { display: block; font-size: .55rem; font-weight: 700;
+                      letter-spacing: .14em; text-transform: uppercase;
+                      color: var(--encre3, var(--encre2)); margin-bottom: 3px; }
+  .sf-qui b { display: block; font-size: 1.2rem; font-weight: 800;
+              letter-spacing: -.02em; line-height: 1.15; }
+  .sf-qui span { display: block; color: var(--encre2); font-size: .82rem; }
+  .sf-rond { width: 40px; height: 40px; flex: none; border-radius: 50%;
+             border: 1px solid var(--trait); background: var(--carte);
+             color: var(--encre2); font: inherit; font-size: 1.05rem;
+             line-height: 1; display: grid; place-items: center; cursor: pointer;
+             padding: 0; }
+  .sf-rond:hover { background: var(--carte2); color: var(--encre); }
+  .sf-rond:focus-visible { outline: 2px solid var(--groupe); outline-offset: 2px; }
+
+  .sf-rang { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap;
+             padding: 11px 18px; background: var(--carte2); flex: none;
+             border-bottom: 1px solid var(--trait); }
+  .sf-rang .grand { font-size: 1.4rem; font-weight: 850; letter-spacing: -.03em;
+                    font-variant-numeric: tabular-nums; }
+  .sf-rang .ou { font-weight: 700; color: var(--groupe); font-size: .9rem; }
+  .sf-rang .pts { margin-left: auto; text-align: right; }
+  .sf-rang .pts b { font-size: 1.2rem; font-weight: 850;
+                    font-variant-numeric: tabular-nums; }
+  .sf-rang .pts span { display: block; font-size: .71rem; color: var(--encre2);
+                       font-variant-numeric: tabular-nums; }
+  .sf-ailleurs { padding: 7px 18px; font-size: .75rem; color: var(--encre2);
+                 background: var(--carte2); flex: none;
+                 border-bottom: 1px solid var(--trait); }
+  .sf-ailleurs b { color: var(--encre); font-weight: 700; }
+
+  .sf-corps { padding: 14px 18px 22px; overflow-y: auto; flex: 1; min-height: 0;
+              -webkit-overflow-scrolling: touch; }
+  .sf-avance { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+  .sf-avance h2 { margin: 0; font-size: .98rem; font-weight: 800;
+                  letter-spacing: -.01em; }
+  .sf-avance em { font-style: normal; margin-left: auto; font-size: .8rem;
+                  color: var(--encre2); font-variant-numeric: tabular-nums; }
+  .sf-vers-mur { font: inherit; font-size: .78rem; font-weight: 700;
+                 cursor: pointer; border: 1px solid var(--trait);
+                 background: var(--carte); color: var(--groupe);
+                 border-radius: 999px; padding: 5px 11px; white-space: nowrap; }
+  .sf-vers-mur:hover { background: var(--carte2); }
+  .sf-vers-mur:focus-visible { outline: 2px solid var(--groupe); outline-offset: 2px; }
+  .sf-jauge { height: 7px; border-radius: 4px; background: var(--carte2);
+              margin-top: 9px; overflow: hidden; }
+  .sf-jauge i { display: block; height: 100%; background: var(--ok);
+                border-radius: 4px; }
+
+  .sf-couleurs { margin-top: 15px; display: flex; flex-direction: column; gap: 13px; }
+  .sf-couleur-tete { display: flex; align-items: center; gap: 8px;
+                     font-size: .78rem; font-weight: 700; color: var(--encre2);
+                     margin-bottom: 6px; }
+  .sf-couleur-tete i { width: 12px; height: 12px; border-radius: 50%; flex: none;
+                       border: 1px solid rgba(0,0,0,.22); }
+  .sf-couleur-tete em { font-style: normal; margin-left: auto;
+                        color: var(--encre3, var(--encre2)); font-size: .74rem;
+                        font-variant-numeric: tabular-nums; }
+  /* `auto-fit` comme sur le papier : un circuit de cinquante blocs resserre ses
+     cases au lieu de deborder. */
+  .sf-cases { display: grid; grid-template-columns: repeat(auto-fit, minmax(54px, 1fr));
+              gap: 6px; }
+
+  /* Une case porte la ZONE au-dessus et le NUMERO en gros : exactement ce que
+     le grimpeur a sur son papier. Et 46 px de haut, parce que c'est une
+     commande qu'on touche avec un pouce. */
+  .sf-case { min-height: 46px; border: 1px solid var(--trait); border-radius: 9px;
+             padding: 4px 2px; text-align: center; line-height: 1.05;
+             background: var(--carte); color: var(--encre3, var(--encre2));
+             font: inherit; display: flex; flex-direction: column;
+             align-items: center; justify-content: center;
+             -webkit-tap-highlight-color: transparent; }
+  button.sf-case { cursor: pointer; }
+  .sf-case .z { font-size: .62rem; font-weight: 600; letter-spacing: .04em; }
+  .sf-case .n { font-size: .94rem; font-weight: 800;
+                font-variant-numeric: tabular-nums; }
+  .sf-case.reste { border-style: dashed; }
+  .sf-case.grimpe { background: var(--ok); border-color: var(--ok); color: var(--carte); }
+  .sf-case.grimpe .z { opacity: .75; }
+  /* Credite par la cascade : HACHURE, pas en aplat. Meme convention que la
+     spec 025, et lisible sans distinguer les teintes. */
+  .sf-case.credite { border-color: var(--ok); color: var(--ok);
+    background: repeating-linear-gradient(45deg,
+      color-mix(in srgb, var(--ok) 34%, var(--carte)) 0 3px,
+      color-mix(in srgb, var(--ok) 6%, var(--carte)) 3px 7px); }
+  .sf-case:focus-visible { outline: 2px solid var(--groupe); outline-offset: 2px; }
+  .sf-manque { margin: 14px 0 0; padding: 10px 12px; border-radius: 9px;
+               background: var(--carte2); color: var(--encre2); font-size: .84rem; }
+
+  /* --- Le mur ------------------------------------------------------------ */
+  .sf-mur-tete { display: flex; align-items: center; gap: 12px; flex: none;
+                 padding: 11px 14px 11px 10px; border-bottom: 1px solid var(--trait); }
+  .sf-mur-tete b { display: block; font-size: 1rem; font-weight: 800; }
+  .sf-mur-tete span { display: block; font-size: .75rem; color: var(--encre2); }
+  .sf-carte { background: var(--fond); border: 1px solid var(--trait);
+              border-radius: 12px; padding: 12px 10px; }
+  .plan { display: block; width: 100%; height: auto; }
+
+  /* Le REMPLISSAGE dit le profil du pan, et rien d'autre. Du froid au chaud au
+     moment ou le mur passe la verticale : c'est la seule frontiere qui compte
+     pour un grimpeur. Echelle ORDONNEE, elle ne se confond donc pas avec les
+     six couleurs de difficulte, qui sont categorielles. */
+  .plan { --pf-dalle: #D2E0E7; --pf-vertical: #A6C4D3; --pf-incline: #F0D5A0;
+          --pf-devers: #EEBC7E; --pf-surplomb: #E7A074; --pf-toit: #E28379;
+          --pl-contour: #FFFFFF; --pl-trame: rgba(20,28,36,.17);
+          --pl-lettre: #16232E; --pl-halo: rgba(255,255,255,.92);
+          --pl-anneau: #B5791B; --pl-lueur: #E0A94A; --pl-efface: .5; }
+  body.sombre .plan {
+          --pf-dalle: #2E3F4C; --pf-vertical: #3D6076; --pf-incline: #9A7238;
+          --pf-devers: #B57430; --pf-surplomb: #BE5B33; --pf-toit: #BC443F;
+          --pl-contour: #12131A; --pl-trame: rgba(255,255,255,.13);
+          --pl-lettre: #F5F0E7; --pl-halo: rgba(9,10,14,.85);
+          --pl-anneau: #FFD489; --pl-lueur: #FFC463; --pl-efface: .42; }
+
+  .plan .contour { fill: none; stroke: var(--encre3, var(--encre2));
+                   stroke-width: .9; stroke-dasharray: 3 3; opacity: .5; }
+  .plan .mur { stroke: var(--pl-contour); stroke-width: .9; stroke-linejoin: round; }
+  .plan .mur[data-profil], .plan g[data-profil="dalle"] .mur { fill: var(--pf-vertical); }
+  .plan g[data-profil="dalle"] .mur    { fill: var(--pf-dalle); }
+  .plan g[data-profil="vertical"] .mur { fill: var(--pf-vertical); }
+  .plan g[data-profil="incline"] .mur  { fill: var(--pf-incline); }
+  .plan g[data-profil="devers"] .mur   { fill: var(--pf-devers); }
+  .plan g[data-profil="surplomb"] .mur { fill: var(--pf-surplomb); }
+  .plan g[data-profil="toit"] .mur     { fill: var(--pf-toit); }
+  .plan .trame { pointer-events: none; stroke: none; fill: none; }
+
+  /* Le halo sous la lettre n'est pas un ornement : sur une trame dense, une
+     lettre sans halo devient illisible. `paint-order` peint le contour AVANT
+     le remplissage — sans lui le halo mange la lettre au lieu de la porter. */
+  .plan .lettre { font-family: var(--titre); font-weight: 800;
+                  fill: var(--pl-lettre); text-anchor: middle;
+                  dominant-baseline: central; paint-order: stroke fill;
+                  stroke: var(--pl-halo); }
+  .plan .repere-plan { font-family: var(--titre); font-style: italic;
+                       font-size: 4.6px; text-anchor: middle;
+                       fill: var(--encre2); }
+
+  /* L'ETAT est une emphase, jamais un aplat : un aplat mangerait la trame du
+     profil, et il la mangerait sur les zones qui concernent le grimpeur. */
+  .plan g[data-zone] { opacity: var(--pl-efface); cursor: pointer;
+                       transform-box: view-box; transition: opacity 180ms ease; }
+  .plan g[data-zone].z-reste, .plan g[data-zone].z-finie { opacity: 1; }
+  /* Les cadres passent APRES tous les murs : en SVG l'ordre de peinture est
+     l'ordre du document, et les murs d'Annonay se touchent bord a bord. */
+  .plan .cadre-zone { fill: none; stroke: none; pointer-events: none; }
+  .plan .cadre-zone.z-finie { stroke: var(--ok); stroke-width: 1.6; }
+  .plan .cadre-zone.visee { stroke: var(--pl-anneau); stroke-width: 2.2; }
+  .plan g[data-zone].visee { filter: drop-shadow(0 0 2.5px var(--pl-lueur)); }
+  .sf-anime .plan g[data-zone].visee {
+    animation: sf-rebond 760ms cubic-bezier(.34,1.56,.64,1) both; }
+  @keyframes sf-rebond {
+    0%   { transform: scale(.74); filter: drop-shadow(0 0 0 var(--pl-lueur)); }
+    45%  { transform: scale(1.20); filter: drop-shadow(0 0 10px var(--pl-lueur)); }
+    68%  { transform: scale(.95); }
+    84%  { transform: scale(1.06); }
+    100% { transform: scale(1);   filter: drop-shadow(0 0 2.5px var(--pl-lueur)); }
+  }
+
+  .sf-legende { margin-top: 12px; display: flex; flex-wrap: wrap; gap: 8px 14px;
+                font-size: .72rem; color: var(--encre2); align-items: center; }
+  .sf-legende i { width: 14px; height: 14px; border-radius: 4px; flex: none;
+                  border: 2px solid var(--ok); background: var(--carte2); }
+  .sf-zone { margin-top: 18px; padding-top: 14px; border-top: 1px solid var(--trait); }
+  .sf-zone h3 { margin: 0 0 9px; font-size: .68rem; font-weight: 700;
+                letter-spacing: .1em; text-transform: uppercase;
+                color: var(--encre3, var(--encre2)); display: flex;
+                align-items: baseline; gap: 8px; }
+  .sf-compte { margin-left: auto; letter-spacing: 0; text-transform: none;
+               font-size: .76rem; font-weight: 700; color: var(--encre2);
+               font-variant-numeric: tabular-nums; }
+  .sf-compte.finie { color: var(--ok); }
+  .sf-note { margin: 12px 0 0; font-size: .76rem; color: var(--encre3, var(--encre2));
+             line-height: 1.5; }
+
+  /* Une ligne de classement s'ouvre. L'etoile des favoris garde son clic. */
+  body:not(.mur) .ligne[data-participant],
+  body:not(.mur) .pod[data-participant] { cursor: pointer; }
+
+  @media (prefers-reduced-motion: reduce) {
+    .sf-pile { transition: none; }
+    .sf-anime .plan g[data-zone].visee { animation: none; }
+  }
 </style>
 </head>
 <body data-source="{{ source|default('/api/public/classement', true) }}"
@@ -617,6 +842,13 @@
   <div id="message"></div>
 </main>
 
+<!-- ⚠️ `tojson` et JAMAIS `|safe` sur un `json.dumps`. `json.dumps` n'echappe
+     pas « < » : un « </script> » dans un libelle de repere fermerait ce bloc et
+     la suite deviendrait du balisage vivant, sur une page publique servie a
+     tous les spectateurs. Depuis la spec 029 le plan est de la donnee SAISIE
+     depuis la console. `tojson` echappe < > & ' en \u003c. -->
+<script type="application/json" id="plan-du-mur">{{ plan|tojson }}</script>
+
 <script type="module">
 // ⚠️ Module, et non script classique : la logique du podium vit dans un
 // fichier a part pour etre testable (`tests/js/podium.test.mjs`). Aucune
@@ -624,6 +856,13 @@
 // et le script suit deja tout le balisage.
 import { selectionDuPodium, marchesDuPodium }
   from "/static/resultats/podium.js";
+// La fiche du grimpeur (spec 026). La LOGIQUE vit dans ces deux modules pour
+// etre testable sans navigateur (`tests/js/suivi.test.mjs`, `plan.test.mjs`) ;
+// ce qui suit n'est que du branchement au DOM.
+import { blocsDeZone, compteDeZone, ecrireDiese, etatsDesZones, lireDiese }
+  from "/static/resultats/suivi.js";
+import { decorer, decrire, monter, peutDessiner, zonesDe }
+  from "/static/resultats/plan.js";
 (function () {
   "use strict";
 
@@ -1298,6 +1537,12 @@ import { selectionDuPodium, marchesDuPodium }
 
     if (estPodium) {
       n.className = "pod";
+      // Spec 026 F1 : « toucher une ligne — ou une carte du podium ». La carte
+      // est la cible visuelle evidente au-dessus de 900 px ; sans cet
+      // identifiant elle etait morte, et la regle CSS qui lui donne un curseur
+      // ne s'appliquait jamais.
+      if (l.participant_id) n.dataset.participant = l.participant_id;
+      else delete n.dataset.participant;
     } else {
       var favori = !MUR && estFavori(Number(l.participant_id));
       // Le liseré de médaille, TOUJOURS. Il était supprimé dès que la page
@@ -1308,6 +1553,11 @@ import { selectionDuPodium, marchesDuPodium }
       n.className = "ligne"
         + (l.rang > 0 && l.rang <= 3 ? " p" + l.rang : "")
         + (favori ? " favori" : "");
+      // L'identifiant sur la ligne : c'est par la que le clic retrouve le
+      // grimpeur (spec 026). Une ligne de CLUB porte `participant_id = 0` et
+      // n'a personne derriere -- elle reste donc muette.
+      if (l.participant_id) n.dataset.participant = l.participant_id;
+      else delete n.dataset.participant;
       var etoile = n.querySelector(".etoile");
       if (etoile) {
         etoile.setAttribute("aria-pressed", String(favori));
@@ -1906,8 +2156,491 @@ import { selectionDuPodium, marchesDuPodium }
   charger();
   // Une archive ne bouge plus : la relire toutes les 15 s ne ferait que du
   // trafic. Un seul appel, et c'est fini.
-  if (!ARCHIVE) setInterval(charger, PERIODE_MS);
+  // ⚠️ La fiche ouverte se rafraichit AU MEME BATTEMENT que le classement.
+  // Sans ce second appel, elle restait figee pendant que la ligne derriere elle
+  // affichait deja un bloc de plus.
+  if (!ARCHIVE) setInterval(function () { charger(); rafraichirFiche(); }, PERIODE_MS);
   setInterval(majMeta, 5000);
+  // =========================================================================
+  // LA FICHE DU GRIMPEUR, ET LE MUR — spec 026
+  //
+  // ⚠️ UNE SEULE REGLE, ET TOUT EN DECOULE : **l'historique est la seule
+  // source de verite**. Ouvrir ecrit le diese, fermer appelle `history.back()`,
+  // et c'est `hashchange` — lui seul — qui repeint. Des qu'on ouvre ou ferme
+  // « directement », l'affichage et l'historique divergent, et le bouton retour
+  // du telephone sort du site au lieu de fermer la fiche.
+  //
+  // Le DIESE et pas un parametre : il ne part jamais au serveur. La racine est
+  // mise en cache 5 s par Caddy, et `?g=42` creerait une entree de cache par
+  // grimpeur et par zone pour un HTML rigoureusement identique.
+  // =========================================================================
+
+  var PLAN = (function () {
+    var n = document.getElementById("plan-du-mur");
+    try { return n ? JSON.parse(n.textContent) : null; } catch (e) { return null; }
+  })();
+  // Les zones que le plan sait dessiner. Un bloc dont la zone n'y est pas
+  // n'ouvre RIEN : mieux vaut une case inerte qu'un bloc montre au mauvais
+  // endroit. C'est ce qui fait tenir la page quand `PLAN` change de forme.
+  var ZONES_DU_PLAN = zonesDe(PLAN);
+  var PLAN_DESSINABLE = peutDessiner(PLAN);
+
+  var fiche = { id: null, zone: null, mur: false, donnees: null, defile: 0,
+                enCours: null, rebondir: false, montePour: null };
+
+  // ⚠️ COMBIEN D'ENTREES D'HISTORIQUE SONT LES NOTRES.
+  //
+  // `quitter()` faisait `history.back()` sans condition. Sur un lien PARTAGE
+  // — `/#g=42` ouvert directement, l'usage meme pour lequel le diese existe —
+  // il n'y a rien a remonter : `back()` ne fait rien, la croix, Echap et le
+  // voile deviennent inertes, et `document.body.style.overflow` reste a
+  // `hidden`. Le classement derriere est fige et la page ne se recupere qu'en
+  // rechargeant.
+  var poussees = 0;
+  var elFeuille = null, elVoile = null;
+
+  function lignesDuGrimpeur(id) {
+    // « Aussi classe U13 5e » ne coute AUCUNE requete : la page a deja tous
+    // les classements en memoire.
+    var ailleurs = [];
+    etat.classements.forEach(function (c) {
+      if (c.groupe === etat.groupe || c.type === "club") return;
+      // ⚠️ Les classements MASQUES par la console (spec 020) ne doivent pas
+      // ressortir ici. La charge publique les envoie tous — c'est la page qui
+      // filtre — et cette fonction court-circuitait `groupesVisibles()`. Un
+      // organisateur qui cache un classement contesté le voyait reapparaitre
+      // dans chaque fiche.
+      if (etat.groupesMasques.indexOf(c.groupe) >= 0) return;
+      (c.lignes || []).forEach(function (l) {
+        if (Number(l.participant_id) === id) {
+          ailleurs.push({ groupe: c.groupe, rang: l.rang });
+        }
+      });
+    });
+    return ailleurs;
+  }
+
+  function ligneCourante(id) {
+    var courant = etat.classements.filter(function (c) {
+      return c.groupe === etat.groupe;
+    })[0];
+    var trouvee = null;
+    ((courant && courant.lignes) || []).forEach(function (l) {
+      if (Number(l.participant_id) === id) trouvee = l;
+    });
+    return { ligne: trouvee, groupe: courant ? courant.groupe : null,
+             tete: courant && courant.lignes.length ? courant.lignes[0].score : 0 };
+  }
+
+  function bouton(classe, parent, texte) {
+    var n = div(classe, parent, "button");
+    n.type = "button";
+    if (texte != null) n.textContent = texte;
+    return n;
+  }
+
+  function ordinal(rang) { return rang === 1 ? "1er" : rang + "e"; }
+
+  // --- Le rendu de la fiche -------------------------------------------------
+
+  function peindreFiche(vue) {
+    var d = fiche.donnees;
+    var p = d.participant;
+
+    var tete = div("sf-tete", vue);
+    var doss = div("sf-dossard", tete);
+    div("", doss, "small").textContent = "Dossard";
+    doss.appendChild(document.createTextNode(p.dossard == null ? "—" : p.dossard));
+    var qui = div("sf-qui", tete);
+    div("", qui, "b").textContent = p.nom;
+    if (p.club) div("", qui, "span").textContent = p.club;
+    div("", qui, "span").textContent =
+      [p.categorie, p.circuit ? "circuit " + p.circuit : null]
+        .filter(Boolean).join(" · ");
+    var fermer = bouton("sf-rond", tete, "✕");
+    fermer.setAttribute("aria-label", "Fermer la fiche");
+    fermer.addEventListener("click", quitter);
+
+    var ici = ligneCourante(p.id);
+    if (ici.ligne) {
+      var rang = div("sf-rang", vue);
+      div("grand", rang, "span").textContent = ordinal(ici.ligne.rang);
+      div("ou", rang, "span").textContent = ici.groupe;
+      var pts = div("pts", rang);
+      div("", pts, "b").textContent = ici.ligne.score;
+      var retard = (ici.tete || 0) - ici.ligne.score;
+      div("", pts, "span").textContent =
+        retard > 0 ? "a −" + retard + " du premier" : "en tete";
+    }
+    var ailleurs = lignesDuGrimpeur(p.id);
+    if (ailleurs.length) {
+      var ligne = div("sf-ailleurs", vue);
+      ligne.textContent = "Aussi classe : " + ailleurs.map(function (a) {
+        return a.groupe + " " + ordinal(a.rang);
+      }).join(" · ");
+    }
+
+    var corps = div("sf-corps", vue);
+    var avance = div("sf-avance", corps);
+    div("", avance, "h2").textContent = d.total
+      ? "Tes " + d.total + " blocs" : "Tes blocs";
+    if (d.total) {
+      var compte = [d.grimpes + " grimpes"];
+      if (d.credites) compte.push(d.credites + " credites");
+      div("", avance, "em").textContent = compte.join(" · ");
+    }
+    // Le mur s'ouvre AUSSI sans passer par un bloc : on cherche parfois « ou
+    // me reste-t-il du travail », pas « ou est ce bloc-la ».
+    if (PLAN_DESSINABLE && d.total) {
+      var vers = bouton("sf-vers-mur", avance, "Le mur ›");
+      vers.addEventListener("click", function () { versZone(null, false); });
+    }
+    if (d.total) {
+      var jauge = div("sf-jauge", corps);
+      div("", jauge, "i").style.width =
+        Math.round((d.grimpes + d.credites) / d.total * 100) + "%";
+    }
+    if (d.manque) div("sf-manque", corps).textContent = d.manque;
+
+    var couleurs = div("sf-couleurs", corps);
+    (d.groupes || []).forEach(function (g) {
+      var bloc = div("", couleurs);
+      var t = div("sf-couleur-tete", bloc);
+      div("", t, "i").style.background = teinteDifficulte(g.couleur);
+      div("", t, "span").textContent = g.couleur || "sans couleur";
+      var faits = g.blocs.filter(function (b) { return b.etat !== "reste"; }).length;
+      div("", t, "em").textContent = faits + "/" + g.blocs.length;
+      var cases = div("sf-cases", bloc);
+      g.blocs.forEach(function (b) { cases.appendChild(caseDeBloc(b)); });
+    });
+  }
+
+  // Les six couleurs de difficulte, aux memes valeurs que la fiche PAPIER : le
+  // grimpeur tient sa feuille dans une main et son telephone dans l'autre.
+  var TEINTES = { Jaune: "#F2C230", Vert: "#3FA45B", Bleu: "#3A7BD5",
+                  Mauve: "#8E5FBF", Rouge: "#D0342C", Noir: "#222222" };
+  function teinteDifficulte(nom) { return TEINTES[nom] || "var(--trait)"; }
+
+  function caseDeBloc(b) {
+    // Un bloc CREDITE n'ouvre pas le mur : on n'envoie personne grimper ce
+    // qu'il n'a pas besoin de grimper. Un bloc dont la zone est absente du
+    // plan non plus.
+    var ouvrable = b.etat !== "credite" && ZONES_DU_PLAN.has(b.zone);
+    var n = document.createElement(ouvrable ? "button" : "span");
+    n.className = "sf-case " + b.etat;
+    if (b.zone) div("z", n, "span").textContent = b.zone;
+    div("n", n, "span").textContent = b.numero;
+    if (ouvrable) {
+      n.type = "button";
+      n.setAttribute("aria-label", "Bloc " + b.numero + ", zone " + b.zone
+        + ", " + (b.etat === "grimpe" ? "grimpe" : "reste a faire")
+        + ". Voir sur le mur");
+      n.addEventListener("click", function () { versZone(b.zone, true); });
+    }
+    return n;
+  }
+
+  // --- Le rendu du mur ------------------------------------------------------
+  //
+  // ⚠️ LE DESSIN PERSISTE tant qu'on regarde le meme grimpeur. Il etait
+  // reconstruit a chaque repeinture -- dix-sept zones et leurs trames pour un
+  // simple changement de zone -- et surtout la PILE l'etait aussi, ce qui
+  // empechait toute transition : un element fraichement insere ne transitionne
+  // pas. Le commentaire de la feuille de style promettait que « la fiche RESTE
+  // montee sous le mur » ; ce n'etait pas vrai.
+
+  function peindreMur(vue, refaire) {
+    var d = fiche.donnees;
+    var etats = etatsDesZones(d.groupes || []);
+    var zone = fiche.zone;
+
+    if (refaire) {
+      vue.innerHTML = "";
+      var tete = div("sf-mur-tete", vue);
+      var retour = bouton("sf-rond", tete, "‹");
+      retour.setAttribute("aria-label", "Retour a la fiche");
+      retour.addEventListener("click", quitter);
+      var quoi = div("quoi", tete);
+      div("", quoi, "b");
+      div("", quoi, "span").textContent =
+        d.participant.nom
+        + (d.participant.circuit ? " · circuit " + d.participant.circuit : "");
+
+      var corps = div("sf-corps", vue);
+      var carte = div("sf-carte", corps);
+      var dessin = monter(decrire(PLAN), document);
+      if (!dessin) {
+        // Le plan a change de forme et la page ne sait pas le dessiner. On le
+        // DIT et on ne dessine rien : un plan compris a moitie enverrait
+        // chercher un bloc au mauvais endroit.
+        carte.remove();
+        div("sf-manque", corps).textContent =
+          "Le plan de la salle n'est pas affichable par cette version de la page.";
+        return;
+      }
+      // Toucher une zone la choisit. C'est la PAGE qui ecoute : le dessin, lui,
+      // ne sait rien de ce qu'on fait de ses zones.
+      Array.prototype.forEach.call(dessin.querySelectorAll("g[data-zone]"),
+        function (n) {
+          n.addEventListener("click", function () {
+            versZone(n.getAttribute("data-zone"), false);
+          });
+        });
+      carte.appendChild(dessin);
+
+      var leg = div("sf-legende", corps);
+      div("", leg, "i");
+      leg.appendChild(document.createTextNode("zone terminee"));
+      div("sf-panneau", corps);
+    }
+
+    var titre = vue.querySelector(".sf-mur-tete .quoi b");
+    if (titre) titre.textContent = zone ? "Zone " + zone : "Le mur";
+
+    var dessine = vue.querySelector("svg.plan");
+    if (dessine) decorer(dessine, etats, zone);
+
+    var panneau = vue.querySelector(".sf-panneau");
+    if (!panneau) return;
+    panneau.innerHTML = "";
+
+    if (!zone) {
+      div("sf-note", panneau).textContent =
+        "Touche une zone pour voir les blocs de ton circuit qui s'y trouvent.";
+      return;
+    }
+
+    var siens = blocsDeZone(d.groupes || [], zone);
+    var bas = div("sf-zone", panneau);
+    var t = div("", bas, "h3");
+    if (!siens.length) {
+      t.textContent = "Zone " + zone;
+      div("sf-note", bas).textContent = "Aucun bloc de ton circuit dans cette zone.";
+      return;
+    }
+    t.textContent = "Zone " + zone + " — tes " + siens.length
+      + (siens.length > 1 ? " blocs" : " bloc");
+    var c = compteDeZone(d.groupes || [], zone);
+    var compte = div("sf-compte", t, "span");
+    compte.textContent = c.faits === c.total ? "terminee" : c.faits + " sur " + c.total;
+    if (c.faits === c.total) compte.classList.add("finie");
+    var cases = div("sf-cases", bas);
+    siens.forEach(function (b) { cases.appendChild(caseDeBloc(b)); });
+  }
+
+  // --- Monter, demonter -----------------------------------------------------
+
+  var elPile = null, elVueFiche = null, elVueMur = null;
+
+  function monterFeuille() {
+    elVoile = div("sf-voile");
+    elVoile.addEventListener("click", quitter);
+    document.body.appendChild(elVoile);
+    elFeuille = div("sf-feuille");
+    elFeuille.setAttribute("role", "dialog");
+    elFeuille.setAttribute("aria-modal", "true");
+    div("sf-poignee", elFeuille);
+    elPile = div("sf-pile", elFeuille);
+    elVueFiche = div("sf-vue", elPile);
+    elVueMur = div("sf-vue", elPile);
+    document.body.appendChild(elFeuille);
+    // Une feuille ouverte fige le classement derriere elle : sinon on fait
+    // defiler le mauvais plan sous le doigt.
+    document.body.style.overflow = "hidden";
+  }
+
+  function peindreFeuille(rebondir) {
+    var neuf = !elFeuille;
+    if (neuf) monterFeuille();
+
+    // ⚠️ On SAUVE avant de reconstruire, et on restaure apres. Cette position
+    // n'etait sauvee que dans la branche « le grimpeur a change » -- le seul
+    // cas ou il ne faut justement pas la restaurer. Sur un circuit de quarante
+    // blocs, chaque aller-retour vers le mur renvoyait en haut de la liste.
+    var corpsAvant = elVueFiche.querySelector(".sf-corps");
+    if (corpsAvant) fiche.defile = corpsAvant.scrollTop;
+
+    elVueFiche.innerHTML = "";
+    peindreFiche(elVueFiche);
+    peindreMur(elVueMur, neuf || fiche.montePour !== fiche.id);
+    fiche.montePour = fiche.id;
+
+    var corps = elVueFiche.querySelector(".sf-corps");
+    if (corps) corps.scrollTop = fiche.defile;
+
+    // La transition vient de ce que LA PILE PERSISTE : la classe se pose donc
+    // directement, et le navigateur interpole tout seul.
+    //
+    // ⚠️ SURTOUT PAS de `requestAnimationFrame` ici. Un etat d'affichage ne
+    // doit pas dependre d'une image a venir : rAF est etrangle dans un onglet
+    // d'arriere-plan et ne se declenche pas du tout sans compositeur — la
+    // feuille resterait sur la fiche alors que l'etat dit « mur ». Il n'etait
+    // la que pour contourner la reconstruction de la pile, qui n'existe plus.
+    // Au premier montage il n'y a pas de transition, et c'est voulu : la
+    // feuille ne glisse pas quand elle s'ouvre.
+    elPile.classList.toggle("au-mur", fiche.mur);
+
+    var anime = !!rebondir && !sansMouvement();
+    elFeuille.classList.toggle("sf-anime", anime);
+    if (anime) {
+      // Le dessin persiste : sans ce redemarrage, l'animation ne rejouerait
+      // pas d'une zone a l'autre.
+      var visee = elVueMur.querySelector("g[data-zone].visee");
+      if (visee) {
+        visee.style.animation = "none";
+        void visee.getBoundingClientRect();
+        visee.style.animation = "";
+      }
+    }
+  }
+
+  function demonter() {
+    if (elVoile) elVoile.remove();
+    if (elFeuille) elFeuille.remove();
+    elVoile = elFeuille = elPile = elVueFiche = elVueMur = null;
+    document.body.style.overflow = "";
+    fiche = { id: null, zone: null, mur: false, donnees: null, defile: 0,
+              enCours: null, rebondir: false, montePour: null };
+    // Les entrees qu'on avait empilees ne sont plus les notres.
+    poussees = 0;
+  }
+
+  // --- L'historique, seule source de verite ---------------------------------
+
+  function versDiese(etatDiese, remplacer) {
+    var cible = ecrireDiese(etatDiese);
+    var url = location.pathname + location.search + cible;
+    if (remplacer) {
+      history.replaceState(null, "", url);
+      appliquer();                      // `replaceState` ne declenche rien
+    } else if (cible !== location.hash) {
+      poussees += 1;
+      location.hash = cible;            // declenche `hashchange`
+    } else {
+      appliquer();
+    }
+  }
+
+  /** Efface le diese sans empiler d'entree, et repeint. */
+  function nettoyerAdresse() {
+    history.replaceState(null, "", location.pathname + location.search);
+    appliquer();
+  }
+
+  function ouvrir(id) { versDiese({ grimpeur: id, zone: null, mur: false }, false); }
+
+  function versZone(zone, rebondir) {
+    // Changer de zone REMPLACE l'entree du dessus : un retour doit ramener a la
+    // fiche, pas defaire une par une les zones qu'on a regardees.
+    fiche.rebondir = !!rebondir;
+    versDiese({ grimpeur: fiche.id, zone: zone, mur: true }, fiche.mur);
+  }
+
+  function quitter() {
+    if (fiche.id === null) return;
+    // On ne ferme jamais « directement » : on remonte l'historique, et c'est
+    // `hashchange` qui demonte. Sinon l'entree reste et le bouton retour
+    // rouvre une fiche qu'on croyait fermee.
+    if (poussees > 0) { poussees -= 1; history.back(); return; }
+    // ...SAUF quand aucune entree n'est de nous : la page a ete ouverte
+    // DIRECTEMENT sur `/#g=42`. `back()` sortirait du site, ou ne ferait rien
+    // du tout et laisserait la feuille ouverte pour toujours. On efface alors
+    // le diese sur place.
+    nettoyerAdresse();
+  }
+
+  function appliquer() {
+    var cible = lireDiese(location.hash);
+    if (cible.grimpeur === null) { demonter(); return; }
+
+    // ⚠️ LA ZONE DE L'ADRESSE SE VERIFIE, comme le grimpeur. Un bloc dont la
+    // zone est absente du plan est deja rendu inerte ; une zone NOMMEE DANS
+    // L'ADRESSE ne l'etait pas, et `#g=42&z=QQQ` affichait un panneau « Zone
+    // QQQ » au-dessus d'un dessin qui ne la porte pas. Le cas n'existe que
+    // depuis la spec 029 : un lien partage le matin peut etre ouvert
+    // l'apres-midi sur un mur redessine.
+    if (cible.zone !== null && !ZONES_DU_PLAN.has(cible.zone)) {
+      fiche.zone = null;
+      fiche.mur = cible.mur;
+      history.replaceState(null, "",
+        location.pathname + location.search
+        + ecrireDiese({ grimpeur: cible.grimpeur, zone: null, mur: cible.mur }));
+    } else {
+      fiche.zone = cible.zone;
+      fiche.mur = cible.mur;
+    }
+
+    if (fiche.id === cible.grimpeur && fiche.donnees) {
+      peindreFeuille(fiche.rebondir); fiche.rebondir = false; return;
+    }
+
+    fiche.id = cible.grimpeur;
+    fiche.donnees = null;
+    charger_fiche(cible.grimpeur);
+  }
+
+  function charger_fiche(id) {
+    var jeton = {};
+    fiche.enCours = jeton;
+    fetch("/api/public/grimpeur/" + id, { cache: "no-store" })
+      .then(function (r) {
+        if (r.status === 404) throw { introuvable: true };
+        if (!r.ok) throw new Error("HTTP " + r.status);
+        return r.json();
+      })
+      .then(function (d) {
+        if (fiche.enCours !== jeton || fiche.id !== id) return;   // clic suivant
+        fiche.donnees = d;
+        peindreFeuille(fiche.rebondir); fiche.rebondir = false;
+      })
+      .catch(function (e) {
+        if (fiche.enCours !== jeton || fiche.id !== id) return;
+        // Un grimpeur inconnu — efface, ou l'adresse d'une autre edition —
+        // NETTOIE l'adresse : sans ca, le retour ramene a un etat mort.
+        if (e && e.introuvable) { nettoyerAdresse(); return; }
+        // Une coupure reseau, elle, ne doit RIEN effacer. La feuille se
+        // refermait sans un mot sur un simple 500 ou un Wi-Fi qui saute ; si on
+        // a deja les donnees on les garde, sinon on le DIT.
+        if (fiche.donnees) return;
+        if (!elFeuille) monterFeuille();
+        elVueFiche.innerHTML = "";
+        div("sf-manque", elVueFiche).textContent =
+          "La fiche n'a pas pu etre chargee. Elle reessaiera toute seule.";
+      });
+  }
+
+  /** Rafraichir la fiche ouverte au rythme de la page : un bloc valide pendant
+   *  qu'on la regarde doit passer au vert tout seul.
+   *
+   * ⚠️ Cette fonction a existe SANS APPELANT. La fiche restait figee pendant
+   * que la ligne du classement, juste derriere la feuille, affichait deja le
+   * bloc de plus — la page se contredisait elle-meme, et la fonctionnalite qui
+   * s'appelle « en direct » ne l'etait pas. Elle est branchee sur le meme
+   * battement que le classement, au demarrage.
+   */
+  function rafraichirFiche() {
+    if (fiche.id !== null && fiche.donnees) charger_fiche(fiche.id);
+  }
+
+  if (!MUR) {
+    // Delegation : la page n'a pas a poser un gestionnaire par ligne, et les
+    // lignes sont recreees a chaque repeinture.
+    el.principal.addEventListener("click", function (e) {
+      if (e.target.closest(".etoile")) return;      // l'etoile garde son clic
+      var porteur = e.target.closest("[data-participant]");
+      if (!porteur) return;
+      var id = Number(porteur.dataset.participant);
+      if (id) ouvrir(id);
+    });
+    window.addEventListener("hashchange", appliquer);
+    document.addEventListener("keydown", function (e) {
+      if (e.key === "Escape" && fiche.id !== null) quitter();
+    });
+    // ⚠️ APRES le premier rendu, jamais a la place : arriver sur `/#g=42` doit
+    // dessiner le classement PUIS ouvrir la fiche par-dessus.
+    setTimeout(appliquer, 0);
+  }
+
   if (MUR) setTimeout(programmerRotation, 1200);
 })();
 </script>
