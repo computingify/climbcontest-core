@@ -17,6 +17,49 @@ qu'on ne met pas à jour le matin d'une compétition :
 - **MINEUR** — nouvelle fonctionnalité, compatible.
 - **CORRECTIF** — correction, compatible.
 
+## [Non publié]
+
+### Corrigé
+
+- **La fiche du grimpeur ne s'ouvre plus en rejeu d'archive** (spec 026). La
+  spec la mettait hors périmètre — « la route publique ne parle que de la
+  compétition active » — mais la garde n'existait que pour le mode mur. Une
+  ligne d'archive restait cliquable, et `GET /api/public/grimpeur/<id>`
+  répondait avec la compétition **active**.
+
+  Ce n'était pas une fiche vide. `Participant.id` est un rowid SQLite : effacer
+  une édition (spec 018) **libère** ses identifiants, et la suivante les
+  reprend. Mesuré en rejouant la séquence — archiver mars, l'effacer, semer
+  novembre : les nouveaux participants reprennent les id 1 et 2. Toucher la
+  ligne « MARS-Alice » ouvrait la fiche de « NOV-Chloe », une autre personne,
+  réelle et nommée, sous le nom affiché par la ligne. Le curseur, lui,
+  promettait le clic.
+
+  Trouvé en fusionnant les specs de la 0.16.0 et en regardant le résultat, pas
+  en relisant l'une d'elles : le rejeu vient de la 018, la fiche de la 026, et
+  la réutilisation d'identifiants de la 018 encore. Aucune ne le voit seule.
+
+### Ajouté
+
+- **Les coutures entre les specs 025, 026 et 028/029 sont tenues par des
+  tests** (`tests/test_coherence_console_ecran.py`). Elles ont été écrites en
+  parallèle et se sont rencontrées au merge ; trois défauts y vivaient, dont
+  aucun n'était visible depuis une seule branche. Ces dix-huit tests vérifient
+  ce qu'aucune spec ne possède seule : la cascade réglée dans la console et lue
+  par la fiche du parent, le compte de blocs affiché par deux chemins, et le
+  plan du mur servi à l'identique au juge, au parent et au dossard imprimé.
+
+  Aucune assertion ne fige un score : la cascade rend le dénominateur `1000/n`
+  solidaire entre catégories, et comparer des classements avant et après un
+  réglage échouerait sur un déplacement qui n'est pas un défaut.
+
+- **Un seul harnais de pilotage du navigateur** (`tests/navigateur.py`), qui
+  réunit les trois corrections payées séparément par trois sessions : le
+  verdict qui remonte par `fetch` plutôt que par le titre, `contentDocument`
+  relu à chaque accès parce que le premier rendu est un `about:blank` déjà
+  « complete », et `make_server` + `shutdown()` au lieu d'un `app.run` qui
+  survit au test en gardant son port.
+
 ## [0.16.0] — 2026-09-02
 
 Cinq specs de la journée du 02/09 : la **cascade de couleurs** réglable depuis

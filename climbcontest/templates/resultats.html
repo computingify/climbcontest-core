@@ -791,9 +791,13 @@
   .sf-note { margin: 12px 0 0; font-size: .76rem; color: var(--encre3, var(--encre2));
              line-height: 1.5; }
 
-  /* Une ligne de classement s'ouvre. L'etoile des favoris garde son clic. */
-  body:not(.mur) .ligne[data-participant],
-  body:not(.mur) .pod[data-participant] { cursor: pointer; }
+  /* Une ligne de classement s'ouvre. L'etoile des favoris garde son clic.
+     ⚠️ `[data-archive=""]` : en rejeu d'archive, RIEN ne s'ouvre — la fiche ne
+     parle que de la competition active (spec 026 § 3). Le curseur suit la
+     regle plutot que de promettre un clic qui n'aura pas lieu. L'attribut est
+     toujours present et vaut "" hors rejeu, d'ou le selecteur. */
+  body:not(.mur)[data-archive=""] .ligne[data-participant],
+  body:not(.mur)[data-archive=""] .pod[data-participant] { cursor: pointer; }
 
   @media (prefers-reduced-motion: reduce) {
     .sf-pile { transition: none; }
@@ -2622,7 +2626,19 @@ import { decorer, decrire, monter, peutDessiner, zonesDe }
     if (fiche.id !== null && fiche.donnees) charger_fiche(fiche.id);
   }
 
-  if (!MUR) {
+  // ⚠️ `!ARCHIVE` autant que `!MUR`. La spec 026 met le rejeu d'archive HORS
+  // perimetre — « la route publique ne parle que de la competition active » —
+  // mais la garde n'existait que pour le mode mur. En rejeu, une ligne restait
+  // donc cliquable et `GET /api/public/grimpeur/<id>` repondait avec la
+  // competition ACTIVE.
+  //
+  // Ce n'est pas seulement une fiche vide : `Participant.id` est un rowid
+  // SQLite, et effacer une edition (spec 018) LIBERE ses identifiants. La
+  // suivante les reprend. Mesure faite : apres avoir archive puis efface mars,
+  // les participants de novembre reprennent les id 1 et 2. Toucher la ligne
+  // « MARS-Alice » ouvrait alors la fiche de « NOV-Chloe » — une autre
+  // personne, reelle et nommee, sous le nom affiche par la ligne.
+  if (!MUR && !ARCHIVE) {
     // Delegation : la page n'a pas a poser un gestionnaire par ligne, et les
     // lignes sont recreees a chaque repeinture.
     el.principal.addEventListener("click", function (e) {
