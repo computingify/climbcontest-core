@@ -17,7 +17,18 @@ qu'on ne met pas à jour le matin d'une compétition :
 - **MINEUR** — nouvelle fonctionnalité, compatible.
 - **CORRECTIF** — correction, compatible.
 
-## [Non publié]
+## [0.16.0] — 2026-09-02
+
+Cinq specs de la journée du 02/09 : la **cascade de couleurs** réglable depuis
+la console (025), la **fiche du grimpeur en direct** (026), le lot de **treize
+corrections** dicté après le pilotage de la 0.15.0 (027), et le **plan du mur**
+qui passe aux polygones (028) puis se dessine depuis la console (029).
+
+Le classement a par ailleurs été **confronté au classeur de bout en bout** sur
+une compétition simulée — 120 grimpeurs, 53 blocs, 192 réussites posées pour
+éprouver seize cas — score **et** rang, un grimpeur à la fois : **480
+comparaisons, 0 écart**. Le détail :
+`docs/rapports/2026-09-02-validation-classement.html`.
 
 ### Ajouté
 
@@ -69,6 +80,55 @@ qu'on ne met pas à jour le matin d'une compétition :
   `?g=42` créerait une entrée de cache Caddy par grimpeur et par zone pour un
   HTML rigoureusement identique.
 
+- **Le plan du mur devient un jeu de polygones** (spec 028). Adrien : « je
+  voudrais un truc où je puisse faire des formes plus triangulaires, peut-être
+  même en symbolisant les surplombs et pans inclinés ». `PLAN` rangeait
+  dix-sept zones dans un **damier de 8 × 7 cases**, qui ne savait dire ni la
+  forme de la salle, ni le profil d'un mur, ni les proportions — rien de ce
+  qu'on voit en entrant. Chaque mur porte maintenant son **profil**, de la
+  dalle au toit. Le relevé est celui d'Adrien, dessiné avec
+  `tools/plan-du-mur/` : **17 murs**, six profils, **3 repères** dont « Bas »,
+  qui n'existait pas dans la grille.
+
+  **Le dossard reste en noir et blanc** : il s'imprime à l'encre noire sur du
+  papier de couleur, où une teinte serait perdue. Le profil s'y lit à la
+  **trame**, qui se densifie et fonce à mesure que le mur déverse — deux
+  variables redondantes sur un seul axe ordonné, une seule règle à apprendre.
+
+  Trois pièges, tous mesurés au navigateur et tous gardés par un test : le
+  **cadrage** — sept murs touchent le bord, et un `viewBox` naïf rogne la
+  moitié de leur trait ; la marge se prend sur le `viewBox` et **jamais sur les
+  coordonnées**, décaler les points maquillerait le relevé pour arranger un
+  problème d'affichage. La **lettre de zone**, qui tenait par chance : 0,25
+  unité de marge, qu'une zone à deux caractères crevait. Et l'**état contre le
+  profil** : l'aplat d'une zone « sienne » mangeait sa trame, donc le grimpeur
+  perdait le profil précisément sur les zones qui l'intéressent. Les motifs
+  sont déclarés **une seule fois pour tout le document** : un identifiant SVG y
+  vaut partout, et 120 fiches × 6 motifs feraient 720 identifiants en double
+  dont `url(#…)` résoudrait le premier trouvé.
+
+- **Le plan se dessine depuis la console** (spec 029), sur `/admin/plan`,
+  atteignable par la carte **« Le plan de la salle »** de la vue *Circuits* —
+  avec le reste du papier qu'on prépare. Le plan cesse d'être une constante
+  Python : il vit dans la nouvelle table `reglage`, sous la clé `plan_du_mur`,
+  et voyage avec le catalogue versionné. Changer le mur ne demande plus une PR,
+  un déploiement, et quelqu'un pour les faire : un mur qui bouge un samedi matin
+  n'attend plus lundi.
+
+  **En base, et pas dans un fichier** posé à côté : `climbcontest-sauvegarde`
+  recopie **la base seule** toutes les dix minutes. Un JSON à côté serait le
+  seul fichier sans sauvegarde, et une restauration ramènerait silencieusement
+  l'ancien plan. **Global, et pas par compétition** : le club a **un** mur — le
+  ranger dans `competition.options` obligerait à le redessiner à chaque
+  édition. `fiches.PLAN` reste dans le code comme **plan d'usine** : le défaut,
+  et le repli journalisé si la ligne enregistrée est illisible, pour qu'une
+  impression de dossards la veille au soir n'échoue pas sur une ligne abîmée.
+
+- **Un écran d'accueil au logo du club dans l'application juge** (spec 027),
+  effacé dès que l'application est prête, mais avec un **plancher de 750 ms** :
+  sans lui, sur un téléphone rapide, il clignotait sans être vu — pire que pas
+  d'écran du tout.
+
 ### Modifié
 
 - Le moteur de classement prend une `Cascade` au lieu d'un entier, et la
@@ -98,10 +158,77 @@ qu'on ne met pas à jour le matin d'une compétition :
   numéro de pourrir, dont un qui lit le JavaScript depuis Python pour vérifier
   que les deux côtés sont d'accord.
 
+- **Le bouton à maintenir dit ce qu'il attend** (spec 027). Adrien : « ce n'est
+  pas très visible, l'histoire du maintien du bouton ». Le défaut n'était pas
+  le geste mais sa **découvrabilité** : rien sur le bouton n'annonçait qu'il
+  fallait le tenir. Trois signes le disent — le libellé porte l'instruction
+  (« Maintenir 2 s pour effacer 715 réussites »), un **anneau de progression**
+  l'entoure pendant le maintien, et le libellé **décompte**, pour que relâcher
+  trop tôt se lise comme un abandon et non comme une panne. Le mot `EFFACER` à
+  frapper au clavier disparaît.
+
+- **Après « tout effacer », l'import du nouveau classeur suit tout seul** (spec
+  027). Ce second geste n'apportait **aucun choix** : après un effacement total
+  il ne reste rien à préserver, donc rien à décider — et un geste sans décision
+  est un oubli en puissance.
+
+- **Quatre retouches de lisibilité dans la console** (spec 027). **Général**
+  passe en tête de « La compétition ». Les classements se lisent **« U11
+  Scratch »** et suivent l'ordre du terrain : le tri alphabétique du serveur
+  séparait un scratch de ses catégories, qu'on regarde ensemble. Dans
+  **Circuits**, la difficulté et les prises deviennent des pastilles — **ronde**
+  pour la difficulté, qui est ordonnée, **carrée** pour les prises, qui ne le
+  sont pas — toutes avec un **contour**, sans quoi « Blanc », la couleur de
+  prises la plus courante du classeur, disparaît sur fond clair. Et **dix-huit
+  paragraphes d'aide allégés**, dont deux supprimés parce qu'ils étaient devenus
+  **faux** : « deux fiches par page » (il y en a six depuis la 023) et « le mot
+  EFFACER se frappe » (plus depuis ci-dessus). Une aide fausse est pire qu'une
+  aide absente.
+
+- **Le fond de l'application juge, réchauffé vers l'ocre du logo** (spec 027),
+  et le **cache du service worker passé en v3** — sans ce changement de version
+  les téléphones déjà équipés garderaient l'ancienne coquille, et l'oubli ne se
+  verrait qu'en compétition. ⚠️ Une lueur en haut d'écran, **jamais un aplat
+  coloré** : dans cette application la couleur **porte de l'information** — la
+  teinte du circuit prend l'écran dès qu'un bloc est scanné, c'est le retour
+  visuel du juge — et une teinte franche au repos entrerait en concurrence avec
+  elle.
+
 ### Corrigé
 
-Sept défauts trouvés avant d'atteindre la production — trois sur la maquette,
-quatre par une relecture — chacun gardé par un test :
+- **Le podium disparaissait exactement là où on le regarde** (spec 027). Deux
+  conditions l'effaçaient — moins de quatre grimpeurs, et « tout le monde est
+  déjà sur le podium » — soit précisément les catégories à une ou deux
+  personnes. Il s'affiche désormais **toujours**, trois marches, les places
+  sans gagnant en **pointillé** : un podium en attente, pas un podium absent.
+  Et un grimpeur n'y monte qu'en ayant **marqué**, sans quoi une catégorie qui
+  n'a pas commencé couronnait dix-sept personnes à zéro point.
+
+- **Les impressions se chevauchaient, débordaient, et coupaient les fiches en
+  deux** (spec 027). Adrien : « si j'essaye d'imprimer, je me retrouve avec des
+  dossards entre 2 feuilles ». Deux causes distinctes : `auto-fit` choisissait
+  ses colonnes d'après la **largeur** disponible sans rien savoir de la
+  **hauteur** produite — dès qu'un groupe de couleur passait sur deux lignes,
+  la fiche débordait sur sa voisine, 43 fois ; et une grille dont les éléments
+  portent `break-inside: avoid` est fragmentée « au mieux » par le navigateur,
+  qui n'a **aucune obligation** de respecter un nombre d'éléments par page.
+  Colonnes et pagination passent en Python (`fiches.en_feuilles`), sur des
+  hauteurs **mesurées dans le navigateur** — la première estimation se trompait
+  de 25 % sur le coût d'une ligne, 5,9 mm supposés contre 7,27 mm réels. Le
+  saut de page porte sur la **feuille**, jamais sur un élément de grille.
+  Mesuré : **120 fiches → 20 feuilles**, zéro chevauchement, zéro débordement,
+  aucune à cheval.
+
+- **Les étiquettes de blocs gaspillaient des feuilles** (spec 027) : le saut de
+  page par zone en laissait à moitié vides — une zone d'un seul bloc gaspillait
+  sept places. Les blocs sortent déjà dans l'ordre du `Plan`, donc zone par
+  zone, et chaque étiquette porte **sa zone en tête** : le regroupement
+  physique tient sans payer une feuille par zone. **Huit par A4** — au-dessus
+  des six demandés — soit 53 étiquettes sur **7 feuilles**, aucune page vide.
+
+Et sept défauts de la fiche en direct (spec 026), trouvés avant d'atteindre la
+production — trois sur la maquette, quatre par une relecture — chacun gardé par
+un test :
 
 - Un **lien partagé ouvrait une fiche qu'on ne pouvait plus fermer** : sur
   `/#g=42` ouvert directement il n'y a aucune entrée d'historique à remonter,
@@ -1534,10 +1661,18 @@ livrer — spec 001, itération 3.
 - Les données et les secrets vivent dans `shared/`, hors des releases : un
   déploiement ou un retour arrière ne peut pas les toucher.
 
-[Non publié]: https://github.com/computingify/climbcontest-core/compare/v0.12.0...HEAD
+[0.16.0]: https://github.com/computingify/climbcontest-core/releases/tag/v0.16.0
+[0.15.0]: https://github.com/computingify/climbcontest-core/releases/tag/v0.15.0
+[0.14.0]: https://github.com/computingify/climbcontest-core/releases/tag/v0.14.0
+[0.13.0]: https://github.com/computingify/climbcontest-core/releases/tag/v0.13.0
+[0.12.1]: https://github.com/computingify/climbcontest-core/releases/tag/v0.12.1
 [0.12.0]: https://github.com/computingify/climbcontest-core/releases/tag/v0.12.0
 [0.11.0]: https://github.com/computingify/climbcontest-core/releases/tag/v0.11.0
 [0.10.0]: https://github.com/computingify/climbcontest-core/releases/tag/v0.10.0
+[0.9.0]: https://github.com/computingify/climbcontest-core/releases/tag/v0.9.0
+[0.8.1]: https://github.com/computingify/climbcontest-core/releases/tag/v0.8.1
+[0.8.0]: https://github.com/computingify/climbcontest-core/releases/tag/v0.8.0
+[0.7.0]: https://github.com/computingify/climbcontest-core/releases/tag/v0.7.0
 [0.6.0]: https://github.com/computingify/climbcontest-core/releases/tag/v0.6.0
 [0.5.1]: https://github.com/computingify/climbcontest-core/releases/tag/v0.5.1
 [0.5.0]: https://github.com/computingify/climbcontest-core/releases/tag/v0.5.0

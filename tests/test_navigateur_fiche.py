@@ -355,7 +355,13 @@ def piloter(url: str, verdict: dict, secondes: int = 150) -> str:
     qui different entre le shell headless de Playwright et le chromium complet
     d'une CI, et les trois ont fait echouer ce test sans rien apprendre.
     """
-    with tempfile.TemporaryDirectory() as profil:
+    # `ignore_cleanup_errors` parce que Chromium ne meurt pas seul : `kill()`
+    # abat le processus pere, ses fils (zygote, rendu) finissent d'ecrire dans
+    # le profil pendant qu'on efface le dossier. La suite est alors tombee sur
+    # « Directory not empty », sur la CI, APRES un verdict OK -- un test qui a
+    # reussi faisait echouer la release. Le profil est jetable : ce que le
+    # menage ne prend pas, /tmp le prendra.
+    with tempfile.TemporaryDirectory(ignore_cleanup_errors=True) as profil:
         navigateur = subprocess.Popen(
             [CHROME, "--headless", "--disable-gpu", "--no-sandbox",
              "--no-first-run", "--disable-dev-shm-usage",
