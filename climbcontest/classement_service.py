@@ -21,7 +21,8 @@ import time
 from collections import defaultdict
 
 from .classement import (
-    BlocCalcul, Classement, ParticipantCalcul, calculer_clubs, calculer_tout,
+    BlocCalcul, Cascade, Classement, ParticipantCalcul, _valider_par_couleur,
+    blocs_du_circuit, calculer_clubs, calculer_tout,
 )
 from .extensions import db
 from .models import Bloc, BlocCircuit, Circuit, Competition, Participant, Success
@@ -61,18 +62,17 @@ def _options(comp: Competition) -> dict:
     return lire_options(comp)
 
 
-def couleurs_requises(comp: Competition) -> int:
-    """Combien de couleurs pleines valident les couleurs plus faciles.
+def cascade(comp: Competition) -> Cascade:
+    """La règle de cascade de l'édition — vide par défaut (spec 025).
 
-    0 = validation par couleur désactivée, ce qui est le défaut : elle n'était
-    pas active en novembre 2025. C'est une **option par compétition**, parce que
-    le format change d'une édition à l'autre — décision du 28/08.
+    Vide est le défaut, et ça compte : la règle n'était active ni en novembre
+    2025, ni en mars 2026. Une édition qui n'en parle pas se classe comme avant.
+
+    Import tardif : `cascade` lit `contest.ErreurMetier`, qui remonte à
+    `models` — le faire en tête créerait un cycle.
     """
-    valeur = _options(comp).get("validation_couleur", 0)
-    try:
-        return max(0, int(valeur))
-    except (TypeError, ValueError):
-        return 0
+    from .cascade import depuis_options
+    return depuis_options(_options(comp))
 
 
 def charger(comp: Competition):
@@ -134,7 +134,7 @@ def classements(comp: Competition, forcer: bool = False) -> tuple[dict[str, Clas
         participants, blocs, reussites, circuits = charger(comp)
         resultat = calculer_tout(
             participants, blocs, reussites, circuits,
-            couleurs_requises=couleurs_requises(comp),
+            cascade=cascade(comp),
         )
         # Derive des classements par categorie, jamais recalcule : c'est ce qui
         # garantit qu'il ne pourra pas diverger d'eux (spec 010).
@@ -185,6 +185,49 @@ def invalider(competition_id: int | None = None) -> None:
 # correspondantes, et les scratchs generaux au debut a gauche ». Grouper par
 # circuit met cote a cote des classements qui parlent des memes grimpeurs --
 # on passe de « U13 scratch » a « U13 F » sans traverser la barre.
+def blocs_du_grimpeur(comp: Competition, participant: Participant) -> dict:
+    """Ce qu'UN grimpeur a fait, vu du moteur : trois ensembles disjoints.
+
+        grimpes      -- ses réussites réelles, SUR LES BLOCS DE SON CIRCUIT
+        credites     -- ce que la cascade lui ajoute, jamais grimpé
+        hors_circuit -- ses réussites réelles hors de son circuit, sans valeur
+                        au classement. Un juge a forcé l'avertissement de la
+                        spec 019 : la réussite est bien enregistrée, elle ne
+                        compte simplement pas.
+
+    ⚠️ **Les trois sont disjoints par construction, pas par convention.**
+    `credites` est l'étendu MOINS le brut, donc jamais un bloc de `grimpes` ;
+    `hors_circuit` est le brut MOINS les blocs du circuit, donc jamais un bloc
+    des deux autres. La fiche du grimpeur (spec 026) peint l'union des deux
+    premiers : si un identifiant tombait dans deux ensembles, elle afficherait
+    le même bloc deux fois, dans deux états contraires.
+
+    ⚠️ **C'est le SEUL accesseur, et il ne doit pas être recopié.** L'extension
+    par couleur se calcule à l'intérieur du classement, groupe par groupe, et
+    n'est stockée nulle part : la recalculer ailleurs créerait deux chemins vers
+    la même vérité. Les réussites viennent de `charger()`, comme le classement,
+    pour la même raison.
+
+    La règle appliquée est celle de la **catégorie du grimpeur** (spec 025) :
+    c'est le même `cascade.pour()` que le classement, donc l'écran ne peut pas
+    montrer autre chose que ce qui est compté.
+    """
+    _, blocs, reussites, _ = charger(comp)
+    du_circuit = (blocs_du_circuit(blocs, participant.circuit)
+                  if participant.circuit else set())
+
+    brutes = reussites.get(participant.id, set())
+    grimpes = brutes & du_circuit
+    etendues = _valider_par_couleur(
+        grimpes, blocs, du_circuit, cascade(comp).pour(participant.categorie))
+
+    return {
+        "grimpes": grimpes,
+        "credites": etendues - grimpes,
+        "hors_circuit": brutes - du_circuit,
+    }
+
+
 def ordre(classement):
     if classement.type == "scratch":            # les generaux, tout a gauche
         return (0, "", 0, classement.groupe)

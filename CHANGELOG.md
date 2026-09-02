@@ -17,6 +17,51 @@ qu'on ne met pas à jour le matin d'une compétition :
 - **MINEUR** — nouvelle fonctionnalité, compatible.
 - **CORRECTIF** — correction, compatible.
 
+## [Non publié]
+
+### Ajouté
+
+- **La cascade de couleurs se règle depuis la console** (spec 025). Réussir tous
+  les blocs d'une couleur peut en valider d'autres, plus faciles. La règle
+  s'écrit en **phrases** — « quand au moins 2 parmi ⟨Vert⟩ ⟨Bleu⟩ ⟨Mauve⟩
+  ⟨Rouge⟩ ⟨Noir⟩ sont validées → valider ⟨Jaune⟩ » — dans la vue **Général**,
+  réservée aux administrateurs. Trois préréglages : aucune cascade (le défaut),
+  comme le classeur, sur mesure.
+- **Un interrupteur par catégorie**, qui reproduit `Listes!D29:D38` du
+  classeur : c'était la dernière divergence de portée entre les deux moteurs.
+- **Un contrôle des phrases.** Deux phrases ne peuvent pas se contredire — le
+  résultat est leur union — mais elles peuvent mentir à qui les écrit. Le
+  contrôle refuse une cascade qui remonte, et signale les règles sans effet et
+  les couleurs validées deux fois.
+- **Un aperçu** sous la règle : sur un circuit donné, ce qu'un grimpeur se voit
+  créditer. Il n'est pas décoratif — sur les données réelles de novembre 2025,
+  une règle déclenchée par une seule couleur pleine déplace 264 rangs sur 392.
+- **Les blocs crédités se distinguent** : la page de résultats marque le
+  compteur d'un astérisque, dit « 7 grimpés · 29 crédités » en infobulle, et
+  porte la légende de l'astérisque dans la ligne de comptage — la colonne
+  « Blocs » disparaît sur téléphone, et une infobulle ne s'atteint ni au doigt
+  ni sur un vidéoprojecteur. Dans la console, l'aperçu peint les blocs crédités
+  en hachures sur la teinte de leur couleur.
+- `classement_service.blocs_du_grimpeur()` rend `{grimpes, credites}` — deux
+  ensembles disjoints par construction, pour la fiche du grimpeur à l'écran.
+
+### Modifié
+
+- Le moteur de classement prend une `Cascade` au lieu d'un entier, et la
+  **résout par grimpeur, via sa catégorie**. Les scratchs héritent donc de la
+  règle de chacun, comme le fait `Inter!DJ19` du classeur, qui se calcule ligne
+  par ligne.
+- `options.validation_couleur` reste lu **en repli** : une édition d'avant la
+  spec 025 se classe exactement comme avant. L'ancien algorithme est rejoué,
+  épinglé dans les tests, et confronté aux phrases sur toutes les combinaisons
+  de couleurs pleines — 0 écart.
+- La couleur d'un bloc est **rapprochée de son nom canonique** avant tout calcul.
+  Le classeur écrit « rouge » aussi bien que « Rouge » ; sans ce rapprochement la
+  couleur passait pour pleine alors qu'il restait un bloc à faire, et la cascade
+  se déclenchait à tort.
+- Le classement des **clubs** reporte les blocs crédités : sa ligne portait
+  jusqu'ici un total gonflé par la cascade sans l'astérisque qui le dit.
+
 ## [0.15.0] — 2026-09-01
 
 Quatre specs, toutes sorties d'une même session de pilotage de la console par

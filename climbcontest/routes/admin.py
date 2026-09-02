@@ -32,6 +32,7 @@ from ..contest import (
     supprimer_reussite,
 )
 from .. import circuits as circuits_module
+from .. import cascade as cascade_module
 from .. import cycle
 from .. import fiches
 from ..models import Archive
@@ -1058,6 +1059,123 @@ def competition_affichage():
     logger.info("%s a masque %d classement(s) sur la competition %s",
                 g.utilisateur.identifiant, len(masques), comp.id)
     return jsonify({"success": True, "groupes_masques": masques}), 200
+
+
+@bp.get("/competition/cascade")
+@exige_role(ADMIN)
+def competition_cascade_etat():
+    """La regle de cascade, les categories, et de quoi peindre l'apercu.
+
+    L'apercu a besoin du nombre de blocs PAR COULEUR ET PAR CIRCUIT : une
+    couleur absente d'un circuit ne peut pas etre pleine (D3), et c'est
+    exactement ce qu'il faut montrer avant d'enregistrer.
+    """
+    from ..classement_service import cascade as cascade_de
+    from ..models import Bloc, BlocCircuit, Circuit
+
+    try:
+        comp = competition_active()
+    except ErreurMetier as e:
+        return jsonify({"success": False, "message": e.message}), e.code
+
+    courante = cascade_de(comp)
+
+    categories = sorted(
+        c for (c,) in db.session.query(Participant.categorie)
+        .filter(Participant.competition_id == comp.id,
+                Participant.categorie.isnot(None))
+        .distinct().all()
+        if c and c.strip()
+    )
+
+    # Tous les circuits de l'edition, meme ceux sans un seul bloc colore : un
+    # circuit absent de cette table disparait du menu de l'apercu, et le reglage
+    # se fait alors a l'aveugle sur ce circuit-la.
+    from ..classement import couleur_canonique
+    par_nom: dict[str, dict] = {
+        nom: {"nom": nom, "couleurs": {}, "blocs": 0, "sans_couleur": 0}
+        for (nom,) in db.session.query(Circuit.nom)
+        .filter(Circuit.competition_id == comp.id).all()
+    }
+    for nom, couleur in (
+        db.session.query(Circuit.nom, Bloc.couleur)
+        .join(BlocCircuit, BlocCircuit.circuit_id == Circuit.id)
+        .join(Bloc, BlocCircuit.bloc_id == Bloc.id)
+        .filter(Circuit.competition_id == comp.id,
+                # ⚠️ Sans ce filtre, un lien vers un bloc d'une AUTRE edition
+                # serait compte ici et ignore par le moteur, qui borne ses blocs
+                # a la competition. L'apercu existe pour eviter cet ecart-la.
+                Bloc.competition_id == comp.id)
+        .all()
+    ):
+        circuit = par_nom[nom]
+        circuit["blocs"] += 1
+        # La meme normalisation que le moteur : le classeur ecrit « rouge »
+        # aussi bien que « Rouge », et l'apercu doit compter comme il compte.
+        propre = couleur_canonique(couleur)
+        if propre is None:
+            # Un bloc sans couleur compte au classement mais aucune cascade ne
+            # le credite. Le taire ferait mentir le denominateur de l'apercu.
+            circuit["sans_couleur"] += 1
+            continue
+        circuit["couleurs"][propre] = circuit["couleurs"].get(propre, 0) + 1
+
+    return jsonify({
+        "success": True,
+        "cascade": cascade_module.en_json(courante),
+        "couleurs": cascade_module.COULEURS,
+        "categories": categories,
+        "circuits": [par_nom[nom] for nom in sorted(par_nom)],
+        "regle_du_classeur": cascade_module.en_json(
+            cascade_module.Cascade(phrases=cascade_module.regle_du_classeur())),
+    }), 200
+
+
+@bp.post("/competition/cascade")
+@exige_role(ADMIN)
+def competition_cascade_regler():
+    """{"actif": true, "regles": [...], "categories_eteintes": [...]}
+
+    `ADMIN` : ce reglage change le CLASSEMENT, pas son affichage. Une regle
+    declenchee par une seule couleur pleine changeait 264 rangs sur 392 sur les
+    donnees reelles de novembre 2025.
+
+    Ce qui bloque rend 400 sans rien ecrire ; ce qui merite seulement d'etre dit
+    revient dans `avertissements`.
+    """
+    corps = _corps_objet()
+    if corps is None:
+        return jsonify({"success": False, "message": "Corps JSON attendu"}), 400
+
+    try:
+        comp = competition_active()
+        # ⚠️ Une cle ABSENTE ne vaut pas une liste vide. `ecrire_options`
+        # promet de ne jamais ecraser ce qu'on ne touche pas ; a l'interieur du
+        # sous-document, c'est a nous de tenir la meme promesse. Sans ca, un
+        # appel qui omet `categories_eteintes` rallume toutes les categories et
+        # recredite leurs blocs, en repondant 200.
+        if "categories_eteintes" not in corps:
+            from ..classement_service import cascade as cascade_de
+            corps = dict(corps)
+            corps["categories_eteintes"] = sorted(
+                cascade_de(comp).categories_eteintes)
+        document, avertissements = cascade_module.valider(corps)
+        cycle.ecrire_options(comp, cascade=document)
+    except ErreurMetier as e:
+        db.session.rollback()
+        return jsonify({"success": False, "message": e.message}), e.code
+
+    # Sans ca, le reglage ne se verrait qu'au bout de cinq secondes -- assez
+    # pour qu'on le croie sans effet et qu'on recommence.
+    from ..classement_service import invalider
+    invalider(comp.id)
+
+    logger.info("%s a regle la cascade de la competition %s : %d regle(s), "
+                "%d categorie(s) eteinte(s)",
+                g.utilisateur.identifiant, comp.id,
+                len(document["regles"]), len(document["categories_eteintes"]))
+    return jsonify({"success": True, "cascade": document,
+                    "avertissements": avertissements}), 200
 
 
 @bp.post("/competition/statut")

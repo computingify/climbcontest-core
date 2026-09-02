@@ -5,8 +5,10 @@ rafraîchissent toutes les 15 s. Sans lui, chaque rafraîchissement relancerait 
 calcul complet.
 """
 
+import json
 import time
 
+from climbcontest import cascade as cascade_module
 from climbcontest import classement_service
 from climbcontest.contest import enregistrer_reussite
 from climbcontest.extensions import db
@@ -172,28 +174,54 @@ class TestCache:
 
 
 class TestOptionCouleur:
+    """La cascade est une option PAR COMPÉTITION, vide par défaut (spec 025)."""
+
     def setup_method(self):
         classement_service.invalider()
 
     def test_desactivee_par_defaut(self, app, jeu):
-        assert classement_service.couleurs_requises(jeu["competition"]) == 0
+        assert not classement_service.cascade(jeu["competition"])
 
     def test_lue_depuis_les_options_de_la_competition(self, app, jeu):
-        """L'option est **par compétition**, pas globale : deux éditions
-        peuvent avoir des règles différentes."""
-        jeu["competition"].options = '{"validation_couleur": 2}'
+        """Deux éditions peuvent avoir des règles différentes."""
+        jeu["competition"].options = json.dumps({"cascade": {
+            "actif": True,
+            "regles": [{"parmi": ["Rouge"], "seuil": 1, "cibles": ["Jaune"]}],
+        }})
         db.session.commit()
-        assert classement_service.couleurs_requises(jeu["competition"]) == 2
+        casc = classement_service.cascade(jeu["competition"])
+        assert len(casc.phrases) == 1
+        assert casc.phrases[0].cibles == frozenset({"Jaune"})
 
     def test_options_illisibles_ne_font_pas_planter(self, app, jeu):
         jeu["competition"].options = "pas du json"
         db.session.commit()
-        assert classement_service.couleurs_requises(jeu["competition"]) == 0
+        assert not classement_service.cascade(jeu["competition"])
 
     def test_valeur_absurde_ignoree(self, app, jeu):
         jeu["competition"].options = '{"validation_couleur": "beaucoup"}'
         db.session.commit()
-        assert classement_service.couleurs_requises(jeu["competition"]) == 0
+        assert not classement_service.cascade(jeu["competition"])
+
+    def test_ancienne_option_lue_en_repli(self, app, jeu):
+        """⚠️ Compatibilité : une édition d'avant la spec 025 ne doit pas
+        changer de classement. `validation_couleur = N` se convertit en
+        « au moins N parmi les couleurs plus dures », ce qui est EXACTEMENT
+        l'ancienne règle."""
+        jeu["competition"].options = '{"validation_couleur": 2}'
+        db.session.commit()
+        casc = classement_service.cascade(jeu["competition"])
+        assert casc.phrases == cascade_module.regle_du_classeur(2)
+
+    def test_cascade_prime_sur_l_ancienne_option(self, app, jeu):
+        """Les deux clés présentes : la nouvelle gagne, sans quoi on ne pourrait
+        jamais éteindre une règle héritée."""
+        jeu["competition"].options = json.dumps({
+            "validation_couleur": 2,
+            "cascade": {"actif": False, "regles": []},
+        })
+        db.session.commit()
+        assert not classement_service.cascade(jeu["competition"])
 
 
 class TestSourceDesReussites:
@@ -282,3 +310,67 @@ class TestOrdreDesClassements:
             precedents = [x for x in sportifs[:i] if x["circuit"] == c["circuit"]]
             assert precedents and precedents[0]["type"] == "circuit", \
                 f"« {c['groupe']} » n'est pas précédé de son circuit"
+
+
+class TestBlocsDuGrimpeur:
+    """L'accesseur par grimpeur — spec 025 (F6), et contrat avec la spec 026.
+
+    ⚠️ **Les trois ensembles sont disjoints par construction**, et la fiche du
+    grimpeur (spec 026) en dépend : elle peint `grimpes | credites` et
+    afficherait deux fois le même bloc s'ils se recouvraient.
+    """
+
+    def _regle_vert(self, comp):
+        comp.options = json.dumps({"cascade": {
+            "actif": True,
+            "regles": [{"parmi": ["Vert"], "seuil": 1, "cibles": ["Jaune"]}],
+        }})
+        db.session.commit()
+
+    def test_sans_cascade(self, app, jeu):
+        lea, vert = jeu["participants"][0], jeu["blocs"][1]
+        enregistrer_reussite(lea, vert)
+        d = classement_service.blocs_du_grimpeur(jeu["competition"], lea)
+        assert d["grimpes"] == {vert.id}
+        assert d["credites"] == set()
+
+    def test_avec_cascade(self, app, jeu):
+        lea, jaune, vert = jeu["participants"][0], jeu["blocs"][0], jeu["blocs"][1]
+        enregistrer_reussite(lea, vert)
+        self._regle_vert(jeu["competition"])
+        d = classement_service.blocs_du_grimpeur(jeu["competition"], lea)
+        assert d["grimpes"] == {vert.id}
+        assert d["credites"] == {jaune.id}
+
+    def test_une_reussite_hors_circuit_est_servie_a_part(self, app, jeu):
+        """Un juge a force l'avertissement de la spec 019 : la reussite est bien
+        enregistree, elle ne compte simplement pas au classement. C'est le seul
+        endroit du systeme ou elle devient visible pour la personne concernee."""
+        lea, dehors = jeu["participants"][0], jeu["blocs"][2]   # DV21, circuit U13
+        enregistrer_reussite(lea, dehors, hors_circuit_force=True)
+        d = classement_service.blocs_du_grimpeur(jeu["competition"], lea)
+        assert d["hors_circuit"] == {dehors.id}
+        assert d["grimpes"] == set()
+        assert d["credites"] == set()
+
+    def test_les_trois_ensembles_sont_disjoints(self, app, jeu):
+        lea = jeu["participants"][0]
+        enregistrer_reussite(lea, jeu["blocs"][1])
+        enregistrer_reussite(lea, jeu["blocs"][2], hors_circuit_force=True)
+        self._regle_vert(jeu["competition"])
+        d = classement_service.blocs_du_grimpeur(jeu["competition"], lea)
+        assert d["grimpes"] & d["credites"] == set()
+        assert d["grimpes"] & d["hors_circuit"] == set()
+        assert d["credites"] & d["hors_circuit"] == set()
+
+    def test_une_categorie_eteinte_ne_credite_rien(self, app, jeu):
+        lea = jeu["participants"][0]
+        enregistrer_reussite(lea, jeu["blocs"][1])
+        jeu["competition"].options = json.dumps({"cascade": {
+            "actif": True,
+            "regles": [{"parmi": ["Vert"], "seuil": 1, "cibles": ["Jaune"]}],
+            "categories_eteintes": ["U11 F"],
+        }})
+        db.session.commit()
+        d = classement_service.blocs_du_grimpeur(jeu["competition"], lea)
+        assert d["credites"] == set()

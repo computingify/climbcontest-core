@@ -10,9 +10,17 @@ from pathlib import Path
 
 import pytest
 
+from climbcontest.cascade import regle_du_classeur
 from climbcontest.classement import (
-    BlocCalcul, ParticipantCalcul, calculer_clubs, calculer_groupe, calculer_tout,
+    BlocCalcul, Cascade, ParticipantCalcul, Phrase, calculer_clubs,
+    calculer_groupe, calculer_scratch, calculer_tout,
 )
+
+
+def cascade_classeur(seuil=2, eteintes=()):
+    """La regle du classeur, telle qu'elle se lisait avant en un entier."""
+    return Cascade(phrases=regle_du_classeur(seuil),
+                   categories_eteintes=frozenset(eteintes))
 
 FIXTURE = Path(__file__).resolve().parent.parent / "fixtures" / "contest-nov2025.json"
 
@@ -295,7 +303,7 @@ class TestValidationParCouleur:
         """
         blocs = self._jeu()
         c = calculer_groupe("U11 F", "categorie", "U11", [p(1)], blocs,
-                            {1: {3, 5}}, couleurs_requises=2)   # il manque le 4
+                            {1: {3, 5}}, cascade=cascade_classeur(2))   # il manque le 4
         assert c.lignes[0].blocs_reussis == 2, "aucune extension attendue"
 
     def test_une_couleur_hors_du_circuit_ne_compte_pas_comme_pleine(self):
@@ -313,34 +321,40 @@ class TestValidationParCouleur:
         }
         # Il tient le Vert (plein dans U11) ET le Noir (plein, mais hors circuit).
         c = calculer_groupe("U11 F", "categorie", "U11", [p(1)], blocs,
-                            {1: {2, 3}}, couleurs_requises=2)
+                            {1: {2, 3}}, cascade=cascade_classeur(2))
         assert c.lignes[0].blocs_reussis == 1, \
             "seul le Vert est plein dans le circuit : deux couleurs ne sont pas atteintes"
 
     def test_bloc_sans_couleur_ne_fait_pas_planter(self):
-        """Une ligne d'import sans couleur ne doit pas casser la page publique."""
+        """Une ligne d'import sans couleur ne doit pas casser la page publique.
+
+        Et elle doit COMPTER si elle est grimpee : un bloc dont le classeur n'a
+        pas rempli la couleur reste un bloc que le grimpeur a fait.
+        """
         blocs = {1: b(1, couleur=""), 2: b(2, couleur="Vert")}
-        calculer_groupe("U11 F", "categorie", "U11", [p(1)], blocs,
-                        {1: {2}}, couleurs_requises=1)
+        c = calculer_groupe("U11 F", "categorie", "U11", [p(1)], blocs,
+                            {1: {1, 2}}, cascade=cascade_classeur(1))
+        assert c.lignes[0].blocs_reussis == 2
+        assert c.lignes[0].blocs_credites == 0
 
     def test_deux_couleurs_pleines_validentles_plus_faciles(self):
         """Vert et Bleu entièrement réussis → les Jaunes sont validés."""
         blocs = self._jeu()
         c = calculer_groupe("U11 F", "categorie", "U11", [p(1)], blocs,
-                            {1: {3, 4, 5}}, couleurs_requises=2)
+                            {1: {3, 4, 5}}, cascade=cascade_classeur(2))
         assert c.lignes[0].blocs_reussis == 5      # les 2 jaunes en plus
 
     def test_une_seule_couleur_pleine_ne_suffit_pas(self):
         blocs = self._jeu()
         c = calculer_groupe("U11 F", "categorie", "U11", [p(1)], blocs,
-                            {1: {5}}, couleurs_requises=2)   # Bleu seul
+                            {1: {5}}, cascade=cascade_classeur(2))   # Bleu seul
         assert c.lignes[0].blocs_reussis == 1
 
     def test_variante_a_une_couleur(self):
         """Le classeur documente plusieurs variantes : le nombre est réglable."""
         blocs = self._jeu()
         c = calculer_groupe("U11 F", "categorie", "U11", [p(1)], blocs,
-                            {1: {5}}, couleurs_requises=1)
+                            {1: {5}}, cascade=cascade_classeur(1))
         assert c.lignes[0].blocs_reussis == 5      # Bleu plein valide vert+jaune
 
     def test_les_blocs_valides_comptent_dans_le_denominateur(self):
@@ -349,7 +363,7 @@ class TestValidationParCouleur:
         sans = calculer_groupe("U11 F", "categorie", "U11", [p(1), p(2)], blocs,
                                {1: {1}, 2: {3, 4, 5}})
         avec = calculer_groupe("U11 F", "categorie", "U11", [p(1), p(2)], blocs,
-                               {1: {1}, 2: {3, 4, 5}}, couleurs_requises=2)
+                               {1: {1}, 2: {3, 4, 5}}, cascade=cascade_classeur(2))
         # Sans l'option, le grimpeur 1 est seul sur le bloc 1 : il vaut 1000.
         assert next(l for l in sans.lignes if l.dossard == 1).score == 1000
         # Avec, le grimpeur 2 l'obtient aussi : le bloc ne vaut plus que 500.
@@ -474,3 +488,175 @@ class TestScratchsQuiTraversentLesCircuits:
         attendu = (next(l for l in tous["U11 F"].lignes).score
                    + next(l for l in tous["U13 H"].lignes).score)
         assert club.lignes[0].score == attendu
+
+
+class TestCascadeParPhrases:
+    """Ce que la forme « phrases » apporte, et ce qu'elle ne doit PAS faire."""
+
+    def _six_couleurs(self):
+        """Le circuit de la simulation du 02/09 : le seul terrain complet.
+
+        Jaune 7, Vert 10, Bleu 9, Mauve 7, Rouge 2, Noir 1 — 36 blocs.
+        """
+        blocs, i = {}, 0
+        for couleur, combien in (("Jaune", 7), ("Vert", 10), ("Bleu", 9),
+                                 ("Mauve", 7), ("Rouge", 2), ("Noir", 1)):
+            for _ in range(combien):
+                i += 1
+                blocs[i] = b(i, couleur=couleur)
+        return blocs
+
+    def _ids(self, blocs, couleurs):
+        return {i for i, bloc in blocs.items() if bloc.couleur in couleurs}
+
+    @pytest.mark.parametrize("pleines,attendu", [
+        (["Rouge", "Noir"], 36),                 # K1 : deux couleurs suffisent
+        (["Noir"], 1),                           # K2 : une seule ne fait rien
+        (["Noir", "Bleu"], 27),                  # K3 : Jaune et Vert seulement
+        (["Mauve", "Rouge", "Noir"], 36),        # K4
+    ])
+    def test_les_quatre_cas_mesures_dans_le_classeur(self, pleines, attendu):
+        """⚠️ Les nombres de BLOCS relevés le 02/09/2026 en activant
+        `Listes!D29:D38` dans une copie jetable du classeur. Si ce test tombe,
+        le serveur ne compte plus ce que compte le classeur."""
+        blocs = self._six_couleurs()
+        c = calculer_groupe("U15 F", "categorie", "U11", [p(1)], blocs,
+                            {1: self._ids(blocs, pleines)},
+                            cascade=cascade_classeur(2))
+        assert c.lignes[0].blocs_reussis == attendu
+
+    def test_une_couleur_creditee_n_en_declenche_pas_une_autre(self):
+        """**Décision D2**, et c'est le seul test qui la protège.
+
+        « Noir → Rouge » puis « Rouge → Jaune » : avec un enchaînement, le seul
+        Noir emporterait tout le circuit. Les déclencheurs se lisent sur les
+        blocs RÉELLEMENT grimpés, en une seule passe.
+        """
+        blocs = self._six_couleurs()
+        enchainement = Cascade(phrases=(
+            Phrase(parmi=frozenset({"Noir"}), seuil=1, cibles=frozenset({"Rouge"})),
+            Phrase(parmi=frozenset({"Rouge"}), seuil=1, cibles=frozenset({"Jaune"})),
+        ))
+        c = calculer_groupe("U15 F", "categorie", "U11", [p(1)], blocs,
+                            {1: self._ids(blocs, ["Noir"])}, cascade=enchainement)
+        # 1 Noir grimpe + 2 Rouge credites. Les 7 Jaune ne suivent PAS.
+        assert c.lignes[0].blocs_reussis == 3
+        assert c.lignes[0].blocs_credites == 2
+
+    def test_deux_phrases_sur_la_meme_cible_s_additionnent(self):
+        """Il suffit que l'une tienne — c'est une union, pas une intersection."""
+        blocs = self._six_couleurs()
+        deux = Cascade(phrases=(
+            Phrase(parmi=frozenset({"Rouge"}), seuil=1, cibles=frozenset({"Jaune"})),
+            Phrase(parmi=frozenset({"Noir"}), seuil=1, cibles=frozenset({"Jaune"})),
+        ))
+        c = calculer_groupe("U15 F", "categorie", "U11", [p(1)], blocs,
+                            {1: self._ids(blocs, ["Noir"])}, cascade=deux)
+        assert c.lignes[0].blocs_reussis == 8      # 1 Noir + 7 Jaune
+
+    def test_une_phrase_dont_les_declencheurs_sont_absents_ne_tient_jamais(self):
+        """Un circuit n'a pas à porter les six couleurs — aucun de ceux de
+        novembre 2025 n'avait de Noir."""
+        blocs = {1: b(1, couleur="Jaune"), 2: b(2, couleur="Vert")}
+        sur_le_noir = Cascade(phrases=(
+            Phrase(parmi=frozenset({"Noir"}), seuil=1, cibles=frozenset({"Jaune"})),
+        ))
+        c = calculer_groupe("U11 F", "categorie", "U11", [p(1)], blocs,
+                            {1: {2}}, cascade=sur_le_noir)
+        assert c.lignes[0].blocs_reussis == 1
+        assert c.lignes[0].blocs_credites == 0
+
+
+class TestPorteeParCategorie:
+    """La règle est un paramètre du GRIMPEUR, résolu par sa catégorie."""
+
+    def _jeu(self):
+        return {1: b(1, couleur="Jaune"), 2: b(2, couleur="Vert")}
+
+    def _cascade(self, eteintes=()):
+        return Cascade(
+            phrases=(Phrase(parmi=frozenset({"Vert"}), seuil=1,
+                            cibles=frozenset({"Jaune"})),),
+            categories_eteintes=frozenset(eteintes))
+
+    def test_seule_la_categorie_eteinte_perd_la_cascade(self):
+        blocs = self._jeu()
+        membres = [p(1, cat="U11 F"), p(2, cat="U11 H")]
+        c = calculer_groupe("U11", "circuit", "U11", membres, blocs,
+                            {1: {2}, 2: {2}}, cascade=self._cascade(["U11 F"]))
+        par_dossard = {l.dossard: l for l in c.lignes}
+        assert par_dossard[1].blocs_reussis == 1      # eteinte
+        assert par_dossard[2].blocs_reussis == 2      # allumee, le Jaune tombe
+
+    def test_le_scratch_suit_la_regle_de_CHACUN(self):
+        """⚠️ Le scratch mélange les catégories. Chaque grimpeur y garde SA
+        règle — c'est ce que fait `Inter!DJ19`, calculé ligne par ligne."""
+        blocs = self._jeu()
+        membres = [p(1, cat="U11 F"), p(2, cat="U11 H")]
+        c = calculer_scratch("Scratch", membres, blocs, {1: {2}, 2: {2}},
+                             cascade=self._cascade(["U11 F"]))
+        par_dossard = {l.dossard: l for l in c.lignes}
+        assert par_dossard[1].blocs_reussis == 1
+        assert par_dossard[2].blocs_reussis == 2
+
+    def test_une_categorie_inconnue_de_la_liste_est_allumee(self):
+        """Une inscription à chaud crée « U15 F » l'après-midi : elle doit
+        suivre la règle, pas en être exclue en silence."""
+        blocs = self._jeu()
+        c = calculer_groupe("U15 F", "categorie", "U11", [p(1, cat="U15 F")],
+                            blocs, {1: {2}}, cascade=self._cascade(["U11 F"]))
+        assert c.lignes[0].blocs_reussis == 2
+
+
+class TestCouleurTelleQueLeClasseurLEcrit:
+    """⚠️ `sheets/importer.py` ne fait qu'un `strip()` sur la couleur d'un bloc.
+
+    « rouge » et « Rouge » arrivent donc tels quels, et sont deux couleurs pour
+    un dictionnaire. Sans rapprochement, la couleur passe pour PLEINE alors
+    qu'il reste un bloc à faire, et la cascade se déclenche à tort.
+    """
+
+    def test_une_variante_de_casse_ne_rend_pas_la_couleur_pleine(self):
+        blocs = {
+            1: b(1, couleur="Jaune"),
+            2: b(2, couleur="Rouge"),
+            3: b(3, couleur="rouge"),      # le meme mur, la meme couleur
+        }
+        regle = Cascade(phrases=(
+            Phrase(parmi=frozenset({"Rouge"}), seuil=1, cibles=frozenset({"Jaune"})),
+        ))
+        # Le grimpeur n'a fait qu'UN des deux blocs rouges du circuit.
+        c = calculer_groupe("U11 F", "categorie", "U11", [p(1)], blocs,
+                            {1: {2}}, cascade=regle)
+        assert c.lignes[0].blocs_reussis == 1, "le Rouge n'est pas plein"
+
+    def test_la_variante_est_credite_comme_les_autres(self):
+        blocs = {
+            1: b(1, couleur="jaune"),      # minuscule cote mur
+            2: b(2, couleur="Rouge"),
+        }
+        regle = Cascade(phrases=(
+            Phrase(parmi=frozenset({"Rouge"}), seuil=1, cibles=frozenset({"Jaune"})),
+        ))
+        c = calculer_groupe("U11 F", "categorie", "U11", [p(1)], blocs,
+                            {1: {2}}, cascade=regle)
+        assert c.lignes[0].blocs_reussis == 2
+        assert c.lignes[0].blocs_credites == 1
+
+
+class TestClubsEtCascade:
+    def test_le_classement_des_clubs_reporte_les_blocs_credites(self):
+        """Sinon la ligne du club affiche « 36 blocs » sans l'astérisque, alors
+        qu'une partie n'a été grimpée par personne."""
+        blocs = {1: b(1, couleur="Jaune"), 2: b(2, couleur="Vert")}
+        regle = Cascade(phrases=(
+            Phrase(parmi=frozenset({"Vert"}), seuil=1, cibles=frozenset({"Jaune"})),
+        ))
+        membres = [ParticipantCalcul(id=1, dossard=1, categorie="U11 F",
+                                     club="Les Lezards")]
+        par_categorie = {"U11 F": calculer_groupe(
+            "U11 F", "categorie", "U11", membres, blocs, {1: {2}}, cascade=regle)}
+        clubs = calculer_clubs(par_categorie, membres)
+        assert clubs.lignes[0].blocs_reussis == 2
+        assert clubs.lignes[0].blocs_credites == 1
+
