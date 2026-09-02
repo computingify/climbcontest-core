@@ -50,6 +50,9 @@ const COQUILLE = [
   "/static/juge/file.js",
   "/static/juge/idb.js",
   "/static/juge/catalogue.js",
+  // ⚠️ `juge.js` l'IMPORTE : absent de la coquille, l'application ne demarrerait
+  // pas hors ligne. Toute ajout de module doit passer par cette liste.
+  "/static/juge/versions.js",
   "/static/juge/couleurs.js",
   "/static/juge/archivo.ttf",
   "/static/juge/expediteur.js",
@@ -86,6 +89,51 @@ self.addEventListener("activate", (evenement) => {
       .then(() => self.clients.claim()),
   );
 });
+
+/**
+ * « Mettre a jour et redemarrer », demande par l'ecran des reglages (spec 030).
+ *
+ * ⚠️ **On ne vide RIEN avant d'avoir recu.** Un `caches.delete` suivi d'un
+ * telechargement qui echoue laisserait le telephone sans application hors
+ * ligne -- exactement la panne que ce fichier existe pour empecher. Chaque
+ * fichier n'est remplace que quand sa version fraiche est arrivee ; sans
+ * reseau, rien ne bouge et la coquille precedente reste servie.
+ *
+ * `cache: "reload"` court-circuite le cache HTTP du navigateur : sans lui, on
+ * remettrait dans le cache du service worker la meme reponse que celle qu'on
+ * cherche a remplacer.
+ */
+self.addEventListener("message", (evenement) => {
+  const message = evenement.data;
+  if (!message || message.type !== "rafraichir-la-coquille") return;
+  evenement.waitUntil(rafraichirLaCoquille().then((bilan) => {
+    // On repond sur le port fourni par la page : elle attend ce bilan pour
+    // decider si elle recharge. Sans reponse, elle ne recharge pas.
+    if (evenement.ports && evenement.ports[0]) {
+      evenement.ports[0].postMessage(bilan);
+    }
+  }));
+});
+
+async function rafraichirLaCoquille() {
+  const cache = await caches.open(CACHE);
+  let remplaces = 0;
+  let echecs = 0;
+  await Promise.all(COQUILLE.map(async (url) => {
+    try {
+      const reponse = await fetch(url, { cache: "reload" });
+      if (reponse && reponse.ok) {
+        await cache.put(url, reponse.clone());
+        remplaces += 1;
+      } else {
+        echecs += 1;
+      }
+    } catch {
+      echecs += 1;
+    }
+  }));
+  return { remplaces, echecs };
+}
 
 self.addEventListener("fetch", (evenement) => {
   const requete = evenement.request;

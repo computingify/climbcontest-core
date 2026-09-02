@@ -16,6 +16,7 @@ import logging
 from flask import Blueprint, render_template
 
 from ..suivi import plan_public
+from ..version import VERSION
 
 logger = logging.getLogger(__name__)
 bp = Blueprint("pages", __name__)
@@ -34,7 +35,12 @@ def console():
     on doit savoir en un coup d'oeil si on regarde ce que voient les
     spectateurs ou ce qu'on peut modifier.
     """
-    return render_template("admin.html")
+    # La version est posee A LA COMPOSITION de la page, et non demandee ensuite
+    # par un appel : la console est servie a chaque ouverture, jamais mise en
+    # cache. Elle affiche donc toujours la version qui la sert -- ce qui n'est
+    # PAS le cas de la PWA, dont la coquille vit dans un cache et peut avoir un
+    # tour de retard. Les deux ecrans disent la meme chose, chacun a sa maniere.
+    return render_template("admin.html", version=VERSION)
 
 
 @bp.get("/")

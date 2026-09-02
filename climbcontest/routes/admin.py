@@ -24,7 +24,7 @@ from ..comptes import ADMIN, ORGANISATEUR, ErreurCompte, verifier
 from .. import qr
 from .. import classement_service
 from ..extensions import db
-from ..models import SOURCE_MANUEL, Competition, Participant, Utilisateur
+from ..models import Bloc, SOURCE_MANUEL, Competition, Participant, Utilisateur
 from ..contest import (
     ErreurMetier, ajouter_participant, ajouter_participant_numerote, appareils,
     bloc_par_tag, competition_active, enregistrer_reussite,
@@ -39,6 +39,7 @@ from ..models import Archive
 from ..sheets import consentement, parametrage
 from ..sheets.client import ErreurClasseur, ecrire_jeton_json
 from ..sheets.importer import importer, lire_tout
+from .. import version as version_module
 
 logger = logging.getLogger(__name__)
 bp = Blueprint("admin", __name__, url_prefix="/admin")
@@ -1419,6 +1420,53 @@ def lister_appareils():
         return jsonify({"success": False, "message": e.message}), e.code
 
     return jsonify({"success": True, "appareils": appareils(comp)}), 200
+
+
+@bp.get("/versions")
+@exige_role(ORGANISATEUR)
+def lister_versions():
+    """Ce que le serveur sert, et ce que les telephones en ont (spec 030).
+
+    Une seule route pour les deux usages de la console : le pied de tiroir, qui
+    l'affiche sur tous les ecrans, et la carte « Versions en circulation ».
+
+    ⚠️ Les comptes se font par EGALITE STRICTE du numero de catalogue, jamais
+    par comparaison d'ordre. Le numero identifie un couple (edition, etat de
+    son catalogue) : il saute, et il saute pour toutes les editions a la fois
+    quand le plan du mur change. « Plus grand » n'a aucun sens ici.
+    """
+    try:
+        comp = competition_active()
+    except ErreurMetier as e:
+        return jsonify({"success": False, "message": e.message}), e.code
+
+    liste = appareils(comp)
+    return jsonify({
+        "success": True,
+        "serveur": version_module.resume(),
+        "catalogue": {
+            "version": comp.catalogue_version,
+            "participants": Participant.query.filter_by(
+                competition_id=comp.id).filter(
+                    Participant.dossard.isnot(None)).count(),
+            "blocs": Bloc.query.filter_by(competition_id=comp.id).count(),
+        },
+        "appareils": {
+            "vus": len(liste),
+            # `a_jour` compte les telephones dont les DEUX numeros collent. Un
+            # telephone qui ne s'annonce pas n'est ni a jour ni en retard : il
+            # est muet sur la question, et il ne doit gonfler aucun des deux
+            # compteurs.
+            "a_jour": sum(1 for a in liste
+                          if a.get("app_a_jour") and a.get("catalogue_a_jour")),
+            "en_retard": sum(1 for a in liste
+                             if a.get("app_a_jour") is False
+                             or a.get("catalogue_a_jour") is False),
+            "muets": sum(1 for a in liste if a.get("silencieux")),
+            # Le detecteur de cache (spec 030, F8). Zero en marche normale.
+            "annonces_perdues": sum(1 for a in liste if a.get("annonce_perdue")),
+        },
+    }), 200
 
 
 @bp.get("/reussites-tracees")

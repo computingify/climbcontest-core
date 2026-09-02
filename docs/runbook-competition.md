@@ -198,6 +198,20 @@ En dernier recours, si plusieurs téléphones sont concernés et qu'on n'a pas l
 temps de les mettre à jour, on rouvre l'API : c'est le §3 du
 [plan de repli](plan-de-repli.md).
 
+### Savoir qui est en retard, avant que ça ne se voie
+
+Console → **Téléphones** → carte **« Versions en circulation »** (spec 030).
+Elle dit ce que sert le serveur, et le tableau juste en dessous donne, par
+poste, la version d'application et le numéro de catalogue qu'il porte
+réellement. Une pastille ambre et un numéro écrit en toutes lettres = ce
+téléphone ne travaille pas sur les mêmes données que les autres.
+
+C'est le **contrôle du matin** : il fonctionne dès que les juges ouvrent
+l'application, avant la première réussite envoyée. Un téléphone absent du
+tableau n'a jamais parlé au serveur — c'est déjà un renseignement.
+
+Côté juge, le même constat est dans **Réglages**, en bas.
+
 ### Un correctif publié ne semble pas arriver sur les téléphones
 
 **PWA (iPhone).** Elle sert son code depuis son propre cache, pour pouvoir
@@ -207,7 +221,24 @@ toute seule couperait un juge en plein geste.
 
 Concrètement : demande aux juges de **fermer complètement l'application et de la
 rouvrir**. Sur iPhone, glisser vers le haut depuis la barre d'accueil puis
-balayer la carte de l'application.
+balayer la carte de l'application. Depuis la spec 030, il y a plus rapide :
+**Réglages → Application → « Mettre à jour et redémarrer »**, qui n'apparaît
+que si ce téléphone est effectivement en retard. Sans réseau, ce bouton refuse
+et ne détruit rien.
+
+### ⚠️ Ne jamais mettre `/api/v2/catalog` en cache sur le proxy
+
+Cette route enregistre le passage de chaque téléphone (spec 030) : c'est ce qui
+alimente les colonnes de version de la console. Un module de cache activé
+devant elle sur `edge` (LXC 101) — ou un proxy quelconque sur le wifi de la
+salle — absorberait ces requêtes, et la console montrerait des téléphones
+**absents pendant qu'ils grimpent**.
+
+La réponse porte `Cache-Control: no-cache, private` pour l'interdire, et un
+test le verrouille côté application. Ce qui ne peut pas se tester, c'est la
+configuration du proxy : si la carte « Versions en circulation » affiche
+« *N téléphones envoient des réussites mais ne s'annoncent plus* », c'est
+exactement cette panne-là, et c'est du côté de Caddy qu'il faut regarder.
 
 **Android.** Un correctif passe par le Play Store, donc par une mise à jour
 d'application. On ne fait pas ça un jour de compétition — c'est le sens du gel

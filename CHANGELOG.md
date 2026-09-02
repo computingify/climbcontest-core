@@ -19,27 +19,38 @@ qu'on ne met pas à jour le matin d'une compétition :
 
 ## [Non publié]
 
-### Corrigé
-
-- **La fiche du grimpeur ne s'ouvre plus en rejeu d'archive** (spec 026). La
-  spec la mettait hors périmètre — « la route publique ne parle que de la
-  compétition active » — mais la garde n'existait que pour le mode mur. Une
-  ligne d'archive restait cliquable, et `GET /api/public/grimpeur/<id>`
-  répondait avec la compétition **active**.
-
-  Ce n'était pas une fiche vide. `Participant.id` est un rowid SQLite : effacer
-  une édition (spec 018) **libère** ses identifiants, et la suivante les
-  reprend. Mesuré en rejouant la séquence — archiver mars, l'effacer, semer
-  novembre : les nouveaux participants reprennent les id 1 et 2. Toucher la
-  ligne « MARS-Alice » ouvrait la fiche de « NOV-Chloe », une autre personne,
-  réelle et nommée, sous le nom affiché par la ligne. Le curseur, lui,
-  promettait le clic.
-
-  Trouvé en fusionnant les specs de la 0.16.0 et en regardant le résultat, pas
-  en relisant l'une d'elles : le rejeu vient de la 018, la fiche de la 026, et
-  la réutilisation d'identifiants de la 018 encore. Aucune ne le voit seule.
-
 ### Ajouté
+
+- **Les versions se voient, et le catalogue se force** (spec 030). Tout était
+  déjà versionné — le tag git dans un fichier `VERSION` lu par `/health`, le
+  numéro de catalogue qui décide du `304` — et **rien n'était lisible**. Un
+  téléphone en retard était indiscernable d'un téléphone à jour, et le juge
+  n'avait aucun geste à sa portée.
+
+  Sur le téléphone, l'écran **Réglages** gagne deux sections : le **catalogue**
+  (numéro local, verdict, contenu, âge) avec un bouton **« Retélécharger
+  maintenant »**, et l'**application** (version, verdict) avec un bouton
+  **« Mettre à jour et redémarrer »** qui n'apparaît que si la coquille est en
+  retard. La version affichée est celle de la **coquille en cache** — le code
+  qui tourne vraiment, pas celui que le serveur sert : afficher le second
+  dirait « à jour » à un téléphone qui ne l'est pas.
+
+  Dans la console, la version et le numéro de catalogue en **pied de tiroir**,
+  sur tous les écrans ; une carte **« Versions en circulation »** ; et dans le
+  tableau des téléphones **deux colonnes** disant, par poste, quelle version et
+  quel catalogue il porte. Les téléphones qui se sont annoncés **sans rien
+  envoyer** y figurent aussi : c'est le contrôle du matin, avant la première
+  grimpe.
+
+  Le téléphone s'annonce sur la requête de catalogue qu'il fait déjà — trois
+  en-têtes facultatifs, **aucune requête supplémentaire**. Le serveur répond
+  avec `X-Server-Version`, sur le `200` **comme sur le `304`**, qui est le cas
+  majoritaire le jour J.
+
+- **Le module `climbcontest/version.py`.** Le tag git était lu par une fonction
+  privée de `routes/sante.py` : trois appelants en avaient besoin, aucun ne
+  pouvait l'atteindre sans importer une route.
+
 
 - **Les coutures entre les specs 025, 026 et 028/029 sont tenues par des
   tests** (`tests/test_coherence_console_ecran.py`). Elles ont été écrites en
@@ -59,6 +70,48 @@ qu'on ne met pas à jour le matin d'une compétition :
   relu à chaque accès parce que le premier rendu est un `about:blank` déjà
   « complete », et `make_server` + `shutdown()` au lieu d'un `app.run` qui
   survit au test en gardant son port.
+
+### Corrigé
+
+- **La ligne « refusées » se cache enfin dans les réglages de l'app juge.**
+  `hidden` ne cache que par la feuille de style de l'agent utilisateur, et
+  `.ligne { display: flex }` est une règle d'**auteur** : elle l'emportait. La
+  ligne « 0 refusées » et son bouton « Renvoyer » restaient donc affichés en
+  permanence, alors que le code les cachait bel et bien. Le fichier traitait
+  déjà le cas pour `#message`, `#viseur`, `#bandeFile` et `.pastille` — seule
+  `.ligne` manquait à l'appel. Défaut antérieur à la spec 030, trouvé en
+  vérifiant les nouveaux écrans au navigateur.
+
+- **La fiche du grimpeur ne s'ouvre plus en rejeu d'archive** (spec 026). La
+  spec la mettait hors périmètre — « la route publique ne parle que de la
+  compétition active » — mais la garde n'existait que pour le mode mur. Une
+  ligne d'archive restait cliquable, et `GET /api/public/grimpeur/<id>`
+  répondait avec la compétition **active**.
+
+  Ce n'était pas une fiche vide. `Participant.id` est un rowid SQLite : effacer
+  une édition (spec 018) **libère** ses identifiants, et la suivante les
+  reprend. Mesuré en rejouant la séquence — archiver mars, l'effacer, semer
+  novembre : les nouveaux participants reprennent les id 1 et 2. Toucher la
+  ligne « MARS-Alice » ouvrait la fiche de « NOV-Chloe », une autre personne,
+  réelle et nommée, sous le nom affiché par la ligne. Le curseur, lui,
+  promettait le clic.
+
+  Trouvé en fusionnant les specs de la 0.16.0 et en regardant le résultat, pas
+  en relisant l'une d'elles : le rejeu vient de la 018, la fiche de la 026, et
+  la réutilisation d'identifiants de la 018 encore. Aucune ne le voit seule.
+
+### Sécurité
+
+- **`/api/v2/catalog` ne peut plus être mise en cache par un intermédiaire.**
+  La route enregistre désormais une annonce à chaque appel : c'est un `GET`
+  avec effet de bord, et ça n'est tenable que parce que la requête atteint
+  réellement l'application. La réponse porte donc **`Cache-Control: no-cache,
+  private`** sur les deux branches, un test le verrouille, la version des
+  téléphones est **aussi** enregistrée depuis la route des lots — un `POST`,
+  qu'aucun cache n'absorbe — et la console **signale en toutes lettres** un
+  téléphone qui envoie des réussites sans plus s'annoncer, la signature exacte
+  d'un cache posé devant cette route. Cette dernière mesure est la seule qui
+  attrape une faute commise **hors du dépôt**, dans la configuration du proxy.
 
 ## [0.16.0] — 2026-09-02
 
