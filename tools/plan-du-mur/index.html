@@ -365,6 +365,7 @@ textarea { font-family: "IBM Plex Mono", ui-monospace, monospace; font-size: 11.
     <div class="bloc">
       <h2>Raccourcis</h2>
       <p class="raccourcis">
+        <kbd>N</kbd> passe au mur suivant<br>
         <kbd>Suppr</kbd> supprime la sélection<br>
         <kbd>D</kbd> duplique · <kbd>R</kbd> pivote de 90°<br>
         <kbd>M</kbd> effet miroir<br>
@@ -378,7 +379,9 @@ textarea { font-family: "IBM Plex Mono", ui-monospace, monospace; font-size: 11.
   <!-- --------------------------------------------------------------- PLANCHE -->
   <main class="planche">
     <div class="feuille">
-      <svg id="board" xmlns="http://www.w3.org/2000/svg"></svg>
+      <svg id="board" xmlns="http://www.w3.org/2000/svg" tabindex="0"
+           role="application"
+           aria-label="Planche de dessin du plan de la salle. Utilise N pour passer d'un mur au suivant."></svg>
       <div class="vide-planche" id="vide" hidden>
         <b>La feuille est blanche.</b>
         Pose un premier mur avec les boutons à gauche,<br>puis tire ses points
@@ -474,6 +477,14 @@ const PROFILS = [
 ];
 const PAR_CLE = Object.fromEntries(PROFILS.map(p => [p.cle, p]));
 
+/* ⚠️ Tout ce qui vient de l'utilisateur passe par ici avant d'entrer dans un
+   `innerHTML`. Le texte des reperes etait nettoye, la lettre de zone NON --
+   ni en contenu, ni en attribut -- alors qu'elle suit le meme chemin et qu'un
+   plan se RECOLLE depuis le presse-papier. */
+const propre = (s) => String(s == null ? "" : s).replace(
+  /[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;",
+                        '"': "&quot;", "'": "&#39;" }[c]));
+
 const ENCRE = "#1C1B19", ENCRE_DOUX = "#6B655C", PLEIN = "#17150F";
 const CLE_STOCKAGE = "annonay-plan-mur-v2";
 
@@ -503,6 +514,7 @@ let trace = null;              // { cible: "mur" | "contour", points: [] }
 let profilCourant = "vertical";
 let simulees = new Set();
 let pile = [], pilePos = -1, glisse = null, curseur = null;
+let memoireRefusee = false;
 
 const $ = s => document.querySelector(s);
 const board = $("#board");
@@ -665,7 +677,7 @@ function lettre(x, y, texte, taille, sienne, pal) {
                 font-size="${taille}" fill="${sienne ? pal.lettreSienne : pal.lettre}"
                 stroke="${sienne ? pal.haloSienne : pal.halo}"
                 stroke-width="${taille * 0.24}" paint-order="stroke fill"
-                style="pointer-events:none">${texte}</text>`;
+                style="pointer-events:none">${propre(texte)}</text>`;
 }
 
 function corpsDuPlan({ marquees, pourEcran, pal }) {
@@ -697,7 +709,7 @@ function corpsDuPlan({ marquees, pourEcran, pal }) {
               ${eteinte ? `opacity="${pal.efface}"` : ""}
               ${vif ? `filter="url(#lueur${pal.suffixe})"` : ""}
               ${pourEcran ? `data-quoi="forme" data-id="${m.id}" class="mur-forme"` : ""}
-              ${pourEcran ? "" : `data-zone="${m.zone}" data-profil="${m.profil}"`}/>`);
+              ${pourEcran ? "" : `data-zone="${propre(m.zone)}" data-profil="${propre(m.profil)}"`}/>`);
     /* Sur le papier, l'aplat noir a mangé la trame : on la repose en clair. */
     if (sienne && !parEmphase && pr.trame) {
       p.push(`<polygon points="${contour}" fill="url(#tr-${pr.cle}${pal.suffixe}-sur)"
@@ -714,7 +726,7 @@ function corpsDuPlan({ marquees, pourEcran, pal }) {
               font-family="'IBM Plex Sans', sans-serif" font-style="italic" font-size="6"
               fill="${pal.repere}" stroke="${pal.haloRepere}" stroke-width="1.6" paint-order="stroke fill"
               ${pourEcran ? `data-quoi="repere" data-id="${r.id}" class="mur-forme"` : ""}
-              >${r.texte.replace(/[<&]/g, "")}</text>`);
+              >${propre(r.texte)}</text>`);
   }
   return p.join("");
 }
@@ -772,6 +784,9 @@ function dessiner() {
   }
   board.innerHTML = morceaux.join("");
   $("#vide").hidden = etat.murs.length > 0 || !!trace || !!etat.contour;
+  // M14 : la note de demonstration restait affichee apres « Tout effacer »
+  // ou un recollage, sans aucune zone simulee derriere elle.
+  $("#apercu-hors").hidden = simulees.size === 0;
   apercu();
   inspecteur();
 }
@@ -814,16 +829,23 @@ board.addEventListener("pointerdown", evt => {
 
   memoriser();
   board.setPointerCapture(evt.pointerId);
+  /* ⚠️ L'etat AVANT le geste. `glisse` est pose des le `pointerdown`, qu'on
+     bouge ou non : sans cette comparaison, un simple clic de selection
+     appelait `commettre()`, qui tronque la pile -- poser A, poser B, Ctrl+Z,
+     puis cliquer sur A pour le regarder faisait perdre B DEFINITIVEMENT. */
+  var avantLeGeste = JSON.stringify(objet);
 
   if (quoi === "sommet") {
     selection = { id }; sommetVif = +cible.dataset.i;
-    glisse = { quoi: "sommet", objet, i: sommetVif };
+    glisse = { quoi: "sommet", objet, i: sommetVif, avant: avantLeGeste };
   } else if (quoi === "etiquette") {
     selection = { id }; sommetVif = null;
-    glisse = { quoi: "etiquette", objet, depart: p, origine: objet.etiquette || centre(objet.points) };
+    glisse = { quoi: "etiquette", objet, depart: p, avant: avantLeGeste,
+                origine: objet.etiquette || centre(objet.points) };
   } else if (quoi === "repere") {
     selection = { id }; sommetVif = null;
-    glisse = { quoi: "repere", objet, depart: p, origine: objet.point.slice() };
+    glisse = { quoi: "repere", objet, depart: p, avant: avantLeGeste,
+                origine: objet.point.slice() };
   } else {
     /* Alt+clic sur une arête : un point de plus, là où on a cliqué. */
     if (evt.altKey && objet.points) {
@@ -839,7 +861,8 @@ board.addEventListener("pointerdown", evt => {
       return commettre();
     }
     selection = { id }; sommetVif = null;
-    glisse = { quoi: "forme", objet, depart: p, origine: objet.points.map(q => q.slice()) };
+    glisse = { quoi: "forme", objet, depart: p, avant: avantLeGeste,
+                origine: objet.points.map(q => q.slice()) };
   }
   dessiner();
 });
@@ -863,10 +886,18 @@ board.addEventListener("pointermove", evt => {
   dessiner();
 });
 
-board.addEventListener("pointerup", evt => {
-  if (glisse) { glisse = null; commettre(); }
-  if (board.hasPointerCapture(evt.pointerId)) board.releasePointerCapture(evt.pointerId);
-});
+function finDuGeste(evt) {
+  if (glisse) {
+    const change = JSON.stringify(glisse.objet) !== glisse.avant;
+    glisse = null;
+    if (change) commettre(); else dessiner();
+  }
+  if (evt && board.hasPointerCapture(evt.pointerId)) board.releasePointerCapture(evt.pointerId);
+}
+board.addEventListener("pointerup", finDuGeste);
+/* M16 : sur tablette, un geste interrompu -- appel entrant, seconde touche --
+   laissait `glisse` pose et la forme suivait le pointeur au mouvement suivant. */
+board.addEventListener("pointercancel", finDuGeste);
 board.addEventListener("dblclick", () => { if (trace) clore(); });
 
 function clore() {
@@ -955,7 +986,17 @@ function commettre(sansPile) {
     pilePos = pile.length - 1;
   }
   boutonsPile();
-  try { localStorage.setItem(CLE_STOCKAGE, JSON.stringify(etat)); } catch (_) {}
+  /* ⚠️ M9 : l'echec etait avale. En navigation privee ou au quota plein, le
+     dessin SEMBLAIT enregistre et disparaissait au rechargement. */
+  try {
+    localStorage.setItem(CLE_STOCKAGE, JSON.stringify(etat));
+    memoireRefusee = false;
+  } catch (_) {
+    if (!memoireRefusee) {
+      memoireRefusee = true;
+      dire("Le navigateur refuse d'enregistrer : copie ton plan avant de fermer.", false);
+    }
+  }
   $("#sortie").value = exporter();
   const zones = etat.murs.filter(m => m.zone).length;
   const orphelins = etat.murs.length - zones;
@@ -1003,10 +1044,26 @@ function versJson(txt) {
     if (c === "#") { while (i < txt.length && txt[i] !== "\n") i++; continue; }
     if (c === "(") { out += "["; continue; }
     if (c === ")") { out += "]"; continue; }
+    // Les mots-cles Python, hors chaine seulement.
+    const mot = /^(None|True|False)\b/.exec(txt.slice(i));
+    if (mot) {
+      out += { None: "null", True: "true", False: "false" }[mot[1]];
+      i += mot[1].length - 1;
+      continue;
+    }
+    // Une virgule suivie d'une fermeture est une virgule finale Python.
+    // ⚠️ On regarde l'ENTREE, ou la parenthese n'est pas encore devenue
+    // crochet : `[)\]}]` et non `[\]}]`. L'oubli laissait toutes les virgules
+    // finales des tuples et rendait la lecture impossible.
+    if (c === "," && /^,\s*[)\]}]/.test(txt.slice(i, i + 40))) continue;
     out += c;
   }
-  return out.replace(/\bNone\b/g, "null").replace(/\bTrue\b/g, "true")
-            .replace(/\bFalse\b/g, "false").replace(/,(\s*[\]}])/g, "$1");
+  /* ⚠️ M10 : ces remplacements etaient faits sur TOUTE la sortie, y compris a
+     l'interieur des chaines -- ce que le scanner ci-dessus prend justement
+     soin d'eviter. Un repere nomme « None » devenait `null`, un repere
+     « Bas, ] » perdait sa virgule. On les applique donc dans le scanner
+     lui-meme, uniquement hors chaine. */
+  return out;
 }
 
 function relire(txt) {
@@ -1071,9 +1128,20 @@ $("#btn-contour").addEventListener("click", () => {
   trace = { cible: "contour", points: [] }; selection = null; dessiner();
 });
 
-$("#vue-l").addEventListener("change", e => { etat.vue.l = Math.max(40, +e.target.value || 120); commettre(); });
-$("#vue-h").addEventListener("change", e => { etat.vue.h = Math.max(40, +e.target.value || 150); commettre(); });
-$("#magnetisme").addEventListener("change", e => { etat.magnetisme = e.target.checked; });
+// M17 : `max="400"` n'etait pas revalide ici. Saisir 99999 donnait une
+// echelle de 0,007 et des poignees de 700 unites recouvrant la planche.
+const borne = (v, defaut) => Math.min(400, Math.max(40, +v || defaut));
+$("#vue-l").addEventListener("change", e => {
+  etat.vue.l = borne(e.target.value, 120); e.target.value = etat.vue.l; commettre();
+});
+$("#vue-h").addEventListener("change", e => {
+  etat.vue.h = borne(e.target.value, 150); e.target.value = etat.vue.h; commettre();
+});
+$("#magnetisme").addEventListener("change", e => {
+  // M13 : il se perdait au rechargement, contrairement aux dimensions
+  // de la feuille juste au-dessus.
+  etat.magnetisme = e.target.checked; commettre();
+});
 
 /* Une salle en L, avec des proues triangulaires et un ilot : de quoi voir OU
    on va, plutot que de partir des cases de la grille. Ce n'est pas Annonay --
@@ -1094,15 +1162,29 @@ $("#btn-vider").addEventListener("click", () => {
   etat = neuf(); selection = null; simulees = new Set(); commettre();
 });
 
+/* ⚠️ M15 : `commettre()` a chaque frappe empilait un etat d'annulation, ecrivait
+   dans le `localStorage` et redessinait les quatre SVG PAR CARACTERE. Taper
+   « Z12 » coutait trois Ctrl+Z pour revenir en arriere. On redessine tout de
+   suite -- le retour visuel doit etre immediat -- mais on n'empile qu'a
+   l'arret de la frappe. */
+let frappe = null;
+function commettreApresLaFrappe() {
+  clearTimeout(frappe);
+  frappe = setTimeout(() => { frappe = null; commettre(); }, 450);
+}
 $("#insp-zone").addEventListener("input", e => {
   const c = courant(); if (!c || c.genre !== "mur") return;
-  c.objet.zone = e.target.value.toUpperCase().trim();
-  e.target.value = c.objet.zone; commettre();
+  const propre = e.target.value.toUpperCase().trim();
+  // Ne reassigner que si ca change : sinon le curseur saute en fin de champ.
+  if (e.target.value !== propre) e.target.value = propre;
+  c.objet.zone = propre;
+  dessiner(); commettreApresLaFrappe();
 });
 $("#insp-profil").addEventListener("change", e => choisirProfil(e.target.value));
 $("#insp-texte").addEventListener("input", e => {
   const c = courant(); if (!c || c.genre !== "repere") return;
-  c.objet.texte = e.target.value; commettre();
+  c.objet.texte = e.target.value;
+  dessiner(); commettreApresLaFrappe();
 });
 
 $("#btn-pivoter").addEventListener("click", () => transformer(pivoter));
@@ -1149,7 +1231,6 @@ $("#btn-simuler").addEventListener("click", () => {
   simulees = new Set();
   for (let i = zones.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [zones[i], zones[j]] = [zones[j], zones[i]]; }
   zones.slice(0, Math.min(3, zones.length)).forEach(z => simulees.add(z));
-  $("#apercu-hors").hidden = false;
   apercu();
 });
 
@@ -1180,6 +1261,20 @@ addEventListener("keydown", e => {
   if (e.key === "Escape") { trace = null; curseur = null; selection = null; sommetVif = null; return dessiner(); }
   if (e.key === "Enter" && trace) { e.preventDefault(); return clore(); }
 
+  /* ⚠️ M12 : sans ca, AUCUNE forme ne pouvait etre atteinte au clavier, et les
+     raccourcis annonces dans le rail -- Suppr, D, R, M, fleches -- restaient
+     inoperants tant qu'on n'avait pas clique a la souris. */
+  if (e.key.toLowerCase() === "n") {
+    e.preventDefault();
+    const tout = [...etat.murs, ...etat.reperes];
+    if (!tout.length) return;
+    const i = tout.findIndex(o => selection && o.id === selection.id);
+    const pas = e.shiftKey ? -1 : 1;
+    const suivant = tout[(i + pas + tout.length + 1) % tout.length] || tout[0];
+    selection = { id: suivant.id }; sommetVif = null;
+    return dessiner();
+  }
+
   const c = courant(); if (!c) return;
   if (e.key === "Delete" || e.key === "Backspace") {
     e.preventDefault();
@@ -1206,10 +1301,19 @@ addEventListener("keydown", e => {
 });
 
 /* ------------------------------------------------------------------ Départ */
+/* ⚠️ M8 : seul `murs` etait verifie. Un `localStorage` contenant `{"murs":[]}`
+   faisait planter le script des `etat.reperes.forEach` : la planche ne se
+   dessinait jamais, le champ de sortie restait vide, et le seul recours etait
+   de deviner qu'il fallait cliquer « Tout effacer ». */
+function valide(e) {
+  return !!e && Array.isArray(e.murs) && Array.isArray(e.reperes)
+      && e.vue && Number.isFinite(+e.vue.l) && Number.isFinite(+e.vue.h)
+      && +e.vue.l > 0 && +e.vue.h > 0;
+}
 try {
   const garde = localStorage.getItem(CLE_STOCKAGE);
   etat = garde ? JSON.parse(garde) : neuf();
-  if (!etat || !Array.isArray(etat.murs)) etat = neuf();
+  if (!valide(etat)) etat = neuf();
 } catch (_) { etat = neuf(); }
 etat.murs.forEach(m => { if (!m.id) m.id = crypto.randomUUID(); });
 etat.reperes.forEach(r => { if (!r.id) r.id = crypto.randomUUID(); });

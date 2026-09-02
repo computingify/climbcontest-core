@@ -235,10 +235,17 @@ class TestFaitePourEtreProjetee:
     def test_les_ex_aequo_partagent_leur_marche(self, client, jeu):
         """Ils sont à égalité : ils doivent être au même niveau, sur le même
         socle et avec la même médaille (Adrien, 31/08). Une marche porte donc un
-        GROUPE de cartes, pas une carte."""
+        GROUPE de cartes, pas une carte.
+
+        ⚠️ Le COMPORTEMENT est testé dans `tests/js/podium.test.mjs`, qui
+        exécute réellement la fonction. Ici on ne vérifie que le câblage : la
+        page charge bien le module, et le style de la marche existe. Ce test
+        se contentait d'asserter la présence de bouts de code source dans le
+        HTML — il passait quelle que soit la logique.
+        """
         page = client.get("/").data.decode()
-        assert "function noeudGroupe(" in page
-        assert "derniere.rang === l.rang" in page
+        assert "/static/resultats/podium.js" in page
+        assert "marchesDuPodium" in page
         assert ".groupe .cartes" in page
 
     def test_le_tableau_reprend_le_podium(self, client, jeu):
@@ -715,12 +722,23 @@ class TestPodiumExAequo:
             assert f".groupe.{palier} .pod" in page
 
     def test_les_paliers_couvrent_ce_que_le_podium_accepte(self, client, jeu):
-        """`peindre()` supprime le podium au-delà de six cartes : les paliers
-        doivent donc aller jusqu'à six, et pas plus loin."""
+        """Le podium disparaît au-delà de six cartes : les paliers de style
+        doivent aller jusqu'à six, et pas plus loin.
+
+        ⚠️ Ce test vérifie l'ACCORD ENTRE DEUX FICHIERS — la constante du
+        module JavaScript et les paliers de la feuille de style. C'est le seul
+        endroit où cet accord peut se rompre sans que rien ne casse : un
+        septième ex æquo tomberait alors sur une marche sans style.
+        """
+        import re
+        from pathlib import Path
+
+        module = Path("climbcontest/static/resultats/podium.js").read_text(encoding="utf-8")
+        maxi = int(re.search(r"MAXI_SUR_LE_PODIUM = (\d+)", module).group(1))
+
         page = client.get("/").data.decode()
-        assert "surLePodium.length > 6" in page
-        assert ".groupe.c6 .pod" in page
-        assert ".groupe.c7" not in page
+        assert f".groupe.c{maxi} .pod" in page, "le dernier palier manque"
+        assert f".groupe.c{maxi + 1}" not in page, "un palier de trop"
 
 
 class TestLeTableauEtSesTitresSontAlignes:

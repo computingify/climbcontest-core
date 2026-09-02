@@ -58,6 +58,10 @@ const COQUILLE = [
   "/static/juge/historique.js",
   "/static/juge/identite.js",
   "/static/juge/icone-192.png",
+  // ⚠️ `icone-512.png` n'y est PAS, volontairement : le manifeste ne la lit
+  // qu'a l'installation, en ligne. La mettre dans la coquille ferait
+  // telecharger 100 ko a chaque changement de version pour une image que
+  // l'application n'affiche jamais.
 ];
 
 self.addEventListener("install", (evenement) => {

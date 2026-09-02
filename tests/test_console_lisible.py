@@ -273,3 +273,58 @@ class TestClairEtSombre:
         deux themes, et un trait le detoure pour qu'il ne se fonde pas dans une
         surface claire."""
         assert ".qr-cadre { background: #fff;" in page
+
+
+class TestLOrdreDesClassementsVientDuServeur:
+    """⚠️ La console réimplémentait cette règle métier en JavaScript, alors que
+    `classement_service.ordre` l'appliquait déjà à la page publique.
+
+    Deux versions d'une même règle, dans deux langages, divergent toujours —
+    et elles divergeaient déjà : sur un circuit absent (`""` côté serveur,
+    `g.nom` côté JS) et sur la comparaison des chaînes (point de code contre
+    `localeCompare`). Ce test verrouille l'ordre à sa source.
+    """
+
+    def test_la_regle_est_celle_de_la_page_publique(self):
+        """Scratchs généraux, puis chaque circuit suivi de ses catégories, puis
+        les clubs — sans jamais séparer un circuit de sa famille."""
+        from types import SimpleNamespace
+
+        from climbcontest import classement_service
+
+        def c(type_, groupe, circuit=None):
+            return SimpleNamespace(type=type_, groupe=groupe, circuit=circuit)
+
+        melange = [
+            c("club", "Les Lezards"),
+            c("categorie", "U13 H", "U13"),
+            c("scratch", "General F"),
+            c("circuit", "U11", "U11"),
+            c("categorie", "U11 F", "U11"),
+            c("circuit", "U13", "U13"),
+            c("scratch", "General H"),
+            c("categorie", "U13 F", "U13"),
+            c("categorie", "U11 H", "U11"),
+        ]
+        ordonne = [x.groupe for x in sorted(melange, key=classement_service.ordre)]
+        assert ordonne == [
+            "General F", "General H",
+            "U11", "U11 F", "U11 H",
+            "U13", "U13 F", "U13 H",
+            "Les Lezards",
+        ]
+
+    def test_un_circuit_absent_ne_fait_pas_tomber_le_tri(self):
+        """Un classement sans circuit -- donnee incomplete, ou scratch general
+        mal type -- doit se ranger sans lever."""
+        from types import SimpleNamespace
+
+        from climbcontest import classement_service
+
+        sans = SimpleNamespace(type="categorie", groupe="U15 F", circuit=None)
+        avec = SimpleNamespace(type="circuit", groupe="U11", circuit="U11")
+        assert sorted([avec, sans], key=classement_service.ordre)[0] is sans
+
+    def test_la_console_ne_reordonne_plus_rien(self, page):
+        """Le JavaScript ne doit plus porter de copie de la regle."""
+        assert "function ordonner(" not in page

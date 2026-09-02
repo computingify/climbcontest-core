@@ -66,7 +66,14 @@
      pratique une fiche se retrouvait a cheval sur deux feuilles. Le decoupage
      est desormais fait en Python (`fiches.en_feuilles`), le CSS ne fait que
      poser six fiches sur une page. */
-  .feuille { display: grid; grid-template-columns: repeat(2, var(--fiche-largeur));
+  /* ⚠️ La feuille BORNE sa hauteur. 3 x 66 = 198 mm, exactement la surface
+     utile d'un A4 paysage : a zero marge, un pixel d'arrondi suffisait a
+     repousser la derniere rangee sur une page a part -- et le
+     `break-before: page` de la feuille suivante l'envoyait encore plus loin.
+     Vingt feuilles devenaient quarante pages. Borner rend le decoupage aussi
+     deterministe que celui de la fiche. */
+  .feuille { height: 198mm; overflow: hidden;
+             display: grid; grid-template-columns: repeat(2, var(--fiche-largeur));
              align-content: start; }
   .feuille + .feuille { break-before: page; page-break-before: always; }
   .fiche {

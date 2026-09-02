@@ -202,7 +202,7 @@
     border: 2px dashed var(--trait); border-radius: 14px;
     color: var(--encre3); font-size: 1.4rem; font-weight: 700;
   }
-  #podium .groupe.attente .medaille { opacity: .38; }
+  #podium .groupe.attente .socle { opacity: .38; }
 
   #podium { flex: none; display: none; gap: 20px; align-items: end;
             height: clamp(150px, 23vh, 250px); }
@@ -617,7 +617,13 @@
   <div id="message"></div>
 </main>
 
-<script>
+<script type="module">
+// ⚠️ Module, et non script classique : la logique du podium vit dans un
+// fichier a part pour etre testable (`tests/js/podium.test.mjs`). Aucune
+// consequence sur la page -- elle ne porte aucun gestionnaire en ligne,
+// et le script suit deja tout le balisage.
+import { selectionDuPodium, marchesDuPodium }
+  from "/static/resultats/podium.js";
 (function () {
   "use strict";
 
@@ -1362,17 +1368,12 @@
     // Le podium prend TOUS ceux qui sont dans les trois premiers rangs, ex æquo
     // compris : ils sont à égalité, ils doivent être au même niveau. Au-delà de
     // six cartes, la marche devient illisible et tout repasse au tableau.
-    // Un grimpeur n'est sur le podium que s'il a MARQUE. Sans ce filtre, une
-    // catégorie qui n'a pas commencé met tout le monde au rang 1 et le podium
-    // couronne dix-sept personnes à zéro point.
-    var surLePodium = lignes.filter(function (l) {
-      return l.rang <= 3 && l.score > 0;
-    });
-    // Au-delà de six cartes la marche devient illisible : on retombe sur des
-    // marches vides plutôt que sur un mur de noms.
-    if (surLePodium.length > 6) surLePodium = [];
-
-    var tete = podium ? surLePodium : [];
+    // Qui monte, et le podium s'affiche-t-il : voir `podium.js`, ou les deux
+    // regles delicates -- le filtre « a marque » et le masquage au-dela de six
+    // ex aequo -- sont commentees et testees.
+    var choix = selectionDuPodium(lignes, podium);
+    podium = choix.podium;
+    var tete = choix.tete;
     // Le tableau reprend TOUT LE MONDE, podium compris (Adrien, 01/09). Il
     // commençait au rang 4, et il fallait remonter les yeux à l'autre bout de
     // l'écran pour savoir ce qu'avait fait le premier — quand la marche le
@@ -1384,25 +1385,9 @@
     // Une marche par RANG : le premier au centre et plus haut, le deuxième à
     // gauche, le troisième à droite et plus bas. Les ex æquo partagent leur
     // marche — même hauteur, même médaille.
-    var marches = [];
-    tete.forEach(function (l) {
-      var derniere = marches[marches.length - 1];
-      if (derniere && derniere.rang === l.rang) derniere.lignes.push(l);
-      else marches.push({ rang: l.rang, lignes: [l] });
-    });
-
-    // ⚠️ TROIS MARCHES, toujours, tant que le podium est affiché. Celles qui
-    // n'ont pas encore de gagnant restent vides : c'est un podium en attente,
-    // pas un podium absent. Les rangs manquants sont comblés dans l'ordre --
-    // une catégorie de deux grimpeurs montre 1, 2, et une troisième vide.
-    if (podium) {
-      var rangsTenus = {};
-      marches.forEach(function (m) { rangsTenus[m.rang] = true; });
-      [1, 2, 3].forEach(function (rang) {
-        if (!rangsTenus[rang]) marches.push({ rang: rang, lignes: [], vide: true });
-      });
-      marches.sort(function (a, b) { return a.rang - b.rang; });
-    }
+    // Une marche par RANG, trois toujours : voir `podium.js`. Un rang absent
+    // n'est pas forcement libre -- les ex aequo en sautent.
+    var marches = marchesDuPodium(tete, podium);
 
     marches.forEach(function (m, i) {
       var g = etat.groupes[i] || (etat.groupes[i] = noeudGroupe());

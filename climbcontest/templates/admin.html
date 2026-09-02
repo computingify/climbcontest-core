@@ -33,6 +33,7 @@
      ce qui permet aux deux jeux de coexister sans qu'une regle ait a savoir
      lequel est actif. */
   :root {
+  --anneau: 37.7;   /* 2 x PI x 6, le rayon du cercle de #dlgPart */
     /* `light dark` : sans ca, les cases a cocher, les <dialog> et les barres de
        defilement NATIVES resteraient claires sur un fond sombre. */
     color-scheme: light dark;
@@ -491,8 +492,11 @@
   .anneau .fond { stroke: color-mix(in srgb, var(--sur-alerte) 40%, transparent); }
   .anneau .part {
     stroke: var(--sur-alerte); stroke-linecap: round;
-    stroke-dasharray: 37.7;                 /* 2 x PI x 6 */
-    stroke-dashoffset: 37.7;
+    /* Le perimetre du cercle de rayon 6, ecrit UNE SEULE FOIS : la feuille de
+       style et le script le lisaient chacun de leur cote, et changer le rayon
+       du markup en laissait deux sur trois a jour. */
+    stroke-dasharray: var(--anneau);
+    stroke-dashoffset: var(--anneau);
     transition-property: stroke-dashoffset; transition-timing-function: linear;
   }
   dialog button.detruire { display: inline-flex; align-items: center; gap: 8px; }
@@ -500,8 +504,15 @@
   @media (prefers-reduced-motion: reduce) {
     /* Ni jauge qui glisse ni anneau qui tourne. Le delai, lui, NE CHANGE PAS :
        c'est une garde, pas une decoration -- et le libelle DECOMPTE pendant ce
-       temps-la, ce qui suffit a dire ce qui se passe. */
-    dialog button.detruire .remplissage, .anneau .part { transition: none; }
+       temps-la, ce qui suffit a dire ce qui se passe.
+
+       ⚠️ On les MASQUE, on ne se contente pas de couper la transition. Couper
+       la transition laissait la jauge VISIBLE et la faisait sauter a 100 %
+       des l'appui : l'operateur lisait « c'est fait », relachait au bout de
+       trois dixiemes de seconde, et rien n'etait efface -- sans aucun
+       message. Un repere de progression qui ment est pire qu'absent. */
+    dialog button.detruire .remplissage { display: none; }
+    dialog button.detruire .anneau { visibility: hidden; }
   }
   .coche { display: flex; gap: 9px; align-items: flex-start; margin: 14px 0;
            font-size: 0.9rem; color: var(--encre2); }
@@ -2168,7 +2179,11 @@
       jauge.style.transitionDuration = duree;
       jauge.style.width = part ? "100%" : "0";
       anneau.style.transitionDuration = duree;
-      anneau.style.strokeDashoffset = part ? "0" : "37.7";
+      // Le perimetre vient de la feuille de style : un seul endroit ou il
+      // depend du rayon du cercle.
+      var perimetre = getComputedStyle(document.documentElement)
+                        .getPropertyValue("--anneau").trim() || "37.7";
+      anneau.style.strokeDashoffset = part ? "0" : perimetre;
     }
 
     function demarrer(e) {
@@ -2284,39 +2299,20 @@
    *  se confond avec la categorie « U11 F » juste en dessous. La page de
    *  resultats dit deja « U11 scratch » -- la console dit la meme chose. */
   function libelleGroupe(g) {
-    if (g.type === "circuit") return g.nom + " Scratch";
+    // Meme libelle que la page publique (`resultats.html:904`), minuscule
+    // comprise : deux mots differents pour la meme chose se paient en
+    // hesitation le jour J.
+    if (g.type === "circuit") return g.nom + " scratch";
     if (g.type === "club") return "Clubs";
     return g.nom;
   }
 
-  /** L'ordre de la liste : les scratchs generaux, puis CHAQUE CIRCUIT suivi de
-   *  ses categories, puis les clubs.
-   *
-   *  Le tri du serveur est alphabetique par (type, nom) : il separait le
-   *  scratch « U11 » de ses categories « U11 F » et « U11 H », alors qu'on les
-   *  regarde ensemble -- on decide d'afficher ou non une tranche d'age, pas un
-   *  type de classement. Demande d'Adrien du 02/09.
-   */
-  function ordonner(groupes) {
-    var generaux = groupes.filter(function (g) { return g.type === "scratch"; })
-                          .sort(function (a, b) { return a.nom.localeCompare(b.nom); });
-    var clubs = groupes.filter(function (g) { return g.type === "club"; });
-    var parCircuit = {};
-    groupes.forEach(function (g) {
-      if (g.type !== "circuit" && g.type !== "categorie") return;
-      var c = g.circuit || g.nom;
-      (parCircuit[c] = parCircuit[c] || []).push(g);
-    });
-    var suite = [];
-    Object.keys(parCircuit).sort().forEach(function (c) {
-      parCircuit[c].sort(function (a, b) {
-        // Le circuit d'abord, ses categories ensuite, dans l'ordre du nom.
-        if (a.type !== b.type) return a.type === "circuit" ? -1 : 1;
-        return a.nom.localeCompare(b.nom);
-      }).forEach(function (g) { suite.push(g); });
-    });
-    return generaux.concat(suite, clubs);
-  }
+  /* ⚠️ Plus d'`ordonner()` ici. L'ordre -- les scratchs generaux, puis CHAQUE
+     CIRCUIT suivi de ses categories, puis les clubs -- est calcule par le
+     SERVEUR (`classement_service.ordre`), qui l'applique deja a la page
+     publique. Le refaire en JavaScript donnait deux versions de la meme regle
+     metier dans deux langages, et elles divergeaient deja : sur le circuit
+     absent, et sur la comparaison des chaines. */
 
   function peindreReglagesCompetition(d) {
     etat.competitionReglages = d;
@@ -2336,7 +2332,7 @@
       return;
     }
 
-    ordonner(d.groupes).forEach(function (g) {
+    d.groupes.forEach(function (g) {
       var label = document.createElement("label");
       label.className = "bascule";
 
@@ -2455,15 +2451,25 @@
     return coche ? coche.value : "mise_a_jour";
   }
 
-  function lancerImport(corps) {
+  /** `silencieux` : l'appelant compose le message lui-meme et l'echec remonte.
+   *
+   * ⚠️ Sans ca, l'import enchaine apres un effacement total ecrasait le
+   * message de l'effacement par son erreur : `dire()` n'affiche QU'UN message.
+   * L'operateur ne voyait que « import impossible » et rien ne lui disait que
+   * ses 715 reussites venaient d'etre supprimees. */
+  function lancerImport(corps, silencieux) {
     var bouton = $("btnImporter");
     bouton.disabled = true;
-    return appeler("/admin/import/sheet", { methode: "POST", corps: corps })
+    var p = appeler("/admin/import/sheet", { methode: "POST", corps: corps })
       .then(function (d) {
         peindreImport(d.rapport, $("rapportImport"));
-        dire("Classeur importé : " + d.rapport.resume, "ok");
+        if (!silencieux) dire("Classeur importé : " + d.rapport.resume, "ok");
         chargerCompetition();
-      }).catch(signaler).then(function () { bouton.disabled = false; });
+        return d;
+      });
+    if (!silencieux) p = p.catch(signaler);
+    return p.then(function (d) { bouton.disabled = false; return d; },
+                  function (e) { bouton.disabled = false; throw e; });
   }
 
   $("btnImporter").addEventListener("click", function () {
@@ -2840,8 +2846,7 @@
       var e = effets.efface || {};
       return "Tout est reparti de zéro : " + (e.participants || 0)
              + " participant(s), " + (e.blocs || 0) + " bloc(s) et "
-             + (e.reussites || 0) + " réussite(s) effacés, matrice Import vidée. "
-             + "Importe le classeur pour repeupler la base.";
+             + (e.reussites || 0) + " réussite(s) effacés, matrice Import vidée.";
     }
     return "Classeur relié. Les prochaines réussites partiront vers cette feuille.";
   }
@@ -2908,8 +2913,20 @@
         // que « mise a jour ».
         .then(function (d) {
           if (!d) return;
-          dire("Classeur relié et données effacées. Import en cours…", "ok");
-          return lancerImport({ mode: "mise_a_jour" });
+          var efface = resumeEffets(d.effets);
+          dire(efface + " Import en cours…", "ok");
+          // ⚠️ L'echec de l'import ne doit PAS effacer la nouvelle de
+          // l'effacement : ce sont deux faits distincts, et le second est
+          // destructeur. On compose donc UN seul message qui porte les deux.
+          return lancerImport({ mode: "mise_a_jour" }, true)
+            .then(function (r) {
+              dire(efface + " Classeur importé : " + r.rapport.resume, "ok");
+            })
+            .catch(function (e) {
+              dire(efface + " En revanche l'import a échoué ("
+                   + ((e && e.message) || "raison inconnue")
+                   + ") — relance-le depuis Classeur → Importer.", "erreur");
+            });
         })
         .catch(function (e) { if (!(e && e.gere)) signaler(e); });
     });

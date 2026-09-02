@@ -74,6 +74,10 @@
     text-transform: uppercase; color: var(--encre2);
   }
   #accueil.parti { opacity: 0; visibility: hidden; pointer-events: none; }
+  /* ⚠️ 380 x 325, soit exactement le double des 190 px d'affichage : les
+     dimensions intrinseques evitent le decalage de mise en page pendant
+     le chargement, et le logo entre dans la coquille du service worker --
+     chaque telephone le retelecharge a chaque changement de version. */
   @media (prefers-reduced-motion: reduce) { #accueil { transition: none; } }
 
   * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
@@ -344,7 +348,8 @@
 <body>
 
 <div id="accueil">
-  <img src="/static/juge/logo-club.png" alt="Annonay Escalade">
+  <img src="/static/juge/logo-club.png" alt="Annonay Escalade"
+           width="380" height="325">
   <div class="nom">Annonay Escalade</div>
 </div>
 

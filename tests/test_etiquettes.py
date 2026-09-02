@@ -61,22 +61,12 @@ class TestLOrdreEtLeRegroupement:
         assert [e["tag"] for e in planche] == [
             "ZJ6", "ZJ9", "DV21", "DB2", "CM4", "CN1"]
 
-    def test_une_coupure_a_chaque_changement_de_zone(self, salle):
-        planche = fiches.etiquettes(salle)
-        assert [e["coupure"] for e in planche] == [
-            False, False, True, False, True, False]
-
-    def test_pas_de_coupure_sur_la_toute_premiere(self, salle):
-        """Sinon la planche commencerait par une page blanche."""
-        assert fiches.etiquettes(salle)[0]["coupure"] is False
-
-    def test_le_regroupement_suit_les_coupures(self, salle):
-        groupes = fiches.par_zone(fiches.etiquettes(salle))
-        assert [g["zone"] for g in groupes] == ["Z", "D", "C"]
-        assert [len(g["etiquettes"]) for g in groupes] == [2, 2, 2]
-
-    def test_une_liste_vide_ne_fait_aucun_groupe(self, competition):
-        assert fiches.par_zone(fiches.etiquettes(competition)) == []
+    def test_les_zones_restent_groupees_dans_l_ordre(self, salle):
+        """Le saut de page par zone a disparu, mais le regroupement PHYSIQUE
+        demeure : les blocs sortent dans l'ordre du `Plan`, donc zone par zone.
+        C'est ce qui permet de coller une zone d'affilée sans rien trier."""
+        assert [e["zone"] for e in fiches.etiquettes(salle)] == [
+            "Z", "Z", "D", "D", "C", "C"]
 
 
 class TestLesFiltres:
@@ -84,10 +74,6 @@ class TestLesFiltres:
     def test_une_zone(self, salle):
         planche = fiches.etiquettes(salle, zone="D")
         assert [e["tag"] for e in planche] == ["DV21", "DB2"]
-
-    def test_une_zone_filtree_n_a_aucune_coupure(self, salle):
-        """Une seule zone tient sur une page : il n'y a rien à couper."""
-        assert not any(e["coupure"] for e in fiches.etiquettes(salle, zone="D"))
 
     def test_une_zone_inconnue(self, salle):
         """Une page vide qui nomme la zone, pas une exception."""
@@ -250,11 +236,17 @@ class TestLaRoute:
         assert ".feuille + .feuille { break-before: page" in page
         assert ".zone + .zone { break-before: page" not in page
 
-    def test_une_feuille_se_remplit(self, connecte_orga, competition):
+    def test_une_feuille_se_remplit(self, connecte_orga, salle):
         """Huit etiquettes par A4 : une zone de cinq n'en gaspille plus trois,
-        la suivante continue sur la meme feuille."""
-        from climbcontest import fiches
-        assert fiches.ETIQUETTES_PAR_FEUILLE >= 6
+        la suivante continue sur la meme feuille.
+
+        ⚠️ Ce test comparait `ETIQUETTES_PAR_FEUILLE >= 6` — une constante a
+        elle-meme. Il passait avec une pagination totalement cassee. Il compte
+        desormais les feuilles REELLEMENT rendues : six etiquettes reparties
+        sur trois zones tiennent sur UNE seule feuille."""
+        page = connecte_orga.get("/admin/etiquettes").data.decode()
+        assert page.count('class="etiquette"') == 6
+        assert page.count('class="feuille"') == 1
 
     def test_huit_par_page_et_la_geometrie_en_variables(self, page):
         """198/2 en largeur, 285/4 en hauteur. Trois variables, ce qui a permis

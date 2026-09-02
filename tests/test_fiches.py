@@ -397,3 +397,111 @@ class TestLeFormatDuPapier:
         feuilles. Le saut de page porte maintenant sur la FEUILLE."""
         assert ".feuille + .feuille { break-before: page" in page
         assert 'class="feuille"' in page
+
+
+class TestLaHauteurDUneFiche:
+    """⚠️ Le cœur technique de la correction du 02/09, et il n'avait AUCUN test.
+
+    Le commentaire du module affirmait pourtant que « `tests/test_fiches.py`
+    vérifie la cohérence du calcul » : c'était faux, aucun test n'appelait ces
+    fonctions. Les seuls tests présents cherchaient des chaînes CSS dans le
+    HTML rendu, ce qui passe quel que soit le calcul.
+
+    Les constantes, elles, restent MESURÉES dans le navigateur : ces tests
+    vérifient la cohérence du calcul, pas l'accord des constantes avec le CSS.
+    """
+
+    def test_un_groupe_qui_tient_sur_une_ligne(self):
+        assert fiches.hauteur_mm([5], 7) == pytest.approx(fiches.HAUTEUR_LIGNE_MM)
+
+    def test_une_ligne_de_plus_coute_le_supplement(self):
+        une = fiches.hauteur_mm([7], 7)
+        deux = fiches.hauteur_mm([8], 7)
+        assert deux - une == pytest.approx(fiches.HAUTEUR_LIGNE_SUP_MM)
+
+    def test_les_groupes_paient_une_marge_entre_eux(self):
+        seul = fiches.hauteur_mm([5], 7)
+        deux = fiches.hauteur_mm([5, 5], 7)
+        assert deux - 2 * seul == pytest.approx(fiches.MARGE_GROUPE_MM)
+
+    def test_plus_de_colonnes_ne_rend_jamais_plus_haut(self):
+        """La monotonie est ce qui rend la recherche du minimum correcte : si
+        elle tombe, `colonnes_qui_tiennent` peut renvoyer un nombre trop petit.
+        """
+        tailles = [20, 10, 10, 21, 8]
+        hauteurs = [fiches.hauteur_mm(tailles, c)
+                    for c in range(fiches.COLONNES_MINI, fiches.COLONNES_MAXI + 1)]
+        assert hauteurs == sorted(hauteurs, reverse=True)
+
+    def test_aucun_bloc_ne_coute_rien(self):
+        assert fiches.hauteur_mm([], 7) == 0
+
+
+class TestLeNombreDeColonnes:
+
+    def _groupes(self, *tailles):
+        return [{"blocs": [{"numero": str(i)} for i in range(n)]} for n in tailles]
+
+    def test_sans_bloc_on_garde_le_plancher(self):
+        assert fiches.colonnes_qui_tiennent([]) == fiches.COLONNES_MINI
+        assert fiches.colonnes_qui_tiennent(self._groupes(0)) == fiches.COLONNES_MINI
+
+    def test_peu_de_blocs_gardent_les_cases_les_plus_grandes(self):
+        """Le plus PETIT nombre de colonnes donne les cases les plus lisibles."""
+        assert fiches.colonnes_qui_tiennent(self._groupes(3)) == fiches.COLONNES_MINI
+
+    def test_le_choix_fait_reellement_tenir_la_fiche(self):
+        """La propriété qui compte : quel que soit le cas, le nombre choisi
+        rentre dans la hauteur utile — sauf à saturer le plafond."""
+        for tailles in ([43], [20, 10, 10, 21, 8], [7, 4, 4, 11, 2, 3, 9],
+                        [1] * 6, [12, 12, 12], [30, 13]):
+            c = fiches.colonnes_qui_tiennent(self._groupes(*tailles))
+            assert fiches.COLONNES_MINI <= c <= fiches.COLONNES_MAXI
+            if c < fiches.COLONNES_MAXI:
+                assert fiches.hauteur_mm(tailles, c) <= fiches.HAUTEUR_UTILE_MM
+            # ... et c'est bien le PLUS PETIT qui tient. Au plancher il n'y a
+            # rien en dessous a essayer : `COLONNES_MINI` n'est pas un choix,
+            # c'est la limite en dessous de laquelle les cases s'etirent.
+            if c > fiches.COLONNES_MINI:
+                assert fiches.hauteur_mm(tailles, c - 1) > fiches.HAUTEUR_UTILE_MM
+
+    def test_un_cas_impossible_sature_le_plafond_sans_exploser(self):
+        """Trois cents blocs ne tiennent sur aucune fiche : on rend le maximum
+        plutôt que de lever une exception en pleine impression."""
+        assert fiches.colonnes_qui_tiennent(self._groupes(300)) == fiches.COLONNES_MAXI
+
+    def test_les_quarante_trois_blocs_qui_debordaient(self):
+        """Le cas signalé par Adrien le 02/09 : la fiche débordait sur sa
+        voisine. Avec le calcul, elle tient."""
+        c = fiches.colonnes_qui_tiennent(self._groupes(43))
+        assert fiches.hauteur_mm([43], c) <= fiches.HAUTEUR_UTILE_MM
+
+
+class TestLeDecoupageEnFeuilles:
+    """⚠️ Aucun test ne paginait au-delà d'UNE feuille : les assertions
+    existantes passaient avec `PAR_FEUILLE = 1000`."""
+
+    def test_une_liste_vide_ne_fait_aucune_feuille(self):
+        assert fiches.en_feuilles([], 6) == []
+
+    def test_le_compte_exact_ne_laisse_pas_de_feuille_vide(self):
+        assert len(fiches.en_feuilles(list(range(12)), 6)) == 2
+
+    def test_la_derniere_feuille_est_incomplete(self):
+        feuilles = fiches.en_feuilles(list(range(17)), 8)
+        assert [len(f) for f in feuilles] == [8, 8, 1]
+
+    def test_aucun_element_n_est_perdu_ni_duplique(self):
+        source = list(range(53))
+        feuilles = fiches.en_feuilles(source, fiches.ETIQUETTES_PAR_FEUILLE)
+        assert [x for f in feuilles for x in f] == source
+
+    def test_les_chiffres_annonces_par_la_spec(self):
+        """120 fiches sur 20 feuilles, 53 étiquettes sur 7."""
+        assert len(fiches.en_feuilles(list(range(120)),
+                                      fiches.FICHES_PAR_FEUILLE)) == 20
+        assert len(fiches.en_feuilles(list(range(53)),
+                                      fiches.ETIQUETTES_PAR_FEUILLE)) == 7
+
+    def test_un_seul_element_tient_sur_une_feuille(self):
+        assert fiches.en_feuilles([1], 6) == [[1]]

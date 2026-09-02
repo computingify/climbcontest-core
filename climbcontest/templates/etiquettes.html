@@ -54,7 +54,11 @@
      La pagination est faite en Python (`fiches.en_feuilles`) et le saut de
      page porte sur la FEUILLE, jamais sur un element de grille -- une grille
      fragmentee « au mieux » coupait des etiquettes en deux. */
-  .feuille { display: grid;
+  /* ⚠️ Meme raison que pour les fiches : 4 x 71,25 = 285 mm, exactement la
+     surface utile d'un A4 portrait. A zero marge, un arrondi doublait le
+     nombre de pages. */
+  .feuille { height: 285mm; overflow: hidden;
+             display: grid;
              grid-template-columns: repeat(2, var(--etiquette-largeur));
              align-content: start; }
   .feuille + .feuille { break-before: page; page-break-before: always; }

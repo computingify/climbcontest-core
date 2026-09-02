@@ -22,6 +22,7 @@ from .. import freinage
 from .. import comptes
 from ..comptes import ADMIN, ORGANISATEUR, ErreurCompte, verifier
 from .. import qr
+from .. import classement_service
 from ..extensions import db
 from ..models import SOURCE_MANUEL, Competition, Participant, Utilisateur
 from ..contest import (
@@ -910,7 +911,12 @@ def competition_etat():
     tous, _ = classements(comp)
     groupes = [{"nom": c.groupe, "type": c.type, "circuit": c.circuit,
                 "participants": len(c.lignes)}
-               for c in sorted(tous.values(), key=lambda c: (c.type, c.groupe))]
+               # ⚠️ L'ordre vient de `classement_service.ordre` -- la MEME
+               # regle que la page publique. La console la reimplementait en
+               # JavaScript : deux versions d'une regle metier, dans deux
+               # langages, divergent toujours. Elles divergeaient deja sur le
+               # circuit absent et sur la comparaison des chaines.
+               for c in sorted(tous.values(), key=classement_service.ordre)]
 
     return jsonify({
         "success": True,

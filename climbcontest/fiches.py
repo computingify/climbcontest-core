@@ -189,8 +189,10 @@ def _groupes(blocs) -> list[dict]:
 # pas estimees. La premiere version les avait estimees a vue et se trompait de
 # 25 % sur la hauteur d'une ligne : les fiches U15 debordaient de six
 # millimetres. Si le gabarit change (taille de police, remplissage des cases,
-# marges), il faut les REMESURER -- `tests/test_fiches.py` verifie la coherence
-# du calcul, pas celle des constantes avec le CSS.
+# marges), il faut les REMESURER : `TestLaHauteurDUneFiche` verifie la
+# coherence DU CALCUL -- monotonie, cout d'une ligne, cout d'une marge -- mais
+# aucun test ne peut verifier que ces quatre nombres decrivent encore le CSS.
+# Seule une mesure au navigateur le dit.
 HAUTEUR_UTILE_MM = 58.3          # ce qui reste sous le titre « TES N BLOCS »
 HAUTEUR_LIGNE_MM = 7.3           # une ligne de cases
 HAUTEUR_LIGNE_SUP_MM = 8.0       # chaque ligne SUPPLEMENTAIRE (ligne + gouttiere)
@@ -315,10 +317,12 @@ def etiquettes(comp, zone: str | None = None, tag: str | None = None) -> list[di
 
     Deux requêtes, quel que soit le nombre de blocs.
 
-    `coupure` vaut vrai sur le **premier** bloc de chaque zone, sauf le tout
-    premier : c'est ce que le gabarit traduit en saut de page. Le calcul est
-    fait ici et pas en Jinja — une boucle de gabarit qui compare avec l'élément
-    précédent est exactement ce qu'on relit trois fois sans le croire.
+    ⚠️ Plus de découpage par zone. Il vivait ici sous la forme d'un drapeau
+    `coupure` et d'un `par_zone()`, tous deux supprimés : la pagination porte
+    désormais sur la FEUILLE (`en_feuilles`), parce qu'un saut par zone
+    laissait des pages à moitié vides — une zone d'un seul bloc en gaspillait
+    sept places. Ils survivaient sans appelant, avec des tests qui donnaient
+    une fausse impression de couverture.
     """
     requete = Bloc.query.filter_by(competition_id=comp.id)
     if tag:
@@ -338,8 +342,7 @@ def etiquettes(comp, zone: str | None = None, tag: str | None = None) -> list[di
             par_bloc[bloc_id].append(circuits[circuit_id])
 
     planche = []
-    zone_precedente = None
-    for i, bloc in enumerate(blocs):
+    for bloc in blocs:
         planche.append({
             "tag": bloc.tag,
             "zone": bloc.zone,
@@ -351,23 +354,5 @@ def etiquettes(comp, zone: str | None = None, tag: str | None = None) -> list[di
             # juge attend et ce que `bloc_par_tag()` sait relire. Pas un
             # caractère de plus.
             "qr": qr.svg(bloc.tag, cote_mm=COTE_QR_ETIQUETTE_MM),
-            "coupure": i > 0 and bloc.zone != zone_precedente,
         })
-        zone_precedente = bloc.zone
     return planche
-
-
-def par_zone(etiquettes_: list[dict]) -> list[dict]:
-    """Les étiquettes regroupées par zone, dans l'ordre où elles arrivent.
-
-    Le gabarit boucle sur des GROUPES et non sur une liste plate : une grille
-    par zone, et c'est le conteneur qui porte le saut de page. `break-before`
-    sur un enfant de grille est mal supporté — refermer la grille à chaque zone
-    l'évite complètement.
-    """
-    groupes: list[dict] = []
-    for etiquette in etiquettes_:
-        if not groupes or etiquette["coupure"]:
-            groupes.append({"zone": etiquette["zone"], "etiquettes": []})
-        groupes[-1]["etiquettes"].append(etiquette)
-    return groupes
