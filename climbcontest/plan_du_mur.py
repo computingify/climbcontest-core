@@ -172,22 +172,32 @@ def valider(brut: dict) -> dict:
 
 
 def _signaler_le_changement() -> None:
-    """Incrémente la version du catalogue : les clients doivent se remettre à jour.
+    """Prévient TOUTES les éditions : les clients doivent se remettre à jour.
 
     ⚠️ Sans ça, un plan enregistré resterait invisible pour tout ce qui a déjà
     téléchargé le catalogue — le mur changerait sur le papier et pas à l'écran,
     et personne n'aurait de moyen de s'en apercevoir. C'est le même geste que
     pour un participant ajouté à 14 h.
 
+    ⚠️ **Toutes, et pas seulement l'active.** Le plan est global (F1) alors que
+    `catalogue_version` appartient à une compétition : prévenir la seule
+    édition active laissait deux trous, et le second est le pire.
+
+    - **Aucune édition active** — on redessine le mur entre deux compétitions,
+      ce qui est le moment le plus naturel pour le faire. Il n'y avait alors
+      personne à incrémenter, l'enregistrement réussissait quand même, et le
+      compteur de l'édition suivante restait celui qu'un téléphone connaissait
+      déjà. À sa réactivation, ce téléphone recevait un 304 et gardait
+      **l'ancien mur**, sans aucun moyen de le savoir — précisément ce que le
+      versionnement du plan existe pour empêcher (spec 029, « Le catalogue »).
+    - **Une autre édition que l'active** — elle porte le nouveau plan sans que
+      son numéro ait bougé, et le trou se rouvre dès qu'on bascule dessus.
+
     Import tardif : `contest` importe déjà ce qui touche au modèle.
     """
-    from .contest import ErreurMetier, competition_active, incrementer_catalogue
-    try:
-        incrementer_catalogue(competition_active())
-    except ErreurMetier:
-        # Pas de compétition active : rien à prévenir. Dessiner le plan hors
-        # saison est parfaitement légitime.
-        logger.info("plan : aucune competition active, version non incrementee")
+    from .contest import incrementer_tous_les_catalogues
+    prevenues = incrementer_tous_les_catalogues()
+    logger.info("plan : %d edition(s) prevenue(s) du changement de mur", prevenues)
 
 
 def lire():

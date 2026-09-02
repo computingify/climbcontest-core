@@ -21,6 +21,31 @@ qu'on ne met pas à jour le matin d'une compétition :
 
 ### Corrigé
 
+- **Un mur redessiné entre deux compétitions ne peut plus rester invisible sur
+  le téléphone d'un juge** (spec 029). Le plan voyage dans le catalogue
+  précisément pour être **versionné** — servi à part, un client garderait un
+  mur périmé sans moyen de le savoir. Mais `catalogue_version` appartient à une
+  compétition, alors que le plan est **global** : redessiner sans édition
+  active ne prévenait personne, et à la réouverture le téléphone recevait un
+  **304** en gardant l'ancien mur.
+
+  Le geste concerné n'a rien d'exotique : c'est entre deux compétitions qu'on
+  retouche le mur. Une seconde bouche existait, moins visible — une édition non
+  active portait le nouveau plan sans que son numéro ait bougé, et le trou se
+  rouvrait dès qu'on basculait dessus.
+
+  ⚠️ **Ce ne pouvait pas être un compteur global unique.** Le 304 se décide par
+  **égalité stricte** (correctif du 30/08) : un numéro identifie un couple
+  (édition, état de son catalogue). Un numéro partagé aurait fait répondre
+  « rien de neuf » à un téléphone qui vient de changer d'édition et qui a
+  besoin d'une autre liste de participants. Chaque édition reçoit donc un
+  numéro **neuf et distinct**, tiré de l'horloge commune.
+
+  **Le contrat de `/api/v2/catalog` ne change pas** : l'étiquette reste un
+  entier, `?depuis=N` et `If-None-Match` se comportent comme avant. Les
+  téléphones déjà déployés n'ont rien à apprendre — l'application juge n'est
+  pas mise à jour le matin d'une compétition.
+
 - **La fiche du grimpeur ne s'ouvre plus en rejeu d'archive** (spec 026). La
   spec la mettait hors périmètre — « la route publique ne parle que de la
   compétition active » — mais la garde n'existait que pour le mode mur. Une

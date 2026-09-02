@@ -13,7 +13,7 @@ from . import formatage
 from .extensions import db
 from .models import (
     Bloc, Competition, EN_COURS, Participant, ReaffectationDossard, SOURCE_MANUEL,
-    SOURCE_SCAN, Success,
+    SOURCE_SCAN, Success, prochaine_version_catalogue,
 )
 
 logger = logging.getLogger(__name__)
@@ -314,6 +314,35 @@ def incrementer_catalogue(comp: Competition) -> None:
     """
     comp.catalogue_version = (comp.catalogue_version or 0) + 1
     db.session.add(comp)
+
+
+def incrementer_tous_les_catalogues() -> int:
+    """Signale un changement de donnée **globale**. Rend le nombre d'éditions
+    prévenues.
+
+    ⚠️ **Pour ce qui n'appartient à aucune compétition.** Le plan du mur est le
+    premier cas : le club a un mur, pas un mur par édition (spec 029 F1), et il
+    voyage pourtant dans le catalogue de chacune. `incrementer_catalogue` ne
+    sait prévenir qu'une seule édition, et **aucune** quand il n'y en a pas
+    d'active — or c'est exactement le moment où l'on redessine le mur.
+
+    ⚠️ **Un numéro NEUF par édition, jamais le même pour deux.** Le 304 de
+    `/api/v2/catalog` se décide par égalité stricte, et c'est délibéré : un
+    client qui annonce un numéro venu d'ailleurs n'est pas à jour. Donner le
+    même numéro à deux éditions ferait donc répondre « rien de neuf » à un
+    téléphone qui vient de changer de compétition et qui a besoin d'une autre
+    liste de participants. On tire donc un numéro par édition, sur l'horloge
+    commune.
+    """
+    editions = Competition.query.order_by(Competition.id).all()
+    for comp in editions:
+        comp.catalogue_version = prochaine_version_catalogue()
+        db.session.add(comp)
+        # ⚠️ `flush`, sinon `prochaine_version_catalogue()` relit le maximum
+        # d'avant et rend le MEME numero a l'edition suivante -- ce que la
+        # docstring interdit deux lignes plus haut.
+        db.session.flush()
+    return len(editions)
 
 
 def enregistrer_lot(elements: list[dict], appareil: dict | None = None) -> list[dict]:
