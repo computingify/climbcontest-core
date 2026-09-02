@@ -44,17 +44,28 @@
   .entete h1 { margin: 0; font-size: 5mm; font-weight: 700; }
   .entete p { margin: 1mm 0 0; font-size: 3.4mm; color: #444; }
 
-  /* UNE GRILLE PAR ZONE, et c'est le conteneur qui saute la page. On prend la
-     page de la zone Z, on va coller ses cinq etiquettes, on ne trie rien.
-     `break-before` sur un ENFANT de grille est mal supporte : refermer la
-     grille a chaque zone l'evite completement. */
-  .zone { display: grid;
-          grid-template-columns: repeat(auto-fill, var(--etiquette-largeur)); }
-  .zone + .zone { break-before: page; page-break-before: always; }
+  /* ⚠️ Plus de saut de page par zone (correctif du 02/09). Il produisait des
+     feuilles a moitie vides : une zone de cinq blocs laissait trois places
+     perdues, une zone d'un seul en gaspillait cinq -- « je me retrouve avec
+     des pages vides », dit Adrien. Les blocs sortent deja dans l'ordre du
+     `Plan`, donc zone par zone, et chaque etiquette porte sa zone en tete : le
+     regroupement physique est conserve sans payer une feuille par zone.
+
+     La pagination est faite en Python (`fiches.en_feuilles`) et le saut de
+     page porte sur la FEUILLE, jamais sur un element de grille -- une grille
+     fragmentee « au mieux » coupait des etiquettes en deux. */
+  /* ⚠️ Meme raison que pour les fiches : 4 x 71,25 = 285 mm, exactement la
+     surface utile d'un A4 portrait. A zero marge, un arrondi doublait le
+     nombre de pages. */
+  .feuille { height: 285mm; overflow: hidden;
+             display: grid;
+             grid-template-columns: repeat(2, var(--etiquette-largeur));
+             align-content: start; }
+  .feuille + .feuille { break-before: page; page-break-before: always; }
 
   .etiquette {
     height: var(--etiquette-hauteur); padding: 3mm;
-    display: flex; align-items: center; gap: 3mm;
+    display: flex; align-items: center; gap: 3mm; overflow: hidden;
     break-inside: avoid; page-break-inside: avoid;
     /* Les traits de coupe. En pointille : on decoupe dessus. */
     border-right: 0.3mm dashed #aaa; border-bottom: 0.3mm dashed #aaa;
@@ -112,8 +123,8 @@
   }
   @media screen {
     body { background: #ECEAE5; padding: 6mm; }
-    .entete, .zone, .vide { background: #fff; width: max-content; margin-inline: auto; }
-    .zone { box-shadow: 0 1mm 3mm rgba(0, 0, 0, 0.12); margin-bottom: 5mm; }
+    .entete, .feuille, .vide { background: #fff; width: max-content; margin-inline: auto; }
+    .feuille { box-shadow: 0 1mm 3mm rgba(0, 0, 0, 0.12); margin-bottom: 6mm; }
     .entete { padding-inline: 6mm; width: auto; max-width: 198mm; }
   }
 </style>
@@ -122,22 +133,22 @@
 
 <div class="entete">
   <h1>Étiquettes de blocs — {{ titre }}</h1>
-  <p>{{ total }} à imprimer, <strong>huit par page, une zone par page</strong>,
+  <p>{{ total }} à imprimer, <strong>huit par page</strong>, groupées par zone,
      à couper sur les pointillés. Vérifie l'échelle d'impression :
      <strong>100 %</strong>, sans « ajuster à la page », sinon les QR sortiront
      trop petits pour être lus.</p>
 </div>
 
-{% if not groupes %}
+{% if not feuilles %}
   <div class="vide">
     Aucun bloc à étiqueter{% if filtre %} pour {{ filtre }}{% endif %}.
     {% if not filtre %}Importe le classeur depuis <strong>Classeur →
     Importer</strong>.{% endif %}
   </div>
 {% else %}
-  {% for groupe in groupes %}
-  <div class="zone">
-    {% for e in groupe.etiquettes %}
+  {% for feuille in feuilles %}
+  <div class="feuille">
+    {% for e in feuille %}
     <div class="etiquette">
       <div class="qr">{{ e.qr|safe }}</div>
       <div class="quoi">

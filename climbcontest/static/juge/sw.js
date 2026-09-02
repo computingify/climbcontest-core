@@ -22,7 +22,10 @@
 
 // v2 : la refonte visuelle (Archivo, couleurs de circuit). Changer ce nom
 // est ce qui fait qu'un iPhone deja installe jette l'ancienne coquille.
-const CACHE = "climbcontest-juge-v2";
+// ⚠️ Le numero CHANGE des que la coquille change. Sans ca, les telephones
+// gardent l'ancienne : `activate` ne supprime que les caches dont le nom
+// differe. Passe a v3 le 02/09 -- ajout du logo de l'ecran d'accueil.
+const CACHE = "climbcontest-juge-v3";
 
 /**
  * Ce qu'on garde pour pouvoir démarrer sans réseau.
@@ -39,6 +42,8 @@ const COQUILLE = [
   // porteur. Il n'est lu qu'a l'installation et a la mise a jour, jamais
   // pendant une competition : le mettre hors ligne n'apporte rien.
   "/static/juge/juge.js",
+  // L'ecran d'accueil doit s'afficher hors ligne aussi.
+  "/static/juge/logo-club.png",
   "/static/juge/api.js",
   "/static/juge/jeton.js",
   "/static/juge/scan.js",
@@ -53,6 +58,10 @@ const COQUILLE = [
   "/static/juge/historique.js",
   "/static/juge/identite.js",
   "/static/juge/icone-192.png",
+  // ⚠️ `icone-512.png` n'y est PAS, volontairement : le manifeste ne la lit
+  // qu'a l'installation, en ligne. La mettre dans la coquille ferait
+  // telecharger 100 ko a chaque changement de version pour une image que
+  // l'application n'affiche jamais.
 ];
 
 self.addEventListener("install", (evenement) => {

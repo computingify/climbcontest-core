@@ -193,6 +193,17 @@
      un vidéoprojecteur plutôt qu'un écran. Sur un téléphone, où il mangerait
      tout l'écran, il ne s'affiche toujours pas : c'est `peindre()` qui tranche,
      sur `LARGEUR_PODIUM`. */
+  /* Une marche EN ATTENTE : le socle est là, la carte n'y est pas encore.
+     Un liseré en pointillé plutôt qu'une carte grise — on doit lire « pas
+     encore » et non « quelqu'un dont on ne connaît pas le nom ». */
+  #podium .groupe.attente .cartes::after {
+    content: "—"; display: flex; align-items: center; justify-content: center;
+    width: 100%; height: 100%; min-height: 46px;
+    border: 2px dashed var(--trait); border-radius: 14px;
+    color: var(--encre3); font-size: 1.4rem; font-weight: 700;
+  }
+  #podium .groupe.attente .socle { opacity: .38; }
+
   #podium { flex: none; display: none; gap: 20px; align-items: end;
             height: clamp(150px, 23vh, 250px); }
   #podium.visible { display: flex; }
@@ -606,7 +617,13 @@
   <div id="message"></div>
 </main>
 
-<script>
+<script type="module">
+// ⚠️ Module, et non script classique : la logique du podium vit dans un
+// fichier a part pour etre testable (`tests/js/podium.test.mjs`). Aucune
+// consequence sur la page -- elle ne porte aucun gestionnaire en ligne,
+// et le script suit deja tout le balisage.
+import { selectionDuPodium, marchesDuPodium }
+  from "/static/resultats/podium.js";
 (function () {
   "use strict";
 
@@ -1335,8 +1352,13 @@
     // sur un portable de la salle comme sur le mur, et il ne tient sur aucun
     // téléphone. `avecPodium` reste faux pendant une recherche et sur les
     // favoris — un podium n'a de sens que sur UN classement.
-    var podium = avecPodium && lignes.length > 3
-              && window.innerWidth >= LARGEUR_PODIUM;
+    // ⚠️ Plus de `lignes.length > 3` non plus (Adrien, 02/09 : « même si le
+    // podium n'est pas encore établi, il faut l'afficher »). Une catégorie de
+    // deux grimpeurs a un podium — de deux marches, mais un podium. Et une
+    // catégorie où personne n'a encore marqué en a un aussi : trois marches
+    // vides, qui disent que la remise des prix n'a pas encore de gagnant,
+    // là où l'absence de podium se lit comme un défaut d'affichage.
+    var podium = avecPodium && window.innerWidth >= LARGEUR_PODIUM;
     el.podium.classList.toggle("visible", podium);
     el.podium.classList.toggle("serre", window.innerWidth < 1150);
 
@@ -1346,12 +1368,12 @@
     // Le podium prend TOUS ceux qui sont dans les trois premiers rangs, ex æquo
     // compris : ils sont à égalité, ils doivent être au même niveau. Au-delà de
     // six cartes, la marche devient illisible et tout repasse au tableau.
-    var surLePodium = lignes.filter(function (l) { return l.rang <= 3; });
-    if (surLePodium.length > 6 || surLePodium.length >= lignes.length) surLePodium = [];
-    podium = podium && surLePodium.length > 0;
-    el.podium.classList.toggle("visible", podium);
-
-    var tete = podium ? surLePodium : [];
+    // Qui monte, et le podium s'affiche-t-il : voir `podium.js`, ou les deux
+    // regles delicates -- le filtre « a marque » et le masquage au-dela de six
+    // ex aequo -- sont commentees et testees.
+    var choix = selectionDuPodium(lignes, podium);
+    podium = choix.podium;
+    var tete = choix.tete;
     // Le tableau reprend TOUT LE MONDE, podium compris (Adrien, 01/09). Il
     // commençait au rang 4, et il fallait remonter les yeux à l'autre bout de
     // l'écran pour savoir ce qu'avait fait le premier — quand la marche le
@@ -1363,19 +1385,17 @@
     // Une marche par RANG : le premier au centre et plus haut, le deuxième à
     // gauche, le troisième à droite et plus bas. Les ex æquo partagent leur
     // marche — même hauteur, même médaille.
-    var marches = [];
-    tete.forEach(function (l) {
-      var derniere = marches[marches.length - 1];
-      if (derniere && derniere.rang === l.rang) derniere.lignes.push(l);
-      else marches.push({ rang: l.rang, lignes: [l] });
-    });
+    // Une marche par RANG, trois toujours : voir `podium.js`. Un rang absent
+    // n'est pas forcement libre -- les ex aequo en sautent.
+    var marches = marchesDuPodium(tete, podium);
 
     marches.forEach(function (m, i) {
       var g = etat.groupes[i] || (etat.groupes[i] = noeudGroupe());
       // `cN` porte le NOMBRE d'ex æquo sur la marche : c'est lui qui fait
       // rétrécir le mobilier de la carte, sans quoi le nom est tronqué.
       g.className = "groupe place-" + Math.min(3, m.rang) + " r" + Math.min(3, m.rang)
-                  + " c" + Math.min(6, m.lignes.length);
+                  + " c" + Math.min(6, Math.max(1, m.lignes.length))
+                  + (m.vide ? " attente" : "");
       var cartes = g.querySelector(".cartes");
       m.lignes.forEach(function (l, j) {
         var carte = etat.noeuds[clePodium(l)];

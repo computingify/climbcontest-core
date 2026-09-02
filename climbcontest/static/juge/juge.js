@@ -797,4 +797,10 @@ function enregistrerLeServiceWorker() {
     .catch(() => { /* pas de hors-ligne, mais l'application marche */ });
 }
 
-demarrer();
+// ⚠️ `finally`, pas `then` : `demarrer()` sort tot quand il n'y a pas de jeton,
+// et peut echouer. Dans les trois cas l'ecran d'accueil doit s'effacer -- un
+// logo bloque sur un ecran est pire qu'une application qui affiche son
+// probleme.
+demarrer().finally(() => {
+  window.dispatchEvent(new Event("climbcontest:pret"));
+});

@@ -60,9 +60,27 @@
      lisible : l'identite a gauche, les blocs au milieu, le mur a droite, tout
      d'un coup d'oeil. Un quart carre (99 x 142,5) obligeait a empiler, et ne
      portait pas deux colonnes lisibles sur 99 mm. */
-  .planche { display: grid; grid-template-columns: repeat(2, var(--fiche-largeur)); }
+  /* ⚠️ Une FEUILLE explicite par page, et le saut de page sur la feuille --
+     pas sur les fiches. Une grille dont les elements portent
+     `break-inside: avoid` est fragmentee « au mieux » par le navigateur : en
+     pratique une fiche se retrouvait a cheval sur deux feuilles. Le decoupage
+     est desormais fait en Python (`fiches.en_feuilles`), le CSS ne fait que
+     poser six fiches sur une page. */
+  /* ⚠️ La feuille BORNE sa hauteur. 3 x 66 = 198 mm, exactement la surface
+     utile d'un A4 paysage : a zero marge, un pixel d'arrondi suffisait a
+     repousser la derniere rangee sur une page a part -- et le
+     `break-before: page` de la feuille suivante l'envoyait encore plus loin.
+     Vingt feuilles devenaient quarante pages. Borner rend le decoupage aussi
+     deterministe que celui de la fiche. */
+  .feuille { height: 198mm; overflow: hidden;
+             display: grid; grid-template-columns: repeat(2, var(--fiche-largeur));
+             align-content: start; }
+  .feuille + .feuille { break-before: page; page-break-before: always; }
   .fiche {
     height: var(--fiche-hauteur); padding: 2.5mm 3mm; display: flex; gap: 2.5mm;
+    /* Garde-fou : meme si un contenu depassait, il ne peut plus recouvrir la
+       fiche voisine. Le calcul des colonnes fait qu'on n'y arrive pas. */
+    overflow: hidden;
     /* Une fiche coupee en deux par un saut de page donnerait un demi-QR. */
     break-inside: avoid; page-break-inside: avoid;
     /* Les traits de coupe. En pointille : on decoupe dessus, ce n'est pas un
@@ -139,13 +157,13 @@
 
   /* `auto-fill` + `minmax` : un circuit de cinquante blocs resserre ses cases
      au lieu de deborder sur la fiche voisine. Aucune ligne de JavaScript. */
-  /* ⚠️ `auto-fit`, PAS `auto-fill`. `auto-fill` cree autant de colonnes que la
-     largeur en contient et laisse vides celles qui n'ont pas de case : un
-     groupe de quatre blocs occupait quatre colonnes sur neuf, et les cinq
-     autres etaient du blanc. `auto-fit` replie les colonnes vides, et les
-     cases s'etalent sur toute la largeur. Signale par Adrien : « tu as trop
-     d'espace vide ». */
-  .cases { display: grid; grid-template-columns: repeat(auto-fit, minmax(8.5mm, 1fr)); gap: 0.6mm; }
+  /* ⚠️ Le nombre de colonnes vient du SERVEUR (`f.colonnes`), pas d'`auto-fit`.
+     `auto-fit` les choisit d'apres la largeur, sans rien savoir du nombre de
+     LIGNES que ca produira : quand un groupe passait sur deux lignes, la fiche
+     debordait et ses cadres chevauchaient. Python prend le plus petit nombre
+     de colonnes qui fait tenir les six couleurs -- donc les cases les plus
+     grandes possibles sans deborder. */
+  .cases { display: grid; grid-template-columns: repeat(var(--cols, 7), 1fr); gap: 0.7mm; }
   .case {
     border: 0.2mm solid #bbb; border-radius: 0.8mm; padding: 0.8mm 0.3mm;
     text-align: center; line-height: 1.05;
@@ -194,8 +212,9 @@
     /* Un apercu qui ressemble a la feuille : sinon on ne voit pas ce qu'on
        imprime avant de l'avoir imprime. */
     body { background: #ECEAE5; padding: 6mm; }
-    .entete, .planche, .vide { background: #fff; width: max-content; margin-inline: auto; }
-    .planche { box-shadow: 0 1mm 3mm rgba(0, 0, 0, 0.12); padding-inline: 2mm; }
+    .entete, .feuille, .vide { background: #fff; width: max-content; margin-inline: auto; }
+    .feuille { box-shadow: 0 1mm 3mm rgba(0, 0, 0, 0.12); padding-inline: 2mm;
+               margin-bottom: 6mm; }
     .entete { padding-inline: 6mm; }
   }
 </style>
@@ -204,20 +223,21 @@
 
 <div class="entete">
   <h1>Fiches — {{ titre }}</h1>
-  <p>{{ fiches|length }} à imprimer, <strong>six par page</strong> (A4 <strong>paysage</strong>), à couper
+  <p>{{ total }} à imprimer, <strong>six par page</strong> (A4 <strong>paysage</strong>), à couper
      sur les pointillés. Vérifie l'échelle d'impression :
      <strong>100 %</strong>, sans « ajuster à la page », sinon les QR sortiront
      trop petits pour être lus.</p>
 </div>
 
-{% if not fiches %}
+{% if not feuilles %}
   <div class="vide">
     Aucune fiche à imprimer : aucun participant ne porte de dossard pour l'instant.
   </div>
 {% else %}
-<div class="planche">
-  {%- for f in fiches %}
-  <article class="fiche">
+{% for feuille in feuilles %}
+<div class="feuille">
+  {%- for f in feuille %}
+  <article class="fiche" style="--cols:{{ f.colonnes }}">
     <header>
       <div class="qui">
         <div class="ligne-nom">
@@ -271,6 +291,7 @@
   </article>
   {% endfor %}
 </div>
+{% endfor %}
 {% endif %}
 
 </body>

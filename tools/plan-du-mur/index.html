@@ -1,0 +1,1330 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+  :root { color-scheme: light dark; }
+  body { margin: 0; }
+  img { max-width: 100%; }
+  [hidden] { display: none !important; }
+</style>
+<title>Plan du mur d'Annonay</title>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans+Condensed:wght@600;700&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>
+/* ============================================================================
+   Le plan du mur d'Annonay Escalade — planche de dessin.
+
+   Ce n'est pas un tableur : c'est un PLAN DE SALLE vu de dessus. Chaque mur est
+   un polygone libre, et son PROFIL (dalle, vertical, dévers, toit) se lit à la
+   texture — la trame se densifie et le gris fonce à mesure que le mur déverse.
+   Une seule règle à apprendre, et elle survit à l'impression en noir et blanc.
+
+   Le dessin part vers `fiches.py` : ce que la planche exporte est exactement la
+   constante `PLAN` que lit le serveur.
+   ========================================================================== */
+
+:root {
+  color-scheme: light dark;
+
+  --fond:          #E9E5DD;
+  --panneau:       #F7F5F1;
+  --creux:         #EFEBE3;
+  --encre:         #1C1B19;
+  --encre-doux:    #6B655C;
+  --encre-tenu:    #938C81;
+  --trait:         #D9D3C7;
+  --trait-fort:    #BCB4A5;
+  --ocre:          #B5791B;
+  --ocre-vif:      #E0A94A;
+  --ocre-voile:    rgba(224, 169, 74, .16);
+  --alerte:        #B3392A;
+
+  /* La planche reste du PAPIER dans les deux thèmes : c'est une feuille qu'on
+     dessine, et les gris des murs doivent se lire comme ils s'imprimeront. */
+  --planche:       #F8F6F2;
+  --grille:        #DCE2E6;
+  --grille-forte:  #C6CFD6;
+
+  --rayon: 3px;
+  --ombre: 0 1px 2px rgba(28, 27, 25, .07), 0 6px 18px rgba(28, 27, 25, .06);
+}
+
+:root:not([data-theme="light"]) {
+  @media (prefers-color-scheme: dark) {
+    --fond:       #101215;
+    --panneau:    #1A1D21;
+    --creux:      #15181C;
+    --encre:      #E9E5DD;
+    --encre-doux: #9A948A;
+    --encre-tenu: #6E6860;
+    --trait:      #303539;
+    --trait-fort: #454B51;
+    --ocre:       #E0A94A;
+    --ocre-vif:   #EFC176;
+    --ocre-voile: rgba(224, 169, 74, .14);
+    --alerte:     #E0705F;
+    --planche:      #E7E3DB;
+    --grille:       #D2D8DD;
+    --grille-forte: #B9C2CA;
+    --ombre: 0 1px 2px rgba(0, 0, 0, .3), 0 8px 24px rgba(0, 0, 0, .28);
+  }
+}
+:root[data-theme="dark"] {
+  --fond:       #101215;
+  --panneau:    #1A1D21;
+  --creux:      #15181C;
+  --encre:      #E9E5DD;
+  --encre-doux: #9A948A;
+  --encre-tenu: #6E6860;
+  --trait:      #303539;
+  --trait-fort: #454B51;
+  --ocre:       #E0A94A;
+  --ocre-vif:   #EFC176;
+  --ocre-voile: rgba(224, 169, 74, .14);
+  --alerte:     #E0705F;
+  --planche:      #E7E3DB;
+  --grille:       #D2D8DD;
+  --grille-forte: #B9C2CA;
+  --ombre: 0 1px 2px rgba(0, 0, 0, .3), 0 8px 24px rgba(0, 0, 0, .28);
+}
+
+* { box-sizing: border-box; }
+
+/* `.champ` et `.vide-planche` posent un `display`, qui bat le `[hidden]` de la
+   feuille du navigateur. Sans cette ligne, l'aide « la feuille est blanche »
+   reste affichée par-dessus un plan déjà dessiné. */
+[hidden] { display: none !important; }
+
+kbd {
+  font: 500 10.5px "IBM Plex Mono", ui-monospace, monospace; color: var(--encre);
+  background: var(--creux); border: 1px solid var(--trait-fort);
+  border-bottom-width: 2px; border-radius: 3px; padding: 1px 4px;
+}
+
+body {
+  margin: 0;
+  background: var(--fond);
+  color: var(--encre);
+  font: 400 14px/1.5 "IBM Plex Sans", system-ui, -apple-system, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+h1, h2, h3 { font-family: "IBM Plex Sans Condensed", "IBM Plex Sans", sans-serif; margin: 0; }
+
+/* --- Ossature ------------------------------------------------------------ */
+.app {
+  height: 100dvh;
+  display: grid;
+  grid-template-columns: 216px minmax(0, 1fr) 372px;
+  grid-template-rows: auto minmax(0, 1fr);
+  grid-template-areas: "barre barre barre" "rail planche fiche";
+}
+@media (max-width: 1080px) {
+  .app { height: auto; grid-template-columns: minmax(0, 1fr);
+         grid-template-areas: "barre" "rail" "planche" "fiche"; }
+}
+
+.barre {
+  grid-area: barre;
+  display: flex; align-items: baseline; gap: 14px; flex-wrap: wrap;
+  padding: 12px 18px;
+  border-bottom: 1px solid var(--trait);
+  background: var(--panneau);
+}
+.barre h1 { font-size: 17px; font-weight: 700; letter-spacing: -.01em; }
+.barre .sous { font-size: 12.5px; color: var(--encre-doux); }
+.barre .pousse { margin-left: auto; }
+
+.rail, .fiche-rail {
+  overflow-y: auto;
+  background: var(--panneau);
+  padding: 16px 14px 28px;
+}
+.rail { grid-area: rail; border-right: 1px solid var(--trait); }
+.fiche-rail { grid-area: fiche; border-left: 1px solid var(--trait); }
+
+.bloc { margin-bottom: 22px; }
+.bloc > h2 {
+  font-size: 10.5px; font-weight: 700; letter-spacing: .13em; text-transform: uppercase;
+  color: var(--encre-tenu); margin-bottom: 9px;
+}
+.aide { font-size: 12px; line-height: 1.45; color: var(--encre-doux); margin: 8px 0 0; }
+
+/* --- Commandes ----------------------------------------------------------- */
+.grille-boutons { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+
+button, .faux-bouton {
+  font: inherit; font-size: 13px;
+  color: var(--encre); background: var(--creux);
+  border: 1px solid var(--trait-fort); border-radius: var(--rayon);
+  padding: 7px 9px; cursor: pointer;
+  display: flex; align-items: center; justify-content: center; gap: 6px;
+  transition: background .12s, border-color .12s;
+}
+button:hover:not(:disabled) { background: var(--ocre-voile); border-color: var(--ocre); }
+button:disabled { opacity: .4; cursor: default; }
+button:focus-visible, input:focus-visible, textarea:focus-visible, select:focus-visible {
+  outline: 2px solid var(--ocre); outline-offset: 1px;
+}
+button.actif { background: var(--ocre-voile); border-color: var(--ocre); font-weight: 600; }
+button.danger:hover:not(:disabled) { background: rgba(179, 57, 42, .12); border-color: var(--alerte); color: var(--alerte); }
+button svg { flex: none; }
+
+input[type="text"], input[type="number"], textarea, select {
+  font: inherit; width: 100%;
+  color: var(--encre); background: var(--creux);
+  border: 1px solid var(--trait-fort); border-radius: var(--rayon);
+  padding: 6px 8px;
+}
+textarea { font-family: "IBM Plex Mono", ui-monospace, monospace; font-size: 11.5px; line-height: 1.5; resize: vertical; }
+
+.champ { display: grid; gap: 4px; margin-bottom: 10px; }
+.champ > span { font-size: 11px; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; color: var(--encre-tenu); }
+.paire { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+
+.bascule { display: flex; align-items: center; gap: 8px; font-size: 13px; cursor: pointer; margin-top: 8px; }
+.bascule input { accent-color: var(--ocre); width: 15px; height: 15px; }
+
+/* --- La palette de profils ----------------------------------------------- */
+.profils { display: grid; gap: 4px; }
+.profil {
+  display: grid; grid-template-columns: 26px 1fr; align-items: center; gap: 9px;
+  padding: 5px 7px; border-radius: var(--rayon);
+  border: 1px solid transparent; background: none; cursor: pointer; text-align: left;
+  justify-content: start;
+}
+.profil:hover { background: var(--creux); }
+.profil.actif { background: var(--ocre-voile); border-color: var(--ocre); }
+.profil svg { width: 26px; height: 20px; display: block; border: .5px solid var(--trait-fort); border-radius: 1px; }
+.profil .nom { font-size: 12.5px; font-weight: 600; line-height: 1.2; }
+.profil .indice { font-size: 10.5px; color: var(--encre-tenu); line-height: 1.2; }
+.profil > div { min-width: 0; }
+
+/* --- La planche ---------------------------------------------------------- */
+.planche {
+  grid-area: planche;
+  min-height: 0; padding: 20px;
+  display: flex; align-items: center; justify-content: center;
+  background:
+    radial-gradient(circle at 50% 0%, var(--ocre-voile), transparent 62%),
+    var(--fond);
+}
+@media (max-width: 1080px) { .planche { height: 70vh; } }
+
+.feuille {
+  background: var(--planche);
+  box-shadow: var(--ombre);
+  border-radius: 2px;
+  max-width: 100%; max-height: 100%;
+  position: relative;
+}
+#board { display: block; max-width: 100%; max-height: 100%; touch-action: none; }
+#board.trace { cursor: crosshair; }
+
+.mur-forme { cursor: move; }
+.poignee { fill: var(--planche); stroke: #B5791B; cursor: grab; }
+.poignee:hover, .poignee.vive { fill: #E0A94A; }
+.poignee-etiq { fill: #E0A94A; fill-opacity: .35; stroke: #B5791B; cursor: move; }
+
+.vide-planche {
+  position: absolute; inset: 0; display: grid; place-content: center; text-align: center;
+  padding: 30px; color: #6B655C; pointer-events: none;
+  font-size: 13px; line-height: 1.6;
+}
+.vide-planche b { color: #1C1B19; display: block; font-size: 15px; margin-bottom: 4px;
+                  font-family: "IBM Plex Sans Condensed", sans-serif; }
+
+/* --- L'aperçu papier ------------------------------------------------------ */
+/* Toujours blanc, dans les deux thèmes : il représente du PAPIER IMPRIMÉ. */
+.apercu {
+  background: #fff; color: #111; border: 1px solid var(--trait-fort);
+  border-radius: 2px; box-shadow: var(--ombre);
+  width: 37mm; padding: 2mm 0 2mm 2.5mm; margin: 0 auto;
+}
+.apercu h3 { font-size: 2.6mm; letter-spacing: .1em; text-transform: uppercase; color: #888;
+             margin-bottom: 1.2mm; font-weight: 700; }
+.apercu svg { display: block; width: 100%; }
+.apercu .hors { font-size: 2.2mm; color: #333; border-left: .5mm solid #999;
+                padding-left: 1.5mm; margin: 1mm 0 0; }
+.cadre-apercu { padding: 14px 0; }
+
+/* L'écran, à côté du papier. Toujours sombre dans les deux thèmes : il
+   représente l'application juge, qui l'est. */
+.telephone {
+  margin: 0 auto; padding: 9px 8px 12px;
+  background: #15161B; border: 1px solid #2E2C31; border-radius: 16px;
+  box-shadow: 0 2px 4px rgba(0,0,0,.28), 0 10px 26px rgba(0,0,0,.22);
+}
+.telephone::before {
+  content: ""; display: block; width: 34px; height: 3px; border-radius: 2px;
+  background: #33313A; margin: 0 auto 8px;
+}
+.telephone h3 {
+  font-size: 8.5px; letter-spacing: .14em; text-transform: uppercase;
+  color: #7E776B; margin-bottom: 5px; font-weight: 700;
+}
+.telephone svg { display: block; width: 100%; }
+.deux-ecrans { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; align-items: start; }
+
+/* La page de résultats sur fond blanc. Toujours claire dans les deux thèmes :
+   elle représente un support, pas la préférence de qui regarde. */
+.ecran {
+  background: #FFFFFF; border: 1px solid #E3DFD7; border-radius: 10px;
+  padding: 9px 8px 11px; box-shadow: var(--ombre);
+}
+.ecran h3 {
+  font-size: 8.5px; letter-spacing: .14em; text-transform: uppercase;
+  color: #9A9284; margin-bottom: 5px; font-weight: 700;
+}
+.ecran svg { display: block; width: 100%; }
+.sous-titre {
+  font-size: 10px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase;
+  color: var(--encre-tenu); text-align: center; margin: 0 0 6px;
+}
+.legende-apercu { font-size: 11.5px; color: var(--encre-tenu); text-align: center; margin-top: 10px; line-height: 1.45; }
+
+/* --- L'export ------------------------------------------------------------- */
+.sortie { position: relative; }
+.sortie textarea { height: 190px; }
+.compte { font-size: 11.5px; color: var(--encre-tenu); margin-top: 6px; }
+.etat { font-size: 12px; margin-top: 8px; min-height: 1.2em; }
+.etat.bien { color: var(--ocre); }
+.etat.mal { color: var(--alerte); }
+
+.raccourcis { font-size: 11.5px; color: var(--encre-doux); line-height: 1.7; }
+.raccourcis kbd {
+  font: 500 10.5px "IBM Plex Mono", monospace; color: var(--encre);
+  background: var(--creux); border: 1px solid var(--trait-fort);
+  border-bottom-width: 2px; border-radius: 3px; padding: 1px 4px;
+}
+
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+</head>
+<body>
+
+
+<div class="app">
+
+  <header class="barre">
+    <h1>Plan du mur</h1>
+    <span class="sous">Annonay Escalade · vue de dessus · part vers la fiche du grimpeur</span>
+    <span class="pousse"></span>
+    <button id="annuler" title="Annuler (Ctrl+Z)" disabled>Annuler</button>
+    <button id="refaire" title="Refaire (Ctrl+Maj+Z)" disabled>Refaire</button>
+  </header>
+
+  <!-- ------------------------------------------------------------------ RAIL -->
+  <aside class="rail">
+
+    <div class="bloc">
+      <h2>Ajouter un mur</h2>
+      <div class="grille-boutons">
+        <button data-forme="rectangle">Rectangle</button>
+        <button data-forme="triangle">Triangle</button>
+        <button data-forme="trapeze">Trapèze</button>
+        <button data-forme="bande">Bande</button>
+      </div>
+      <button data-forme="libre" id="btn-libre" style="width:100%;margin-top:6px">Polygone libre…</button>
+      <p class="aide">Un mur, c'est un polygone : attrape ses points pour lui donner
+        la forme réelle. <kbd>Alt</kbd>+clic sur une arête ajoute un point.</p>
+    </div>
+
+    <div class="bloc">
+      <h2>Profil du mur</h2>
+      <div class="profils" id="palette"></div>
+      <p class="aide">Du moins au plus déversant. La trame se densifie et le gris
+        fonce&nbsp;: ça reste lisible à l'encre noire.</p>
+    </div>
+
+    <div class="bloc">
+      <h2>Repères de la salle</h2>
+      <div class="grille-boutons">
+        <button id="btn-repere">Texte…</button>
+        <button id="btn-contour">Contour</button>
+      </div>
+      <p class="aide">« Escalier », « Entrée », « Haut »… Le contour, c'est le
+        pourtour de la salle&nbsp;: il se trace au clic, point par point.</p>
+    </div>
+
+    <div class="bloc">
+      <h2>La feuille</h2>
+      <div class="paire">
+        <label class="champ"><span>Largeur</span><input type="number" id="vue-l" min="40" max="400" step="10"></label>
+        <label class="champ"><span>Hauteur</span><input type="number" id="vue-h" min="40" max="400" step="10"></label>
+      </div>
+      <label class="bascule"><input type="checkbox" id="magnetisme" checked> Aimanter à la grille</label>
+      <div class="grille-boutons" style="margin-top:12px">
+        <button id="btn-exemple">Voir un exemple</button>
+        <button class="danger" id="btn-vider">Tout effacer</button>
+      </div>
+    </div>
+
+    <div class="bloc">
+      <h2>Raccourcis</h2>
+      <p class="raccourcis">
+        <kbd>N</kbd> passe au mur suivant<br>
+        <kbd>Suppr</kbd> supprime la sélection<br>
+        <kbd>D</kbd> duplique · <kbd>R</kbd> pivote de 90°<br>
+        <kbd>M</kbd> effet miroir<br>
+        <kbd>←↑↓→</kbd> déplacent d'un pas<br>
+        <kbd>Échap</kbd> désélectionne
+      </p>
+    </div>
+
+  </aside>
+
+  <!-- --------------------------------------------------------------- PLANCHE -->
+  <main class="planche">
+    <div class="feuille">
+      <svg id="board" xmlns="http://www.w3.org/2000/svg" tabindex="0"
+           role="application"
+           aria-label="Planche de dessin du plan de la salle. Utilise N pour passer d'un mur au suivant."></svg>
+      <div class="vide-planche" id="vide" hidden>
+        <b>La feuille est blanche.</b>
+        Pose un premier mur avec les boutons à gauche,<br>puis tire ses points
+        pour lui donner sa vraie forme.
+      </div>
+    </div>
+  </main>
+
+  <!-- ------------------------------------------------------------------ FICHE -->
+  <aside class="fiche-rail">
+
+    <div class="bloc" id="inspecteur" hidden>
+      <h2>La sélection</h2>
+      <div id="insp-mur" hidden>
+        <label class="champ"><span>Lettre de la zone</span>
+          <input type="text" id="insp-zone" maxlength="3" autocomplete="off"></label>
+        <label class="champ"><span>Profil</span>
+          <select id="insp-profil"></select></label>
+      </div>
+      <label class="champ" id="insp-texte-champ" hidden><span>Texte du repère</span>
+        <input type="text" id="insp-texte" maxlength="18" autocomplete="off"></label>
+      <div class="grille-boutons" style="margin-top:10px">
+        <button id="btn-pivoter">Pivoter 90°</button>
+        <button id="btn-miroir">Miroir</button>
+        <button id="btn-dupliquer">Dupliquer</button>
+        <button class="danger" id="btn-supprimer">Supprimer</button>
+      </div>
+    </div>
+
+    <div class="bloc">
+      <h2>Sur la fiche du grimpeur</h2>
+      <div class="cadre-apercu">
+        <p class="sous-titre">Dossard papier — taille réelle</p>
+        <div class="apercu">
+          <h3>Le mur</h3>
+          <div id="apercu-svg"></div>
+          <p class="hors" id="apercu-hors" hidden>Hors plan : zone Q.</p>
+        </div>
+        <p class="legende-apercu">La colonne fait <b>37 mm</b>. Si une lettre ne
+          se lit pas ici, elle ne se lira pas à l'impression.</p>
+
+        <div class="deux-ecrans" style="margin-top:18px">
+          <div>
+            <p class="sous-titre">Page web</p>
+            <div class="ecran"><h3>Le mur</h3><div id="apercu-clair"></div></div>
+          </div>
+          <div>
+            <p class="sous-titre">Téléphone</p>
+            <div class="telephone"><h3>Le mur</h3><div id="apercu-nuit"></div></div>
+          </div>
+        </div>
+      </div>
+      <button id="btn-simuler" style="width:100%;margin-top:10px">Simuler un grimpeur</button>
+      <p class="aide">Les zones où <em>ce</em> grimpeur a des blocs passent en
+        noir plein. C'est ce qui fait d'une carte un itinéraire.</p>
+    </div>
+
+    <div class="bloc">
+      <h2>À me recoller</h2>
+      <div class="sortie">
+        <textarea id="sortie" spellcheck="false" aria-label="Le plan, en Python"></textarea>
+      </div>
+      <p class="compte" id="compte"></p>
+      <div class="grille-boutons" style="margin-top:8px">
+        <button id="btn-copier">Copier</button>
+        <button id="btn-relire">Recoller un plan</button>
+      </div>
+      <p class="etat" id="etat" role="status"></p>
+      <p class="aide"><b>Pour me l'envoyer</b> : « Copier », puis colle-le dans
+        le chat — c'est exactement la constante que lit le serveur.<br>
+        <b>Pour reprendre un plan</b> : colle-le dans le cadre ci-dessus et
+        clique « Recoller un plan ». Le dessin repart où tu l'avais laissé.</p>
+    </div>
+
+  </aside>
+</div>
+
+<script>
+"use strict";
+
+/* ---------------------------------------------------------------- Les profils
+   Un seul axe visuel, et il est ORDONNÉ : plus le mur déverse, plus la trame se
+   densifie et plus le gris fonce. Le lecteur n'a qu'une règle à apprendre, et
+   elle survit à l'impression en noir et blanc — ce qui n'est pas le cas d'un
+   code couleur. */
+const PROFILS = [
+  { cle: "dalle",    nom: "Dalle",       indice: "couchée",       teinte: "#EFECE6", trame: "pois",   pas: 4.6, epaisseur: 0.45 },
+  { cle: "vertical", nom: "Vertical",    indice: "droit",         teinte: "#E2DED5", trame: null,     pas: 0,   epaisseur: 0 },
+  { cle: "incline",  nom: "Pan incliné", indice: "léger dévers",  teinte: "#D4CEC2", trame: "penche", pas: 5.0, epaisseur: 0.50 },
+  { cle: "devers",   nom: "Dévers",      indice: "franc",         teinte: "#C1BAAB", trame: "penche", pas: 3.2, epaisseur: 0.55 },
+  { cle: "surplomb", nom: "Surplomb",    indice: "prononcé",      teinte: "#A79E8C", trame: "penche", pas: 2.1, epaisseur: 0.60 },
+  { cle: "toit",     nom: "Toit",        indice: "horizontal",    teinte: "#8D8473", trame: "croise", pas: 2.6, epaisseur: 0.60 },
+];
+const PAR_CLE = Object.fromEntries(PROFILS.map(p => [p.cle, p]));
+
+/* ⚠️ Tout ce qui vient de l'utilisateur passe par ici avant d'entrer dans un
+   `innerHTML`. Le texte des reperes etait nettoye, la lettre de zone NON --
+   ni en contenu, ni en attribut -- alors qu'elle suit le meme chemin et qu'un
+   plan se RECOLLE depuis le presse-papier. */
+const propre = (s) => String(s == null ? "" : s).replace(
+  /[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;",
+                        '"': "&quot;", "'": "&#39;" }[c]));
+
+const ENCRE = "#1C1B19", ENCRE_DOUX = "#6B655C", PLEIN = "#17150F";
+const CLE_STOCKAGE = "annonay-plan-mur-v2";
+
+/* La grille que remplace ce plan (`fiches.py`). Elle sert de point de départ :
+   les lettres du club sont déjà là, il n'y a qu'à leur donner leur vraie
+   forme — plutôt qu'une feuille blanche. */
+const GRILLE_ORIGINE = [
+  [null, null, null, null, "X",  "Y",  null],
+  [null, "D",  null, null, "Z",  null, null],
+  [null, "C",  "B",  "A",  null, null, null],
+  [null, null, null, null, null, null, null],
+  ["L",  null, null, null, null, null, null],
+  ["M",  "K",  "J",  "I",  "H",  "G",  "F"],
+  ["N",  null, null, null, "E",  null, null],
+  [null, null, null, null, null, null, null],
+];
+const REPERES_ORIGINE = [
+  { texte: "Escalier", col: 4, lig: 2 },
+  { texte: "Haut",     col: 1, lig: 7 },
+];
+
+/* ------------------------------------------------------------------- L'état */
+let etat = null;
+let selection = null;          // { id } — "__contour" pour le contour
+let sommetVif = null;
+let trace = null;              // { cible: "mur" | "contour", points: [] }
+let profilCourant = "vertical";
+let simulees = new Set();
+let pile = [], pilePos = -1, glisse = null, curseur = null;
+let memoireRefusee = false;
+
+const $ = s => document.querySelector(s);
+const board = $("#board");
+
+const nombre = n => Math.round(n * 10) / 10;
+const aimante = v => etat.magnetisme ? Math.round(v / 5) * 5 : nombre(v);
+
+function neuf() {
+  const l = 120, h = 150, cw = l / 7, ch = h / 8;
+  const murs = [];
+  GRILLE_ORIGINE.forEach((ligne, li) => ligne.forEach((zone, ci) => {
+    if (!zone) return;
+    const cx = (ci + 0.5) * cw, cy = (li + 0.5) * ch;
+    const dl = cw * 0.42, dh = ch * 0.36;
+    murs.push({
+      id: crypto.randomUUID(), zone, profil: "vertical", etiquette: null,
+      points: [[cx - dl, cy - dh], [cx + dl, cy - dh], [cx + dl, cy + dh], [cx - dl, cy + dh]]
+        .map(([x, y]) => [Math.round(x), Math.round(y)]),
+    });
+  }));
+  return {
+    vue: { l, h }, magnetisme: true, contour: null, murs,
+    reperes: REPERES_ORIGINE.map(r => ({
+      id: crypto.randomUUID(), texte: r.texte,
+      point: [Math.round((r.col + 0.5) * cw), Math.round((r.lig + 0.5) * ch)],
+    })),
+  };
+}
+
+/* --------------------------------------------------------------- Géométrie */
+function centre(points) {
+  let a = 0, x = 0, y = 0;
+  for (let i = 0; i < points.length; i++) {
+    const [x1, y1] = points[i], [x2, y2] = points[(i + 1) % points.length];
+    const f = x1 * y2 - x2 * y1;
+    a += f; x += (x1 + x2) * f; y += (y1 + y2) * f;
+  }
+  if (Math.abs(a) < 1e-9) {                       // polygone dégénéré : moyenne
+    return [points.reduce((s, p) => s + p[0], 0) / points.length,
+            points.reduce((s, p) => s + p[1], 0) / points.length];
+  }
+  return [x / (3 * a), y / (3 * a)];
+}
+const cadre = pts => ({
+  x0: Math.min(...pts.map(p => p[0])), x1: Math.max(...pts.map(p => p[0])),
+  y0: Math.min(...pts.map(p => p[1])), y1: Math.max(...pts.map(p => p[1])),
+});
+function pivoter(points) {
+  const [cx, cy] = centre(points);
+  return points.map(([x, y]) => [Math.round(cx - (y - cy)), Math.round(cy + (x - cx))]);
+}
+function refleter(points) {
+  const b = cadre(points);
+  return points.map(([x, y]) => [Math.round(b.x0 + b.x1 - x), y]);
+}
+const distance = (a, b) => Math.hypot(a[0] - b[0], a[1] - b[1]);
+
+/* ---------------------------------------------------------------- Palettes
+   Le MÊME dessin sort sur trois supports qui ne pardonnent pas les mêmes
+   choses, et ils n'ont donc pas la même palette.
+
+   Sur ÉCRAN, le profil est porté par la COULEUR, et par une couleur qui
+   raconte quelque chose : le mur bascule du FROID au CHAUD au moment précis où
+   il passe la verticale. Dalle et vertical reculent en bleu ; dès que ça
+   déverse, ça chauffe — ocre, ambre, rouille, rouge. La rupture de teinte
+   tombe donc sur la seule frontière qui compte pour un grimpeur : le mur
+   cesse de s'écarter et commence à se pencher sur lui.
+
+   ⚠️ C'est une échelle ORDONNÉE, pas six catégories. Elle ne se confond donc
+   pas avec les six couleurs de difficulté du classeur, qui sont franches et
+   discrètes : un dégradé continu ne se lit pas comme une pastille.
+
+   Sur PAPIER, rien de tout ça : le dossard s'imprime à l'encre noire, il reste
+   en trames de gris. Adrien : « seule la partie sur dossard doit rester
+   sobre ». */
+const PALETTES = {
+  papier: {
+    suffixe: "", fond: "#FFFFFF", emphase: false,
+    trame: "#1C1B19", trameDouce: "#6B655C", trameSienne: "#FFFFFF",
+    contour: "#1C1B19", contourLargeur: 0.7,
+    repere: "#6B655C", haloRepere: "#FFFFFF",
+    lettre: "#1C1B19", halo: "#FFFFFF",
+    sienne: "#17150F", lettreSienne: "#FFFFFF", haloSienne: "#17150F",
+    teintes: { dalle: "#EFECE6", vertical: "#E2DED5", incline: "#D4CEC2",
+               devers: "#C1BAAB", surplomb: "#A79E8C", toit: "#8D8473" },
+  },
+  clair: {
+    suffixe: "-c", fond: "#FFFFFF", emphase: true,
+    trame: "rgba(20, 28, 36, .17)", trameDouce: "rgba(20, 28, 36, .24)",
+    contour: "#FFFFFF", contourLargeur: 0.9,
+    repere: "#6E7C87", haloRepere: "#FFFFFF",
+    lettre: "#16232E", halo: "rgba(255,255,255,.92)",
+    anneau: "#B5791B", lueur: "#E0A94A", efface: 0.5,
+    lettreSienne: "#16232E", haloSienne: "rgba(255,255,255,.95)",
+    teintes: { dalle: "#D2E0E7", vertical: "#A6C4D3", incline: "#F0D5A0",
+               devers: "#EEBC7E", surplomb: "#E7A074", toit: "#E28379" },
+  },
+  nuit: {
+    suffixe: "-n", fond: "#15161B", emphase: true,
+    trame: "rgba(255, 255, 255, .13)", trameDouce: "rgba(255, 255, 255, .20)",
+    contour: "#12131A", contourLargeur: 0.9,
+    repere: "#98A1AA", haloRepere: "#15161B",
+    lettre: "#F5F0E7", halo: "rgba(9, 10, 14, .85)",
+    anneau: "#FFD489", lueur: "#FFC463", efface: 0.42,
+    lettreSienne: "#FFFFFF", haloSienne: "rgba(9, 10, 14, .9)",
+    teintes: { dalle: "#2E3F4C", vertical: "#3D6076", incline: "#9A7238",
+               devers: "#B57430", surplomb: "#BE5B33", toit: "#BC443F" },
+  },
+};
+
+/* ------------------------------------------------------------------ Rendu */
+function trames(pal) {
+  const filtres = pal.lueur
+    ? `<filter id="lueur${pal.suffixe}" x="-40%" y="-40%" width="180%" height="180%">
+         <feDropShadow dx="0" dy="0" stdDeviation="2"
+                       flood-color="${pal.lueur}" flood-opacity="0.85"/></filter>`
+    : "";
+  return filtres + PROFILS.filter(p => p.trame).map(p => {
+    const t = p.pas, e = p.epaisseur, cle = p.cle, id = "tr-" + cle + pal.suffixe;
+    const forme = encre =>
+      p.trame === "pois"
+        ? `<circle cx="${t / 2}" cy="${t / 2}" r="${e}" fill="${encre}"/>`
+        : p.trame === "penche"
+          ? `<path d="M -1 1 L 1 -1 M 0 ${t} L ${t} 0 M ${t - 1} ${t + 1} L ${t + 1} ${t - 1}"
+                   stroke="${encre}" stroke-width="${e}" fill="none"/>`
+          : `<path d="M 0 ${t} L ${t} 0 M 0 0 L ${t} ${t}"
+                   stroke="${encre}" stroke-width="${e}" fill="none"/>`;
+    return `<pattern id="${id}" width="${t}" height="${t}" patternUnits="userSpaceOnUse">
+              <rect width="${t}" height="${t}" fill="${pal.teintes[cle]}"/>
+              ${forme(p.trame === "pois" ? pal.trameDouce : pal.trame)}</pattern>
+            <pattern id="${id}-sur" width="${t}" height="${t}" patternUnits="userSpaceOnUse"
+                     opacity="0.55">${forme(pal.trameSienne)}</pattern>`;
+  }).join("");
+}
+
+/* La lettre s'ajuste à la BOÎTE DU MUR, elle n'a pas de taille fixe.
+
+   ⚠️ Mesuré sur le relevé d'Adrien : à 9 unités fixes, aucune de ses 17 zones
+   ne débordait -- ses murs font quinze unités, et une capitale y tient. Mais
+   la marge était de 0,25 unité, et une zone à DEUX caractères la crevait.
+   Comme rien n'interdit de nommer une zone « A1 », la taille se calcule.
+
+   Largeur : une capitale condensée grasse occupe ~0,62 fois sa taille, et on
+   ne remplit la boîte qu'à 80 %. Hauteur : la hauteur de capitale vaut ~0,72
+   fois la taille, et on vise 70 % de la boîte. Plancher à 3,5 unités -- soit
+   1,06 mm sur la colonne de 37 mm -- en dessous ça ne se lit plus, et mieux
+   vaut une lettre serrée qu'une lettre absente. */
+function tailleLettre(m) {
+  const b = cadre(m.points);
+  const n = Math.max(1, (m.zone || "").length);
+  return Math.max(3.5, Math.min(9, b.y1 - b.y0 <= 0 ? 9 : (b.y1 - b.y0) * 0.97,
+                                   (b.x1 - b.x0) * 0.8 / (n * 0.62)));
+}
+
+/* Le halo sous la lettre. Sans lui, un « J » sur la trame d'un toit devient
+   illisible : c'est la technique des cartes, pas une coquetterie. */
+function lettre(x, y, texte, taille, sienne, pal) {
+  return `<text x="${x}" y="${y}" text-anchor="middle" dominant-baseline="central"
+                font-family="'IBM Plex Sans Condensed', sans-serif" font-weight="700"
+                font-size="${taille}" fill="${sienne ? pal.lettreSienne : pal.lettre}"
+                stroke="${sienne ? pal.haloSienne : pal.halo}"
+                stroke-width="${taille * 0.24}" paint-order="stroke fill"
+                style="pointer-events:none">${propre(texte)}</text>`;
+}
+
+function corpsDuPlan({ marquees, pourEcran, pal }) {
+  const p = [];
+  if (etat.contour && etat.contour.points.length > 2) {
+    p.push(`<polygon points="${etat.contour.points.map(q => q.join(",")).join(" ")}"
+              fill="none" stroke="${pal.repere}" stroke-width="0.8"
+              stroke-dasharray="3 2" stroke-linejoin="round"
+              ${pourEcran ? 'data-quoi="forme" data-id="__contour" class="mur-forme"' : ""}/>`);
+  }
+  for (const m of etat.murs) {
+    const sienne = marquees.has(m.zone);
+    /* ⚠️ Deux canaux séparés, et c'est la règle qui tient tout le dessin :
+       le PROFIL vit dans la teinte, l'ÉTAT dans l'emphase. Si l'état prenait
+       aussi le remplissage — comme sur le papier, où il n'y a que du noir --
+       une zone du grimpeur perdrait son profil, et c'est justement celle
+       qu'il regarde. À l'écran l'état est donc un ANNEAU et une LUEUR, et les
+       autres zones s'effacent. */
+    const parEmphase = pal.emphase;
+    const eteinte = parEmphase && marquees.size > 0 && !sienne;
+    const pr = PAR_CLE[m.profil] || PAR_CLE.vertical;
+    const contour = m.points.map(q => q.join(",")).join(" ");
+    const fond = (sienne && !parEmphase) ? pal.sienne
+               : (pr.trame ? `url(#tr-${pr.cle}${pal.suffixe})` : pal.teintes[pr.cle]);
+    const vif = sienne && parEmphase;
+    p.push(`<polygon points="${contour}" fill="${fond}"
+              stroke="${vif ? pal.anneau : pal.contour}"
+              stroke-width="${vif ? 1.8 : pal.contourLargeur}" stroke-linejoin="round"
+              ${eteinte ? `opacity="${pal.efface}"` : ""}
+              ${vif ? `filter="url(#lueur${pal.suffixe})"` : ""}
+              ${pourEcran ? `data-quoi="forme" data-id="${m.id}" class="mur-forme"` : ""}
+              ${pourEcran ? "" : `data-zone="${propre(m.zone)}" data-profil="${propre(m.profil)}"`}/>`);
+    /* Sur le papier, l'aplat noir a mangé la trame : on la repose en clair. */
+    if (sienne && !parEmphase && pr.trame) {
+      p.push(`<polygon points="${contour}" fill="url(#tr-${pr.cle}${pal.suffixe}-sur)"
+                stroke="none" style="pointer-events:none"/>`);
+    }
+    const [cx, cy] = m.etiquette || centre(m.points);
+    if (m.zone) {
+      p.push(`<g${eteinte ? ` opacity="${pal.efface}"` : ""}
+              >${lettre(cx, cy, m.zone, tailleLettre(m), sienne, pal)}</g>`);
+    }
+  }
+  for (const r of etat.reperes) {
+    p.push(`<text x="${r.point[0]}" y="${r.point[1]}" text-anchor="middle" dominant-baseline="central"
+              font-family="'IBM Plex Sans', sans-serif" font-style="italic" font-size="6"
+              fill="${pal.repere}" stroke="${pal.haloRepere}" stroke-width="1.6" paint-order="stroke fill"
+              ${pourEcran ? `data-quoi="repere" data-id="${r.id}" class="mur-forme"` : ""}
+              >${propre(r.texte)}</text>`);
+  }
+  return p.join("");
+}
+
+/* Un demi-millimètre de marge autour : un mur posé sur le bord verrait sinon
+   la moitié de son trait rognée par le bord du dessin. */
+const cadrage = () => `-1 -1 ${etat.vue.l + 2} ${etat.vue.h + 2}`;
+
+function dessiner() {
+  const { l, h } = etat.vue;
+  const cote = Math.min(700 / l, 770 / h, 6);
+  board.setAttribute("viewBox", cadrage());
+  board.setAttribute("width", (l + 2) * cote);
+  board.setAttribute("height", (h + 2) * cote);
+  board.classList.toggle("trace", !!trace);
+
+  const r = 5 / cote, rp = 3.4 / cote;
+  const morceaux = [`<defs>${trames(PALETTES.papier)}
+      <pattern id="grille" width="5" height="5" patternUnits="userSpaceOnUse">
+        <path d="M 5 0 L 0 0 0 5" fill="none" stroke="#DCE2E6" stroke-width="0.35"/>
+      </pattern>
+      <pattern id="grille10" width="25" height="25" patternUnits="userSpaceOnUse">
+        <rect width="25" height="25" fill="url(#grille)"/>
+        <path d="M 25 0 L 0 0 0 25" fill="none" stroke="#C6CFD6" stroke-width="0.5"/>
+      </pattern></defs>`,
+    `<rect x="-1" y="-1" width="${l + 2}" height="${h + 2}" fill="url(#grille10)"/>`,
+    corpsDuPlan({ marquees: new Set(), pourEcran: true, pal: PALETTES.papier })];
+
+  const sel = selection && (selection.id === "__contour" ? etat.contour
+                                                         : etat.murs.find(m => m.id === selection.id));
+  if (sel && sel.points) {
+    morceaux.push(`<polygon points="${sel.points.map(q => q.join(",")).join(" ")}"
+      fill="none" stroke="#B5791B" stroke-width="${1.6 / cote}" stroke-linejoin="round"
+      style="pointer-events:none"/>`);
+    sel.points.forEach(([x, y], i) => morceaux.push(
+      `<circle cx="${x}" cy="${y}" r="${r}" stroke-width="${1.4 / cote}"
+         class="poignee${sommetVif === i ? " vive" : ""}"
+         data-quoi="sommet" data-id="${selection.id}" data-i="${i}"/>`));
+    if (selection.id !== "__contour") {
+      const [ex, ey] = sel.etiquette || centre(sel.points);
+      morceaux.push(`<circle cx="${ex}" cy="${ey}" r="${rp}" stroke-width="${1.2 / cote}"
+        class="poignee-etiq" data-quoi="etiquette" data-id="${sel.id}"/>`);
+    }
+  }
+  if (trace && trace.points.length) {
+    const d = trace.points.map(q => q.join(",")).join(" ")
+           + (curseur ? " " + curseur.join(",") : "");
+    morceaux.push(`<polyline points="${d}" fill="rgba(224,169,74,.18)" stroke="#B5791B"
+      stroke-width="${1.4 / cote}" stroke-dasharray="${3 / cote} ${2 / cote}"
+      style="pointer-events:none"/>`);
+    trace.points.forEach(([x, y], i) => morceaux.push(
+      `<circle cx="${x}" cy="${y}" r="${(i === 0 ? r * 1.3 : r * 0.8)}"
+         fill="${i === 0 ? "#E0A94A" : "#fff"}" stroke="#B5791B"
+         stroke-width="${1.2 / cote}" style="pointer-events:none"/>`));
+  }
+  board.innerHTML = morceaux.join("");
+  $("#vide").hidden = etat.murs.length > 0 || !!trace || !!etat.contour;
+  // M14 : la note de demonstration restait affichee apres « Tout effacer »
+  // ou un recollage, sans aucune zone simulee derriere elle.
+  $("#apercu-hors").hidden = simulees.size === 0;
+  apercu();
+  inspecteur();
+}
+
+function apercu() {
+  const cibles = [["#apercu-svg", PALETTES.papier],
+                  ["#apercu-clair", PALETTES.clair],
+                  ["#apercu-nuit", PALETTES.nuit]];
+  for (const [cible, pal] of cibles) {
+    $(cible).innerHTML =
+      `<svg viewBox="${cadrage()}" xmlns="http://www.w3.org/2000/svg">
+         <defs>${trames(pal)}</defs>
+         ${corpsDuPlan({ marquees: simulees, pourEcran: false, pal })}</svg>`;
+  }
+}
+
+/* ------------------------------------------------------------- Les gestes */
+function pointSvg(evt) {
+  const b = board.getBoundingClientRect();
+  const { l, h } = etat.vue;
+  return [(evt.clientX - b.left) / b.width * l, (evt.clientY - b.top) / b.height * h];
+}
+
+board.addEventListener("pointerdown", evt => {
+  const p = pointSvg(evt);
+
+  if (trace) {                                   // on est en train de tracer
+    if (trace.points.length > 2 && distance(p, trace.points[0]) < 6) return clore();
+    trace.points.push([aimante(p[0]), aimante(p[1])]);
+    return dessiner();
+  }
+
+  const cible = evt.target.closest("[data-quoi]");
+  if (!cible) { selection = null; sommetVif = null; return dessiner(); }
+
+  const quoi = cible.dataset.quoi, id = cible.dataset.id;
+  const objet = id === "__contour" ? etat.contour
+              : etat.murs.find(m => m.id === id) || etat.reperes.find(r => r.id === id);
+  if (!objet) return;
+
+  memoriser();
+  board.setPointerCapture(evt.pointerId);
+  /* ⚠️ L'etat AVANT le geste. `glisse` est pose des le `pointerdown`, qu'on
+     bouge ou non : sans cette comparaison, un simple clic de selection
+     appelait `commettre()`, qui tronque la pile -- poser A, poser B, Ctrl+Z,
+     puis cliquer sur A pour le regarder faisait perdre B DEFINITIVEMENT. */
+  var avantLeGeste = JSON.stringify(objet);
+
+  if (quoi === "sommet") {
+    selection = { id }; sommetVif = +cible.dataset.i;
+    glisse = { quoi: "sommet", objet, i: sommetVif, avant: avantLeGeste };
+  } else if (quoi === "etiquette") {
+    selection = { id }; sommetVif = null;
+    glisse = { quoi: "etiquette", objet, depart: p, avant: avantLeGeste,
+                origine: objet.etiquette || centre(objet.points) };
+  } else if (quoi === "repere") {
+    selection = { id }; sommetVif = null;
+    glisse = { quoi: "repere", objet, depart: p, avant: avantLeGeste,
+                origine: objet.point.slice() };
+  } else {
+    /* Alt+clic sur une arête : un point de plus, là où on a cliqué. */
+    if (evt.altKey && objet.points) {
+      let meilleur = 0, mini = Infinity;
+      for (let i = 0; i < objet.points.length; i++) {
+        const a = objet.points[i], b = objet.points[(i + 1) % objet.points.length];
+        const m = [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2];
+        const d = distance(p, m);
+        if (d < mini) { mini = d; meilleur = i; }
+      }
+      objet.points.splice(meilleur + 1, 0, [aimante(p[0]), aimante(p[1])]);
+      selection = { id }; sommetVif = meilleur + 1;
+      return commettre();
+    }
+    selection = { id }; sommetVif = null;
+    glisse = { quoi: "forme", objet, depart: p, avant: avantLeGeste,
+                origine: objet.points.map(q => q.slice()) };
+  }
+  dessiner();
+});
+
+board.addEventListener("pointermove", evt => {
+  const p = pointSvg(evt);
+  if (trace) { curseur = [aimante(p[0]), aimante(p[1])]; return dessiner(); }
+  if (!glisse) return;
+  const o = glisse.objet;
+
+  if (glisse.quoi === "sommet") {
+    o.points[glisse.i] = [aimante(p[0]), aimante(p[1])];
+  } else {
+    /* On aimante le DÉPLACEMENT, pas chaque point : sinon la forme se déforme
+       à chaque geste. */
+    const dx = aimante(p[0] - glisse.depart[0]), dy = aimante(p[1] - glisse.depart[1]);
+    if (glisse.quoi === "forme") o.points = glisse.origine.map(([x, y]) => [nombre(x + dx), nombre(y + dy)]);
+    else if (glisse.quoi === "etiquette") o.etiquette = [nombre(glisse.origine[0] + dx), nombre(glisse.origine[1] + dy)];
+    else o.point = [nombre(glisse.origine[0] + dx), nombre(glisse.origine[1] + dy)];
+  }
+  dessiner();
+});
+
+function finDuGeste(evt) {
+  if (glisse) {
+    const change = JSON.stringify(glisse.objet) !== glisse.avant;
+    glisse = null;
+    if (change) commettre(); else dessiner();
+  }
+  if (evt && board.hasPointerCapture(evt.pointerId)) board.releasePointerCapture(evt.pointerId);
+}
+board.addEventListener("pointerup", finDuGeste);
+/* M16 : sur tablette, un geste interrompu -- appel entrant, seconde touche --
+   laissait `glisse` pose et la forme suivait le pointeur au mouvement suivant. */
+board.addEventListener("pointercancel", finDuGeste);
+board.addEventListener("dblclick", () => { if (trace) clore(); });
+
+function clore() {
+  if (!trace) return;
+  if (trace.points.length < 3) { trace = null; curseur = null; return dessiner(); }
+  memoriser();
+  if (trace.cible === "contour") etat.contour = { points: trace.points };
+  else {
+    const m = { id: crypto.randomUUID(), zone: "", profil: profilCourant, etiquette: null, points: trace.points };
+    etat.murs.push(m); selection = { id: m.id };
+  }
+  trace = null; curseur = null;
+  commettre();
+  if (selection) $("#insp-zone").focus();
+}
+
+/* ------------------------------------------------------------ Les formes */
+const GABARITS = {
+  rectangle: [[-15, -10], [15, -10], [15, 10], [-15, 10]],
+  triangle:  [[-15, 11], [15, 11], [15, -11]],
+  trapeze:   [[-17, -10], [11, -10], [17, 10], [-11, 10]],
+  bande:     [[-23, -5], [23, -5], [23, 5], [-23, 5]],
+};
+function poser(forme) {
+  if (forme === "libre") { trace = { cible: "mur", points: [] }; selection = null; return dessiner(); }
+  memoriser();
+  const cx = Math.round(etat.vue.l / 2), cy = Math.round(etat.vue.h / 2);
+  const m = {
+    id: crypto.randomUUID(), zone: "", profil: profilCourant, etiquette: null,
+    points: GABARITS[forme].map(([x, y]) => [cx + x, cy + y]),
+  };
+  etat.murs.push(m); selection = { id: m.id }; sommetVif = null;
+  commettre(); $("#insp-zone").focus();
+}
+
+function courant() {
+  if (!selection) return null;
+  if (selection.id === "__contour") return { genre: "contour", objet: etat.contour };
+  const m = etat.murs.find(x => x.id === selection.id);
+  if (m) return { genre: "mur", objet: m };
+  const r = etat.reperes.find(x => x.id === selection.id);
+  return r ? { genre: "repere", objet: r } : null;
+}
+
+/* --------------------------------------------------------- L'inspecteur */
+function inspecteur() {
+  const c = courant();
+  $("#inspecteur").hidden = !c;
+  if (!c) return;
+  $("#insp-mur").hidden = c.genre !== "mur";
+  $("#insp-texte-champ").hidden = c.genre !== "repere";
+  $("#btn-pivoter").disabled = c.genre === "repere";
+  $("#btn-miroir").disabled = c.genre === "repere";
+  $("#btn-dupliquer").disabled = c.genre === "contour";
+  if (c.genre === "mur") {
+    if (document.activeElement !== $("#insp-zone")) $("#insp-zone").value = c.objet.zone || "";
+    $("#insp-profil").value = c.objet.profil;
+  }
+  if (c.genre === "repere" && document.activeElement !== $("#insp-texte")) {
+    $("#insp-texte").value = c.objet.texte;
+  }
+}
+
+/* ------------------------------------------------- Défaire / refaire / état */
+/* La pile garde l'état APRÈS chaque geste, et `pilePos` désigne l'état courant.
+   Empiler avant la mutation obligeait à deviner ce qui allait changer. */
+function memoriser() { /* l'empilement se fait dans `commettre`, après coup */ }
+
+function boutonsPile() {
+  $("#annuler").disabled = pilePos <= 0;
+  $("#refaire").disabled = pilePos >= pile.length - 1;
+}
+function rejouer(sens) {
+  const cible = pilePos + sens;
+  if (cible < 0 || cible >= pile.length) return;
+  pilePos = cible;
+  etat = JSON.parse(pile[pilePos]);
+  selection = null; sommetVif = null; trace = null; curseur = null;
+  commettre(true);
+}
+function commettre(sansPile) {
+  if (!sansPile) {
+    pile = pile.slice(0, pilePos + 1);
+    pile.push(JSON.stringify(etat));
+    if (pile.length > 60) pile.shift();
+    pilePos = pile.length - 1;
+  }
+  boutonsPile();
+  /* ⚠️ M9 : l'echec etait avale. En navigation privee ou au quota plein, le
+     dessin SEMBLAIT enregistre et disparaissait au rechargement. */
+  try {
+    localStorage.setItem(CLE_STOCKAGE, JSON.stringify(etat));
+    memoireRefusee = false;
+  } catch (_) {
+    if (!memoireRefusee) {
+      memoireRefusee = true;
+      dire("Le navigateur refuse d'enregistrer : copie ton plan avant de fermer.", false);
+    }
+  }
+  $("#sortie").value = exporter();
+  const zones = etat.murs.filter(m => m.zone).length;
+  const orphelins = etat.murs.length - zones;
+  $("#compte").textContent =
+    `${etat.murs.length} mur${etat.murs.length > 1 ? "s" : ""}, ${zones} avec une lettre`
+    + (orphelins ? ` — ${orphelins} sans lettre, elles ne s'afficheront pas.` : ".");
+  dessiner();
+}
+
+/* ---------------------------------------------------------------- Export */
+function exporter() {
+  const t = n => `(${Math.round(n[0])}, ${Math.round(n[1])})`;
+  const pts = p => `(${p.map(t).join(", ")})`;
+  const l = [];
+  l.push("PLAN = {");
+  l.push(`    "vue": (${etat.vue.l}, ${etat.vue.h}),`);
+  l.push(`    "contour": ${etat.contour ? pts(etat.contour.points) : "None"},`);
+  l.push('    "murs": (');
+  for (const m of etat.murs) {
+    l.push(`        {"zone": ${JSON.stringify(m.zone || "")}, "profil": ${JSON.stringify(m.profil)},`);
+    l.push(`         "points": ${pts(m.points)},`);
+    l.push(`         "etiquette": ${m.etiquette ? t(m.etiquette) : "None"}},`);
+  }
+  l.push("    ),");
+  l.push('    "reperes": (');
+  for (const r of etat.reperes) l.push(`        {"texte": ${JSON.stringify(r.texte)}, "point": ${t(r.point)}},`);
+  l.push("    ),");
+  l.push("}");
+  return l.join("\n");
+}
+
+/* Relire ce qu'on a exporté : `(` devient `[`, `None` devient `null` — mais
+   JAMAIS à l'intérieur d'une chaîne, sinon un repère nommé « Salle (bas) »
+   casserait la lecture. D'où le petit scanner plutôt qu'un remplacement global. */
+function versJson(txt) {
+  let out = "", dans = null;
+  for (let i = 0; i < txt.length; i++) {
+    const c = txt[i];
+    if (dans) {
+      if (c === "\\") { out += c + (txt[i + 1] ?? ""); i++; continue; }
+      if (c === dans) { out += '"'; dans = null; continue; }
+      out += c === '"' ? "'" : c; continue;
+    }
+    if (c === '"' || c === "'") { dans = c; out += '"'; continue; }
+    if (c === "#") { while (i < txt.length && txt[i] !== "\n") i++; continue; }
+    if (c === "(") { out += "["; continue; }
+    if (c === ")") { out += "]"; continue; }
+    // Les mots-cles Python, hors chaine seulement.
+    const mot = /^(None|True|False)\b/.exec(txt.slice(i));
+    if (mot) {
+      out += { None: "null", True: "true", False: "false" }[mot[1]];
+      i += mot[1].length - 1;
+      continue;
+    }
+    // Une virgule suivie d'une fermeture est une virgule finale Python.
+    // ⚠️ On regarde l'ENTREE, ou la parenthese n'est pas encore devenue
+    // crochet : `[)\]}]` et non `[\]}]`. L'oubli laissait toutes les virgules
+    // finales des tuples et rendait la lecture impossible.
+    if (c === "," && /^,\s*[)\]}]/.test(txt.slice(i, i + 40))) continue;
+    out += c;
+  }
+  /* ⚠️ M10 : ces remplacements etaient faits sur TOUTE la sortie, y compris a
+     l'interieur des chaines -- ce que le scanner ci-dessus prend justement
+     soin d'eviter. Un repere nomme « None » devenait `null`, un repere
+     « Bas, ] » perdait sa virgule. On les applique donc dans le scanner
+     lui-meme, uniquement hors chaine. */
+  return out;
+}
+
+function relire(txt) {
+  const debut = txt.indexOf("{");
+  if (debut < 0) throw new Error("je ne trouve pas d'accolade ouvrante");
+  const brut = JSON.parse(versJson(txt.slice(debut)));
+  if (!Array.isArray(brut.murs)) throw new Error("il manque la clé « murs »");
+  const pt = p => [Number(p[0]), Number(p[1])];
+  return {
+    vue: { l: Number(brut.vue?.[0]) || 120, h: Number(brut.vue?.[1]) || 150 },
+    magnetisme: etat ? etat.magnetisme : true,
+    contour: brut.contour ? { points: brut.contour.map(pt) } : null,
+    murs: brut.murs.map(m => ({
+      id: crypto.randomUUID(), zone: m.zone || "",
+      profil: PAR_CLE[m.profil] ? m.profil : "vertical",
+      points: m.points.map(pt), etiquette: m.etiquette ? pt(m.etiquette) : null,
+    })),
+    reperes: (brut.reperes || []).map(r => ({
+      id: crypto.randomUUID(), texte: r.texte || "", point: pt(r.point),
+    })),
+  };
+}
+function dire(texte, bien) {
+  const e = $("#etat");
+  e.textContent = texte; e.className = "etat " + (bien ? "bien" : "mal");
+  clearTimeout(dire.t); dire.t = setTimeout(() => { e.textContent = ""; }, 4000);
+}
+
+/* --------------------------------------------------------------- Câblage */
+document.querySelectorAll("[data-forme]").forEach(b =>
+  b.addEventListener("click", () => poser(b.dataset.forme)));
+
+/* Chaque pastille montre les DEUX rendus : le gris du papier à gauche, la
+   couleur de l'écran à droite. C'est la seule façon de choisir un profil en
+   sachant ce qu'il donnera sur les deux supports. */
+$("#palette").innerHTML = PROFILS.map(p => `
+  <button class="profil" data-profil="${p.cle}" type="button">
+    <svg viewBox="0 0 26 20" aria-hidden="true">
+      <rect width="13" height="20" fill="${p.trame ? `url(#tr-${p.cle})` : PALETTES.papier.teintes[p.cle]}"/>
+      <rect x="13" width="13" height="20" fill="${PALETTES.clair.teintes[p.cle]}"/>
+    </svg>
+    <div><div class="nom">${p.nom}</div><div class="indice">${p.indice}</div></div>
+  </button>`).join("");
+$("#insp-profil").innerHTML = PROFILS.map(p => `<option value="${p.cle}">${p.nom}</option>`).join("");
+
+function choisirProfil(cle) {
+  profilCourant = cle;
+  document.querySelectorAll("[data-profil]").forEach(b => b.classList.toggle("actif", b.dataset.profil === cle));
+  const c = courant();
+  if (c && c.genre === "mur" && c.objet.profil !== cle) { c.objet.profil = cle; commettre(); }
+}
+document.querySelectorAll("[data-profil]").forEach(b =>
+  b.addEventListener("click", () => choisirProfil(b.dataset.profil)));
+
+$("#btn-repere").addEventListener("click", () => {
+  const r = { id: crypto.randomUUID(), texte: "Repère",
+              point: [Math.round(etat.vue.l / 2), Math.round(etat.vue.h / 2)] };
+  etat.reperes.push(r); selection = { id: r.id }; commettre();
+  $("#insp-texte").focus(); $("#insp-texte").select();
+});
+$("#btn-contour").addEventListener("click", () => {
+  trace = { cible: "contour", points: [] }; selection = null; dessiner();
+});
+
+// M17 : `max="400"` n'etait pas revalide ici. Saisir 99999 donnait une
+// echelle de 0,007 et des poignees de 700 unites recouvrant la planche.
+const borne = (v, defaut) => Math.min(400, Math.max(40, +v || defaut));
+$("#vue-l").addEventListener("change", e => {
+  etat.vue.l = borne(e.target.value, 120); e.target.value = etat.vue.l; commettre();
+});
+$("#vue-h").addEventListener("change", e => {
+  etat.vue.h = borne(e.target.value, 150); e.target.value = etat.vue.h; commettre();
+});
+$("#magnetisme").addEventListener("change", e => {
+  // M13 : il se perdait au rechargement, contrairement aux dimensions
+  // de la feuille juste au-dessus.
+  etat.magnetisme = e.target.checked; commettre();
+});
+
+/* Une salle en L, avec des proues triangulaires et un ilot : de quoi voir OU
+   on va, plutot que de partir des cases de la grille. Ce n'est pas Annonay --
+   c'est une demonstration de ce que la planche sait dessiner. */
+const EXEMPLE = {"vue": {"l": 120, "h": 150}, "magnetisme": true, "contour": {"points": [[10, 10], [110, 10], [110, 88], [86, 88], [86, 142], [10, 142]]}, "murs": [{"zone": "X", "profil": "vertical", "points": [[10, 10], [58, 10], [58, 22], [10, 22]], "etiquette": null}, {"zone": "Y", "profil": "dalle", "points": [[58, 10], [110, 10], [110, 22], [58, 22]], "etiquette": null}, {"zone": "Z", "profil": "devers", "points": [[98, 22], [110, 22], [110, 55], [98, 55]], "etiquette": null}, {"zone": "D", "profil": "surplomb", "points": [[98, 55], [110, 55], [110, 88], [86, 88], [86, 76], [98, 68]], "etiquette": [101, 72]}, {"zone": "K", "profil": "toit", "points": [[74, 58], [86, 58], [86, 76]], "etiquette": [82, 66]}, {"zone": "L", "profil": "vertical", "points": [[10, 22], [22, 22], [22, 60], [10, 60]], "etiquette": null}, {"zone": "M", "profil": "dalle", "points": [[10, 60], [22, 60], [22, 100], [10, 100]], "etiquette": null}, {"zone": "N", "profil": "vertical", "points": [[10, 100], [22, 100], [22, 142], [10, 142]], "etiquette": null}, {"zone": "E", "profil": "incline", "points": [[22, 130], [52, 130], [52, 142], [22, 142]], "etiquette": null}, {"zone": "F", "profil": "vertical", "points": [[52, 130], [86, 130], [86, 142], [52, 142]], "etiquette": null}, {"zone": "G", "profil": "devers", "points": [[74, 88], [86, 88], [86, 112], [74, 112]], "etiquette": null}, {"zone": "H", "profil": "vertical", "points": [[74, 112], [86, 112], [86, 130], [74, 130]], "etiquette": null}, {"zone": "I", "profil": "toit", "points": [[40, 58], [66, 58], [53, 84]], "etiquette": [53, 68]}, {"zone": "J", "profil": "incline", "points": [[32, 96], [60, 88], [66, 104], [38, 112]], "etiquette": null}], "reperes": [{"texte": "Escalier", "point": [50, 118]}, {"texte": "Entrée", "point": [58, 36]}]};
+$("#btn-exemple").addEventListener("click", () => {
+  if (!confirm("Remplacer le dessin par l'exemple ? Ton plan actuel sera perdu.")) return;
+  etat = JSON.parse(JSON.stringify(EXEMPLE));
+  etat.murs.forEach(m => m.id = crypto.randomUUID());
+  etat.reperes.forEach(r => r.id = crypto.randomUUID());
+  selection = null; sommetVif = null; simulees = new Set();
+  $("#vue-l").value = etat.vue.l; $("#vue-h").value = etat.vue.h;
+  commettre();
+});
+
+$("#btn-vider").addEventListener("click", () => {
+  if (!confirm("Effacer tout le dessin et repartir de la grille actuelle ?")) return;
+  etat = neuf(); selection = null; simulees = new Set(); commettre();
+});
+
+/* ⚠️ M15 : `commettre()` a chaque frappe empilait un etat d'annulation, ecrivait
+   dans le `localStorage` et redessinait les quatre SVG PAR CARACTERE. Taper
+   « Z12 » coutait trois Ctrl+Z pour revenir en arriere. On redessine tout de
+   suite -- le retour visuel doit etre immediat -- mais on n'empile qu'a
+   l'arret de la frappe. */
+let frappe = null;
+function commettreApresLaFrappe() {
+  clearTimeout(frappe);
+  frappe = setTimeout(() => { frappe = null; commettre(); }, 450);
+}
+$("#insp-zone").addEventListener("input", e => {
+  const c = courant(); if (!c || c.genre !== "mur") return;
+  const propre = e.target.value.toUpperCase().trim();
+  // Ne reassigner que si ca change : sinon le curseur saute en fin de champ.
+  if (e.target.value !== propre) e.target.value = propre;
+  c.objet.zone = propre;
+  dessiner(); commettreApresLaFrappe();
+});
+$("#insp-profil").addEventListener("change", e => choisirProfil(e.target.value));
+$("#insp-texte").addEventListener("input", e => {
+  const c = courant(); if (!c || c.genre !== "repere") return;
+  c.objet.texte = e.target.value;
+  dessiner(); commettreApresLaFrappe();
+});
+
+$("#btn-pivoter").addEventListener("click", () => transformer(pivoter));
+$("#btn-miroir").addEventListener("click", () => transformer(refleter));
+function transformer(f) {
+  const c = courant(); if (!c || !c.objet.points) return;
+  const avant = centre(c.objet.points);
+  c.objet.points = f(c.objet.points);
+  if (c.objet.etiquette) {
+    const apres = centre(c.objet.points);
+    c.objet.etiquette = [c.objet.etiquette[0] + apres[0] - avant[0],
+                         c.objet.etiquette[1] + apres[1] - avant[1]].map(Math.round);
+  }
+  commettre();
+}
+$("#btn-dupliquer").addEventListener("click", dupliquer);
+function dupliquer() {
+  const c = courant(); if (!c) return;
+  if (c.genre === "mur") {
+    const m = JSON.parse(JSON.stringify(c.objet));
+    m.id = crypto.randomUUID(); m.zone = "";
+    m.points = m.points.map(([x, y]) => [x + 8, y + 8]);
+    if (m.etiquette) m.etiquette = [m.etiquette[0] + 8, m.etiquette[1] + 8];
+    etat.murs.push(m); selection = { id: m.id };
+  } else if (c.genre === "repere") {
+    const r = { id: crypto.randomUUID(), texte: c.objet.texte,
+                point: [c.objet.point[0] + 8, c.objet.point[1] + 8] };
+    etat.reperes.push(r); selection = { id: r.id };
+  }
+  commettre();
+}
+$("#btn-supprimer").addEventListener("click", supprimer);
+function supprimer() {
+  const c = courant(); if (!c) return;
+  if (c.genre === "contour") etat.contour = null;
+  else if (c.genre === "mur") etat.murs = etat.murs.filter(m => m.id !== c.objet.id);
+  else etat.reperes = etat.reperes.filter(r => r.id !== c.objet.id);
+  selection = null; sommetVif = null; commettre();
+}
+
+$("#btn-simuler").addEventListener("click", () => {
+  const zones = [...new Set(etat.murs.map(m => m.zone).filter(Boolean))];
+  if (!zones.length) return dire("Aucune zone n'a de lettre pour l'instant.", false);
+  simulees = new Set();
+  for (let i = zones.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [zones[i], zones[j]] = [zones[j], zones[i]]; }
+  zones.slice(0, Math.min(3, zones.length)).forEach(z => simulees.add(z));
+  apercu();
+});
+
+$("#btn-copier").addEventListener("click", async () => {
+  try { await navigator.clipboard.writeText($("#sortie").value); dire("Copié — colle-le-moi dans le chat.", true); }
+  catch (_) { $("#sortie").select(); dire("Sélectionné : fais Cmd+C.", true); }
+});
+$("#btn-relire").addEventListener("click", () => {
+  try {
+    etat = relire($("#sortie").value);
+    selection = null; sommetVif = null; simulees = new Set();
+    $("#vue-l").value = etat.vue.l; $("#vue-h").value = etat.vue.h;
+    commettre(); dire("Relu — le dessin reprend où tu l'avais laissé.", true);
+  } catch (e) { dire("Je n'ai pas su relire : " + e.message, false); }
+});
+
+$("#annuler").addEventListener("click", () => rejouer(-1));
+$("#refaire").addEventListener("click", () => rejouer(1));
+
+addEventListener("keydown", e => {
+  const cible = e.target;
+  if (cible.matches("input, textarea, select")) {
+    if (e.key === "Escape") cible.blur();
+    return;
+  }
+  const meta = e.metaKey || e.ctrlKey;
+  if (meta && e.key.toLowerCase() === "z") { e.preventDefault(); return rejouer(e.shiftKey ? 1 : -1); }
+  if (e.key === "Escape") { trace = null; curseur = null; selection = null; sommetVif = null; return dessiner(); }
+  if (e.key === "Enter" && trace) { e.preventDefault(); return clore(); }
+
+  /* ⚠️ M12 : sans ca, AUCUNE forme ne pouvait etre atteinte au clavier, et les
+     raccourcis annonces dans le rail -- Suppr, D, R, M, fleches -- restaient
+     inoperants tant qu'on n'avait pas clique a la souris. */
+  if (e.key.toLowerCase() === "n") {
+    e.preventDefault();
+    const tout = [...etat.murs, ...etat.reperes];
+    if (!tout.length) return;
+    const i = tout.findIndex(o => selection && o.id === selection.id);
+    const pas = e.shiftKey ? -1 : 1;
+    const suivant = tout[(i + pas + tout.length + 1) % tout.length] || tout[0];
+    selection = { id: suivant.id }; sommetVif = null;
+    return dessiner();
+  }
+
+  const c = courant(); if (!c) return;
+  if (e.key === "Delete" || e.key === "Backspace") {
+    e.preventDefault();
+    /* Un sommet d'abord, la forme ensuite : un triangle ne descend pas plus bas. */
+    if (sommetVif !== null && c.objet.points && c.objet.points.length > 3) {
+      c.objet.points.splice(sommetVif, 1); sommetVif = null; return commettre();
+    }
+    return supprimer();
+  }
+  if (e.key.toLowerCase() === "d") { e.preventDefault(); return dupliquer(); }
+  if (e.key.toLowerCase() === "r" && c.objet.points) { e.preventDefault(); return transformer(pivoter); }
+  if (e.key.toLowerCase() === "m" && c.objet.points) { e.preventDefault(); return transformer(refleter); }
+  const fleches = { ArrowLeft: [-1, 0], ArrowRight: [1, 0], ArrowUp: [0, -1], ArrowDown: [0, 1] };
+  if (fleches[e.key]) {
+    e.preventDefault();
+    const pas = (etat.magnetisme ? 5 : 1) * (e.shiftKey ? 2 : 1);
+    const [dx, dy] = fleches[e.key].map(v => v * pas);
+    if (c.objet.points) {
+      c.objet.points = c.objet.points.map(([x, y]) => [x + dx, y + dy]);
+      if (c.objet.etiquette) c.objet.etiquette = [c.objet.etiquette[0] + dx, c.objet.etiquette[1] + dy];
+    } else c.objet.point = [c.objet.point[0] + dx, c.objet.point[1] + dy];
+    commettre();
+  }
+});
+
+/* ------------------------------------------------------------------ Départ */
+/* ⚠️ M8 : seul `murs` etait verifie. Un `localStorage` contenant `{"murs":[]}`
+   faisait planter le script des `etat.reperes.forEach` : la planche ne se
+   dessinait jamais, le champ de sortie restait vide, et le seul recours etait
+   de deviner qu'il fallait cliquer « Tout effacer ». */
+function valide(e) {
+  return !!e && Array.isArray(e.murs) && Array.isArray(e.reperes)
+      && e.vue && Number.isFinite(+e.vue.l) && Number.isFinite(+e.vue.h)
+      && +e.vue.l > 0 && +e.vue.h > 0;
+}
+try {
+  const garde = localStorage.getItem(CLE_STOCKAGE);
+  etat = garde ? JSON.parse(garde) : neuf();
+  if (!valide(etat)) etat = neuf();
+} catch (_) { etat = neuf(); }
+etat.murs.forEach(m => { if (!m.id) m.id = crypto.randomUUID(); });
+etat.reperes.forEach(r => { if (!r.id) r.id = crypto.randomUUID(); });
+
+$("#vue-l").value = etat.vue.l;
+$("#vue-h").value = etat.vue.h;
+$("#magnetisme").checked = etat.magnetisme !== false;
+choisirProfil(profilCourant);
+pile = [JSON.stringify(etat)]; pilePos = 0;
+commettre(true);
+</script>
+
+</body>
+</html>
