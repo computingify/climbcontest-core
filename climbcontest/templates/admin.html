@@ -1024,6 +1024,14 @@
         </div>
         <button class="action" id="btnEtiquettes">Ouvrir les étiquettes</button>
       </div>
+
+      <div class="carte">
+        <h2>Le plan de la salle</h2>
+        <p class="aide">Le plan imprimé sur chaque dossard : les murs, leur
+           profil, et les zones du grimpeur allumées. Dessine-le et
+           <strong>enregistre-le</strong> — plus besoin de toucher au code.</p>
+        <button class="action" id="btnPlan">Dessiner le plan du mur</button>
+      </div>
     </section>
 
     <!-- ================= Compétition (spec 018) ================= -->
@@ -1617,6 +1625,10 @@
   $("aRef").addEventListener("keydown", function (e) {
     // Le geste naturel : taper six caracteres et appuyer sur Entree.
     if (e.key === "Enter") $("btnChercherRef").click();
+  });
+
+  $("btnPlan").addEventListener("click", function () {
+    window.open("/admin/plan", "_blank");
   });
 
   $("btnEtiquettes").addEventListener("click", function () {

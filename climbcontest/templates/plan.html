@@ -1,17 +1,4 @@
-<!doctype html>
-<html lang="fr">
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<style>
-  :root { color-scheme: light dark; }
-  body { margin: 0; }
-  img { max-width: 100%; }
-  [hidden] { display: none !important; }
-</style>
 <title>Plan du mur d'Annonay</title>
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans+Condensed:wght@600;700&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
 <style>
 /* ============================================================================
    Le plan du mur d'Annonay Escalade — planche de dessin.
@@ -98,7 +85,7 @@
 [hidden] { display: none !important; }
 
 kbd {
-  font: 500 10.5px "IBM Plex Mono", ui-monospace, monospace; color: var(--encre);
+  font: 500 10.5px ui-monospace, SFMono-Regular, Menlo, monospace; color: var(--encre);
   background: var(--creux); border: 1px solid var(--trait-fort);
   border-bottom-width: 2px; border-radius: 3px; padding: 1px 4px;
 }
@@ -107,11 +94,11 @@ body {
   margin: 0;
   background: var(--fond);
   color: var(--encre);
-  font: 400 14px/1.5 "IBM Plex Sans", system-ui, -apple-system, sans-serif;
+  font: 400 14px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
   -webkit-font-smoothing: antialiased;
 }
 
-h1, h2, h3 { font-family: "IBM Plex Sans Condensed", "IBM Plex Sans", sans-serif; margin: 0; }
+h1, h2, h3 { font-family: system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif; margin: 0; }
 
 /* --- Ossature ------------------------------------------------------------ */
 .app {
@@ -136,6 +123,19 @@ h1, h2, h3 { font-family: "IBM Plex Sans Condensed", "IBM Plex Sans", sans-serif
 .barre h1 { font-size: 17px; font-weight: 700; letter-spacing: -.01em; }
 .barre .sous { font-size: 12.5px; color: var(--encre-doux); }
 .barre .pousse { margin-left: auto; }
+.barre a.faux-bouton { text-decoration: none; }
+button.capital, .faux-bouton {
+  font-size: 13px; text-decoration: none;
+}
+button.capital {
+  background: var(--ocre); border-color: var(--ocre); color: #fff; font-weight: 600;
+}
+button.capital:hover:not(:disabled) { background: var(--ocre-vif); border-color: var(--ocre-vif); }
+button.capital:disabled { opacity: .55; }
+.bandeau {
+  grid-area: barre; padding: 9px 18px; font-size: 13px;
+  background: var(--ocre-voile); border-bottom: 1px solid var(--ocre);
+}
 
 .rail, .fiche-rail {
   overflow-y: auto;
@@ -178,7 +178,7 @@ input[type="text"], input[type="number"], textarea, select {
   border: 1px solid var(--trait-fort); border-radius: var(--rayon);
   padding: 6px 8px;
 }
-textarea { font-family: "IBM Plex Mono", ui-monospace, monospace; font-size: 11.5px; line-height: 1.5; resize: vertical; }
+textarea { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 11.5px; line-height: 1.5; resize: vertical; }
 
 .champ { display: grid; gap: 4px; margin-bottom: 10px; }
 .champ > span { font-size: 11px; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; color: var(--encre-tenu); }
@@ -234,7 +234,7 @@ textarea { font-family: "IBM Plex Mono", ui-monospace, monospace; font-size: 11.
   font-size: 13px; line-height: 1.6;
 }
 .vide-planche b { color: #1C1B19; display: block; font-size: 15px; margin-bottom: 4px;
-                  font-family: "IBM Plex Sans Condensed", sans-serif; }
+                  font-family: system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif; }
 
 /* --- L'aperçu papier ------------------------------------------------------ */
 /* Toujours blanc, dans les deux thèmes : il représente du PAPIER IMPRIMÉ. */
@@ -295,16 +295,13 @@ textarea { font-family: "IBM Plex Mono", ui-monospace, monospace; font-size: 11.
 
 .raccourcis { font-size: 11.5px; color: var(--encre-doux); line-height: 1.7; }
 .raccourcis kbd {
-  font: 500 10.5px "IBM Plex Mono", monospace; color: var(--encre);
+  font: 500 10.5px ui-monospace, SFMono-Regular, Menlo, monospace; color: var(--encre);
   background: var(--creux); border: 1px solid var(--trait-fort);
   border-bottom-width: 2px; border-radius: 3px; padding: 1px 4px;
 }
 
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
 </style>
-</head>
-<body>
-
 
 <div class="app">
 
@@ -314,6 +311,8 @@ textarea { font-family: "IBM Plex Mono", ui-monospace, monospace; font-size: 11.
     <span class="pousse"></span>
     <button id="annuler" title="Annuler (Ctrl+Z)" disabled>Annuler</button>
     <button id="refaire" title="Refaire (Ctrl+Maj+Z)" disabled>Refaire</button>
+    <a class="faux-bouton" href="/admin">← La console</a>
+    <button id="btn-enregistrer" class="capital">Enregistrer dans ClimbContest</button>
   </header>
 
   <!-- ------------------------------------------------------------------ RAIL -->
@@ -360,6 +359,15 @@ textarea { font-family: "IBM Plex Mono", ui-monospace, monospace; font-size: 11.
         <button id="btn-exemple">Voir un exemple</button>
         <button class="danger" id="btn-vider">Tout effacer</button>
       </div>
+    </div>
+
+    <div class="bloc">
+      <h2>Le plan enregistré</h2>
+      <p class="aide" id="etat-serveur"></p>
+      <button class="danger" id="btn-usine" style="width:100%;margin-top:8px">
+        Revenir au plan d'usine</button>
+      <p class="aide">Le plan d'usine est celui livré avec le logiciel. C'est la
+        sortie de secours si un dessin part de travers un jour de compétition.</p>
     </div>
 
     <div class="bloc">
@@ -461,21 +469,50 @@ textarea { font-family: "IBM Plex Mono", ui-monospace, monospace; font-size: 11.
 
 <script>
 "use strict";
+/* ⚠️ `"use strict";` en PREMIERE ligne, avant toute declaration. Un prologue de
+   directives s'arrete a la premiere declaration : place apres les constantes
+   injectees, elle n'etait qu'une expression litterale sans effet, et les mille
+   lignes qui suivent tournaient sans le filet qui transforme une faute de
+   frappe d'affectation en erreur. */
 
-/* ---------------------------------------------------------------- Les profils
-   Un seul axe visuel, et il est ORDONNÉ : plus le mur déverse, plus la trame se
-   densifie et plus le gris fonce. Le lecteur n'a qu'une règle à apprendre, et
-   elle survit à l'impression en noir et blanc — ce qui n'est pas le cas d'un
-   code couleur. */
-const PROFILS = [
-  { cle: "dalle",    nom: "Dalle",       indice: "couchée",       teinte: "#EFECE6", trame: "pois",   pas: 4.6, epaisseur: 0.45 },
-  { cle: "vertical", nom: "Vertical",    indice: "droit",         teinte: "#E2DED5", trame: null,     pas: 0,   epaisseur: 0 },
-  { cle: "incline",  nom: "Pan incliné", indice: "léger dévers",  teinte: "#D4CEC2", trame: "penche", pas: 5.0, epaisseur: 0.50 },
-  { cle: "devers",   nom: "Dévers",      indice: "franc",         teinte: "#C1BAAB", trame: "penche", pas: 3.2, epaisseur: 0.55 },
-  { cle: "surplomb", nom: "Surplomb",    indice: "prononcé",      teinte: "#A79E8C", trame: "penche", pas: 2.1, epaisseur: 0.60 },
-  { cle: "toit",     nom: "Toit",        indice: "horizontal",    teinte: "#8D8473", trame: "croise", pas: 2.6, epaisseur: 0.60 },
-];
+/* Le plan vient du SERVEUR, plus du navigateur. Cette page est desormais la
+   surface d'edition d'une donnee partagee : le dernier dessin d'un onglet ne
+   doit pas ecraser ce que tout le monde voit. */
+const EN_CONSOLE = true;
+const PLAN_DU_SERVEUR = {{ plan|tojson }};
+const PLAN_EST_D_USINE = {{ usine|tojson }};
+
+/* ⚠️ LA TABLE DES PROFILS VIENT DU SERVEUR, en entier -- cle, ordre, trame,
+   pas, epaisseur et gris du papier. Cette page n'y ajoute que ce qui lui est
+   propre : le nom lisible, l'indice, et les couleurs d'ecran.
+
+   Elle en portait une copie complete. La garde ne comparait que les CLES :
+   assombrir `devers` en passant son pas de 3,2 a 2,4 dans `fiches.PROFILS`
+   laissait l'apercu « papier a 37 mm » de cette page afficher 3,2. On validait
+   un plan sur un apercu qui ment sur ce qui sera imprime. */
+const PROFILS_DU_SERVEUR = {{ profils|tojson }};
+
+const HABILLAGE = {
+  dalle:    { nom: "Dalle",       indice: "couchée" },
+  vertical: { nom: "Vertical",    indice: "droit" },
+  incline:  { nom: "Pan incliné", indice: "léger dévers" },
+  devers:   { nom: "Dévers",      indice: "franc" },
+  surplomb: { nom: "Surplomb",    indice: "prononcé" },
+  toit:     { nom: "Toit",        indice: "horizontal" },
+};
+
+const PROFILS = PROFILS_DU_SERVEUR.map(p => ({
+  cle: p.cle, trame: p.trame, pas: p.pas, epaisseur: p.epaisseur,
+  teinte: p.gris,
+  nom: (HABILLAGE[p.cle] || {}).nom || p.cle,
+  indice: (HABILLAGE[p.cle] || {}).indice || "",
+}));
 const PAR_CLE = Object.fromEntries(PROFILS.map(p => [p.cle, p]));
+
+/* Un profil que le serveur connait et que cette page ne sait pas habiller se
+   dessinera quand meme -- avec sa cle brute en guise de nom. Mais il faut le
+   DIRE, et a l'ecran : un `console.error` est invisible pour un organisateur. */
+const SANS_HABILLAGE = PROFILS_DU_SERVEUR.filter(p => !HABILLAGE[p.cle]).map(p => p.cle);
 
 /* ⚠️ Tout ce qui vient de l'utilisateur passe par ici avant d'entrer dans un
    `innerHTML`. Le texte des reperes etait nettoye, la lettre de zone NON --
@@ -515,6 +552,7 @@ let profilCourant = "vertical";
 let simulees = new Set();
 let pile = [], pilePos = -1, glisse = null, curseur = null;
 let memoireRefusee = false;
+let modifie = false;
 
 const $ = s => document.querySelector(s);
 const board = $("#board");
@@ -598,8 +636,8 @@ const PALETTES = {
     repere: "#6B655C", haloRepere: "#FFFFFF",
     lettre: "#1C1B19", halo: "#FFFFFF",
     sienne: "#17150F", lettreSienne: "#FFFFFF", haloSienne: "#17150F",
-    teintes: { dalle: "#EFECE6", vertical: "#E2DED5", incline: "#D4CEC2",
-               devers: "#C1BAAB", surplomb: "#A79E8C", toit: "#8D8473" },
+    // Les gris du papier viennent du SERVEUR : c'est lui qui imprime.
+    teintes: Object.fromEntries(PROFILS.map(p => [p.cle, p.teinte])),
   },
   clair: {
     suffixe: "-c", fond: "#FFFFFF", emphase: true,
@@ -673,7 +711,7 @@ function tailleLettre(m) {
    illisible : c'est la technique des cartes, pas une coquetterie. */
 function lettre(x, y, texte, taille, sienne, pal) {
   return `<text x="${x}" y="${y}" text-anchor="middle" dominant-baseline="central"
-                font-family="'IBM Plex Sans Condensed', sans-serif" font-weight="700"
+                font-family="system-ui, sans-serif" font-weight="700"
                 font-size="${taille}" fill="${sienne ? pal.lettreSienne : pal.lettre}"
                 stroke="${sienne ? pal.haloSienne : pal.halo}"
                 stroke-width="${taille * 0.24}" paint-order="stroke fill"
@@ -723,7 +761,7 @@ function corpsDuPlan({ marquees, pourEcran, pal }) {
   }
   for (const r of etat.reperes) {
     p.push(`<text x="${r.point[0]}" y="${r.point[1]}" text-anchor="middle" dominant-baseline="central"
-              font-family="'IBM Plex Sans', sans-serif" font-style="italic" font-size="6"
+              font-family="system-ui, sans-serif" font-style="italic" font-size="6"
               fill="${pal.repere}" stroke="${pal.haloRepere}" stroke-width="1.6" paint-order="stroke fill"
               ${pourEcran ? `data-quoi="repere" data-id="${r.id}" class="mur-forme"` : ""}
               >${propre(r.texte)}</text>`);
@@ -988,13 +1026,22 @@ function commettre(sansPile) {
   boutonsPile();
   /* ⚠️ M9 : l'echec etait avale. En navigation privee ou au quota plein, le
      dessin SEMBLAIT enregistre et disparaissait au rechargement. */
-  try {
-    localStorage.setItem(CLE_STOCKAGE, JSON.stringify(etat));
-    memoireRefusee = false;
-  } catch (_) {
-    if (!memoireRefusee) {
-      memoireRefusee = true;
-      dire("Le navigateur refuse d'enregistrer : copie ton plan avant de fermer.", false);
+  /* ⚠️ En console, on n'ECRIT PLUS dans le `localStorage`. Le serveur est la
+     source, plus rien ne relit ce brouillon -- recharger la page repart du
+     serveur -- et il ne servait donc qu'a faire crier « le navigateur refuse
+     d'enregistrer » en navigation privee, pour un stockage que personne ne
+     lit. Le travail non enregistre est protege par `beforeunload`, pas par
+     une copie fantome. */
+  if (EN_CONSOLE) { modifie = true; peindreEtatServeur(); }
+  else {
+    try {
+      localStorage.setItem(CLE_STOCKAGE, JSON.stringify(etat));
+      memoireRefusee = false;
+    } catch (_) {
+      if (!memoireRefusee) {
+        memoireRefusee = true;
+        dire("Le navigateur refuse d'enregistrer : copie ton plan avant de fermer.", false);
+      }
     }
   }
   $("#sortie").value = exporter();
@@ -1247,6 +1294,90 @@ $("#btn-relire").addEventListener("click", () => {
   } catch (e) { dire("Je n'ai pas su relire : " + e.message, false); }
 });
 
+/* ------------------------------------------------- L'aller-retour serveur */
+let usine = PLAN_EST_D_USINE;
+
+/** Repart d'un plan servi par le serveur : etat, selection et pile d'annulation. */
+function reprendre(document) {
+  etat = depuisLeServeur(document);
+  selection = null; sommetVif = null; simulees = new Set();
+  $("#vue-l").value = etat.vue.l; $("#vue-h").value = etat.vue.h;
+  pile = [JSON.stringify(etat)]; pilePos = 0;
+  commettre(true);
+  modifie = false;
+}
+
+function peindreEtatServeur() {
+  const e = $("#etat-serveur");
+  if (!e) return;
+  e.textContent = modifie
+    ? "Modifications NON enregistrées. Clique « Enregistrer dans ClimbContest »."
+    : (usine ? "Aucun plan enregistré : c'est le plan d'usine qui s'applique."
+             : "Le plan enregistré est celui affiché.");
+  e.style.color = modifie ? "var(--alerte)" : "";
+  $("#btn-enregistrer").disabled = !modifie;
+}
+
+async function appeler(methode, corps) {
+  const r = await fetch("/admin/plan", {
+    method: methode,
+    headers: { "Content-Type": "application/json" },
+    body: corps ? JSON.stringify(corps) : undefined,
+  });
+  let d = null;
+  try { d = await r.json(); } catch (_) { /* corps illisible */ }
+  if (!r.ok || !d || !d.success) {
+    throw new Error((d && d.message) || `Le serveur a répondu ${r.status}.`);
+  }
+  return d;
+}
+
+$("#btn-enregistrer").addEventListener("click", async () => {
+  const b = $("#btn-enregistrer");
+  b.disabled = true;
+  try {
+    const d = await appeler("POST", versLeServeur());
+    // ⚠️ On reprend le plan TEL QUE LE SERVEUR L'A RANGE. Il repare en
+    // silence -- zone en capitales et tronquee a trois, texte de repere a
+    // vingt-quatre, profil inconnu replie -- et on affirmait ensuite « le plan
+    // enregistre est celui affiche ». Recoller « abcd » laissait « abcd » a
+    // l'ecran quand le dossard imprimait « ABC ».
+    if (d.plan) reprendre(d.plan);
+    modifie = false; usine = false;
+    peindreEtatServeur();
+    dire(d.message, true);
+  } catch (e) {
+    // Le message du serveur NOMME le mur fautif : on le rend tel quel.
+    dire(e.message, false);
+    b.disabled = false;
+  }
+});
+
+$("#btn-usine").addEventListener("click", async () => {
+  if (!confirm("Revenir au plan d'usine ? Le plan enregistré sera supprimé.")) return;
+  try {
+    const d = await appeler("DELETE");
+    /* ⚠️ On reprend le plan que le SERVEUR vient de retablir, pas
+       `PLAN_DU_SERVEUR` -- qui est le plan COURANT au chargement de la page,
+       donc le plan enregistre quand il y en avait un. La page reaffichait le
+       dessin qu'elle venait de supprimer en affirmant « retour au plan
+       d'usine » : la seule sortie de secours mentait au moment precis ou on
+       s'en sert, et un sommet deplace pour « forcer » le reinstallait. */
+    reprendre(d.plan || PLAN_DU_SERVEUR);
+    modifie = false; usine = true;
+    peindreEtatServeur();
+    dire(d.message, true);
+  } catch (e) { dire(e.message, false); }
+});
+
+/* ⚠️ Le brouillon n'est plus la source : fermer l'onglet sans enregistrer perd
+   le travail. On le dit, plutot que de le laisser decouvrir. */
+addEventListener("beforeunload", (e) => {
+  if (!modifie) return;
+  e.preventDefault();
+  e.returnValue = "";
+});
+
 $("#annuler").addEventListener("click", () => rejouer(-1));
 $("#refaire").addEventListener("click", () => rejouer(1));
 
@@ -1310,21 +1441,53 @@ function valide(e) {
       && e.vue && Number.isFinite(+e.vue.l) && Number.isFinite(+e.vue.h)
       && +e.vue.l > 0 && +e.vue.h > 0;
 }
-try {
-  const garde = localStorage.getItem(CLE_STOCKAGE);
-  etat = garde ? JSON.parse(garde) : neuf();
-  if (!valide(etat)) etat = neuf();
-} catch (_) { etat = neuf(); }
-etat.murs.forEach(m => { if (!m.id) m.id = crypto.randomUUID(); });
-etat.reperes.forEach(r => { if (!r.id) r.id = crypto.randomUUID(); });
+/** Le document du serveur, dans la forme que manipule la planche. */
+function depuisLeServeur(p) {
+  return {
+    vue: { l: p.vue[0], h: p.vue[1] },
+    magnetisme: true,
+    contour: p.contour ? { points: p.contour.map(q => [q[0], q[1]]) } : null,
+    murs: (p.murs || []).map(m => ({
+      id: crypto.randomUUID(), zone: m.zone || "",
+      profil: PAR_CLE[m.profil] ? m.profil : "vertical",
+      points: m.points.map(q => [q[0], q[1]]),
+      etiquette: m.etiquette ? [m.etiquette[0], m.etiquette[1]] : null,
+    })),
+    reperes: (p.reperes || []).map(r => ({
+      id: crypto.randomUUID(), texte: r.texte,
+      point: [r.point[0], r.point[1]],
+    })),
+  };
+}
 
-$("#vue-l").value = etat.vue.l;
-$("#vue-h").value = etat.vue.h;
-$("#magnetisme").checked = etat.magnetisme !== false;
+/** Ce qu'on renvoie au serveur. Les identifiants restent ici : ils n'ont de
+ *  sens que pour la selection a l'ecran. */
+function versLeServeur() {
+  const n = (v) => Math.round(v * 100) / 100;
+  return {
+    vue: [etat.vue.l, etat.vue.h],
+    contour: etat.contour ? etat.contour.points.map(q => [n(q[0]), n(q[1])]) : null,
+    murs: etat.murs.map(m => ({
+      zone: m.zone, profil: m.profil,
+      points: m.points.map(q => [n(q[0]), n(q[1])]),
+      etiquette: m.etiquette ? [n(m.etiquette[0]), n(m.etiquette[1])] : null,
+    })),
+    reperes: etat.reperes.map(r => ({ texte: r.texte, point: [n(r.point[0]), n(r.point[1])] })),
+  };
+}
+
+$("#magnetisme").checked = true;
 choisirProfil(profilCourant);
-pile = [JSON.stringify(etat)]; pilePos = 0;
-commettre(true);
-</script>
+reprendre(PLAN_DU_SERVEUR);
+if (!valide(etat)) { etat = neuf(); reprendre(versLeServeur()); }
+peindreEtatServeur();
 
-</body>
-</html>
+/* ⚠️ Dit A L'ECRAN, pas dans la console du navigateur : un organisateur ne
+   l'ouvre jamais. Si le serveur connait un profil que cette page ne sait pas
+   nommer, le mur se dessine quand meme -- mais on ne laisse personne valider
+   un plan sur un apercu incomplet sans le savoir. */
+if (SANS_HABILLAGE.length) {
+  dire("Profil(s) inconnu(s) de cette page : " + SANS_HABILLAGE.join(", ")
+       + ". Le dessin reste juste, mais leur nom n'est pas traduit.", false);
+}
+</script>

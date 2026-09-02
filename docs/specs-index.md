@@ -29,6 +29,7 @@ méthode.
 | [024](../specs/024-etiquettes-de-blocs/) | `etiquettes-de-blocs` | 🟡 **codée, en attente de relecture** (01/09) | Les **étiquettes de blocs à coller au mur** — zone, numéro en gros, QR `ZJ6` généré localement, couleur des prises et **les circuits pour qui le bloc compte**. **Huit par A4**, groupées par zone |
 | [027](../specs/027-lot-de-corrections-du-02-09/) | `lot-de-corrections-du-02-09` | 🟠 **spec écrite APRÈS le code** (02/09) — porte 2 non franchie | Treize corrections dictées par Adrien : bouton à maintenir qui dit ce qu'il attend, import enchaîné après un effacement total, ordre et libellés des classements, couleurs dans Circuits, chevauchement et pagination des impressions, podium toujours affiché, écran d'accueil et fond de l'app juge |
 | [028](../specs/028-plan-du-mur-en-polygones/) | `plan-du-mur-en-polygones` | 🟡 **codée, en attente de relecture** (02/09) | `PLAN` passe de la grille 8×7 aux **polygones libres**, chaque mur portant son **profil** (dalle → toit). Le dossard rend un SVG et reste en noir et blanc ; le rendu à l'écran appartient à la spec 026 |
+| [029](../specs/029-le-plan-se-dessine-depuis-la-console/) | `le-plan-se-dessine-depuis-la-console` | 🟡 **codée, en attente de relecture** (02/09) | Le plan cesse d'être une constante : il se **dessine dans la console** (`/admin/plan`), s'enregistre dans la table `reglage` et voyage avec le catalogue **versionné**. `fiches.PLAN` devient le plan d'usine — le défaut, et le repli si la ligne enregistrée est illisible |
 
 ## Specs pressenties
 

@@ -462,6 +462,86 @@ def supprimer_reussite_route(reussite_id):
     return jsonify({"success": True, "supprimee": trace}), 200
 
 
+# --- Le plan de la salle (spec 029) -----------------------------------------
+
+@bp.get("/plan")
+@exige_role(ORGANISATEUR)
+def page_plan():
+    """La planche de dessin du plan de la salle, servie DEPUIS la console.
+
+    ⚠️ Elle vivait dans `tools/`, hors de l'application : changer le plan
+    demandait de modifier du code et de redeployer. Adrien : « est-ce que tu as
+    prevu une page dans la console qui permet de lancer l'outil [...] et
+    d'injecter ce nouveau plan via un bouton ? Sinon il faut le faire. »
+    """
+    # Une seule lecture : la PR a justement ajoute un test de budget de
+    # requetes pour ce motif, il aurait ete malvenu de le trahir ici.
+    plan = fiches.plan_courant()
+    return render_template("plan.html", plan=plan, profils=fiches.PROFILS,
+                           usine=plan is fiches.PLAN)
+
+
+@bp.post("/plan")
+@exige_role(ORGANISATEUR)
+def plan_enregistrer():
+    """{"vue": [l, h], "murs": [...], "reperes": [...], "contour": [...] | null}"""
+    from .. import plan_du_mur
+
+    # ⚠️ La taille se controle AVANT d'analyser quoi que ce soit. La verifier
+    # apres `valider()` et `json.dumps()` faisait construire quatre cent mille
+    # tuples et serialiser le document avant de le refuser -- et rendait 400 la
+    # ou la spec 029 F5 promet un 413.
+    if (request.content_length or 0) > plan_du_mur.TAILLE_MAXI:
+        return jsonify({"success": False,
+                        "message": "Le plan dépasse la taille maximale."}), 413
+
+    corps = _corps_objet()
+    if corps is None:
+        return jsonify({"success": False, "message": "Corps JSON attendu"}), 400
+
+    try:
+        propre = plan_du_mur.ecrire(corps, par=getattr(utilisateur_courant(), "identifiant", None))
+    except plan_du_mur.PlanInvalide as e:
+        # Le message nomme le mur fautif : c'est ce qui permet de le corriger
+        # sans relire tout le document.
+        return jsonify({"success": False, "message": str(e)}), 400
+
+    zones = sum(1 for m in propre["murs"] if m["zone"])
+    return jsonify({
+        "success": True,
+        # ⚠️ On renvoie le plan TEL QU'IL A ETE RANGE. Le serveur repare en
+        # silence -- zone mise en capitales et tronquee a trois, texte de
+        # repere a vingt-quatre, profil inconnu replie -- et la page affirmait
+        # ensuite « le plan enregistre est celui affiche ». Recoller un bloc
+        # portant « abcd » laissait « abcd » a l'ecran quand le dossard
+        # imprimait « ABC ».
+        "plan": propre,
+        "murs": len(propre["murs"]),
+        "zones": zones,
+        "reperes": len(propre["reperes"]),
+        "message": (f"{len(propre['murs'])} mur(s) dont {zones} avec une lettre, "
+                    f"{len(propre['reperes'])} repère(s) enregistrés. "
+                    "Les prochains dossards imprimés porteront ce plan."),
+    }), 200
+
+
+@bp.delete("/plan")
+@exige_role(ORGANISATEUR)
+def plan_effacer():
+    """Revient au plan d'usine — la sortie de secours d'un jour de competition."""
+    from .. import plan_du_mur
+    efface = plan_du_mur.effacer()
+    return jsonify({
+        "success": True,
+        # Le plan d'usine, pour que la page reprenne CE qu'elle vient de
+        # retablir et non ce qu'elle avait charge au depart.
+        "plan": fiches.PLAN,
+        "efface": efface,
+        "message": ("Retour au plan d'usine." if efface
+                    else "Aucun plan enregistré : c'est déjà le plan d'usine."),
+    }), 200
+
+
 # --- Impression des dossards ------------------------------------------------
 
 @bp.get("/dossards")
@@ -509,7 +589,10 @@ def page_dossards():
     return render_template("dossards.html",
                            feuilles=fiches.en_feuilles(planche,
                                                        fiches.FICHES_PAR_FEUILLE),
-                           total=len(planche), titre=titre)
+                           total=len(planche), titre=titre,
+                           # Les motifs de trame du plan sont declares une
+                           # seule fois pour tout le document, pas par fiche.
+                           profils=fiches.PROFILS)
 
 
 @bp.get("/etiquettes")

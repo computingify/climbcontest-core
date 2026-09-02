@@ -451,6 +451,31 @@ class Verrou(db.Model):
 FORMAT_ARCHIVE = 1
 
 
+class Reglage(db.Model):
+    """Un réglage GLOBAL du serveur, en clé-valeur. Une seule clé pour l'instant :
+    `plan_du_mur`, le plan de la salle dessiné depuis la console (spec 029).
+
+    **Global et non par compétition.** Le club a un mur ; le ranger dans
+    `competition.options` obligerait à le redessiner à chaque édition, ou à
+    inventer une reprise automatique — deux mauvaises réponses à une question
+    qui ne se pose pas.
+
+    **En base et non dans un fichier**, pour la raison exacte que donne
+    `Archive` juste en dessous : `climbcontest-sauvegarde` recopie la base
+    SQLite et rien d'autre. Un JSON posé dans le dossier de données serait le
+    seul fichier sans sauvegarde, et une restauration ramènerait
+    silencieusement l'ancien plan.
+    """
+
+    __tablename__ = "reglage"
+
+    cle = Column(String(60), primary_key=True)
+    valeur = Column(Text, nullable=False)
+    modifie_le = Column(DateTime, nullable=False, default=func.now(),
+                        onupdate=func.now())
+    modifie_par = Column(String(80))
+
+
 class Archive(db.Model):
     """Une édition figée : son classement, ses données brutes, sa date.
 

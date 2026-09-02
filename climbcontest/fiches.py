@@ -28,44 +28,186 @@ COTE_QR_ETIQUETTE_MM = 45.0
 COTE_QR_MM = 24.0
 
 
-def REPERE(nom: str) -> tuple[str, str]:
-    """Un repère de la salle — « Escalier », « Haut » — et non une zone.
-
-    Le classeur les mélange aux lettres de zone dans les mêmes cellules ; c'est
-    précisément ce qui rend son schéma illisible. Ici ils sont d'un autre type,
-    donc d'une autre allure.
-    """
-    return ("repere", nom)
-
-
-# Le mur de bloc d'Annonay, relevé de l'onglet « Fiches » du classeur (V4:X11).
-# IDENTIQUE dans les trois classeurs archivés — 2024, novembre 2025, mars 2026 :
-# c'est la salle, pas une donnée de compétition. D'où une constante.
+# Les six profils de mur, ORDONNÉS du moins au plus déversant. L'ordre EST
+# l'information : la trame se densifie et le gris fonce à mesure qu'on descend
+# la liste, ce qui donne une seule règle à apprendre — plus ça déverse, plus ça
+# tranche sur le papier.
 #
-# La grille du classeur compte trois cellules par ligne ; la première en vaut
-# une, les deux autres en valent trois chacune (« c         b         a »).
-# D'où sept cases par ligne ici.
+# ⚠️ La place d'`incline` a été tranchée par Adrien lui-même, en assignant les
+# profils à ses murs : il l'a mis APRÈS `vertical`, donc du côté qui déverse.
+# La question était réelle — « incliné » ne dit pas dans quel sens — et une
+# session parallèle avait fait l'hypothèse inverse.
 #
-# ⚠️ Les cellules à une ou deux lettres (`d`, `z`, `e`, `x y`, `Haut`) sont lues
-# CALÉES À GAUCHE de leur cellule : le dump ne garde que le texte, pas
-# l'alignement. C'est la lecture qui préserve les alignements verticaux
-# visibles — D au-dessus de C, Z au-dessus de « Escalier », E sous H.
-PLAN = (
-    (None, None, None, None, "X",                  "Y",  None),
-    (None, "D",  None, None, "Z",                  None, None),
-    (None, "C",  "B",  "A",  REPERE("Escalier"),   None, None),
-    (None, None, None, None, None,                 None, None),
-    ("L",  None, None, None, None,                 None, None),
-    ("M",  "K",  "J",  "I",  "H",                  "G",  "F"),
-    ("N",  None, None, None, "E",                  None, None),
-    (None, REPERE("Haut"), None, None, None,       None, None),
+# ⚠️ Aucune COULEUR ici. Le dossard s'imprime à l'encre noire ; une teinte y
+# serait perdue. Les gris et les trames, eux, survivent. Le rendu du même plan
+# à l'écran est ailleurs (spec 026) et n'a pas cette contrainte.
+PROFILS = (
+    {"cle": "dalle",    "trame": "pois",   "pas": 4.6, "epaisseur": 0.45, "gris": "#EFECE6"},
+    {"cle": "vertical", "trame": None,     "pas": 0.0, "epaisseur": 0.00, "gris": "#E2DED5"},
+    {"cle": "incline",  "trame": "penche", "pas": 5.0, "epaisseur": 0.50, "gris": "#D4CEC2"},
+    {"cle": "devers",   "trame": "penche", "pas": 3.2, "epaisseur": 0.55, "gris": "#C1BAAB"},
+    {"cle": "surplomb", "trame": "penche", "pas": 2.1, "epaisseur": 0.60, "gris": "#A79E8C"},
+    {"cle": "toit",     "trame": "croise", "pas": 2.6, "epaisseur": 0.60, "gris": "#8D8473"},
 )
+PAR_PROFIL = {p["cle"]: p for p in PROFILS}
+PROFIL_PAR_DEFAUT = "vertical"
+
+# La marge autour du dessin, en unités de vue.
+#
+# ⚠️ Sept des murs d'Annonay touchent le bord — L, M, N à gauche, X et Y en
+# haut, E à droite. Sans marge, la moitié de leur trait sort du cadre. Elle se
+# prend sur le `viewBox` et JAMAIS sur les coordonnées : décaler les points
+# pour faire de la place, ce serait maquiller le relevé pour arranger un
+# problème d'affichage.
+MARGE_PLAN = 1.0
+
+# La lettre d'une zone, en unités de vue.
+#
+# ⚠️ Mesuré dans le navigateur, halo compris — `getBBox()` ignore le contour,
+# et mesurer sans lui donne « ça tient largement » là où la marge réelle est de
+# 0,25 unité. À 9 unités fixes, aucune des 17 zones d'Annonay ne débordait :
+# ça tenait par chance, pas par construction, et une zone à deux caractères
+# crevait le plafond. D'où un calcul depuis la boîte du mur.
+LETTRE_MAXI = 9.0
+LETTRE_MINI = 3.5        # 1,06 mm sur la colonne de 37 mm : le plancher lisible
+
+# ⚠️ La largeur d'une capitale, en fraction de sa taille. C'est la largeur du
+# PIRE glyphe, pas la moyenne.
+#
+# La première version prenait 0,62 -- la moyenne d'une capitale condensée
+# grasse. Mesuré au navigateur sur la boîte réelle d'un mur de quinze unités,
+# avec la police effectivement servie et le halo compris : ONZE combinaisons de
+# deux caractères sur trente-neuf débordaient, « NM » de 2,6 unités, soit
+# 0,39 mm de chaque côté. « M », « N » et « W » crèvent la moyenne.
+#
+# Une moyenne ne borne rien. 0,85 borne. Le relevé d'Annonay n'a que des
+# lettres seules et son rendu ne change pas d'un pixel -- le plafond de
+# `LETTRE_MAXI` mord avant. Mais depuis la spec 029 le nom de zone est de la
+# donnée saisie : « M2 » arrivera.
+LARGEUR_CAPITALE = 0.85
+
+
+# Le mur de bloc d'Annonay, relevé par Adrien le 02/09/2026 avec
+# la planche de la console (`/admin/plan`, spec 029). C'est la salle, pas une
+# donnée de compétition.
+#
+# ⚠️ Depuis la spec 029 ce n'est plus la SOURCE mais le DÉFAUT : voir
+# `plan_courant()`. Ne plus la modifier à la main — on la dessine.
+#
+# Remplace la grille de 8×7 cases des specs 023-024, qui ne savait dire ni la
+# forme de la salle, ni le profil d'un mur, ni les proportions.
+PLAN = {
+    "vue": (120, 150),
+    "contour": None,
+    "murs": (
+        {"zone": "X", "profil": "vertical",
+         "points": ((60, 0), (80, 0), (80, 15), (60, 15)), "etiquette": None},
+        {"zone": "Y", "profil": "vertical",
+         "points": ((80, 0), (100, 0), (100, 15), (80, 15)), "etiquette": None},
+        {"zone": "D", "profil": "toit",
+         "points": ((5, 15), (20, 15), (20, 45), (5, 45)), "etiquette": None},
+        {"zone": "Z", "profil": "vertical",
+         "points": ((100, 15), (115, 15), (115, 30), (100, 30)), "etiquette": None},
+        {"zone": "C", "profil": "incline",
+         "points": ((20, 45), (35, 45), (35, 60), (20, 60)), "etiquette": None},
+        {"zone": "B", "profil": "devers",
+         "points": ((35, 45), (50, 45), (50, 60), (35, 60)), "etiquette": None},
+        {"zone": "A", "profil": "vertical",
+         "points": ((50, 45), (70, 45), (70, 60), (50, 60)), "etiquette": None},
+        {"zone": "L", "profil": "toit",
+         "points": ((0, 75), (15, 75), (15, 100), (0, 100)), "etiquette": None},
+        {"zone": "M", "profil": "dalle",
+         "points": ((0, 100), (15, 100), (15, 115), (0, 115)), "etiquette": None},
+        {"zone": "K", "profil": "surplomb",
+         "points": ((15, 75), (30, 75), (30, 90), (15, 90)), "etiquette": None},
+        {"zone": "J", "profil": "vertical",
+         "points": ((30, 75), (45, 75), (45, 90), (30, 90)), "etiquette": None},
+        {"zone": "I", "profil": "devers",
+         "points": ((45, 75), (60, 75), (60, 90), (45, 90)), "etiquette": None},
+        {"zone": "H", "profil": "incline",
+         "points": ((60, 75), (75, 75), (75, 90), (60, 90)), "etiquette": None},
+        {"zone": "G", "profil": "vertical",
+         "points": ((75, 75), (90, 75), (90, 90), (75, 90)), "etiquette": None},
+        {"zone": "F", "profil": "dalle",
+         "points": ((90, 75), (105, 75), (105, 90), (90, 90)), "etiquette": None},
+        {"zone": "N", "profil": "dalle",
+         "points": ((0, 115), (15, 115), (15, 130), (0, 130)), "etiquette": None},
+        {"zone": "E", "profil": "vertical",
+         "points": ((105, 90), (120, 90), (120, 105), (105, 105)), "etiquette": None},
+    ),
+    "reperes": (
+        {"texte": "Escalier", "point": (97, 52)},
+        {"texte": "Haut", "point": (61, 111)},
+        {"texte": "Bas", "point": (60, 30)},
+    ),
+}
 
 # Déduit de PLAN, jamais recopié à la main : deux listes qui divergeraient
 # feraient disparaître une zone du message « hors plan » sans rien casser
 # visiblement.
+# ⚠️ Les zones du plan D'USINE. Pour savoir ce qui est « hors plan » il faut
+# celles du plan COURANT : voir `zones_du_plan()`. Cette constante reste pour
+# les tests et pour le repli.
 ZONES_DU_PLAN = frozenset(
-    case for ligne in PLAN for case in ligne if isinstance(case, str))
+    m["zone"] for m in PLAN["murs"] if m["zone"])
+
+
+def zones_du_plan(plan: dict | None = None) -> frozenset[str]:
+    """Les zones dessinées par le plan qui s'applique.
+
+    Déduit du plan, jamais recopié : deux listes qui divergeraient feraient
+    disparaître une zone du message « hors plan » sans rien casser visiblement.
+
+    `plan` se passe quand l'appelant l'a déjà lu — c'est le cas de `construire`,
+    qui rend jusqu'à cent vingt fiches et ne doit lire la base qu'une fois.
+    """
+    return frozenset(m["zone"] for m in (plan or plan_courant())["murs"] if m["zone"])
+
+
+def _cadre(points) -> tuple[float, float, float, float]:
+    """La boîte englobante d'un polygone : (x0, y0, x1, y1)."""
+    xs = [p[0] for p in points]
+    ys = [p[1] for p in points]
+    return min(xs), min(ys), max(xs), max(ys)
+
+
+def _centroide(points) -> tuple[float, float]:
+    """Le centre de SURFACE du polygone, pas la moyenne de ses sommets.
+
+    La moyenne des sommets tire la lettre vers les côtés les plus découpés :
+    sur un triangle dont un bord porte trois points, elle sort du dessin. Le
+    centroïde d'aire, lui, tombe où l'œil attend le centre.
+
+    Le repli sur la moyenne ne sert qu'aux polygones dégénérés — trois points
+    alignés, aire nulle — où la formule diviserait par zéro.
+    """
+    aire = cx = cy = 0.0
+    n = len(points)
+    for i in range(n):
+        x1, y1 = points[i]
+        x2, y2 = points[(i + 1) % n]
+        f = x1 * y2 - x2 * y1
+        aire += f
+        cx += (x1 + x2) * f
+        cy += (y1 + y2) * f
+    if abs(aire) < 1e-9:
+        return (sum(p[0] for p in points) / n, sum(p[1] for p in points) / n)
+    return (cx / (3 * aire), cy / (3 * aire))
+
+
+def taille_lettre(points, texte: str) -> float:
+    """La taille de la lettre, ajustée à la boîte du mur.
+
+    On ne remplit la boîte qu'à 80 % en largeur, pour laisser respirer le halo,
+    et la largeur d'une capitale est prise à `LARGEUR_CAPITALE` — celle du PIRE
+    glyphe, pas la moyenne. Voir le commentaire de cette constante : une
+    moyenne ne borne rien.
+    """
+    x0, y0, x1, y1 = _cadre(points)
+    n = max(1, len(texte))
+    largeur = ((x1 - x0) * 0.8 / (n * LARGEUR_CAPITALE)) if x1 > x0 else LETTRE_MAXI
+    hauteur = (y1 - y0) * 0.97 if y1 > y0 else LETTRE_MAXI
+    return max(LETTRE_MINI, min(LETTRE_MAXI, largeur, hauteur))
 
 
 def _rang(bloc) -> tuple[int, str]:
@@ -128,41 +270,71 @@ def _blocs_par_circuit(comp) -> dict[str, list]:
     return dict(par_circuit)
 
 
-def plan_pour(zones: set[str]) -> list[list[dict]]:
-    """Le plan de la salle, chaque case sachant si elle est « la sienne ».
+def plan_courant() -> dict:
+    """Le plan qui s'applique : celui dessiné dans la console, sinon l'usine.
 
-    Le gabarit ne fait qu'afficher : c'est ici qu'on décide ce qui s'allume, et
-    ici qu'on compte les colonnes.
+    ⚠️ `PLAN` cesse d'être la source pour devenir le DÉFAUT (spec 029). Il
+    s'applique tant que personne n'a dessiné, et sert de repli si la ligne
+    enregistrée est illisible — imprimer les dossards la veille au soir ne doit
+    pas dépendre de l'intégrité d'une ligne de base.
 
-    ⚠️ Un repère — « Escalier », « Haut » — est un MOT, pas une lettre : il tient
-    sur trois cases. Il absorbe donc les deux cases vides qui le suivent, sinon
-    la ligne compterait neuf colonnes au lieu de sept et tout le plan se
-    décalerait. Le calcul se fait ici et pas en Jinja : une boucle de gabarit qui
-    saute des éléments est exactement ce qu'on relit trois fois sans le croire.
+    Import tardif : `plan_du_mur` a besoin de `PAR_PROFIL` pour valider, et le
+    faire en tête créerait un cycle.
     """
-    lignes = []
-    for ligne in PLAN:
-        cases, saute = [], 0
-        for i, case in enumerate(ligne):
-            if saute:
-                saute -= 1
-                continue
-            if isinstance(case, tuple):
-                # Les deux cases suivantes ne sont absorbées que si elles sont
-                # VIDES : mieux vaut un repère étroit qu'une zone effacée.
-                suivantes = ligne[i + 1:i + 3]
-                large = len(suivantes) == 2 and all(c is None for c in suivantes)
-                saute = 2 if large else 0
-                cases.append({"zone": None, "repere": case[1], "sienne": False,
-                              "colonnes": 3 if large else 1})
-            elif case is None:
-                cases.append({"zone": None, "repere": None, "sienne": False,
-                              "colonnes": 1})
-            else:
-                cases.append({"zone": case, "repere": None,
-                              "sienne": case in zones, "colonnes": 1})
-        lignes.append(cases)
-    return lignes
+    from . import plan_du_mur
+    return plan_du_mur.lire() or PLAN
+
+
+def plan_pour(zones: set[str], plan: dict | None = None) -> dict:
+    """Le plan de la salle, chaque mur sachant s'il est « le sien ».
+
+    Le gabarit ne fait qu'afficher : c'est ici qu'on décide ce qui s'allume,
+    ici qu'on place les lettres et ici qu'on calcule le cadrage. Une boucle de
+    gabarit qui calcule des coordonnées est exactement ce qu'on relit trois
+    fois sans le croire.
+
+    Les points sortent DÉJÀ formatés (`"60,0 80,0 …"`) : Jinja n'a pas à
+    fabriquer de géométrie.
+    """
+    # ⚠️ `plan` se passe quand on rend une PLANCHE : cette fonction est appelee
+    # une fois par grimpeur, et sans lui cent vingt fiches feraient cent vingt
+    # lectures du meme plan en base. C'est un test de budget de requetes qui
+    # l'a rattrape, pas une relecture.
+    plan = plan or plan_courant()
+    largeur, hauteur = plan["vue"]
+    m = MARGE_PLAN
+
+    murs = []
+    for mur in plan["murs"]:
+        points = mur["points"]
+        zone = mur["zone"] or ""
+        # Un profil inconnu ne fait pas tomber une impression : on retombe sur
+        # le vertical, qui est le cas le plus courant et le plus neutre.
+        profil = mur["profil"] if mur["profil"] in PAR_PROFIL else PROFIL_PAR_DEFAUT
+        murs.append({
+            "zone": zone,
+            "profil": profil,
+            "d": " ".join(f"{x},{y}" for x, y in points),
+            "etiquette": mur["etiquette"] or _centroide(points),
+            "sienne": bool(zone) and zone in zones,
+            "taille": taille_lettre(points, zone),
+            # Le gabarit en a besoin : sur une zone « sienne », l'aplat noir a
+            # mangé la trame et il faut la reposer en clair par-dessus.
+            "trame": bool(PAR_PROFIL[profil]["trame"]),
+        })
+
+    contour = plan["contour"]
+    return {
+        "vue": plan["vue"],
+        # ⚠️ La marge se prend ICI, sur le cadrage, et jamais sur les
+        # coordonnées : sept murs d'Annonay touchent le bord, et sans elle la
+        # moitié de leur trait sort du dessin.
+        "cadrage": f"{-m} {-m} {largeur + 2 * m} {hauteur + 2 * m}",
+        "contour": " ".join(f"{x},{y}" for x, y in contour) if contour else None,
+        "murs": murs,
+        "reperes": [{"texte": r["texte"], "x": r["point"][0], "y": r["point"][1]}
+                    for r in plan["reperes"]],
+    }
 
 
 def _groupes(blocs) -> list[dict]:
@@ -264,6 +436,10 @@ def construire(comp, participants) -> list[dict]:
     manque se dit dans `manque`, en toutes lettres.
     """
     par_circuit = _blocs_par_circuit(comp)
+    # Une seule lecture du plan pour toute la planche : `construire` sert
+    # jusqu'a cent vingt fiches, et le plan ne change pas entre deux.
+    plan = plan_courant()
+    dessinees = zones_du_plan(plan)
 
     planche = []
     for p in participants:
@@ -295,10 +471,13 @@ def construire(comp, participants) -> list[dict]:
             "total": len(blocs),
             "groupes": groupes,
             "colonnes": colonnes_qui_tiennent(groupes),
-            "plan": plan_pour(zones),
+            "plan": plan_pour(zones, plan),
+            # Pour l'etiquette accessible du SVG : un lecteur d'ecran ne lit
+            # pas un polygone, il lit le texte qu'on lui donne.
+            "zones_siennes": sorted(zones & dessinees),
             # Une zone qu'on ne peut pas situer doit SE DIRE, pas disparaître :
             # le plan ne porte que 17 des 20 zones du classeur.
-            "hors_plan": sorted(zones - ZONES_DU_PLAN),
+            "hors_plan": sorted(zones - dessinees),
             "manque": manque,
         })
     return planche
