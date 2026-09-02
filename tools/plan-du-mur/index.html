@@ -253,7 +253,7 @@ textarea { font-family: "IBM Plex Mono", ui-monospace, monospace; font-size: 11.
 /* L'écran, à côté du papier. Toujours sombre dans les deux thèmes : il
    représente l'application juge, qui l'est. */
 .telephone {
-  width: 168px; margin: 0 auto; padding: 9px 8px 12px;
+  margin: 0 auto; padding: 9px 8px 12px;
   background: #15161B; border: 1px solid #2E2C31; border-radius: 16px;
   box-shadow: 0 2px 4px rgba(0,0,0,.28), 0 10px 26px rgba(0,0,0,.22);
 }
@@ -266,7 +266,19 @@ textarea { font-family: "IBM Plex Mono", ui-monospace, monospace; font-size: 11.
   color: #7E776B; margin-bottom: 5px; font-weight: 700;
 }
 .telephone svg { display: block; width: 100%; }
-.deux-apercus { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; align-items: start; }
+.deux-ecrans { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; align-items: start; }
+
+/* La page de résultats sur fond blanc. Toujours claire dans les deux thèmes :
+   elle représente un support, pas la préférence de qui regarde. */
+.ecran {
+  background: #FFFFFF; border: 1px solid #E3DFD7; border-radius: 10px;
+  padding: 9px 8px 11px; box-shadow: var(--ombre);
+}
+.ecran h3 {
+  font-size: 8.5px; letter-spacing: .14em; text-transform: uppercase;
+  color: #9A9284; margin-bottom: 5px; font-weight: 700;
+}
+.ecran svg { display: block; width: 100%; }
 .sous-titre {
   font-size: 10px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase;
   color: var(--encre-tenu); text-align: center; margin: 0 0 6px;
@@ -398,26 +410,27 @@ textarea { font-family: "IBM Plex Mono", ui-monospace, monospace; font-size: 11.
 
     <div class="bloc">
       <h2>Sur la fiche du grimpeur</h2>
-      <div class="cadre-apercu deux-apercus">
-        <div>
-          <p class="sous-titre">Papier</p>
-          <div class="apercu">
-            <h3>Le mur</h3>
-            <div id="apercu-svg"></div>
-            <p class="hors" id="apercu-hors" hidden>Hors plan : zone Q.</p>
-          </div>
+      <div class="cadre-apercu">
+        <p class="sous-titre">Dossard papier — taille réelle</p>
+        <div class="apercu">
+          <h3>Le mur</h3>
+          <div id="apercu-svg"></div>
+          <p class="hors" id="apercu-hors" hidden>Hors plan : zone Q.</p>
         </div>
-        <div>
-          <p class="sous-titre">Téléphone</p>
-          <div class="telephone">
-            <h3>Le mur</h3>
-            <div id="apercu-nuit"></div>
+        <p class="legende-apercu">La colonne fait <b>37 mm</b>. Si une lettre ne
+          se lit pas ici, elle ne se lira pas à l'impression.</p>
+
+        <div class="deux-ecrans" style="margin-top:18px">
+          <div>
+            <p class="sous-titre">Page web</p>
+            <div class="ecran"><h3>Le mur</h3><div id="apercu-clair"></div></div>
+          </div>
+          <div>
+            <p class="sous-titre">Téléphone</p>
+            <div class="telephone"><h3>Le mur</h3><div id="apercu-nuit"></div></div>
           </div>
         </div>
       </div>
-      <p class="legende-apercu">À gauche, la taille réelle : la colonne du
-        dossard fait <b>37 mm</b>. Si une lettre ne se lit pas là, elle ne se
-        lira pas sur le papier.</p>
       <button id="btn-simuler" style="width:100%;margin-top:10px">Simuler un grimpeur</button>
       <p class="aide">Les zones où <em>ce</em> grimpeur a des blocs passent en
         noir plein. C'est ce qui fait d'une carte un itinéraire.</p>
@@ -548,45 +561,66 @@ function refleter(points) {
 const distance = (a, b) => Math.hypot(a[0] - b[0], a[1] - b[1]);
 
 /* ---------------------------------------------------------------- Palettes
-   Le MÊME dessin sort sur deux supports qui n'ont rien en commun : du papier
-   imprimé à l'encre noire, et un écran de téléphone sombre. Les couleurs sont
-   donc paramétrées, jamais écrites en dur dans le rendu.
+   Le MÊME dessin sort sur trois supports qui ne pardonnent pas les mêmes
+   choses, et ils n'ont donc pas la même palette.
 
-   Deux règles qui s'inversent, et c'est voulu :
-   - sur PAPIER, plus le mur déverse, plus il FONCE — il s'éloigne du blanc ;
-   - sur ÉCRAN SOMBRE, plus il déverse, plus il ÉCLAIRCIT — il s'éloigne du noir.
-   Dans les deux cas la règle perçue est la même : plus ça déverse, plus ça
-   tranche sur le fond.
+   Sur ÉCRAN, le profil est porté par la COULEUR, et par une couleur qui
+   raconte quelque chose : le mur bascule du FROID au CHAUD au moment précis où
+   il passe la verticale. Dalle et vertical reculent en bleu ; dès que ça
+   déverse, ça chauffe — ocre, ambre, rouille, rouge. La rupture de teinte
+   tombe donc sur la seule frontière qui compte pour un grimpeur : le mur
+   cesse de s'écarter et commence à se pencher sur lui.
 
-   Le plan reste ACHROMATIQUE, sauf les zones du grimpeur. La couleur est déjà
-   prise ailleurs par les six difficultés du classeur ; un second code couleur
-   les ferait lire de travers. La seule teinte est donc l'ocre du club, et elle
-   ne dit qu'une chose : « celles-là sont les tiennes ». */
+   ⚠️ C'est une échelle ORDONNÉE, pas six catégories. Elle ne se confond donc
+   pas avec les six couleurs de difficulté du classeur, qui sont franches et
+   discrètes : un dégradé continu ne se lit pas comme une pastille.
+
+   Sur PAPIER, rien de tout ça : le dossard s'imprime à l'encre noire, il reste
+   en trames de gris. Adrien : « seule la partie sur dossard doit rester
+   sobre ». */
 const PALETTES = {
   papier: {
-    suffixe: "", fond: "#FFFFFF",
+    suffixe: "", fond: "#FFFFFF", emphase: false,
     trame: "#1C1B19", trameDouce: "#6B655C", trameSienne: "#FFFFFF",
-    contour: "#1C1B19", repere: "#6B655C", haloRepere: "#FFFFFF",
+    contour: "#1C1B19", contourLargeur: 0.7,
+    repere: "#6B655C", haloRepere: "#FFFFFF",
     lettre: "#1C1B19", halo: "#FFFFFF",
     sienne: "#17150F", lettreSienne: "#FFFFFF", haloSienne: "#17150F",
     teintes: { dalle: "#EFECE6", vertical: "#E2DED5", incline: "#D4CEC2",
                devers: "#C1BAAB", surplomb: "#A79E8C", toit: "#8D8473" },
   },
+  clair: {
+    suffixe: "-c", fond: "#FFFFFF", emphase: true,
+    trame: "rgba(20, 28, 36, .17)", trameDouce: "rgba(20, 28, 36, .24)",
+    contour: "#FFFFFF", contourLargeur: 0.9,
+    repere: "#6E7C87", haloRepere: "#FFFFFF",
+    lettre: "#16232E", halo: "rgba(255,255,255,.92)",
+    anneau: "#B5791B", lueur: "#E0A94A", efface: 0.5,
+    lettreSienne: "#16232E", haloSienne: "rgba(255,255,255,.95)",
+    teintes: { dalle: "#D2E0E7", vertical: "#A6C4D3", incline: "#F0D5A0",
+               devers: "#EEBC7E", surplomb: "#E7A074", toit: "#E28379" },
+  },
   nuit: {
-    suffixe: "-n", fond: "#15161B",
-    trame: "#8A8175", trameDouce: "#6E675C", trameSienne: "#15161B",
-    contour: "#4A4741", repere: "#8A8175", haloRepere: "#15161B",
-    lettre: "#DCD6C9", halo: "#15161B",
-    /* L'ocre du club. Seule couleur du plan, et elle ne sert qu'à ça. */
-    sienne: "#E0A94A", lettreSienne: "#15161B", haloSienne: "#E0A94A",
-    teintes: { dalle: "#212228", vertical: "#292A31", incline: "#33333A",
-               devers: "#3F3D43", surplomb: "#4D4A4C", toit: "#5C5650" },
+    suffixe: "-n", fond: "#15161B", emphase: true,
+    trame: "rgba(255, 255, 255, .13)", trameDouce: "rgba(255, 255, 255, .20)",
+    contour: "#12131A", contourLargeur: 0.9,
+    repere: "#98A1AA", haloRepere: "#15161B",
+    lettre: "#F5F0E7", halo: "rgba(9, 10, 14, .85)",
+    anneau: "#FFD489", lueur: "#FFC463", efface: 0.42,
+    lettreSienne: "#FFFFFF", haloSienne: "rgba(9, 10, 14, .9)",
+    teintes: { dalle: "#2E3F4C", vertical: "#3D6076", incline: "#9A7238",
+               devers: "#B57430", surplomb: "#BE5B33", toit: "#BC443F" },
   },
 };
 
 /* ------------------------------------------------------------------ Rendu */
 function trames(pal) {
-  return PROFILS.filter(p => p.trame).map(p => {
+  const filtres = pal.lueur
+    ? `<filter id="lueur${pal.suffixe}" x="-40%" y="-40%" width="180%" height="180%">
+         <feDropShadow dx="0" dy="0" stdDeviation="2"
+                       flood-color="${pal.lueur}" flood-opacity="0.85"/></filter>`
+    : "";
+  return filtres + PROFILS.filter(p => p.trame).map(p => {
     const t = p.pas, e = p.epaisseur, cle = p.cle, id = "tr-" + cle + pal.suffixe;
     const forme = encre =>
       p.trame === "pois"
@@ -611,7 +645,7 @@ function lettre(x, y, texte, taille, sienne, pal) {
                 font-family="'IBM Plex Sans Condensed', sans-serif" font-weight="700"
                 font-size="${taille}" fill="${sienne ? pal.lettreSienne : pal.lettre}"
                 stroke="${sienne ? pal.haloSienne : pal.halo}"
-                stroke-width="${taille * 0.22}" paint-order="stroke fill"
+                stroke-width="${taille * 0.24}" paint-order="stroke fill"
                 style="pointer-events:none">${texte}</text>`;
 }
 
@@ -625,23 +659,35 @@ function corpsDuPlan({ marquees, pourEcran, pal }) {
   }
   for (const m of etat.murs) {
     const sienne = marquees.has(m.zone);
+    /* ⚠️ Deux canaux séparés, et c'est la règle qui tient tout le dessin :
+       le PROFIL vit dans la teinte, l'ÉTAT dans l'emphase. Si l'état prenait
+       aussi le remplissage — comme sur le papier, où il n'y a que du noir --
+       une zone du grimpeur perdrait son profil, et c'est justement celle
+       qu'il regarde. À l'écran l'état est donc un ANNEAU et une LUEUR, et les
+       autres zones s'effacent. */
+    const parEmphase = pal.emphase;
+    const eteinte = parEmphase && marquees.size > 0 && !sienne;
     const pr = PAR_CLE[m.profil] || PAR_CLE.vertical;
     const contour = m.points.map(q => q.join(",")).join(" ");
-    const fond = sienne ? pal.sienne
+    const fond = (sienne && !parEmphase) ? pal.sienne
                : (pr.trame ? `url(#tr-${pr.cle}${pal.suffixe})` : pal.teintes[pr.cle]);
+    const vif = sienne && parEmphase;
     p.push(`<polygon points="${contour}" fill="${fond}"
-              stroke="${pal.contour}" stroke-width="0.7" stroke-linejoin="round"
+              stroke="${vif ? pal.anneau : pal.contour}"
+              stroke-width="${vif ? 1.8 : pal.contourLargeur}" stroke-linejoin="round"
+              ${eteinte ? `opacity="${pal.efface}"` : ""}
+              ${vif ? `filter="url(#lueur${pal.suffixe})"` : ""}
               ${pourEcran ? `data-quoi="forme" data-id="${m.id}" class="mur-forme"` : ""}
               ${pourEcran ? "" : `data-zone="${m.zone}" data-profil="${m.profil}"`}/>`);
-    /* L'ÉTAT vit dans l'aplat, le PROFIL dans la trame posée par-dessus. Si la
-       trame prenait le remplissage, une zone « sienne » perdrait son profil --
-       et c'est justement celle qui intéresse le grimpeur. */
-    if (sienne && pr.trame) {
+    /* Sur le papier, l'aplat noir a mangé la trame : on la repose en clair. */
+    if (sienne && !parEmphase && pr.trame) {
       p.push(`<polygon points="${contour}" fill="url(#tr-${pr.cle}${pal.suffixe}-sur)"
                 stroke="none" style="pointer-events:none"/>`);
     }
     const [cx, cy] = m.etiquette || centre(m.points);
-    if (m.zone) p.push(lettre(cx, cy, m.zone, 9, sienne, pal));
+    if (m.zone) {
+      p.push(`<g${eteinte ? ` opacity="${pal.efface}"` : ""}>${lettre(cx, cy, m.zone, 9, sienne, pal)}</g>`);
+    }
   }
   for (const r of etat.reperes) {
     p.push(`<text x="${r.point[0]}" y="${r.point[1]}" text-anchor="middle" dominant-baseline="central"
@@ -659,7 +705,7 @@ const cadrage = () => `-1 -1 ${etat.vue.l + 2} ${etat.vue.h + 2}`;
 
 function dessiner() {
   const { l, h } = etat.vue;
-  const cote = Math.min(720 / l, 790 / h, 6);
+  const cote = Math.min(700 / l, 770 / h, 6);
   board.setAttribute("viewBox", cadrage());
   board.setAttribute("width", (l + 2) * cote);
   board.setAttribute("height", (h + 2) * cote);
@@ -711,7 +757,10 @@ function dessiner() {
 }
 
 function apercu() {
-  for (const [cible, pal] of [["#apercu-svg", PALETTES.papier], ["#apercu-nuit", PALETTES.nuit]]) {
+  const cibles = [["#apercu-svg", PALETTES.papier],
+                  ["#apercu-clair", PALETTES.clair],
+                  ["#apercu-nuit", PALETTES.nuit]];
+  for (const [cible, pal] of cibles) {
     $(cible).innerHTML =
       `<svg viewBox="${cadrage()}" xmlns="http://www.w3.org/2000/svg">
          <defs>${trames(pal)}</defs>
@@ -970,10 +1019,15 @@ function dire(texte, bien) {
 document.querySelectorAll("[data-forme]").forEach(b =>
   b.addEventListener("click", () => poser(b.dataset.forme)));
 
+/* Chaque pastille montre les DEUX rendus : le gris du papier à gauche, la
+   couleur de l'écran à droite. C'est la seule façon de choisir un profil en
+   sachant ce qu'il donnera sur les deux supports. */
 $("#palette").innerHTML = PROFILS.map(p => `
   <button class="profil" data-profil="${p.cle}" type="button">
-    <svg viewBox="0 0 26 20" aria-hidden="true"><rect width="26" height="20"
-      fill="${p.trame ? `url(#tr-${p.cle})` : p.teinte}"/></svg>
+    <svg viewBox="0 0 26 20" aria-hidden="true">
+      <rect width="13" height="20" fill="${p.trame ? `url(#tr-${p.cle})` : PALETTES.papier.teintes[p.cle]}"/>
+      <rect x="13" width="13" height="20" fill="${PALETTES.clair.teintes[p.cle]}"/>
+    </svg>
     <div><div class="nom">${p.nom}</div><div class="indice">${p.indice}</div></div>
   </button>`).join("");
 $("#insp-profil").innerHTML = PROFILS.map(p => `<option value="${p.cle}">${p.nom}</option>`).join("");
