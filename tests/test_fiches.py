@@ -420,10 +420,16 @@ class TestLeBudgetDeRequetes:
         # porte une amorce de transaction qui n'a rien a voir avec le sujet.
         compter(beaucoup)
 
-        # Les blocs, les circuits, les liens. Pas plus -- et surtout, pas plus
-        # pour soixante grimpeurs que pour trois.
-        assert compter(peu) == 3
-        assert compter(beaucoup) == 3
+        # Les blocs, les circuits, les liens, et LE PLAN (spec 029, il vient
+        # de la base depuis qu'il se dessine dans la console). Pas plus -- et
+        # surtout, pas plus pour soixante grimpeurs que pour trois.
+        #
+        # ⚠️ Le plan est lu UNE FOIS pour toute la planche et passe a chaque
+        # fiche. Sans ca, `plan_pour` etant appele par grimpeur, cent vingt
+        # fiches auraient fait cent vingt lectures du meme plan. C'est ce test
+        # qui l'a rattrape, pas une relecture.
+        assert compter(peu) == 4
+        assert compter(beaucoup) == 4
 
 
 class TestLaPlanche:

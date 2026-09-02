@@ -336,7 +336,12 @@
         <polygon class="contour" points="{{ f.plan.contour }}"/>
         {%- endif %}
         {%- for m in f.plan.murs %}
+        {#- `data-zone` et `data-profil` : ce qui est dessine doit pouvoir se
+            NOMMER. C'est ce qui rend le rendu verifiable par un test plutot
+            que par l'oeil, et c'est le meme crochet que celui convenu avec la
+            spec 026 pour l'affichage a l'ecran. -#}
         <polygon class="w p-{{ m.profil }}{% if m.sienne %} sienne{% endif %}"
+                 data-zone="{{ m.zone }}" data-profil="{{ m.profil }}"
                  points="{{ m.d }}"/>
         {%- if m.sienne and m.trame %}
         <polygon class="sur sur-{{ m.profil }}" points="{{ m.d }}"/>

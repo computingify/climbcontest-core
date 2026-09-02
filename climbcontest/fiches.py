@@ -73,8 +73,11 @@ LETTRE_MINI = 3.5        # 1,06 mm sur la colonne de 37 mm : le plancher lisible
 
 
 # Le mur de bloc d'Annonay, relevé par Adrien le 02/09/2026 avec
-# `tools/plan-du-mur/`. C'est la salle, pas une donnée de compétition : d'où une
-# constante, et non une table.
+# la planche de la console (`/admin/plan`, spec 029). C'est la salle, pas une
+# donnée de compétition.
+#
+# ⚠️ Depuis la spec 029 ce n'est plus la SOURCE mais le DÉFAUT : voir
+# `plan_courant()`. Ne plus la modifier à la main — on la dessine.
 #
 # Remplace la grille de 8×7 cases des specs 023-024, qui ne savait dire ni la
 # forme de la salle, ni le profil d'un mur, ni les proportions.
@@ -127,8 +130,20 @@ PLAN = {
 # Déduit de PLAN, jamais recopié à la main : deux listes qui divergeraient
 # feraient disparaître une zone du message « hors plan » sans rien casser
 # visiblement.
+# ⚠️ Les zones du plan D'USINE. Pour savoir ce qui est « hors plan » il faut
+# celles du plan COURANT : voir `zones_du_plan()`. Cette constante reste pour
+# les tests et pour le repli.
 ZONES_DU_PLAN = frozenset(
     m["zone"] for m in PLAN["murs"] if m["zone"])
+
+
+def zones_du_plan() -> frozenset[str]:
+    """Les zones dessinées par le plan qui s'applique.
+
+    Déduit du plan, jamais recopié : deux listes qui divergeraient feraient
+    disparaître une zone du message « hors plan » sans rien casser visiblement.
+    """
+    return frozenset(m["zone"] for m in plan_courant()["murs"] if m["zone"])
 
 
 def _cadre(points) -> tuple[float, float, float, float]:
@@ -236,7 +251,22 @@ def _blocs_par_circuit(comp) -> dict[str, list]:
     return dict(par_circuit)
 
 
-def plan_pour(zones: set[str]) -> dict:
+def plan_courant() -> dict:
+    """Le plan qui s'applique : celui dessiné dans la console, sinon l'usine.
+
+    ⚠️ `PLAN` cesse d'être la source pour devenir le DÉFAUT (spec 029). Il
+    s'applique tant que personne n'a dessiné, et sert de repli si la ligne
+    enregistrée est illisible — imprimer les dossards la veille au soir ne doit
+    pas dépendre de l'intégrité d'une ligne de base.
+
+    Import tardif : `plan_du_mur` a besoin de `PAR_PROFIL` pour valider, et le
+    faire en tête créerait un cycle.
+    """
+    from . import plan_du_mur
+    return plan_du_mur.lire() or PLAN
+
+
+def plan_pour(zones: set[str], plan: dict | None = None) -> dict:
     """Le plan de la salle, chaque mur sachant s'il est « le sien ».
 
     Le gabarit ne fait qu'afficher : c'est ici qu'on décide ce qui s'allume,
@@ -247,11 +277,16 @@ def plan_pour(zones: set[str]) -> dict:
     Les points sortent DÉJÀ formatés (`"60,0 80,0 …"`) : Jinja n'a pas à
     fabriquer de géométrie.
     """
-    largeur, hauteur = PLAN["vue"]
+    # ⚠️ `plan` se passe quand on rend une PLANCHE : cette fonction est appelee
+    # une fois par grimpeur, et sans lui cent vingt fiches feraient cent vingt
+    # lectures du meme plan en base. C'est un test de budget de requetes qui
+    # l'a rattrape, pas une relecture.
+    plan = plan or plan_courant()
+    largeur, hauteur = plan["vue"]
     m = MARGE_PLAN
 
     murs = []
-    for mur in PLAN["murs"]:
+    for mur in plan["murs"]:
         points = mur["points"]
         zone = mur["zone"] or ""
         # Un profil inconnu ne fait pas tomber une impression : on retombe sur
@@ -269,9 +304,9 @@ def plan_pour(zones: set[str]) -> dict:
             "trame": bool(PAR_PROFIL[profil]["trame"]),
         })
 
-    contour = PLAN["contour"]
+    contour = plan["contour"]
     return {
-        "vue": PLAN["vue"],
+        "vue": plan["vue"],
         # ⚠️ La marge se prend ICI, sur le cadrage, et jamais sur les
         # coordonnées : sept murs d'Annonay touchent le bord, et sans elle la
         # moitié de leur trait sort du dessin.
@@ -279,7 +314,7 @@ def plan_pour(zones: set[str]) -> dict:
         "contour": " ".join(f"{x},{y}" for x, y in contour) if contour else None,
         "murs": murs,
         "reperes": [{"texte": r["texte"], "x": r["point"][0], "y": r["point"][1]}
-                    for r in PLAN["reperes"]],
+                    for r in plan["reperes"]],
     }
 
 
@@ -382,6 +417,10 @@ def construire(comp, participants) -> list[dict]:
     manque se dit dans `manque`, en toutes lettres.
     """
     par_circuit = _blocs_par_circuit(comp)
+    # Une seule lecture du plan pour toute la planche : `construire` sert
+    # jusqu'a cent vingt fiches, et le plan ne change pas entre deux.
+    plan = plan_courant()
+    dessinees = frozenset(m["zone"] for m in plan["murs"] if m["zone"])
 
     planche = []
     for p in participants:
@@ -413,13 +452,13 @@ def construire(comp, participants) -> list[dict]:
             "total": len(blocs),
             "groupes": groupes,
             "colonnes": colonnes_qui_tiennent(groupes),
-            "plan": plan_pour(zones),
+            "plan": plan_pour(zones, plan),
             # Pour l'etiquette accessible du SVG : un lecteur d'ecran ne lit
             # pas un polygone, il lit le texte qu'on lui donne.
-            "zones_siennes": sorted(zones & ZONES_DU_PLAN),
+            "zones_siennes": sorted(zones & dessinees),
             # Une zone qu'on ne peut pas situer doit SE DIRE, pas disparaître :
             # le plan ne porte que 17 des 20 zones du classeur.
-            "hors_plan": sorted(zones - ZONES_DU_PLAN),
+            "hors_plan": sorted(zones - dessinees),
             "manque": manque,
         })
     return planche

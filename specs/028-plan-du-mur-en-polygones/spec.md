@@ -58,7 +58,9 @@ une session parallèle avait fait l'hypothèse inverse.
 
 ### F2 — Le relevé d'Annonay
 
-Fourni par Adrien le 02/09, dessiné avec `tools/plan-du-mur/` : **17 murs**,
+Fourni par Adrien le 02/09, dessiné avec la planche de dessin — qui vivait
+alors dans `tools/plan-du-mur/`, et que la **spec 029** a déplacée dans la
+console. Ce relevé compte **17 murs**,
 6 profils utilisés, **3 repères** (« Escalier », « Haut », et « Bas » qui
 n'existait pas dans la grille), **pas de contour**.
 

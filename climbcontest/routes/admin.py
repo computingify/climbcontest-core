@@ -462,6 +462,66 @@ def supprimer_reussite_route(reussite_id):
     return jsonify({"success": True, "supprimee": trace}), 200
 
 
+# --- Le plan de la salle (spec 029) -----------------------------------------
+
+@bp.get("/plan")
+@exige_role(ORGANISATEUR)
+def page_plan():
+    """La planche de dessin du plan de la salle, servie DEPUIS la console.
+
+    ⚠️ Elle vivait dans `tools/`, hors de l'application : changer le plan
+    demandait de modifier du code et de redeployer. Adrien : « est-ce que tu as
+    prevu une page dans la console qui permet de lancer l'outil [...] et
+    d'injecter ce nouveau plan via un bouton ? Sinon il faut le faire. »
+    """
+    return render_template("plan.html",
+                           plan=fiches.plan_courant(),
+                           profils=fiches.PROFILS,
+                           usine=fiches.plan_courant() is fiches.PLAN)
+
+
+@bp.post("/plan")
+@exige_role(ORGANISATEUR)
+def plan_enregistrer():
+    """{"vue": [l, h], "murs": [...], "reperes": [...], "contour": [...] | null}"""
+    corps = _corps_objet()
+    if corps is None:
+        return jsonify({"success": False, "message": "Corps JSON attendu"}), 400
+
+    from .. import plan_du_mur
+    try:
+        propre = plan_du_mur.ecrire(corps, par=getattr(utilisateur_courant(), "identifiant", None))
+    except plan_du_mur.PlanInvalide as e:
+        # Le message nomme le mur fautif : c'est ce qui permet de le corriger
+        # sans relire tout le document.
+        return jsonify({"success": False, "message": str(e)}), 400
+
+    zones = sum(1 for m in propre["murs"] if m["zone"])
+    return jsonify({
+        "success": True,
+        "murs": len(propre["murs"]),
+        "zones": zones,
+        "reperes": len(propre["reperes"]),
+        "message": (f"{len(propre['murs'])} mur(s) dont {zones} avec une lettre, "
+                    f"{len(propre['reperes'])} repère(s) enregistrés. "
+                    "Les prochains dossards imprimés porteront ce plan."),
+    }), 200
+
+
+@bp.delete("/plan")
+@exige_role(ORGANISATEUR)
+def plan_effacer():
+    """Revient au plan d'usine — la sortie de secours d'un jour de competition."""
+    from .. import plan_du_mur
+    efface = plan_du_mur.effacer()
+    return jsonify({
+        "success": True,
+        "efface": efface,
+        "message": ("Retour au plan d'usine." if efface
+                    else "Aucun plan enregistré : c'est déjà le plan d'usine."),
+    }), 200
+
+
 # --- Impression des dossards ------------------------------------------------
 
 @bp.get("/dossards")
