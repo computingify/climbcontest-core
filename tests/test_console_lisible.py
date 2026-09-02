@@ -263,10 +263,19 @@ class TestClairEtSombre:
         assert "\n  input, select, textarea {" not in page
 
     def test_un_lien_bouton_masque_reste_masque(self, page):
-        """`display: inline-block` bat le `[hidden]` du navigateur. Sans la
-        regle, « Ouvrir le classeur » s'affichait alors qu'aucun classeur n'est
-        relie, et proposait d'ouvrir un lien vide."""
-        assert "a.secondaire[hidden] { display: none; }" in page
+        """N'importe quel `display` d'auteur bat le `[hidden]` du navigateur.
+
+        Sans regle, « Ouvrir le classeur » (`a.secondaire`, en
+        `display: inline-block`) s'affichait alors qu'aucun classeur n'est
+        relie, et proposait d'ouvrir un lien vide.
+
+        La rustine etait locale, et il en fallait une par element : quatre
+        avaient ete posees, et la cinquieme manquait toujours -- c'est ce qui a
+        laisse `#console` s'afficher sans session. Une seule regle globale les
+        remplace, et ce test garde celle-la. Le detail est dans
+        `test_console_fermee.py`.
+        """
+        assert "[hidden] { display: none !important; }" in page
 
     def test_le_qr_reste_sur_du_blanc(self, page):
         """Un QR sur fond sombre ne se lit pas. Le cadre reste blanc dans les

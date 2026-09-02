@@ -88,6 +88,27 @@
     }
   }
   * { box-sizing: border-box; }
+
+  /* ⚠️ `hidden` DOIT cacher. Cette regle n'est pas une precaution de style :
+     c'est le controle d'acces visuel de la console.
+
+     N'importe quelle regle d'auteur qui pose `display` bat le
+     `[hidden] { display: none }` de la feuille du NAVIGATEUR -- l'origine
+     auteur l'emporte sur l'origine agent-utilisateur, quelle que soit la
+     specificite. `#console` en faisait les frais : la mise en grille des
+     grands ecrans -- la requete media plus bas -- le rendait visible MALGRE
+     son attribut `hidden`. Deconnecte, sur un ecran de 1080 px ou plus, on
+     voyait le formulaire de connexion en haut et la console entiere en
+     dessous, cliquable -- tiroir, formulaires, boutons d'effacement compris.
+     Le serveur refusait bien chaque appel (401), mais la page invitait a les
+     faire. Sur un telephone, aucune regle ne posait `display` : le defaut ne
+     se voyait pas.
+
+     Quatre rustines locales (`.vue[hidden]`, `#message[hidden]`...) traitaient
+     deja le meme defaut, une par element, et il en manquait donc toujours une.
+     La regle globale ferme la classe entiere -- c'est ce que `plan.html` fait
+     deja. */
+  [hidden] { display: none !important; }
   html, body { height: 100%; }
   body {
     margin: 0; background: var(--fond); color: var(--encre);
@@ -255,7 +276,6 @@
 
   /* --- Le contenu -------------------------------------------------------- */
   main { padding: 24px 18px 80px; max-width: 940px; margin: 0 auto; }
-  .vue[hidden] { display: none; }
   .titre-vue { margin: 0 0 20px; }
   .titre-vue h1 {
     margin: 0; font-size: 1.55rem; font-weight: 800; letter-spacing: -0.025em;
@@ -339,11 +359,6 @@
   /* Le lien vers le classeur porte l'allure d'un bouton : c'est une ACTION,
      au meme titre que « Tester » ou « Importer ». */
   a.secondaire { display: inline-block; text-decoration: none; }
-  /* ⚠️ `display: inline-block` bat le `[hidden] { display: none }` du
-     navigateur -- question de specificite, pas d'ordre. Sans cette ligne,
-     « Ouvrir le classeur » restait affiche alors qu'AUCUN classeur n'est relie,
-     et proposait d'ouvrir un lien vide. Vu a l'ecran en reorganisant les vues. */
-  a.secondaire[hidden] { display: none; }
   button.secondaire:hover, a.secondaire:hover { background: var(--surface3); }
   button.discret {
     cursor: pointer; font: inherit; font-size: 0.82rem;
@@ -363,7 +378,6 @@
     border-left: 4px solid var(--trait); background: var(--surface2);
     box-shadow: var(--ombre);
   }
-  #message[hidden] { display: none; }
   #message.ok { border-left-color: var(--ok); }
   #message.erreur { border-left-color: var(--alerte); }
   #message.attention { border-left-color: var(--attention); }
@@ -758,7 +772,6 @@
     border-left: 3px solid var(--accent); background: var(--surface2);
     color: var(--encre2);
   }
-  .avert[hidden] { display: none; }
   .avert b { color: var(--encre); }
 </style>
 </head>
@@ -794,7 +807,16 @@
      publique : <a href="/resultats">/resultats</a>.</p>
 </div>
 
-<div id="console" hidden>
+<!-- ⚠️ `hidden` ET `inert`, et les deux comptent.
+
+     `hidden` cache. `inert` DEBRANCHE : plus aucun clic, plus aucun focus au
+     clavier, plus rien pour un lecteur d'ecran, meme si une regle de style
+     venait a nouveau rendre ce bloc visible. C'est la ceinture apres la
+     bretelle, et la bretelle a deja lache une fois -- voir la regle
+     `[hidden]` en tete de la feuille de style. Les deux attributs se posent
+     ici, dans le HTML : la console part FERMEE, avant meme que le script ne
+     demande qui est connecte, et c'est `montrerConsole()` qui les retire. -->
+<div id="console" hidden inert>
 
   <div class="voile" id="voile" hidden></div>
 
@@ -1506,6 +1528,8 @@
 
   function montrerConnexion(raison) {
     $("console").hidden = true;
+    // Voir le commentaire de `<div id="console">` : cache ET debranche.
+    $("console").inert = true;
     $("connexion").hidden = false;
     if (raison) {
       var m = $("messageConnexion");
@@ -1520,6 +1544,7 @@
   function montrerConsole() {
     $("connexion").hidden = true;
     $("console").hidden = false;
+    $("console").inert = false;
     $("qui").textContent = etat.moi.identifiant + " · " + etat.moi.roles.join(", ");
     // Le bloc « Comptes » des reglages n'apparait que pour un administrateur.
     // Le serveur refuse de toute facon (403) -- masquer evite d'offrir un
