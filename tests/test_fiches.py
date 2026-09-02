@@ -45,13 +45,12 @@ def _grimpeur(comp, dossard, categorie, nom="Réglette", prenom="Camille"):
 
 
 class TestLePlanEstUneConstanteDeLaSalle:
-    """Le même texte dans les trois classeurs archivés, de 2024 à mars 2026 :
-    c'est le mur d'Annonay, pas une donnée de compétition.
+    """Le mur d'Annonay, relevé par Adrien le 02/09/2026 : c'est la salle, pas
+    une donnée de compétition. D'où une constante, et non une table.
     """
 
-    def test_huit_lignes_de_sept_cases(self):
-        assert len(fiches.PLAN) == 8
-        assert all(len(ligne) == 7 for ligne in fiches.PLAN)
+    def test_dix_sept_murs(self):
+        assert len(fiches.PLAN["murs"]) == 17
 
     def test_dix_sept_zones(self):
         """Le classeur en compte vingt ; U, V et W n'ont jamais porté de bloc et
@@ -60,35 +59,146 @@ class TestLePlanEstUneConstanteDeLaSalle:
         assert {"U", "V", "W"}.isdisjoint(fiches.ZONES_DU_PLAN)
 
     def test_les_zones_sont_deduites_du_plan_pas_recopiees(self):
-        attendu = {c for ligne in fiches.PLAN for c in ligne if isinstance(c, str)}
+        attendu = {m["zone"] for m in fiches.PLAN["murs"] if m["zone"]}
         assert fiches.ZONES_DU_PLAN == attendu
 
     @pytest.mark.parametrize("zone", list("ABCDEFGHIJKLMNXYZ"))
     def test_chaque_zone_dessinee_apparait_une_fois(self, zone):
-        compte = sum(ligne.count(zone) for ligne in fiches.PLAN)
+        compte = sum(1 for m in fiches.PLAN["murs"] if m["zone"] == zone)
         assert compte == 1, f"la zone {zone} apparait {compte} fois"
 
-    def test_chaque_ligne_fait_sept_colonnes_a_l_affichage(self):
-        """Un repère tient sur trois cases. S'il n'absorbait pas les deux vides
-        qui le suivent, la ligne en compterait neuf et tout le plan glisserait.
+    def test_chaque_mur_est_un_polygone_ferme(self):
+        """Trois points au moins : en dessous, ce n'est pas une surface."""
+        for m in fiches.PLAN["murs"]:
+            assert len(m["points"]) >= 3, m["zone"]
+            assert all(len(pt) == 2 for pt in m["points"]), m["zone"]
+
+    def test_tous_les_profils_sont_connus(self):
+        for m in fiches.PLAN["murs"]:
+            assert m["profil"] in fiches.PAR_PROFIL, m["zone"]
+
+    def test_les_profils_vont_du_moins_au_plus_deversant(self):
+        """L'ordre EST l'information : la trame se densifie et le gris fonce à
+        mesure qu'on descend la liste. Un jour où quelqu'un réordonnera la
+        constante par commodité, ce test le dira.
         """
-        for ligne in fiches.plan_pour(set()):
-            assert sum(case["colonnes"] for case in ligne) == 7
+        assert [p["cle"] for p in fiches.PROFILS] == [
+            "dalle", "vertical", "incline", "devers", "surplomb", "toit"]
 
     def test_les_reperes_ne_sont_pas_des_zones(self):
         plan = fiches.plan_pour(set())
-        reperes = [c["repere"] for ligne in plan for c in ligne if c["repere"]]
-        assert sorted(reperes) == ["Escalier", "Haut"]
-        assert all(c["zone"] is None for ligne in plan for c in ligne if c["repere"])
+        assert [r["texte"] for r in plan["reperes"]] == ["Escalier", "Haut", "Bas"]
+        assert "Escalier" not in fiches.ZONES_DU_PLAN
 
     def test_les_zones_du_grimpeur_s_allument(self):
         plan = fiches.plan_pour({"Z", "D", "A"})
-        allumees = {c["zone"] for ligne in plan for c in ligne if c["sienne"]}
+        allumees = {m["zone"] for m in plan["murs"] if m["sienne"]}
         assert allumees == {"Z", "D", "A"}
 
     def test_aucune_zone_ne_s_allume_sans_bloc(self):
         plan = fiches.plan_pour(set())
-        assert not any(c["sienne"] for ligne in plan for c in ligne)
+        assert not any(m["sienne"] for m in plan["murs"])
+
+    def test_une_zone_inconnue_n_allume_rien(self):
+        """Un bloc en zone « Q » ne doit allumer aucun mur — il part dans
+        `hors_plan`, pas dans le dessin."""
+        plan = fiches.plan_pour({"Q"})
+        assert not any(m["sienne"] for m in plan["murs"])
+
+
+class TestLeCadrageNeRogneAucunTrait:
+    """⚠️ Sept murs d'Annonay touchent le bord du dessin — L, M, N à gauche,
+    X et Y en haut, E à droite. Sans marge, la moitié de leur trait sort du
+    cadre. Le défaut ne se voit qu'à l'affichage, jamais à la lecture.
+    """
+
+    def test_le_cadrage_deborde_la_vue_de_chaque_cote(self):
+        plan = fiches.plan_pour(set())
+        x, y, l, h = (float(v) for v in plan["cadrage"].split())
+        largeur, hauteur = fiches.PLAN["vue"]
+        m = fiches.MARGE_PLAN
+        assert (x, y) == (-m, -m)
+        assert (l, h) == (largeur + 2 * m, hauteur + 2 * m)
+
+    def test_des_murs_touchent_bien_le_bord(self):
+        """Si ce test tombe un jour, c'est que le relevé a changé — et la marge
+        mérite alors d'être rediscutée plutôt que gardée par habitude."""
+        largeur, hauteur = fiches.PLAN["vue"]
+        touchent = [m["zone"] for m in fiches.PLAN["murs"]
+                    if any(x in (0, largeur) or y in (0, hauteur)
+                           for x, y in m["points"])]
+        assert sorted(touchent) == ["E", "L", "M", "N", "X", "Y"]
+
+    def test_aucun_point_ne_sort_de_la_vue(self):
+        largeur, hauteur = fiches.PLAN["vue"]
+        for m in fiches.PLAN["murs"]:
+            for x, y in m["points"]:
+                assert 0 <= x <= largeur, f"{m['zone']} sort en x"
+                assert 0 <= y <= hauteur, f"{m['zone']} sort en y"
+
+
+class TestLaLettreTientDansSonMur:
+    """⚠️ Mesuré dans le navigateur, halo compris : à 9 unités fixes, aucune des
+    17 zones ne débordait — mais la marge n'était que de 0,25 unité. Une zone à
+    deux caractères la crevait. Ça tenait par chance, pas par construction.
+    """
+
+    def test_les_zones_d_annonay_gardent_la_taille_maximale(self):
+        """Le calcul ne doit mordre que là où il le faut : le rendu d'Annonay
+        est inchangé."""
+        plan = fiches.plan_pour(set())
+        assert {m["taille"] for m in plan["murs"]} == {fiches.LETTRE_MAXI}
+
+    @pytest.mark.parametrize("texte", ["A", "A1", "Z12"])
+    def test_la_lettre_retrecit_avec_le_nombre_de_caracteres(self, texte):
+        carre = ((0, 0), (15, 0), (15, 15), (0, 15))
+        taille = fiches.taille_lettre(carre, texte)
+        largeur_estimee = taille * 0.62 * len(texte)
+        assert largeur_estimee <= 15, f"« {texte} » deborde : {largeur_estimee:.1f}"
+
+    def test_un_mur_minuscule_garde_une_lettre_lisible(self):
+        """Mieux vaut une lettre serrée qu'une lettre absente : le plancher
+        vaut 1,06 mm sur la colonne de 37 mm."""
+        minuscule = ((0, 0), (2, 0), (2, 2), (0, 2))
+        assert fiches.taille_lettre(minuscule, "A") == fiches.LETTRE_MINI
+
+    def test_un_polygone_degenere_ne_fait_pas_tomber_le_calcul(self):
+        aplati = ((0, 0), (10, 0), (20, 0))
+        assert fiches.taille_lettre(aplati, "A") > 0
+
+
+class TestLaLettreVaAuCentreDeSurface:
+
+    def test_le_centre_d_un_rectangle(self):
+        plan = fiches.plan_pour(set())
+        x = next(m for m in plan["murs"] if m["zone"] == "X")
+        assert x["etiquette"] == (70.0, 7.5)
+
+    def test_une_etiquette_explicite_gagne_sur_le_centroide(self):
+        """Un polygone concave peut avoir son centroïde hors de lui-même ; le
+        relevé doit alors pouvoir imposer la position."""
+        original = fiches.PLAN["murs"]
+        force = dict(original[0])
+        force["etiquette"] = (5, 5)
+        fiches.PLAN["murs"] = (force,) + original[1:]
+        try:
+            place = fiches.plan_pour(set())["murs"][0]["etiquette"]
+            assert place == (5, 5)
+        finally:
+            fiches.PLAN["murs"] = original
+
+
+class TestUnProfilInconnuNeCassePasUneImpression:
+
+    def test_le_repli_est_le_vertical(self):
+        original = fiches.PLAN["murs"]
+        casse = dict(original[0])
+        casse["profil"] = "trampoline"
+        fiches.PLAN["murs"] = (casse,) + original[1:]
+        try:
+            assert fiches.plan_pour(set())["murs"][0]["profil"] == "vertical"
+        finally:
+            fiches.PLAN["murs"] = original
 
 
 class TestLeNumeroSansSaZone:
@@ -263,7 +373,7 @@ class TestUneZoneHorsPlanSeDit:
         p = _grimpeur(competition, 1, "U11 F")
         [fiche] = fiches.construire(competition, [p])
         assert fiche["hors_plan"] == []
-        assert not any(c["sienne"] for ligne in fiche["plan"] for c in ligne)
+        assert not any(m["sienne"] for m in fiche["plan"]["murs"])
         assert fiche["groupes"][0]["blocs"][0]["numero"] == "J1"
 
 

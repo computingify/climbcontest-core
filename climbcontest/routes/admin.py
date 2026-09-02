@@ -509,7 +509,10 @@ def page_dossards():
     return render_template("dossards.html",
                            feuilles=fiches.en_feuilles(planche,
                                                        fiches.FICHES_PAR_FEUILLE),
-                           total=len(planche), titre=titre)
+                           total=len(planche), titre=titre,
+                           # Les motifs de trame du plan sont declares une
+                           # seule fois pour tout le document, pas par fiche.
+                           profils=fiches.PROFILS)
 
 
 @bp.get("/etiquettes")

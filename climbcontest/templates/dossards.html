@@ -178,26 +178,52 @@
   }
 
   /* --- Le plan de la salle, a droite --------------------------------------- */
-  /* Sept cases par ligne : la grille du classeur (`Fiches!V4:X11`), ou la
-     premiere cellule vaut une case et les deux suivantes en valent trois. */
+  /* Un SVG, plus une grille de cases (specs 023-024). Une grille ne savait dire
+     ni la forme de la salle, ni le profil d'un mur, ni les proportions.
+
+     ⚠️ AUCUNE COULEUR. Le dossard s'imprime a l'encre noire sur du papier de
+     couleur : une teinte y serait perdue. Le profil se lit donc a la TRAME,
+     qui se densifie et fonce a mesure que le mur deverse -- deux variables
+     redondantes sur un seul axe ordonne, une seule regle a apprendre.
+     Le meme plan a l'ECRAN est rendu ailleurs (spec 026), sans cette
+     contrainte. */
   .mur { flex: none; width: 37mm; border-left: 0.2mm solid #ddd; padding-left: 2.5mm; }
-  .plan { display: grid; grid-template-columns: repeat(7, 1fr); gap: 0.6mm; }
-  .case-plan {
-    height: 5mm; display: flex; align-items: center; justify-content: center;
-    font-size: 2.3mm; border-radius: 0.7mm;
-  }
-  .case-plan.zone { border: 0.2mm solid #ddd; color: #999; font-weight: 600; }
+  .plan { display: block; width: 100%; max-height: 46mm; }
+
+  .plan .w { stroke: #1C1B19; stroke-width: 0.7; stroke-linejoin: round; }
+  .plan .p-dalle    { fill: url(#pl-dalle); }
+  .plan .p-vertical { fill: #E2DED5; }
+  .plan .p-incline  { fill: url(#pl-incline); }
+  .plan .p-devers   { fill: url(#pl-devers); }
+  .plan .p-surplomb { fill: url(#pl-surplomb); }
+  .plan .p-toit     { fill: url(#pl-toit); }
+
   /* Les zones OU CE GRIMPEUR a des blocs. C'est ce qui transforme une carte
-     generale en itineraire. */
-  .case-plan.sienne { border-color: #111; background: #111; color: #fff; }
-  /* « Escalier » et « Haut » sont des reperes de la salle, pas des zones. Le
-     classeur les melange aux lettres ; c'est ce qui rend son schema illisible.
-     La largeur vient du gabarit (`grid-column: span N`), calculee en Python :
-     un repere ne tient sur trois cases que si les deux suivantes sont vides. */
-  .case-plan.repere {
-    font-style: italic; font-size: 1.9mm; color: #888;
-    justify-content: flex-start;
-  }
+     generale en itineraire. Declare APRES les profils : a specificite egale,
+     c'est l'ordre qui tranche. */
+  .plan .sienne { fill: #17150F; }
+  /* ⚠️ L'aplat noir a mange la trame : on la repose en clair par-dessus.
+     Sans ca le grimpeur perdrait le profil PRECISEMENT sur les zones qui
+     l'interessent -- les siennes. */
+  .plan .sur { stroke: none; }
+  .plan .sur-dalle    { fill: url(#pl-dalle-sur); }
+  .plan .sur-incline  { fill: url(#pl-incline-sur); }
+  .plan .sur-devers   { fill: url(#pl-devers-sur); }
+  .plan .sur-surplomb { fill: url(#pl-surplomb-sur); }
+  .plan .sur-toit     { fill: url(#pl-toit-sur); }
+
+  .plan .contour { fill: none; stroke: #6B655C; stroke-width: 0.8;
+                   stroke-dasharray: 3 2; stroke-linejoin: round; }
+
+  /* Le halo sous la lettre. Sans lui, un « J » sur la trame d'un toit devient
+     illisible : c'est la technique des cartes, pas une coquetterie. */
+  .plan text { font-family: inherit; font-weight: 700; text-anchor: middle;
+               dominant-baseline: central; paint-order: stroke fill; }
+  .plan .zone { fill: #1C1B19; stroke: #fff; }
+  .plan .zone.a-lui { fill: #fff; stroke: #17150F; }
+  .plan .repere { font-weight: 400; font-style: italic; font-size: 6px;
+                  fill: #6B655C; stroke: #fff; stroke-width: 1.6; }
+
   .hors-plan {
     margin: 1mm 0 0; font-size: 2.2mm; color: #333;
     border-left: 0.5mm solid #999; padding-left: 1.5mm;
@@ -220,6 +246,36 @@
 </style>
 </head>
 <body>
+
+{#- ⚠️ Les motifs de trame sont declares UNE SEULE FOIS pour tout le document,
+    pas dans chaque fiche. Un identifiant SVG est valable dans TOUT le
+    document : 120 fiches x 6 motifs feraient 720 identifiants en double, et
+    `url(#pl-devers)` resoudrait sur le premier trouve -- pas forcement celui
+    qu'on regarde. Une seule declaration, aucune collision possible.
+
+    Chaque profil a deux motifs : l'encre noire pour un mur ordinaire, et une
+    variante CLAIRE reposee par-dessus l'aplat noir d'une zone « sienne ». -#}
+<svg width="0" height="0" aria-hidden="true" focusable="false"
+     style="position:absolute" xmlns="http://www.w3.org/2000/svg"><defs>
+  {%- for p in profils %}{% if p.trame %}
+  {%- set t = p.pas %}{% set e = p.epaisseur %}
+  {%- for suffixe, encre in [("", "#1C1B19"), ("-sur", "#FFFFFF")] %}
+  <pattern id="pl-{{ p.cle }}{{ suffixe }}" width="{{ t }}" height="{{ t }}"
+           patternUnits="userSpaceOnUse"{% if suffixe %} opacity="0.55"{% endif %}>
+    {%- if not suffixe %}<rect width="{{ t }}" height="{{ t }}" fill="{{ p.gris }}"/>{% endif %}
+    {%- if p.trame == "pois" %}
+    <circle cx="{{ t / 2 }}" cy="{{ t / 2 }}" r="{{ e }}"
+            fill="{{ "#6B655C" if not suffixe else encre }}"/>
+    {%- elif p.trame == "penche" %}
+    <path d="M -1 1 L 1 -1 M 0 {{ t }} L {{ t }} 0 M {{ t - 1 }} {{ t + 1 }} L {{ t + 1 }} {{ t - 1 }}"
+          stroke="{{ encre }}" stroke-width="{{ e }}" fill="none"/>
+    {%- else %}
+    <path d="M 0 {{ t }} L {{ t }} 0 M 0 0 L {{ t }} {{ t }}"
+          stroke="{{ encre }}" stroke-width="{{ e }}" fill="none"/>
+    {%- endif %}
+  </pattern>
+  {%- endfor %}{% endif %}{% endfor %}
+</defs></svg>
 
 <div class="entete">
   <h1>Fiches — {{ titre }}</h1>
@@ -273,17 +329,31 @@
 
     <div class="mur">
       <h2>Le mur</h2>
-      <div class="plan">
-        {%- for ligne in f.plan %}{% for case in ligne -%}
-          {%- if case.repere -%}
-            <span class="case-plan repere" style="grid-column:span {{ case.colonnes }}">{{ case.repere }}</span>
-          {%- elif case.zone -%}
-            <span class="case-plan zone{% if case.sienne %} sienne{% endif %}">{{ case.zone }}</span>
-          {%- else -%}
-            <span class="case-plan"></span>
-          {%- endif -%}
-        {%- endfor %}{% endfor -%}
-      </div>
+      <svg class="plan" viewBox="{{ f.plan.cadrage }}"
+           xmlns="http://www.w3.org/2000/svg" role="img"
+           aria-label="Plan de la salle{% if f.zones_siennes %} — tes zones : {{ f.zones_siennes|join(", ") }}{% endif %}">
+        {%- if f.plan.contour %}
+        <polygon class="contour" points="{{ f.plan.contour }}"/>
+        {%- endif %}
+        {%- for m in f.plan.murs %}
+        <polygon class="w p-{{ m.profil }}{% if m.sienne %} sienne{% endif %}"
+                 points="{{ m.d }}"/>
+        {%- if m.sienne and m.trame %}
+        <polygon class="sur sur-{{ m.profil }}" points="{{ m.d }}"/>
+        {%- endif %}
+        {%- endfor %}
+        {#- Les lettres APRES tous les murs : sinon un mur voisin dessine plus
+            tard recouvrirait le halo de sa voisine. -#}
+        {%- for m in f.plan.murs %}{% if m.zone %}
+        <text class="zone{% if m.sienne %} a-lui{% endif %}"
+              x="{{ m.etiquette[0] }}" y="{{ m.etiquette[1] }}"
+              font-size="{{ m.taille }}" stroke-width="{{ m.taille * 0.24 }}"
+              >{{ m.zone }}</text>
+        {%- endif %}{% endfor %}
+        {%- for r in f.plan.reperes %}
+        <text class="repere" x="{{ r.x }}" y="{{ r.y }}">{{ r.texte }}</text>
+        {%- endfor %}
+      </svg>
       {% if f.hors_plan %}
       <p class="hors-plan">Hors plan : zone {{ f.hors_plan|join(", ") }}.</p>
       {% endif %}
