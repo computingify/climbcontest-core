@@ -15,6 +15,8 @@ import logging
 
 from flask import Blueprint, render_template
 
+from ..suivi import plan_public
+
 logger = logging.getLogger(__name__)
 bp = Blueprint("pages", __name__)
 
@@ -39,9 +41,8 @@ def console():
 def resultats():
     """La page que les spectateurs ouvrent, et qu'on projette dans la salle.
 
-    Servie telle quelle : **aucune donnee n'est injectee dans le HTML**. La page
-    va chercher le classement elle-meme, ce qui lui permet de se rafraichir sans
-    rechargement -- et surtout de GARDER le dernier classement connu quand le
+    Servie presque telle quelle : la page va chercher le classement elle-meme,
+    ce qui lui permet de se rafraichir sans rechargement -- et surtout de GARDER le dernier classement connu quand le
     serveur devient injoignable. Une page de resultats qui se vide sur une
     erreur reseau fait croire que la competition s'est arretee.
 
@@ -55,7 +56,7 @@ def resultats():
     n'affiche que ce qui est deja public : nom, club, categorie, score, rang et
     un compte de blocs.
     """
-    return render_template("resultats.html")
+    return render_template("resultats.html", plan=plan_public())
 
 
 @bp.get("/console/archives/<int:identifiant>/resultats")
@@ -81,11 +82,11 @@ def archive_resultats(identifiant: int):
 
     archive = db.session.get(Archive, identifiant)
     if archive is None:
-        return render_template("resultats.html"), 404
+        return render_template("resultats.html", plan=plan_public()), 404
 
     libelle = archive.date.isoformat() if archive.date else (
         archive.cree_le.date().isoformat() if archive.cree_le else "")
     return render_template(
-        "resultats.html",
+        "resultats.html", plan=plan_public(),
         source=f"/admin/archives/{identifiant}/classement",
         archive_libelle=libelle)

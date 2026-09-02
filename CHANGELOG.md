@@ -44,6 +44,30 @@ qu'on ne met pas à jour le matin d'une compétition :
   en hachures sur la teinte de leur couleur.
 - `classement_service.blocs_du_grimpeur()` rend `{grimpes, credites}` — deux
   ensembles disjoints par construction, pour la fiche du grimpeur à l'écran.
+- **La fiche du grimpeur, en direct** (spec 026). On touche un nom dans le
+  classement : sa fiche s'ouvre — l'identité dans la mise en page de son
+  dossard, son rang, et **tous les blocs de son circuit** avec ce qu'il en a
+  fait. Grimpé en vert plein, **crédité en hachures** (la cascade de couleurs le
+  lui accorde sans qu'il l'ait grimpé), le reste en creux.
+
+  La spec 023 imprime la même chose sur papier, mais elle sort de l'imprimante
+  le matin : elle ne peut rien dire de la journée. La page de résultats, elle,
+  savait, et n'en montrait qu'un nombre — « 12 blocs », sans dire lesquels, ni
+  ce qu'il reste, ni où aller. Les deux moitiés existaient séparément.
+
+- **Le mur, depuis un bloc** (spec 026). Toucher un bloc ouvre le plan de la
+  salle sur sa zone, qui **rebondit**. Chaque zone porte l'état du grimpeur :
+  effacée s'il n'a rien à y faire, pleine s'il lui reste des blocs, **cerclée
+  de vert** quand il l'a terminée. Toucher une autre zone l'ouvre sans rebond —
+  le rebond dit « tu arrives ici », pas « tu regardes ici ».
+
+- **Une adresse par écran** : `#g=42` la fiche, `#g=42&z=M` le mur. Le bouton
+  retour du téléphone ferme la fiche au lieu de sortir du site, et
+  `/#g=42` est un lien partageable qui ouvre la fiche par-dessus le classement.
+
+  Le **dièse** et pas un paramètre : il ne part jamais au serveur, alors que
+  `?g=42` créerait une entrée de cache Caddy par grimpeur et par zone pour un
+  HTML rigoureusement identique.
 
 ### Modifié
 
@@ -61,6 +85,49 @@ qu'on ne met pas à jour le matin d'une compétition :
   se déclenchait à tort.
 - Le classement des **clubs** reporte les blocs crédités : sa ligne portait
   jusqu'ici un total gonflé par la cascade sans l'astérisque qui le dit.
+- **`GET /api/public/grimpeur/<id>`**, route publique nouvelle. Les blocs d'un
+  grimpeur ne rejoignent PAS la charge de classement : elle est relue toutes
+  les 15 s par une soixantaine de téléphones, et y mettre ce qu'une personne
+  consulte au clic ferait payer tout le monde.
+
+- **Le plan du mur est estampillé** (`polygones/1`) et la page vérifie
+  l'estampille avant de dessiner. `fiches.PLAN` a déjà changé de forme une fois
+  (spec 028) et rechangera : une page servie depuis un cache doit **refuser**
+  un plan qu'elle ne sait pas dessiner plutôt que de le dessiner de travers, ce
+  qui enverrait chercher un bloc au mauvais endroit. Deux tests empêchent le
+  numéro de pourrir, dont un qui lit le JavaScript depuis Python pour vérifier
+  que les deux côtés sont d'accord.
+
+### Corrigé
+
+Sept défauts trouvés avant d'atteindre la production — trois sur la maquette,
+quatre par une relecture — chacun gardé par un test :
+
+- Un **lien partagé ouvrait une fiche qu'on ne pouvait plus fermer** : sur
+  `/#g=42` ouvert directement il n'y a aucune entrée d'historique à remonter,
+  donc la croix, Échap et le voile devenaient inertes et le classement restait
+  figé derrière. Seul un rechargement s'en sortait.
+- La fiche **« en direct » ne l'était pas** : la fonction de rafraîchissement
+  n'avait aucun appelant. Le bloc validé restait en pointillé pendant que la
+  ligne du classement, juste derrière, affichait déjà un bloc de plus.
+- Le plan pouvait **sortir de son bloc `<script>`** : `json.dumps` n'échappe pas
+  `<`, et depuis la spec 029 le plan est de la donnée saisie depuis la console.
+  Un `</script>` dans un libellé de repère devenait du balisage vivant sur une
+  page publique.
+- Les **classements masqués reparaissaient** dans « aussi classé » : la fiche
+  court-circuitait le filtre de la spec 020.
+
+- Une **transition qui jouait le retour avant l'aller** : la pile recevait sa
+  position après son insertion, et une mesure glissée entre les deux forçait un
+  calcul de style.
+- **Toute la page devenue traversante au clic** : une couche de contours SVG
+  avait pris le nom de classe `cadre`, déjà porté par le gabarit du téléphone,
+  et lui appliquait `pointer-events: none`. La page s'affichait parfaitement et
+  n'attrapait plus rien. Le test de pointage du navigateur est le seul capable
+  d'attraper ça — `.click()` appelle le gestionnaire sans test de pointage.
+- Un **drapeau qui contredisait l'historique** : « je suis au mur » était posé
+  avant l'écriture du dièse, et tout rendu tombant entre les deux montrait le
+  mur sans zone visée.
 
 ## [0.15.0] — 2026-09-01
 

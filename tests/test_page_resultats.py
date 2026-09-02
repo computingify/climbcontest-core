@@ -595,7 +595,16 @@ class TestRejeuArchive:
         bonne variable.
         """
         page = client.get("/").data.decode()
-        assert "if (!ARCHIVE) setInterval(charger, PERIODE_MS);" in page
+        # ⚠️ On verifie la GARDE, plus la ligne mot pour mot. La spec 026 a
+        # ajoute le rafraichissement de la fiche ouverte dans le meme
+        # battement : ce test tombait alors que le comportement — aucun
+        # battement sur une archive — etait intact. Une assertion sur du texte
+        # exact transforme chaque ajout legitime en echec.
+        battements = re.findall(r"[^\n]*setInterval\([^\n]*PERIODE_MS[^\n]*", page)
+        assert battements, "plus aucun battement de rafraichissement"
+        for ligne in battements:
+            assert "!ARCHIVE" in ligne, (
+                f"un battement non garde par ARCHIVE : {ligne.strip()}")
 
     def test_une_archive_inconnue_donne_404(self, client, jeu):
         assert client.get("/console/archives/999/resultats").status_code == 404
