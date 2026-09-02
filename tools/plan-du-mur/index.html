@@ -638,6 +638,25 @@ function trames(pal) {
   }).join("");
 }
 
+/* La lettre s'ajuste à la BOÎTE DU MUR, elle n'a pas de taille fixe.
+
+   ⚠️ Mesuré sur le relevé d'Adrien : à 9 unités fixes, aucune de ses 17 zones
+   ne débordait -- ses murs font quinze unités, et une capitale y tient. Mais
+   la marge était de 0,25 unité, et une zone à DEUX caractères la crevait.
+   Comme rien n'interdit de nommer une zone « A1 », la taille se calcule.
+
+   Largeur : une capitale condensée grasse occupe ~0,62 fois sa taille, et on
+   ne remplit la boîte qu'à 80 %. Hauteur : la hauteur de capitale vaut ~0,72
+   fois la taille, et on vise 70 % de la boîte. Plancher à 3,5 unités -- soit
+   1,06 mm sur la colonne de 37 mm -- en dessous ça ne se lit plus, et mieux
+   vaut une lettre serrée qu'une lettre absente. */
+function tailleLettre(m) {
+  const b = cadre(m.points);
+  const n = Math.max(1, (m.zone || "").length);
+  return Math.max(3.5, Math.min(9, b.y1 - b.y0 <= 0 ? 9 : (b.y1 - b.y0) * 0.97,
+                                   (b.x1 - b.x0) * 0.8 / (n * 0.62)));
+}
+
 /* Le halo sous la lettre. Sans lui, un « J » sur la trame d'un toit devient
    illisible : c'est la technique des cartes, pas une coquetterie. */
 function lettre(x, y, texte, taille, sienne, pal) {
@@ -686,7 +705,8 @@ function corpsDuPlan({ marquees, pourEcran, pal }) {
     }
     const [cx, cy] = m.etiquette || centre(m.points);
     if (m.zone) {
-      p.push(`<g${eteinte ? ` opacity="${pal.efface}"` : ""}>${lettre(cx, cy, m.zone, 9, sienne, pal)}</g>`);
+      p.push(`<g${eteinte ? ` opacity="${pal.efface}"` : ""}
+              >${lettre(cx, cy, m.zone, tailleLettre(m), sienne, pal)}</g>`);
     }
   }
   for (const r of etat.reperes) {
