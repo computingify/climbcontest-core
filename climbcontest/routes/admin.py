@@ -505,7 +505,10 @@ def page_dossards():
 
     logger.info("impression de %d fiche(s) par %s (%s)",
                 len(planche), g.utilisateur.identifiant, titre)
-    return render_template("dossards.html", fiches=planche, titre=titre)
+    return render_template("dossards.html",
+                           feuilles=fiches.en_feuilles(planche,
+                                                       fiches.FICHES_PAR_FEUILLE),
+                           total=len(planche), titre=titre)
 
 
 @bp.get("/etiquettes")
@@ -538,7 +541,14 @@ def page_etiquettes():
 
     logger.info("impression de %d etiquette(s) par %s (%s)",
                 len(planche), g.utilisateur.identifiant, titre)
-    return render_template("etiquettes.html", groupes=fiches.par_zone(planche),
+    # ⚠️ Plus de saut de page par zone (correctif du 02/09). Il produisait des
+    # feuilles a moitie vides -- une zone de cinq blocs laissait trois places
+    # perdues, une zone d'un seul en gaspillait cinq. Les blocs sortent deja
+    # dans l'ordre du `Plan`, donc zone par zone : le regroupement physique est
+    # conserve sans payer une feuille par zone.
+    return render_template("etiquettes.html",
+                           feuilles=fiches.en_feuilles(planche,
+                                                       fiches.ETIQUETTES_PAR_FEUILLE),
                            total=len(planche), titre=titre, filtre=filtre)
 
 

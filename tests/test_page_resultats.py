@@ -707,7 +707,10 @@ class TestPodiumExAequo:
 
     def test_le_mobilier_suit_le_nombre_d_ex_aequo(self, client, jeu):
         page = client.get("/").data.decode()
-        assert '+ " c" + Math.min(6, m.lignes.length);' in page
+        # `Math.max(1, …)` depuis qu'une marche peut etre VIDE : un palier `c0`
+        # n'existe pas, et une marche en attente doit garder le mobilier d'une
+        # marche a une carte.
+        assert '+ " c" + Math.min(6, Math.max(1, m.lignes.length))' in page
         for palier in ("c2", "c3", "c4"):
             assert f".groupe.{palier} .pod" in page
 
@@ -822,7 +825,13 @@ class TestPodiumEtColonnesSuiventLaLargeur:
         """`LARGEUR_PODIUM` reste le seul juge : au-dessus il s'affiche, en
         dessous — un téléphone — jamais."""
         page = client.get("/").data.decode()
-        assert "var podium = avecPodium && lignes.length > 3" in page
+        assert "var podium = avecPodium && window.innerWidth >= LARGEUR_PODIUM" in page
+        # Le nombre de grimpeurs n'entre PLUS dans la decision : une categorie
+        # de deux a un podium de deux marches, et une categorie qui n'a pas
+        # commence en a un de trois marches vides (Adrien, 02/09).
+        # La forme d'USAGE, pas le mot : le commentaire du gabarit explique
+        # justement pourquoi la condition a disparu.
+        assert "avecPodium && lignes.length > 3" not in page
         assert "var podium = MUR &&" not in page
         assert "window.innerWidth >= LARGEUR_PODIUM" in page
 

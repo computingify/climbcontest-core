@@ -21,11 +21,23 @@
 
      Ici comme ailleurs, la couleur PORTE DE L'INFORMATION : la teinte du
      circuit prend l'ecran des que le bloc est scanne. Rien de decoratif. */
+  /* ⚠️ Le fond a ete RECHAUFFE le 02/09 (Adrien : « change le fond pour qu'elle
+     soit plus accueillante »). Il etait un noir quasi pur, #0B0D11 : lisible,
+     mais clinique -- et cette application est tenue a une main, toute la
+     journee, dans une salle chaude et bruyante.
+
+     Le gris est desormais TIRE VERS L'OCRE du logo du club, avec une lueur
+     tres douce en haut d'ecran. La contrainte n'a pas bouge : la couleur PORTE
+     DE L'INFORMATION ici, la teinte du circuit prend l'ecran des qu'un bloc est
+     scanne. Le fond devait donc se rechauffer sans jamais entrer en
+     concurrence avec elle -- d'ou une lueur, pas une teinte franche. */
   :root {
-    --fond: #0B0D11;
-    --carte-faite: #1B2432; --carte-active: #161C26; --carte-attente: #101419;
-    --trait-fait: #2C3849; --trait-actif: #3E4B5E; --trait-attente: #1A2029;
-    --encre: #F2F5F9; --encre2: #6B7688; --encre3: #39424E;
+    --fond: #15161B;
+    --fond-haut: #232229;
+    --lueur: rgba(224, 169, 74, .11);
+    --carte-faite: #232634; --carte-active: #1C1F29; --carte-attente: #171920;
+    --trait-fait: #333850; --trait-actif: #454B63; --trait-attente: #22252E;
+    --encre: #F4F3F0; --encre2: #7B7B86; --encre3: #43444E;
     --fait: #34C56A; --alerte: #F0554A; --attention: #E5B44A;
     /* posees par juge.js quand un bloc est scanne ; les valeurs de repos
        gardent l'ecran lisible sans couleur de circuit connue. */
@@ -42,10 +54,37 @@
     font-weight: 100 900;
     font-display: swap;
   }
+  /* L'ECRAN D'ACCUEIL (Adrien, 02/09 : « un logo du club a l'ouverture »).
+     Il couvre l'ecran le temps que l'application s'initialise, puis s'efface.
+     Ce n'est pas qu'une politesse : le demarrage lit le jeton, ouvre IndexedDB
+     et recharge la file, et pendant ce temps l'ecran montrait des cartes vides
+     -- ce qui ressemble a une application cassee. */
+  #accueil {
+    position: fixed; inset: 0; z-index: 90;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    gap: 18px; background: inherit;
+    background-image:
+      radial-gradient(120% 60% at 50% 0%, var(--lueur), transparent 70%),
+      linear-gradient(180deg, var(--fond-haut) 0%, var(--fond) 42%);
+    transition: opacity .45s ease, visibility .45s;
+  }
+  #accueil img { width: min(46vw, 190px); height: auto; }
+  #accueil .nom {
+    font-size: 1.05rem; font-weight: 600; letter-spacing: .1em;
+    text-transform: uppercase; color: var(--encre2);
+  }
+  #accueil.parti { opacity: 0; visibility: hidden; pointer-events: none; }
+  @media (prefers-reduced-motion: reduce) { #accueil { transition: none; } }
+
   * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
   html, body { height: 100%; }
   body {
-    margin: 0; background: var(--fond); color: var(--encre);
+    margin: 0; color: var(--encre);
+    background: var(--fond);
+    background-image:
+      radial-gradient(120% 60% at 50% 0%, var(--lueur), transparent 70%),
+      linear-gradient(180deg, var(--fond-haut) 0%, var(--fond) 42%);
+    background-attachment: fixed;
     font-family: var(--police); -webkit-font-smoothing: antialiased;
     /* `viewport-fit=cover` + ces marges : sur un iPhone, l'encoche et la barre
        d'accueil mangeraient sinon le haut de la barre et le bas du bouton. */
@@ -58,7 +97,8 @@
 
   header {
     display: flex; align-items: center; gap: 10px;
-    padding: 14px 16px 6px; background: var(--fond);
+    padding: 14px 16px 6px;
+    /* Pas de fond opaque : il masquerait la lueur du degrade juste sous lui. */
   }
   header .place { flex: 1; }
   #voyant { width: 22px; height: 22px; }
@@ -303,6 +343,11 @@
 </head>
 <body>
 
+<div id="accueil">
+  <img src="/static/juge/logo-club.png" alt="Annonay Escalade">
+  <div class="nom">Annonay Escalade</div>
+</div>
+
 <header>
   <!-- Les pastilles a gauche, le voyant et les reglages a droite — le meme
        rangement que l'Android depuis la refonte. Le titre « ClimbContest »
@@ -443,5 +488,33 @@
 <div id="message" hidden></div>
 
 <script type="module" src="/static/juge/juge.js"></script>
+<script>
+  // L'ecran d'accueil s'efface quand l'application est prete -- pas apres un
+  // delai fixe. `juge.js` leve `climbcontest:pret` a la fin de son demarrage ;
+  // le minuteur n'est qu'un filet, pour qu'un echec de module ne laisse jamais
+  // le logo bloque a l'ecran.
+  (function () {
+    var accueil = document.getElementById("accueil");
+    if (!accueil) return;
+    // ⚠️ Une DUREE MINIMALE. L'application demarre en moins de cent
+    // millisecondes sur un telephone recent : sans plancher, le logo
+    // apparaissait et disparaissait dans le meme battement de cil -- un
+    // clignotement, pas un ecran d'accueil.
+    var MINIMUM_MS = 750, PLAFOND_MS = 2500;
+    var debut = Date.now(), vu = false;
+    function effacer() {
+      if (vu) return;
+      var reste = MINIMUM_MS - (Date.now() - debut);
+      if (reste > 0) { setTimeout(effacer, reste); return; }
+      vu = true;
+      accueil.classList.add("parti");
+      setTimeout(function () { accueil.remove(); }, 600);
+    }
+    window.addEventListener("climbcontest:pret", effacer, { once: true });
+    // Le filet : un module qui n'arrive pas ne doit jamais laisser le logo
+    // bloque a l'ecran.
+    setTimeout(effacer, PLAFOND_MS);
+  })();
+</script>
 </body>
 </html>

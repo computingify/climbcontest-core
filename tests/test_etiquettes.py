@@ -195,8 +195,10 @@ class TestLaRoute:
     def test_une_etiquette_par_bloc(self, page):
         assert page.count('class="etiquette"') == 6
 
-    def test_une_grille_par_zone(self, page):
-        assert page.count('class="zone"') == 3
+    def test_les_etiquettes_sont_paginees_en_feuilles(self, page):
+        """Six blocs tiennent sur UNE feuille : plus de saut de page par zone,
+        qui laissait des feuilles a moitie vides."""
+        assert page.count('class="feuille"') == 1
 
     def test_le_contenu_est_la(self, page):
         for morceau in ("Zone Z", ">V21<", "Prises :", "Rose", "U11 · U13"):
@@ -209,7 +211,7 @@ class TestLaRoute:
     def test_le_filtre_par_zone(self, connecte_orga, salle):
         page = connecte_orga.get("/admin/etiquettes?zone=D").data.decode()
         assert page.count('class="etiquette"') == 2
-        assert page.count('class="zone"') == 1
+        assert page.count('class="feuille"') == 1
 
     def test_le_filtre_par_bloc(self, connecte_orga, salle):
         page = connecte_orga.get("/admin/etiquettes?bloc=ZJ6").data.decode()
@@ -241,8 +243,18 @@ class TestLaRoute:
     def test_une_etiquette_n_est_jamais_coupee(self, page):
         assert "break-inside: avoid" in page
 
-    def test_une_zone_par_page(self, page):
-        assert ".zone + .zone { break-before: page" in page
+    def test_le_saut_de_page_porte_sur_la_feuille(self, page):
+        """Et non sur un element de grille : une grille fragmentee « au mieux »
+        coupait des etiquettes en deux, et le saut par zone gaspillait des
+        feuilles entieres."""
+        assert ".feuille + .feuille { break-before: page" in page
+        assert ".zone + .zone { break-before: page" not in page
+
+    def test_une_feuille_se_remplit(self, connecte_orga, competition):
+        """Huit etiquettes par A4 : une zone de cinq n'en gaspille plus trois,
+        la suivante continue sur la meme feuille."""
+        from climbcontest import fiches
+        assert fiches.ETIQUETTES_PAR_FEUILLE >= 6
 
     def test_huit_par_page_et_la_geometrie_en_variables(self, page):
         """198/2 en largeur, 285/4 en hauteur. Trois variables, ce qui a permis

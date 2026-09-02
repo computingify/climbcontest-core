@@ -387,6 +387,31 @@
   .frais { color: var(--ok); }
   .ref { font-family: var(--chiffre); color: var(--encre2); }
 
+  /* Les COULEURS, montrees plutot qu'ecrites (demande d'Adrien du 02/09).
+     Deux familles qui n'ont rien a voir : la DIFFICULTE est ordonnee (Jaune <
+     … < Noir) et sert au classement ; les PRISES ne sont ordonnees par rien et
+     n'entrent dans aucun calcul -- c'est ce qu'on cherche des yeux au pied du
+     mur. D'ou deux formes : un rond plein pour la difficulte, un carre arrondi
+     pour les prises.
+
+     ⚠️ Toutes portent un CONTOUR. Sans lui, « Blanc » et « Mint » disparaissent
+     sur un fond clair -- et « Blanc » est la couleur de prises la plus courante
+     du classeur. */
+  .teinte { display: inline-flex; align-items: center; gap: 7px; white-space: nowrap; }
+  .teinte i {
+    width: 13px; height: 13px; flex: none;
+    border: 1px solid color-mix(in srgb, var(--encre) 35%, transparent);
+    background: var(--teinte, transparent);
+  }
+  .teinte.dif i { border-radius: 50%; }
+  .teinte.prises i { border-radius: 3px; }
+  .teinte.inconnue i {
+    border-style: dashed;
+    background: repeating-linear-gradient(45deg, transparent, transparent 3px,
+                color-mix(in srgb, var(--encre) 18%, transparent) 3px,
+                color-mix(in srgb, var(--encre) 18%, transparent) 5px);
+  }
+
   .qr-cadre { background: #fff; display: inline-block; padding: 14px; border-radius: 12px;
                border: 1px solid var(--trait); }
   ol.etapes { margin: 14px 0 0; padding-left: 20px; color: var(--encre2); font-size: 0.88rem; }
@@ -419,10 +444,23 @@
     background: var(--surface2); border-radius: 0 0 14px 14px;
   }
   dialog menu button { margin-top: 0; }
-  /* Le bouton a MAINTENIR (spec 021). Il remplace le mot « EFFACER » qu'il
-     fallait frapper au clavier -- sept caracteres, sur un ordinateur pose sur
-     un coin de table dans une salle d'escalade. Ce que le mot apportait, c'est
-     l'ARRET ; c'est ca qu'on garde, en jetant la frappe. */
+  /* Le bouton a MAINTENIR. Il remplace le mot « EFFACER » qu'il fallait frapper
+     au clavier -- sept caracteres, sur un ordinateur pose sur un coin de table
+     dans une salle d'escalade. Ce que le mot apportait, c'est l'ARRET ; c'est ca
+     qu'on garde, en jetant la frappe.
+
+     ⚠️ Refonte du 02/09. Adrien : « ce n'est pas tres visible, l'histoire du
+     maintien ». Il avait raison, et le defaut etait de DECOUVRABILITE : le
+     bouton ressemblait a un bouton ordinaire, et rien sur lui ne disait qu'il
+     fallait le tenir. Trois choses le disent maintenant, comme le font les
+     produits qui utilisent ce geste :
+
+       1. le LIBELLE porte l'instruction (« Maintenir 2 s pour effacer … »),
+          pas seulement le texte d'aide au-dessus que personne ne lit ;
+       2. un ANNEAU de progression a gauche du libelle -- l'affordance
+          reconnaissable du maintien, empruntee aux memes produits ;
+       3. pendant le maintien, le libelle DECOMPTE (« Encore 2 s… »), et le
+          fond se remplit franchement au lieu d'un voile a peine visible. */
   dialog button.detruire {
     position: relative; overflow: hidden; isolation: isolate;
     cursor: pointer; font: inherit; font-weight: 600;
@@ -441,14 +479,29 @@
      n'y ait qu'un seul endroit ou lire « deux secondes ». */
   dialog button.detruire .remplissage {
     position: absolute; top: 0; bottom: 0; left: 0; width: 0; z-index: -1;
-    background: color-mix(in srgb, var(--encre) 34%, transparent);
+    background: color-mix(in srgb, var(--encre) 55%, transparent);
     transition-property: width; transition-timing-function: linear;
   }
+  dialog button.detruire.tenu { box-shadow: 0 0 0 3px color-mix(in srgb, var(--alerte) 35%, transparent); }
+
+  /* L'anneau de progression : l'affordance du maintien. Au repos il est un
+     simple cercle ; pendant le geste il se remplit dans le sens horaire. */
+  .anneau { width: 15px; height: 15px; flex: none; transform: rotate(-90deg); }
+  .anneau circle { fill: none; stroke-width: 2.5; }
+  .anneau .fond { stroke: color-mix(in srgb, var(--sur-alerte) 40%, transparent); }
+  .anneau .part {
+    stroke: var(--sur-alerte); stroke-linecap: round;
+    stroke-dasharray: 37.7;                 /* 2 x PI x 6 */
+    stroke-dashoffset: 37.7;
+    transition-property: stroke-dashoffset; transition-timing-function: linear;
+  }
+  dialog button.detruire { display: inline-flex; align-items: center; gap: 8px; }
+
   @media (prefers-reduced-motion: reduce) {
-    /* Pas de jauge qui glisse. Le delai, lui, NE CHANGE PAS : c'est une garde,
-       pas une decoration -- et le libelle dit « Maintiens… » pendant ce
-       temps-la. */
-    dialog button.detruire .remplissage { display: none; }
+    /* Ni jauge qui glisse ni anneau qui tourne. Le delai, lui, NE CHANGE PAS :
+       c'est une garde, pas une decoration -- et le libelle DECOMPTE pendant ce
+       temps-la, ce qui suffit a dire ce qui se passe. */
+    dialog button.detruire .remplissage, .anneau .part { transition: none; }
   }
   .coche { display: flex; gap: 9px; align-items: flex-start; margin: 14px 0;
            font-size: 0.9rem; color: var(--encre2); }
@@ -556,6 +609,10 @@
   <aside class="tiroir" id="tiroir" aria-label="Navigation">
     <nav>
       <div class="groupe">La compétition</div>
+      <button data-vue="general" id="navGeneral" hidden>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M8 21h8"/><path d="M12 17v4"/><path d="M17 4h3a1 1 0 0 1 1 1v2a4 4 0 0 1-4 4"/><path d="M7 4H4a1 1 0 0 0-1 1v2a4 4 0 0 0 4 4"/><path d="M7 3h10v7a5 5 0 0 1-10 0Z"/></svg>
+        <span class="quoi"><b>Général</b><i>L'édition, l'affichage, l'archive</i></span>
+      </button>
       <button data-vue="participants" aria-current="page">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
         <span class="quoi"><b>Participants</b><i>Inscrire, chercher, imprimer</i></span>
@@ -577,10 +634,6 @@
       </button>
 
       <div class="groupe">Administration</div>
-      <button data-vue="general" id="navGeneral" hidden>
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M8 21h8"/><path d="M12 17v4"/><path d="M17 4h3a1 1 0 0 1 1 1v2a4 4 0 0 1-4 4"/><path d="M7 4H4a1 1 0 0 0-1 1v2a4 4 0 0 0 4 4"/><path d="M7 3h10v7a5 5 0 0 1-10 0Z"/></svg>
-        <span class="quoi"><b>Général</b><i>L'édition, l'affichage, l'archive</i></span>
-      </button>
       <button data-vue="classeur" id="navClasseur" hidden>
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18"/><path d="M9 21V9"/></svg>
         <span class="quoi"><b>Classeur</b><i>La feuille, l'import, l'effacement</i></span>
@@ -629,9 +682,8 @@
 
       <div class="carte">
         <h2>Ajouter un participant</h2>
-        <p class="aide">Pour quelqu'un qui s'inscrit le matin, ou pendant la
-           compétition. <strong>Le dossard est attribué automatiquement</strong>
-           — le premier numéro libre. Il s'affiche une fois l'ajout fait : c'est
+        <p class="aide"><strong>Le dossard est attribué automatiquement</strong>
+           — le premier numéro libre. Il s'affiche après l'ajout : c'est
            celui-là qu'il faut imprimer.</p>
         <div class="grille">
           <div><label for="pNom">Nom *</label><input id="pNom"></div>
@@ -665,11 +717,10 @@
 
       <div class="carte">
         <h2>Imprimer les fiches</h2>
-        <p class="aide">Une fiche par grimpeur, <strong>deux par page</strong> :
-           son numéro, son QR, <strong>tous les blocs de son circuit</strong> et
-           le plan de la salle. Vérifie l'échelle d'impression :
-           <strong>100 %</strong>, sans « ajuster à la page », sinon les QR
-           sortiront trop petits pour être lus.</p>
+        <p class="aide">Numéro, QR, tous les blocs de son circuit et le plan de
+           la salle. <strong>Six par page.</strong> Imprime à l'échelle
+           <strong>100 %</strong>, sans « ajuster à la page » — sinon les QR
+           sortent trop petits pour être lus.</p>
         <div class="grille" style="max-width:420px">
           <div><label for="dCategorie">Une catégorie (vide = toutes)</label><select id="dCategorie"></select></div>
           <div><label for="dUnSeul">Ou une seule fiche (dossard)</label><input id="dUnSeul" inputmode="numeric"></div>
@@ -687,10 +738,8 @@
 
       <div class="carte">
         <h2>Saisir une réussite à la main</h2>
-        <p class="aide">Pour rattraper ce qui n'a pas pu être scanné : QR
-           illisible, téléphone à plat, envoi oublié. Elle comptera au
-           classement <strong>exactement comme un scan</strong>, et gardera la
-           trace de qui l'a saisie.</p>
+        <p class="aide">Pour rattraper ce qui n'a pas pu être scanné. Elle compte
+           <strong>exactement comme un scan</strong>.</p>
         <div class="grille" style="max-width:420px">
           <div><label for="sDossard">Dossard</label><input id="sDossard" inputmode="numeric"></div>
           <div><label for="sBloc">Bloc</label><input id="sBloc" placeholder="ZJ6"></div>
@@ -701,8 +750,7 @@
       <div class="carte">
         <h2>Retrouver un scan</h2>
         <p class="aide">Le juge lit les six caractères affichés à côté de son
-           scan, tu les tapes ici. La réponse est oui ou non — plus besoin de
-           fouiller le classement.</p>
+           scan, tu les tapes ici.</p>
         <div class="grille" style="max-width:420px">
           <div><label for="aRef">Référence du scan</label><input id="aRef" placeholder="a1b2c3"></div>
         </div>
@@ -778,9 +826,8 @@
 
       <div class="carte">
         <h2>Où vont les réussites</h2>
-        <p class="aide">L'état réel, en direct. « Tester l'accès » ne fait que
-           <strong>lire</strong> : il dit le titre du classeur, ses onglets et la
-           taille de sa grille, sans rien y écrire.</p>
+        <p class="aide">« Tester l'accès » ne fait que <strong>lire</strong> :
+           titre, onglets, taille de la grille.</p>
         <dl class="etat" id="etatClasseur"></dl>
         <div style="display:flex;gap:10px;flex-wrap:wrap">
           <a class="secondaire" id="ouvrirClasseur" target="_blank" rel="noopener"
@@ -792,9 +839,8 @@
 
       <div class="carte">
         <h2>Relier un autre classeur</h2>
-        <p class="aide">Ouvre la feuille dans le navigateur et colle son adresse.
-           <strong>Elle doit être partagée</strong> avec le compte Google du
-           jeton, sinon rien ne pourra y être écrit.</p>
+        <p class="aide">Colle l'adresse de la feuille. <strong>Elle doit être
+           partagée</strong> avec le compte Google ci-dessous.</p>
         <label for="lienClasseur">Lien du classeur</label>
         <input id="lienClasseur" autocapitalize="none" spellcheck="false"
                placeholder="docs.google.com/spreadsheets/d/…/edit (colle l'adresse complète)">
@@ -824,13 +870,8 @@
         </fieldset>
 
         <div id="blocConfirmation" hidden style="margin-top:14px">
-          <p class="aide">« Enregistrer » demandera confirmation, comme
-             « Importer » et « Effacer » : le mot <code>EFFACER</code> se frappe
-             dans la fenêtre qui s'ouvre.</p>
-          <p class="aide" style="margin-top:10px">La feuille vidée est la
-             <strong>nouvelle</strong>, jamais celle qu'on quitte. Les en-têtes
-             (dossards en ligne 1, numéros de blocs en colonne A) sont
-             conservés.</p>
+          <p class="aide">La feuille vidée est la <strong>nouvelle</strong>,
+             jamais celle qu'on quitte. L'import suit automatiquement.</p>
         </div>
 
         <button class="action" id="btnRelier">Enregistrer</button>
@@ -839,9 +880,8 @@
       <div class="carte">
         <h2>Importer le classeur</h2>
         <p class="aide">Relit les onglets <strong>Listes</strong> et
-           <strong>Plan</strong> : les grimpeurs, les blocs, les circuits — et
-           donc le contenu des QR codes, qui en découle. Le classeur n'est
-           jamais modifié, seulement lu.</p>
+           <strong>Plan</strong> : grimpeurs, blocs, circuits. Le classeur n'est
+           jamais modifié.</p>
 
         <fieldset class="choix">
           <legend>Et les données déjà en base ?</legend>
@@ -868,10 +908,8 @@
 
       <div class="carte">
         <h2>Jeton Google</h2>
-        <p class="aide">Le serveur écrit dans le classeur avec un compte Google.
-           C'est ce compte que tu autorises ici — celui qui a accès à la
-           feuille. Sans lui, les réussites s'empilent en attente et n'arrivent
-           jamais.</p>
+        <p class="aide">Le compte Google avec lequel le serveur écrit dans la
+           feuille. Sans lui, les réussites s'empilent et n'arrivent jamais.</p>
         <dl class="etat" id="etatJeton"></dl>
         <button class="action" id="btnConsentement">Connecter le compte Google</button>
         <p class="aide" id="aideConsentement" hidden
@@ -887,17 +925,13 @@
         <details style="margin-top:20px">
           <summary style="cursor:pointer;font-size:0.87rem;color:var(--encre2)">
             Autre méthode : coller un jeton produit sur le Mac</summary>
-          <p class="aide" style="margin-top:12px">Pour le jour où Google refuse
-             le consentement depuis la salle. Sur ton Mac, là où le jeton existe
-             déjà : <code>python3 tools/exporter_jeton.py</code> — puis colle sa
-             sortie ici.</p>
+          <p class="aide" style="margin-top:12px">Sur ton Mac :
+             <code>python3 tools/exporter_jeton.py</code>, puis colle la sortie.</p>
           <label for="jetonJson">Le JSON du jeton</label>
           <textarea id="jetonJson" spellcheck="false" autocapitalize="none"
                     placeholder='{"token": "ya29…", "refresh_token": "1//…", "client_id": "…", "client_secret": "…"}'></textarea>
           <p class="aide" style="margin-top:12px">⚠️ Ce texte est un
-             <strong>secret</strong>, comme un mot de passe : il ouvre le compte
-             Google du classeur. L'ancien jeton est conservé côté serveur, au cas
-             où celui-ci serait le mauvais.</p>
+             <strong>secret</strong>. L'ancien jeton est conservé.</p>
           <button class="action" id="btnPoserJeton">Poser le jeton</button>
         </details>
       </div>
@@ -936,9 +970,8 @@
            permanence apprendrait à ne plus le lire. -->
       <div class="carte danger" id="carteAnomalies" hidden>
         <h2>Ce qui cloche</h2>
-        <p class="aide">Ces trois anomalies sont <strong>silencieuses</strong> :
-           rien n'échoue, rien n'est journalisé, et elles se paient à la remise
-           des prix.</p>
+        <p class="aide">Ces anomalies sont <strong>silencieuses</strong> : rien
+           n'échoue, et elles se paient à la remise des prix.</p>
         <div id="listeAnomalies"></div>
       </div>
 
@@ -971,11 +1004,9 @@
 
       <div class="carte">
         <h2>Imprimer les étiquettes de blocs</h2>
-        <p class="aide">Le papier qu'on colle au mur, à côté du départ de chaque
-           bloc : la zone, le numéro en gros, la couleur des prises, le QR que
-           scanne le juge, et <strong>pour quels circuits le bloc compte</strong>.
-           Six par page, <strong>une zone par page</strong> — on prend la page de
-           la zone, on va coller ses étiquettes.</p>
+        <p class="aide">Zone, numéro en gros, couleur des prises, QR, et
+           <strong>pour quels circuits le bloc compte</strong>. Huit par page,
+           groupées par zone.</p>
         <div class="grille" style="max-width:420px">
           <div><label for="eZone">Une zone (vide = toutes)</label><select id="eZone"></select></div>
           <div><label for="eBloc">Ou une seule étiquette</label><input id="eBloc" placeholder="ZJ6"></div>
@@ -996,8 +1027,7 @@
 
       <div class="carte">
         <h2>L'édition</h2>
-        <p class="aide">Le nom s'affiche dans le bandeau de la page de résultats
-           — c'est ce qu'on lit sur le vidéoprojecteur — et il donne son nom au
+        <p class="aide">Affiché sur le vidéoprojecteur, et repris dans le nom du
            fichier d'archive.</p>
         <div class="grille" style="max-width:560px">
           <div><label for="nomCompetition">Nom</label>
@@ -1022,26 +1052,19 @@
 
       <div class="carte">
         <h2>Ce qu'affiche la page de résultats</h2>
-        <p class="aide">Éteins un classement pour le retirer de la page — de la
-           barre et de la rotation du mur, <strong>et</strong> des téléphones des
-           spectateurs. Il continue d'être calculé et archivé : c'est un réglage
-           d'affichage, rien n'est perdu.</p>
-        <p class="aide">Une catégorie créée en cours de journée — une inscription
-           à chaud — apparaît toujours par défaut.</p>
+        <p class="aide">Éteins un classement pour le retirer du mur
+           <strong>et</strong> des téléphones. Il reste calculé et archivé. Une
+           catégorie créée en cours de journée apparaît toujours.</p>
         <div id="listeGroupes"></div>
         <button class="action" id="btnAffichage">Enregistrer l'affichage</button>
       </div>
 
       <div class="carte">
         <h2>Archiver l'édition</h2>
-        <p class="aide">Fige le classement complet et passe la compétition en
-           <strong>terminée</strong>. <strong>Rien n'est effacé</strong> :
-           l'archive et les données coexistent. Elle reste consultable dans
-           « Archives », et téléchargeable pour en avoir une copie hors du
-           serveur.</p>
-        <p class="aide">C'est le geste à faire <strong>avant</strong> d'effacer :
-           une fois les données parties, l'archive est la seule mémoire de
-           l'édition.</p>
+        <p class="aide">Fige le classement et passe la compétition en
+           <strong>terminée</strong>. <strong>Rien n'est effacé.</strong>
+           À faire <strong>avant</strong> d'effacer : une fois les données
+           parties, l'archive est la seule mémoire de l'édition.</p>
         <button class="action" id="btnArchiver">Archiver la compétition</button>
       </div>
     </section>
@@ -1081,9 +1104,8 @@
 
       <div class="carte">
         <h2>Changer mon mot de passe</h2>
-        <p class="aide">L'ancien est demandé même si tu es déjà connecté :
-           sinon, un ordinateur laissé déverrouillé dans la salle suffirait à
-           s'approprier ton compte.</p>
+        <p class="aide">L'ancien est demandé même connecté : un ordinateur laissé
+           déverrouillé dans la salle suffirait sinon.</p>
         <form id="formMonMdp" class="grille" style="max-width:420px">
           <div><label for="mActuel">Mot de passe actuel</label><input id="mActuel" type="password" autocomplete="current-password"></div>
           <div><label for="mNouveau">Nouveau mot de passe</label><input id="mNouveau" type="password" autocomplete="new-password"></div>
@@ -1096,9 +1118,8 @@
            protection. -->
       <div class="carte" id="blocComptes" hidden>
         <h2>Créer un compte</h2>
-        <p class="aide">Pour un bénévole qui aidera le jour de la compétition.
-           Choisis un mot de passe et transmets-le de vive voix — il pourra le
-           changer lui-même ensuite.</p>
+        <p class="aide">Transmets le mot de passe de vive voix — le bénévole
+           pourra le changer lui-même.</p>
         <div class="grille" style="max-width:640px">
           <div><label for="cIdentifiant">Identifiant *</label><input id="cIdentifiant" autocapitalize="none"></div>
           <div><label for="cNom">Nom affiché</label><input id="cNom"></div>
@@ -1142,10 +1163,8 @@
           <span id="dlgTexteForcer"></span>
         </label>
 
-        <p class="aide" id="dlgAide" style="margin-bottom:0">Pour confirmer,
-           <strong>maintiens le bouton rouge appuyé deux secondes</strong> — à la
-           souris, au doigt, ou avec Entrée quand il a le focus. Relâcher avant
-           la fin annule.</p>
+        <p class="aide" id="dlgAide" style="margin-bottom:0">Relâcher avant la fin
+           annule. Au clavier : Entrée maintenue sur le bouton.</p>
       </div>
       <menu>
         <button value="annuler" class="secondaire" id="dlgAnnuler">Annuler</button>
@@ -1156,6 +1175,10 @@
         <button type="button" class="detruire" id="dlgOk" disabled
                 aria-describedby="dlgAide">
           <i class="remplissage" id="dlgRemplissage" aria-hidden="true"></i>
+          <svg class="anneau" id="dlgAnneau" viewBox="0 0 16 16" aria-hidden="true">
+            <circle class="fond" cx="8" cy="8" r="6"></circle>
+            <circle class="part" id="dlgPart" cx="8" cy="8" r="6"></circle>
+          </svg>
           <span id="dlgOkMot">Effacer</span>
         </button>
       </menu>
@@ -1737,6 +1760,39 @@
     select.value = choisi;
   }
 
+  /** Les teintes du classeur, en hexa. Deux familles distinctes : celles de
+   *  DIFFICULTE (`Listes!A41:A46`, ordonnees) et celles des PRISES
+   *  (`Listes!C41:C50`, quelconques). Une couleur inconnue rend `null` et la
+   *  pastille se dessine alors hachuree : on ne devine pas une teinte. */
+  var TEINTES = {
+    // difficulte
+    "jaune": "#F2C230", "vert": "#3FA45B", "bleu": "#3A7BD5",
+    "mauve": "#8E5FBF", "rouge": "#D0342C", "noir": "#222222",
+    // prises
+    "blanc": "#FFFFFF", "orange": "#E8802A", "rose": "#E86F9E",
+    "violet": "#7B4FA8", "mint": "#7BD9C0", "gris": "#9AA0A8",
+    "marron": "#8B5E3C", "turquoise": "#2FB3B3", "fluo": "#C8F02A"
+  };
+
+  /** Une cellule « pastille + nom ». `famille` vaut « dif » ou « prises ». */
+  function celluleTeinte(nom, famille) {
+    var td = document.createElement("td");
+    if (!nom) { td.textContent = "—"; return td; }
+    var span = document.createElement("span");
+    var hexa = TEINTES[String(nom).trim().toLowerCase()];
+    span.className = "teinte " + famille + (hexa ? "" : " inconnue");
+    var pastille = document.createElement("i");
+    if (hexa) pastille.style.setProperty("--teinte", hexa);
+    pastille.setAttribute("aria-hidden", "true");
+    span.appendChild(pastille);
+    var texte = document.createElement("span");
+    // textContent : ces noms viennent du classeur, saisis a la main.
+    texte.textContent = nom;
+    span.appendChild(texte);
+    td.appendChild(span);
+    return td;
+  }
+
   function peindreBlocs(blocs) {
     var filtre = $("filtreCircuit").value;
     var visibles = filtre
@@ -1758,10 +1814,13 @@
       var tr = document.createElement("tr");
       var cellules = [
         b.tag, b.zone || "—", String(b.numero),
-        b.couleur || "—", b.couleur_prises || "—",
+        celluleTeinte(b.couleur, "dif"), celluleTeinte(b.couleur_prises, "prises"),
         b.circuits.join(" · "), b.categories.join(" · "),
       ];
       cellules.forEach(function (texte, i) {
+        // Une cellule deja construite (les pastilles de couleur) passe telle
+        // quelle ; les autres sont du texte.
+        if (texte instanceof HTMLElement) { tr.appendChild(texte); return; }
         var td = document.createElement("td");
         // Un bloc sans circuit : la case reste vide et muette sinon.
         if (i === 5 && !b.circuits.length) {
@@ -2084,8 +2143,13 @@
 
     var bouton = $("dlgOk");
     var jauge = $("dlgRemplissage");
-    var libelle = options.libelle || "Effacer";
-    var minuteur = null;
+    var anneau = $("dlgPart");
+    var acte = options.libelle || "Effacer";
+    // ⚠️ L'INSTRUCTION est dans le libelle du bouton, pas seulement dans le
+    // texte d'aide au-dessus : c'est le bouton qu'on regarde, pas la phrase.
+    var libelle = "Maintenir " + (MAINTIEN_MS / 1000) + " s pour " +
+                  acte.charAt(0).toLowerCase() + acte.slice(1);
+    var minuteur = null, decompte = null;
     var parti = false;
 
     // La case « quand meme » ne REMPLACE pas le maintien, elle s'y ajoute :
@@ -2096,12 +2160,15 @@
       bouton.disabled = !!options.forcable && !$("dlgForcer").checked;
     }
 
-    /** Remplit (1) ou vide (0) la jauge. Vider est INSTANTANE : sinon la jauge
-     *  redescendrait en deux secondes apres un relachement, et un second
-     *  maintien repartirait d'un etat menteur. */
+    /** Remplit (1) ou vide (0) la jauge ET l'anneau. Vider est INSTANTANE :
+     *  sinon ils redescendraient en deux secondes apres un relachement, et un
+     *  second maintien repartirait d'un etat menteur. */
     function remplir(part) {
-      jauge.style.transitionDuration = part ? (MAINTIEN_MS / 1000) + "s" : "0s";
+      var duree = part ? (MAINTIEN_MS / 1000) + "s" : "0s";
+      jauge.style.transitionDuration = duree;
       jauge.style.width = part ? "100%" : "0";
+      anneau.style.transitionDuration = duree;
+      anneau.style.strokeDashoffset = part ? "0" : "37.7";
     }
 
     function demarrer(e) {
@@ -2114,21 +2181,33 @@
         e.preventDefault();
       }
       remplir(1);
-      $("dlgOkMot").textContent = "Maintiens…";
+      bouton.classList.add("tenu");
+      // Le DECOMPTE : il dit combien de temps il reste a tenir, ce qu'une
+      // barre qui glisse ne dit pas. C'est aussi la seule information qui
+      // reste quand l'animation est coupee (`prefers-reduced-motion`).
+      var reste = MAINTIEN_MS / 1000;
+      $("dlgOkMot").textContent = "Encore " + reste + " s…";
+      decompte = setInterval(function () {
+        reste -= 1;
+        if (reste > 0) $("dlgOkMot").textContent = "Encore " + reste + " s…";
+      }, 1000);
       minuteur = setTimeout(aboutir, MAINTIEN_MS);
     }
 
     function annuler() {
       if (parti || !minuteur) return;
-      clearTimeout(minuteur);
-      minuteur = null;
+      clearTimeout(minuteur); clearInterval(decompte);
+      minuteur = decompte = null;
+      bouton.classList.remove("tenu");
       remplir(0);
       $("dlgOkMot").textContent = libelle;
     }
 
     function aboutir() {
-      minuteur = null;
+      clearInterval(decompte);
+      minuteur = decompte = null;
       parti = true;
+      bouton.classList.remove("tenu");
       // Desactive AVANT de fermer : deux maintiens tres rapproches ne doivent
       // produire qu'un seul envoi.
       bouton.disabled = true;
@@ -2155,8 +2234,9 @@
         dlg.onclose = null;
         // Echap pendant un maintien : la fenetre se ferme, le minuteur doit
         // mourir avec elle.
-        clearTimeout(minuteur);
-        minuteur = null;
+        clearTimeout(minuteur); clearInterval(decompte);
+        minuteur = decompte = null;
+        bouton.classList.remove("tenu");
         remplir(0);
         if (dlg.returnValue === "ok") {
           resoudre({ confirmation: MARQUEUR_CONFIRMATION,
@@ -2200,6 +2280,44 @@
 
   // --- Nom de l'edition et classements affiches (spec 020) -------------------
 
+  /** « U11 » est un CIRCUIT : filles et garcons ensemble. Sans l'etiquette, il
+   *  se confond avec la categorie « U11 F » juste en dessous. La page de
+   *  resultats dit deja « U11 scratch » -- la console dit la meme chose. */
+  function libelleGroupe(g) {
+    if (g.type === "circuit") return g.nom + " Scratch";
+    if (g.type === "club") return "Clubs";
+    return g.nom;
+  }
+
+  /** L'ordre de la liste : les scratchs generaux, puis CHAQUE CIRCUIT suivi de
+   *  ses categories, puis les clubs.
+   *
+   *  Le tri du serveur est alphabetique par (type, nom) : il separait le
+   *  scratch « U11 » de ses categories « U11 F » et « U11 H », alors qu'on les
+   *  regarde ensemble -- on decide d'afficher ou non une tranche d'age, pas un
+   *  type de classement. Demande d'Adrien du 02/09.
+   */
+  function ordonner(groupes) {
+    var generaux = groupes.filter(function (g) { return g.type === "scratch"; })
+                          .sort(function (a, b) { return a.nom.localeCompare(b.nom); });
+    var clubs = groupes.filter(function (g) { return g.type === "club"; });
+    var parCircuit = {};
+    groupes.forEach(function (g) {
+      if (g.type !== "circuit" && g.type !== "categorie") return;
+      var c = g.circuit || g.nom;
+      (parCircuit[c] = parCircuit[c] || []).push(g);
+    });
+    var suite = [];
+    Object.keys(parCircuit).sort().forEach(function (c) {
+      parCircuit[c].sort(function (a, b) {
+        // Le circuit d'abord, ses categories ensuite, dans l'ordre du nom.
+        if (a.type !== b.type) return a.type === "circuit" ? -1 : 1;
+        return a.nom.localeCompare(b.nom);
+      }).forEach(function (g) { suite.push(g); });
+    });
+    return generaux.concat(suite, clubs);
+  }
+
   function peindreReglagesCompetition(d) {
     etat.competitionReglages = d;
     $("nomCompetition").value = d.competition ? d.competition.nom : "";
@@ -2218,7 +2336,7 @@
       return;
     }
 
-    d.groupes.forEach(function (g) {
+    ordonner(d.groupes).forEach(function (g) {
       var label = document.createElement("label");
       label.className = "bascule";
 
@@ -2243,7 +2361,7 @@
       var texte = document.createElement("span");
       texte.className = "quoi";
       // textContent : ces noms viennent du classeur.
-      texte.textContent = g.nom;
+      texte.textContent = libelleGroupe(g);
       label.appendChild(texte);
 
       var combien = document.createElement("span");
@@ -2340,7 +2458,7 @@
   function lancerImport(corps) {
     var bouton = $("btnImporter");
     bouton.disabled = true;
-    appeler("/admin/import/sheet", { methode: "POST", corps: corps })
+    return appeler("/admin/import/sheet", { methode: "POST", corps: corps })
       .then(function (d) {
         peindreImport(d.rapport, $("rapportImport"));
         dire("Classeur importé : " + d.rapport.resume, "ok");
@@ -2731,7 +2849,7 @@
   function relierClasseur(corps) {
     var bouton = $("btnRelier");
     bouton.disabled = true;
-    appeler("/admin/classeur", { methode: "POST", corps: corps })
+    return appeler("/admin/classeur", { methode: "POST", corps: corps })
       .then(function (d) {
         peindreClasseur(d);
         $("lienClasseur").value = "";
@@ -2742,7 +2860,10 @@
         if (etat.moi && etat.moi.competition && d.competition) {
           $("competitionBarre").textContent = d.competition.nom;
         }
-      }).catch(signaler).then(function () { bouton.disabled = false; });
+        return d;
+      }).catch(function (e) { signaler(e); throw { gere: true }; })
+      .then(function (d) { bouton.disabled = false; return d; },
+            function (e) { bouton.disabled = false; throw e; });
   }
 
   $("btnRelier").addEventListener("click", function () {
@@ -2777,7 +2898,20 @@
     }).then(function (reponse) {
       relierClasseur({ lien: $("lienClasseur").value, mode: mode,
                        confirmation: reponse.confirmation,
-                       forcer: reponse.forcer });
+                       forcer: reponse.forcer })
+        // ⚠️ L'IMPORT SUIT TOUT SEUL (demande d'Adrien du 02/09). « Nouvelle
+        // competition — tout effacer » vide la base ET la matrice de la
+        // nouvelle feuille : sans import, la console reste sur une base vide
+        // et il faut aller cliquer « Importer » dans la carte du dessous. Ce
+        // second geste n'apporte aucun choix -- apres un effacement total, il
+        // n'y a rien a preserver, donc rien a decider : le mode ne peut etre
+        // que « mise a jour ».
+        .then(function (d) {
+          if (!d) return;
+          dire("Classeur relié et données effacées. Import en cours…", "ok");
+          return lancerImport({ mode: "mise_a_jour" });
+        })
+        .catch(function (e) { if (!(e && e.gere)) signaler(e); });
     });
   });
 

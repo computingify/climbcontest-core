@@ -378,11 +378,22 @@ class TestLeFormatDuPapier:
     def test_une_fiche_n_est_jamais_coupee(self, page):
         assert "break-inside: avoid" in page
 
-    def test_les_colonnes_de_blocs_vides_sont_repliees(self, page):
-        """`auto-fill` laisse des colonnes vides quand un groupe a moins de
-        cases que la largeur n'en contient — c'est ce qui faisait « trop
-        d'espace vide ». `auto-fit` les replie."""
-        assert "repeat(auto-fit, minmax(8.5mm, 1fr))" in page
-        # La forme d'USAGE, pas le mot : le commentaire du gabarit explique
-        # justement pourquoi `auto-fill` a ete abandonne.
-        assert "repeat(auto-fill" not in page
+    def test_les_colonnes_viennent_du_serveur(self, page):
+        """`auto-fit` choisissait ses colonnes d'apres la LARGEUR, sans rien
+        savoir du nombre de LIGNES que ca produirait : quand un groupe de
+        couleur passait sur deux lignes, la fiche debordait et ses cadres
+        chevauchaient. Signale par Adrien le 02/09."""
+        assert "repeat(var(--cols, 7), 1fr)" in page
+        assert "repeat(auto-fit" not in page and "repeat(auto-fill" not in page
+        assert "--cols:" in page          # pose sur chaque fiche
+
+    def test_une_fiche_ne_peut_pas_deborder_sur_sa_voisine(self, page):
+        bloc = page.split("  .fiche {")[1].split("}")[0]
+        assert "overflow: hidden" in bloc
+
+    def test_la_pagination_est_faite_en_python(self, page):
+        """Une grille dont les elements portent `break-inside: avoid` est
+        fragmentee « au mieux » : une fiche se retrouvait a cheval sur deux
+        feuilles. Le saut de page porte maintenant sur la FEUILLE."""
+        assert ".feuille + .feuille { break-before: page" in page
+        assert 'class="feuille"' in page

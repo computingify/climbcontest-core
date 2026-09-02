@@ -183,6 +183,77 @@ def _groupes(blocs) -> list[dict]:
     return groupes
 
 
+# --- Le budget de hauteur d'une fiche, en millimetres --------------------------
+#
+# ⚠️ Ces quatre valeurs sont MESUREES dans le navigateur sur le gabarit reel,
+# pas estimees. La premiere version les avait estimees a vue et se trompait de
+# 25 % sur la hauteur d'une ligne : les fiches U15 debordaient de six
+# millimetres. Si le gabarit change (taille de police, remplissage des cases,
+# marges), il faut les REMESURER -- `tests/test_fiches.py` verifie la coherence
+# du calcul, pas celle des constantes avec le CSS.
+HAUTEUR_UTILE_MM = 58.3          # ce qui reste sous le titre « TES N BLOCS »
+HAUTEUR_LIGNE_MM = 7.3           # une ligne de cases
+HAUTEUR_LIGNE_SUP_MM = 8.0       # chaque ligne SUPPLEMENTAIRE (ligne + gouttiere)
+MARGE_GROUPE_MM = 1.2            # entre deux groupes de couleur
+
+COLONNES_MINI, COLONNES_MAXI = 6, 12
+
+# Combien de fiches par feuille, et combien d'etiquettes. Les deux DECOULENT de
+# la geometrie des gabarits : 2 colonnes x 3 lignes pour les fiches (A4
+# paysage), 2 x 4 pour les etiquettes (A4 portrait, 285 / 71,25). Les changer
+# ici sans changer la geometrie laisserait des trous ou couperait une feuille.
+FICHES_PAR_FEUILLE = 6
+ETIQUETTES_PAR_FEUILLE = 8
+
+
+def hauteur_mm(tailles: list[int], colonnes: int) -> float:
+    """La hauteur qu'occuperaient ces groupes de blocs sur `colonnes` colonnes.
+
+    Le nombre de LIGNES ne depend pas du nombre de blocs mais du nombre de
+    COULEURS et du remplissage de chacune : une couleur de 22 blocs sur 8
+    colonnes prend trois lignes a elle seule, et chaque groupe paie en plus sa
+    marge.
+    """
+    total = 0.0
+    for n in tailles:
+        lignes = -(-n // colonnes)                            # ceil
+        total += HAUTEUR_LIGNE_MM + (lignes - 1) * HAUTEUR_LIGNE_SUP_MM
+    return total + MARGE_GROUPE_MM * max(0, len(tailles) - 1)
+
+
+def colonnes_qui_tiennent(groupes) -> int:
+    """Le nombre de colonnes le plus PETIT qui fait tenir tous les blocs.
+
+    ⚠️ C'est calcule ici et pas laisse au CSS. `auto-fit` choisit ses colonnes
+    d'apres la largeur disponible, sans rien savoir de la hauteur que ca
+    produira : quand un groupe passait sur deux lignes, la fiche debordait et
+    ses cadres chevauchaient la fiche voisine. Signale par Adrien le 02/09.
+
+    Le plus petit nombre de colonnes qui tient donne les cases les PLUS
+    GRANDES -- donc les plus lisibles -- sans deborder.
+    """
+    tailles = [len(g["blocs"]) for g in groupes if g["blocs"]]
+    if not tailles:
+        return COLONNES_MINI
+    for colonnes in range(COLONNES_MINI, COLONNES_MAXI + 1):
+        if hauteur_mm(tailles, colonnes) <= HAUTEUR_UTILE_MM:
+            return colonnes
+    return COLONNES_MAXI
+
+
+def en_feuilles(elements: list, par_feuille: int) -> list[list]:
+    """Découpe une liste en feuilles de taille fixe.
+
+    ⚠️ La pagination est faite ICI, pas par le CSS. Une grille dont les
+    éléments portent `break-inside: avoid` est fragmentée par le navigateur
+    « au mieux » : en pratique une fiche se retrouvait à cheval sur deux
+    feuilles. Des groupes explicites, un `break-after: page` par groupe, et le
+    découpage devient déterministe.
+    """
+    return [elements[i:i + par_feuille]
+            for i in range(0, len(elements), par_feuille)]
+
+
 def construire(comp, participants) -> list[dict]:
     """Une fiche par participant, dans l'ordre où on les a reçus.
 
@@ -210,6 +281,7 @@ def construire(comp, participants) -> list[dict]:
 
         blocs = blocs or []
         zones = {b.zone for b in blocs if b.zone}
+        groupes = _groupes(blocs)
 
         planche.append({
             "dossard": p.dossard,
@@ -219,7 +291,8 @@ def construire(comp, participants) -> list[dict]:
             "circuit": circuit,
             "qr": qr.svg(p.dossard, cote_mm=COTE_QR_MM),
             "total": len(blocs),
-            "groupes": _groupes(blocs),
+            "groupes": groupes,
+            "colonnes": colonnes_qui_tiennent(groupes),
             "plan": plan_pour(zones),
             # Une zone qu'on ne peut pas situer doit SE DIRE, pas disparaître :
             # le plan ne porte que 17 des 20 zones du classeur.
