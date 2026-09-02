@@ -260,8 +260,9 @@ avertissement dès que la règle s'en écarte, et c'est alors la page de résult
 qui fait foi (décision D7).
 
 L'ancienne option `options.validation_couleur = N` reste lue en repli. Sa
-conversion est **exacte** — « au moins N parmi les couleurs plus dures » — et
-mesurée : 9 000 comparaisons entre l'ancien calcul et les phrases, 0 écart.
+conversion est **exacte** — « au moins N parmi les couleurs plus dures » : les
+tests rejouent l'ancien algorithme, épinglé, et le confrontent aux phrases sur
+toutes les combinaisons de couleurs pleines. 0 écart.
 
 ### La saisie manuelle
 

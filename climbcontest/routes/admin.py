@@ -1005,28 +1005,46 @@ def competition_cascade_etat():
         if c and c.strip()
     )
 
-    par_circuit: dict[str, dict[str, int]] = {}
+    # Tous les circuits de l'edition, meme ceux sans un seul bloc colore : un
+    # circuit absent de cette table disparait du menu de l'apercu, et le reglage
+    # se fait alors a l'aveugle sur ce circuit-la.
+    from ..classement import couleur_canonique
+    par_nom: dict[str, dict] = {
+        nom: {"nom": nom, "couleurs": {}, "blocs": 0, "sans_couleur": 0}
+        for (nom,) in db.session.query(Circuit.nom)
+        .filter(Circuit.competition_id == comp.id).all()
+    }
     for nom, couleur in (
         db.session.query(Circuit.nom, Bloc.couleur)
         .join(BlocCircuit, BlocCircuit.circuit_id == Circuit.id)
         .join(Bloc, BlocCircuit.bloc_id == Bloc.id)
-        .filter(Circuit.competition_id == comp.id)
+        .filter(Circuit.competition_id == comp.id,
+                # ⚠️ Sans ce filtre, un lien vers un bloc d'une AUTRE edition
+                # serait compte ici et ignore par le moteur, qui borne ses blocs
+                # a la competition. L'apercu existe pour eviter cet ecart-la.
+                Bloc.competition_id == comp.id)
         .all()
     ):
-        if not couleur:
+        circuit = par_nom[nom]
+        circuit["blocs"] += 1
+        # La meme normalisation que le moteur : le classeur ecrit « rouge »
+        # aussi bien que « Rouge », et l'apercu doit compter comme il compte.
+        propre = couleur_canonique(couleur)
+        if propre is None:
+            # Un bloc sans couleur compte au classement mais aucune cascade ne
+            # le credite. Le taire ferait mentir le denominateur de l'apercu.
+            circuit["sans_couleur"] += 1
             continue
-        par_circuit.setdefault(nom, {})
-        par_circuit[nom][couleur] = par_circuit[nom].get(couleur, 0) + 1
+        circuit["couleurs"][propre] = circuit["couleurs"].get(propre, 0) + 1
 
     return jsonify({
         "success": True,
         "cascade": cascade_module.en_json(courante),
         "couleurs": cascade_module.COULEURS,
         "categories": categories,
-        "circuits": par_circuit,
+        "circuits": [par_nom[nom] for nom in sorted(par_nom)],
         "regle_du_classeur": cascade_module.en_json(
             cascade_module.Cascade(phrases=cascade_module.regle_du_classeur())),
-        "est_celle_du_classeur": cascade_module.est_celle_du_classeur(courante),
     }), 200
 
 
@@ -1048,6 +1066,16 @@ def competition_cascade_regler():
 
     try:
         comp = competition_active()
+        # ⚠️ Une cle ABSENTE ne vaut pas une liste vide. `ecrire_options`
+        # promet de ne jamais ecraser ce qu'on ne touche pas ; a l'interieur du
+        # sous-document, c'est a nous de tenir la meme promesse. Sans ca, un
+        # appel qui omet `categories_eteintes` rallume toutes les categories et
+        # recredite leurs blocs, en repondant 200.
+        if "categories_eteintes" not in corps:
+            from ..classement_service import cascade as cascade_de
+            corps = dict(corps)
+            corps["categories_eteintes"] = sorted(
+                cascade_de(comp).categories_eteintes)
         document, avertissements = cascade_module.valider(corps)
         cycle.ecrire_options(comp, cascade=document)
     except ErreurMetier as e:

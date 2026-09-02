@@ -59,10 +59,14 @@ absente, et se convertit exactement :
 Ce n'est pas une approximation. La règle actuelle valide tout ce qui est plus
 facile que la **N-ième couleur pleine la plus dure**, ce qui équivaut à « X est
 validé s'il existe au moins N couleurs pleines strictement plus dures que X ».
-**9 000 comparaisons** entre `_valider_par_couleur()` tel quel et sa réécriture
-en phrases, sur des tirages aléatoires et N ∈ {1, 2, 3} : **0 écart**.
+L'ancien algorithme est **rejoué, épinglé** dans
+`tests/test_cascade.py::TestRepliExact` et confronté aux phrases sur **toutes**
+les combinaisons de couleurs pleines, pour N ∈ {1, 2, 3} — 192 comparaisons,
+**0 écart**.
 
-C'est ce qui rend le critère A3 vérifiable par un test, pas par une relecture.
+C'est ce qui rend le critère A3 vérifiable par un test, pas par une relecture :
+l'ancien moteur ayant été supprimé par ce commit, sans cette copie épinglée
+l'affirmation ne serait qu'une relecture.
 
 ## 3. Le modèle de calcul
 
@@ -79,7 +83,7 @@ class Phrase:
 @dataclass(frozen=True)
 class Cascade:
     phrases: tuple[Phrase, ...] = ()
-    categories: frozenset[str] | None = None   # None = toutes
+    categories_eteintes: frozenset[str] = frozenset()   # vide = partout
 
     def pour(self, categorie: str | None) -> "Cascade":
         """La cascade telle qu'elle s'applique à CE grimpeur. Vide si sa
@@ -137,16 +141,32 @@ def implique(b: Phrase, a: Phrase) -> bool:
 | Contrôle | Règle | Effet |
 | --- | --- | --- |
 | Phrase incomplète | `parmi` ou `cibles` vide | **400**, refus d'enregistrer |
+| Seuil hors bornes | `1 ≤ seuil ≤ len(parmi)` | **400**, refus |
+| Trop de phrases | `len > REGLES_MAX` (30) | **400**, refus |
 | Cascade qui remonte | une cible n'est pas plus facile que `min(parmi)` | **400**, refus |
-| Phrase morte | `implique(b, a)` et `b.cibles ⊆ a.cibles` pour un `a ≠ b` | avertissement dans la réponse, enregistre |
+| Phrase morte | `_sans_effet` : retirer la phrase ne change la sortie sur **aucune** des 64 combinaisons | avertissement dans la réponse, enregistre |
 | Deux phrases, même cible | intersection non vide, hors phrases mortes | information, enregistre |
+
+`implique` ne **détecte** plus les phrases mortes : il ne sert qu'à nommer le
+témoin dans le message. La détection est exhaustive, parce qu'un test par paires
+laissait passer les phrases tuées par la **réunion** de plusieurs autres.
 
 Deux phrases équivalentes s'impliquent mutuellement : on ne signale que la
 **seconde**, sinon chacune accuse l'autre et on ne sait pas laquelle retirer.
 
-**Le test d'implication a été validé par force brute** : 3 890 paires tirées au
-hasard, confrontées à l'énumération des 64 combinaisons de couleurs pleines,
-0 désaccord.
+**Le test d'implication est exact sur tout le domaine**, seuils absurdes
+compris : une phrase insatisfiable implique tout, une phrase toujours vraie n'est
+impliquée que par une autre toujours vraie. Confronté par force brute à
+l'énumération des 64 combinaisons, sur **toutes** les paires possibles, 0
+désaccord.
+
+⚠️ Le contrôle est **écrit deux fois** : ici, et en JavaScript dans le gabarit,
+pour que la console réponde sans aller-retour. C'est pourquoi `analyser()` rend
+des **constats bruts** et `controler()` les met en phrases :
+`tests/test_cascade.py::TestLesDeuxControlesDisentPareil` extrait le bloc
+« contrôle pur » du gabarit et confronte les deux sur 600 jeux de phrases tirés
+au hasard, plus toutes les paires du test d'implication. Comparer des messages
+traduits n'aurait rien prouvé.
 
 ## 5. L'accès aux blocs d'un grimpeur (F6, et contrat avec la spec 026)
 
@@ -156,36 +176,41 @@ groupe par groupe, et ne se lit nulle part. La fiche du grimpeur à l'écran
 
 ```python
 def blocs_du_grimpeur(comp, participant) -> dict:
-    """{ "grimpes": set[int], "credites": set[int] }"""
+    """{ "grimpes": set[int], "credites": set[int], "hors_circuit": set[int] }"""
 ```
 
-- Les **deux ensembles sont disjoints par construction** — et c'est une garantie
+- Les **trois ensembles sont disjoints par construction** — et c'est une garantie
   de contrat, pas une observation : `credites` est l'étendu **moins** le brut,
-  `grimpes` le brut **inter** le circuit. La spec 026 peint `grimpes | credites`
-  et dépend de cette disjonction pour ne pas afficher deux fois le même bloc.
+  `hors_circuit` le brut **moins** le circuit, `grimpes` le brut **inter** le
+  circuit. La spec 026 peint `grimpes | credites` et dépend de cette disjonction
+  pour ne pas afficher deux fois le même bloc.
+- Les réussites viennent de `charger()`, comme le classement : **un seul chemin**
+  vers la même vérité, et le filtre par circuit est la seule chose qui change.
 - La règle appliquée est celle **de la catégorie du grimpeur** : c'est le même
   `cascade.pour(categorie)` que le classement, donc l'écran ne peut pas montrer
   autre chose que ce qui est compté.
 
-⚠️ **Ce que l'accesseur ne rend pas, et pourquoi.** Il a porté deux champs de
-plus le 02/09 — `hors_circuit` (les réussites forcées hors du circuit, spec 019)
-et `reussites` (l'heure et la source de chacune, inséparables parce qu'une
-saisie manuelle porte l'heure de la saisie et non de la grimpe). Adrien a fait
-retirer cet affichage de la fiche le jour même : **plus aucun consommateur**. Ils
-sont retirés — un champ que personne ne lit finit par mentir, et le remettre
-coûte vingt lignes.
+⚠️ **Ce que l'accesseur ne rend pas.** Il a porté un quatrième champ le 02/09,
+`reussites` — l'heure et la source de chaque bloc réellement grimpé, inséparables
+parce qu'une saisie manuelle porte l'heure de la **saisie** et non de la grimpe.
+Il est retiré, faute de consommateur : un champ que personne ne lit finit par
+mentir. Le remettre coûte quinze lignes le jour où un écran en aura besoin.
 
-**Le besoin, lui, reste entier** : une réussite hors circuit n'est visible
-**nulle part** pour la personne concernée. La console est le bon endroit, parce
-que c'est là qu'un organisateur peut **agir** ; sur un écran public, un parent ne
-peut que s'inquiéter. Hors périmètre de cette spec, à loger dans une prochaine.
+⚠️ **La spec 026 définit le même accesseur sur sa branche.** Git fusionne les
+deux **sans conflit** — le module le définirait deux fois, et la seconde
+définition écraserait la première en silence. Pire, la version de la 026 appelle
+`couleurs_requises()`, que cette spec supprime : selon l'ordre des lignes dans le
+fichier, la fiche du grimpeur aurait résolu la cascade **par compétition** au
+lieu de par catégorie, sans que rien ne le dise. Celle-ci est écrite pour servir
+les deux — **au rebase de la 026, sa copie doit disparaître**, pas être
+fusionnée.
 
 ## 6. Les routes
 
 | Méthode | Chemin | Rôle | Corps / réponse |
 | --- | --- | --- | --- |
-| `GET` | `/admin/competition/cascade` | `ADMIN` | la règle, les catégories de l'édition avec leur état, et — pour l'aperçu — le nombre de blocs par couleur et par circuit |
-| `POST` | `/admin/competition/cascade` | `ADMIN` | `{actif, regles, categories}`. **400** si le contrôle bloque, sinon `{success, avertissements: [...]}` |
+| `GET` | `/admin/competition/cascade` | `ADMIN` | `{cascade, couleurs, categories, circuits, regle_du_classeur}`. `categories` est la liste des catégories de l'édition ; leur état vit dans `cascade.categories_eteintes`. `circuits` porte, par circuit, le compte de blocs **par couleur**, le **total** et le nombre de blocs **sans couleur** — de quoi peindre l'aperçu sans que son dénominateur mente |
+| `POST` | `/admin/competition/cascade` | `ADMIN` | `{actif, regles, categories_eteintes}`. **400** si le contrôle bloque, sinon `{success, cascade, avertissements}`. ⚠️ Une clé **absente** ne vaut pas une liste vide : `categories_eteintes` omise conserve la valeur rangée, sans quoi un appel partiel rallumerait toutes les catégories en répondant 200 |
 
 Même forme que `competition_affichage` (spec 020) : `_corps_objet()`,
 `exige_role(ADMIN)`, `ErreurMetier` remontée en JSON.
@@ -205,8 +230,13 @@ recommence.
 | `climbcontest/cycle.py` | rien — `ecrire_options()` fusionne déjà sans écraser |
 | `climbcontest/routes/admin.py` | les deux routes |
 | `climbcontest/templates/admin.html` | la carte dans la vue **Général**, entre « L'édition » et « Ce qu'affiche la page de résultats » |
-| `tools/verify_ranking.py` | appel adapté à la nouvelle signature (cascade vide) |
+| `climbcontest/templates/resultats.html` | l'astérisque, l'infobulle et la légende du compteur |
+| `CHANGELOG.md` | la section non publiée |
 | `tests/` | voir `plan.md` |
+
+⚠️ `tools/verify_ranking.py` **n'est pas touché**, et c'est normal : c'est une
+réimplémentation autonome de l'algorithme, qui n'importe rien du moteur. Il reste
+un contrôle utile de l'algorithme lui-même, mais il ne prouve rien sur ce code.
 | `docs/technical/classeur-google.md` | §5 : la règle n'est plus « en réserve », elle est réglable |
 | `docs/specs-index.md` | la ligne 025 |
 

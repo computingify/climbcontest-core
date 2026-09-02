@@ -39,6 +39,20 @@ VALEUR_BLOC_MAX = 1000
 # du classeur. Sert uniquement à la validation par couleur.
 COULEURS = ["Jaune", "Vert", "Bleu", "Mauve", "Rouge", "Noir"]
 
+# Rapproche la couleur d'un bloc de son nom canonique. ⚠️ Le classeur n'impose
+# rien : `sheets/importer.py` ne fait qu'un `strip()`, donc « rouge » et
+# « Rouge » arrivent tels quels et sont DEUX couleurs pour un dictionnaire.
+# Sans ce rapprochement, un circuit portant les deux voit sa couleur « pleine »
+# alors qu'il reste un bloc rouge à faire — la cascade se déclenche à tort.
+_CANONIQUES = {c.lower(): c for c in COULEURS}
+
+
+def couleur_canonique(nom: str | None) -> str | None:
+    """« rouge », «  Rouge  » → « Rouge ». Une couleur inconnue rend None."""
+    if not nom:
+        return None
+    return _CANONIQUES.get(str(nom).strip().lower())
+
 
 @dataclass(frozen=True)
 class ParticipantCalcul:
@@ -223,7 +237,7 @@ def _valider_par_couleur(
     total_par_couleur: dict[str, int] = defaultdict(int)
     reussis_par_couleur: dict[str, int] = defaultdict(int)
     for bloc_id in blocs_du_circuit:
-        couleur = blocs[bloc_id].couleur
+        couleur = couleur_canonique(blocs[bloc_id].couleur)
         if not couleur:
             continue
         total_par_couleur[couleur] += 1
@@ -245,7 +259,7 @@ def _valider_par_couleur(
 
     etendues = set(reussites)
     for bloc_id in blocs_du_circuit:
-        if blocs[bloc_id].couleur in validees:
+        if couleur_canonique(blocs[bloc_id].couleur) in validees:
             etendues.add(bloc_id)
     return etendues
 
@@ -416,7 +430,8 @@ def calculer_clubs(classements: dict[str, "Classement"],
     """
     club_de = {p.id: (p.club or "").strip() for p in participants}
 
-    total: dict[str, dict] = defaultdict(lambda: {"score": 0, "blocs": 0, "membres": 0})
+    total: dict[str, dict] = defaultdict(
+        lambda: {"score": 0, "blocs": 0, "credites": 0, "membres": 0})
     for classement in classements.values():
         if classement.type != "categorie":
             continue
@@ -426,6 +441,12 @@ def calculer_clubs(classements: dict[str, "Classement"],
                 continue            # sans club, on n'invente pas de club fantome
             total[club]["score"] += ligne.score
             total[club]["blocs"] += ligne.blocs_reussis
+            # ⚠️ Le compte de blocs d'un club additionne des nombres DEJA
+            # gonfles par la cascade. Sans reporter les credites, la ligne du
+            # club traverse tout le chemin sans l'asterisque de F6 : mesure sur
+            # novembre 2025, 527 des 1 510 blocs affiches n'avaient ete grimpes
+            # par personne, et rien ne le disait.
+            total[club]["credites"] += ligne.blocs_credites
             total[club]["membres"] += 1
 
     if not total:
@@ -450,6 +471,7 @@ def calculer_clubs(classements: dict[str, "Classement"],
             score=valeurs["score"],
             rang=rang,
             blocs_reussis=valeurs["blocs"],
+            blocs_credites=valeurs["credites"],
             membres=valeurs["membres"],
             libelle=nom,
         ))

@@ -584,9 +584,9 @@
   /* Une regle qui change le CLASSEMENT, pas son affichage : sur les donnees
      reelles de novembre 2025, un declenchement sur une seule couleur pleine
      deplacait 264 rangs sur 392. D'ou l'apercu, qui n'est pas decoratif. */
-  .titre-bloc {
+  h3.titre-bloc {
     display: block; font-size: 0.78rem; color: var(--encre2); font-weight: 500;
-    margin: 22px 0 8px;
+    margin: 22px 0 8px; letter-spacing: normal;
   }
   /* Les pastilles de couleur de DIFFICULTE. Un rond, parce que cette famille
      est ordonnee (Jaune < … < Noir). Toutes portent un contour : sans lui, le
@@ -607,7 +607,11 @@
     border-color: var(--accent); background: var(--surface3);
     color: var(--encre); font-weight: 600;
   }
-  .puce-couleur[disabled] { opacity: 0.4; cursor: not-allowed; }
+  /* Une couleur absente du circuit : inerte, mais TOUJOURS au clavier et
+     annoncee. `disabled` la sortirait du parcours, et « aucun bloc » — qui est
+     justement l'information — deviendrait invisible pour qui n'a que le clavier
+     ou la voix. */
+  .puce-couleur.inerte { opacity: 0.45; cursor: not-allowed; }
   .puces { display: flex; flex-wrap: wrap; gap: 7px; }
 
   /* Une PHRASE. « Quand au moins 2 parmi ⟨…⟩ sont validees -> valider ⟨…⟩ ».
@@ -626,7 +630,11 @@
   .phrase .haut { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
   .phrase .fleche { color: var(--accent-texte); font-weight: 700; }
   .phrase.f-erreur { border-color: var(--alerte); box-shadow: inset 3px 0 0 var(--alerte); }
-  .phrase.f-morte { border-color: var(--accent); box-shadow: inset 3px 0 0 var(--accent); opacity: 0.75; }
+  .phrase.f-morte { border-color: var(--accent); box-shadow: inset 3px 0 0 var(--accent); }
+  /* Le niveau « informe » du controle : deux phrases qui valident la meme
+     couleur. Sans marque sur la phrase, le message du controle ne designait
+     rien a l'ecran. */
+  .phrase.f-note { box-shadow: inset 3px 0 0 var(--trait); }
   select.quantif {
     font: inherit; font-size: 0.82rem; font-weight: 600; padding: 3px 6px;
     width: auto; background: var(--surface); color: var(--encre);
@@ -664,14 +672,19 @@
     line-height: 1.5; padding: 7px 0; border-top: 1px solid var(--trait);
     color: var(--encre2);
   }
-  .souci:first-of-type { border-top: 0; padding-top: 0; }
+  /* Le premier constat suit le titre, pas un autre constat : sans ce
+     selecteur il gardait un filet parasite. (`:first-of-type` ne marchait pas,
+     le titre est un `div` lui aussi.) */
+  .controle .titre + .souci { border-top: 0; padding-top: 0; }
   .souci .signe {
     flex: none; width: 19px; height: 19px; border-radius: 50%;
     display: grid; place-items: center; font-size: 0.72rem; font-weight: 700;
     margin-top: 1px;
   }
   .souci.erreur .signe { background: var(--alerte); color: var(--sur-alerte); }
-  .souci.morte .signe { background: var(--accent); color: var(--sur-accent); }
+  /* `--accent` sur du blanc plafonne a 3,8:1 en theme clair pour un glyphe de
+     0,72 rem : on prend la variante ecrite de l'accent, faite pour ca. */
+  .souci.morte .signe { background: var(--accent-texte); color: #FFFFFF; }
   .souci.note .signe { background: var(--surface3); color: var(--encre2); }
   .souci.bon .signe { background: var(--ok); color: var(--sur-accent); }
 
@@ -693,13 +706,22 @@
   .jauge { display: flex; gap: 2px; height: 26px; margin: 12px 0 10px;
            border-radius: 6px; overflow: hidden; }
   .jauge .seg { position: relative; min-width: 2px; }
+  /* ⚠️ Le CONTOUR, et le repli. Sans contour, le Noir (#222) sur fond sombre
+     mesure 1,02:1 contre la surface : le segment n'existe pas a l'ecran. Sans
+     repli, une couleur hors des six connues donne un segment transparent. */
   .jauge .seg > span { position: absolute; inset: 0; border-radius: 3px;
-                       background: var(--teinte); }
+                       background: var(--teinte, var(--surface3));
+                       border: 1px solid color-mix(in srgb, var(--encre) 30%, transparent); }
   .jauge .seg > span.f { opacity: 0.22; }
+  /* ⚠️ Les hachures se prennent sur l'ENCRE, pas sur du blanc en dur : des
+     rayures blanches sur du Jaune mesurent 1,11:1 en theme clair — la
+     convention « aplat = grimpe, hachures = credite » y devenait illisible.
+     Sur l'encre, elles sont sombres en clair et claires en sombre. */
   .jauge .seg > span.c {
-    opacity: 0.55;
+    opacity: 0.8;
     background-image: repeating-linear-gradient(45deg,
-      rgba(255,255,255,0.55) 0 2px, transparent 2px 5px);
+      color-mix(in srgb, var(--encre) 62%, transparent) 0 2px,
+      transparent 2px 5px);
   }
   .legende { display: flex; flex-wrap: wrap; gap: 14px; font-size: 0.76rem;
              color: var(--encre3); }
@@ -707,9 +729,9 @@
   .legende b { display: inline-block; width: 13px; height: 13px;
                border-radius: 3px; background: var(--encre2); }
   .legende .c b {
-    opacity: 0.55;
     background-image: repeating-linear-gradient(45deg,
-      rgba(255,255,255,0.6) 0 2px, transparent 2px 5px);
+      color-mix(in srgb, var(--fond) 75%, transparent) 0 2px,
+      transparent 2px 5px);
   }
   .legende .f b { opacity: 0.22; }
   .verdict-apercu { font-size: 0.95rem; color: var(--encre); margin-top: 12px; }
@@ -1244,13 +1266,15 @@
               <i>Tu écris tes propres phrases.</i></span></label>
         </fieldset>
 
-        <span class="titre-bloc">La règle — une phrase par cas</span>
+        <h3 class="titre-bloc">La règle — une phrase par cas</h3>
         <div id="reglesCascade"></div>
-        <div id="controleCascade"></div>
+        <!-- Le controle se recalcule a chaque clic : sans `aria-live`, il est
+             muet pour qui ecoute la page. -->
+        <div id="controleCascade" aria-live="polite"></div>
         <div id="apercuCascade"></div>
 
-        <span class="titre-bloc">Où elle s'applique — comme l'interrupteur du
-          classeur, catégorie par catégorie</span>
+        <h3 class="titre-bloc">Où elle s'applique — comme l'interrupteur du
+          classeur, catégorie par catégorie</h3>
         <div class="rapide" id="rapideCascade">
           <button type="button" data-tout="1">Toutes</button>
           <button type="button" data-tout="0">Aucune</button>
@@ -2625,8 +2649,6 @@
     if (!etat.archives) chargerArchives();
   }
 
-  /** Apres un import, un effacement ou un changement de statut : les DEUX
-   *  ecrans d'administration ont vieilli, pas seulement celui ou l'on est. */
   // --- La cascade de couleurs (spec 025) -------------------------------------
   /* Une regle qui change le CLASSEMENT, pas son affichage. Mesure sur les
      donnees reelles de novembre 2025 : un declenchement sur une SEULE couleur
@@ -2635,8 +2657,7 @@
 
      Deux phrases ne peuvent pas se CONTREDIRE : le resultat est l'union de
      celles qui tiennent, donc une phrase ne fait qu'ajouter. Ce qu'elles
-     peuvent, c'est mentir a qui les ecrit. C'est ce que `controlerCascade`
-     cherche -- et le serveur refait le meme controle, seul lui fait autorite. */
+     peuvent, c'est mentir a qui les ecrit. */
 
   // ⚠️ La spec 027 introduit la MEME table pour la vue « Circuits ». A la
   // fusion il ne doit en rester qu'UNE : deux tables de teintes qui divergent,
@@ -2646,149 +2667,279 @@
     "mauve": "#8E5FBF", "rouge": "#D0342C", "noir": "#222222"
   };
 
+  /* ===== debut du controle pur (miroir de climbcontest/cascade.py) =========
+     Ce bloc ne touche NI au DOM NI a l'etat de la page : il est extrait tel
+     quel par `tests/test_cascade.py::TestLesDeuxControlesDisentPareil`, qui le
+     confronte a `cascade.analyser()` sur des jeux tires au hasard. Deux copies
+     d'une meme regle finissent toujours par diverger ; c'est ce test qui
+     l'empeche. Ne rien y mettre qui depende de la page. */
+
+  var COULEURS_DIF = ["Jaune", "Vert", "Bleu", "Mauve", "Rouge", "Noir"];
+  var REGLES_MAX = 30;
+
+  function rangDif(nom) { return COULEURS_DIF.indexOf(nom); }
+
+  function tientPhrase(regle, pleines) {
+    var compte = 0;
+    for (var i = 0; i < regle.parmi.length; i++) {
+      if (pleines.indexOf(regle.parmi[i]) !== -1) compte++;
+    }
+    return compte >= regle.seuil;
+  }
+
+  function sortiePhrases(regles, pleines) {
+    var sortie = [];
+    regles.forEach(function (r) {
+      if (!tientPhrase(r, pleines)) return;
+      r.cibles.forEach(function (c) {
+        if (sortie.indexOf(c) === -1) sortie.push(c);
+      });
+    });
+    return sortie.sort().join(",");
+  }
+
+  /** Les 64 jeux de couleurs pleines possibles. C'est peu, et ca permet de
+   *  raisonner par EXHAUSTIVITE plutot que par regle de trois. */
+  function combinaisonsDif() {
+    var toutes = [];
+    for (var m = 0; m < 64; m++) {
+      var jeu = [];
+      for (var i = 0; i < 6; i++) { if (m & (1 << i)) jeu.push(COULEURS_DIF[i]); }
+      toutes.push(jeu);
+    }
+    return toutes;
+  }
+
+  /** La condition de `b` entraine-t-elle celle de `a` ? Exact sur TOUT le
+   *  domaine : une phrase insatisfiable implique tout, une phrase toujours
+   *  vraie n'est impliquee que par une autre toujours vraie. */
+  function implique(b, a) {
+    if (b.seuil > b.parmi.length) return true;
+    var hors = b.parmi.filter(function (x) { return a.parmi.indexOf(x) === -1; }).length;
+    return Math.max(0, b.seuil - hors) >= Math.max(0, a.seuil);
+  }
+
+  /** Les phrases qu'on peut retirer sans rien changer.
+   *
+   *  ⚠️ Exact, et pas seulement deux a deux : une phrase peut etre tuee par la
+   *  REUNION de plusieurs autres sans qu'aucune ne l'implique a elle seule. On
+   *  retire les mortes au fur et a mesure, sinon deux phrases identiques
+   *  s'excuseraient mutuellement. */
+  function sansEffetDif(regles) {
+    var combinaisons = combinaisonsDif();
+    var reference = combinaisons.map(function (c) { return sortiePhrases(regles, c); });
+    var gardees = regles.map(function (_, i) { return i; });
+    var mortes = [];
+    for (var i = 0; i < regles.length; i++) {
+      var essai = gardees.filter(function (j) { return j !== i; })
+                         .map(function (j) { return regles[j]; });
+      var pareil = combinaisons.every(function (c, k) {
+        return sortiePhrases(essai, c) === reference[k];
+      });
+      if (pareil) {
+        mortes.push(i);
+        gardees = gardees.filter(function (j) { return j !== i; });
+      }
+    }
+    return mortes;
+  }
+
+  /** Les constats bruts, sans phrase de message — miroir de `cascade.analyser`. */
+  function analyserRegles(regles) {
+    var bloquants = [];
+    if (regles.length > REGLES_MAX) {
+      return { bloquants: [["trop", -1, regles.length]], mortes: [], communes: [] };
+    }
+    regles.forEach(function (r, i) {
+      if (!r.parmi.length) bloquants.push(["sans_declencheur", i, null]);
+      if (!r.cibles.length) bloquants.push(["sans_cible", i, null]);
+      if (!r.parmi.length || !r.cibles.length) return;
+      if (!(r.seuil >= 1 && r.seuil <= r.parmi.length)) {
+        bloquants.push(["seuil", i, [r.seuil, r.parmi.length]]);
+        return;
+      }
+      var facile = r.parmi.slice().sort(function (x, y) {
+        return rangDif(x) - rangDif(y);
+      })[0];
+      r.cibles.slice().sort(function (x, y) { return rangDif(x) - rangDif(y); })
+        .forEach(function (cible) {
+          if (rangDif(cible) >= rangDif(facile)) {
+            bloquants.push(["remonte", i, [cible, facile]]);
+          }
+        });
+    });
+    if (bloquants.length) return { bloquants: bloquants, mortes: [], communes: [] };
+
+    var morts = sansEffetDif(regles);
+    var mortes = morts.map(function (i) {
+      var temoin = null;
+      for (var j = 0; j < regles.length; j++) {
+        if (j === i || morts.indexOf(j) !== -1) continue;
+        if (!implique(regles[i], regles[j])) continue;
+        var couvertes = regles[i].cibles.every(function (c) {
+          return regles[j].cibles.indexOf(c) !== -1;
+        });
+        if (couvertes) { temoin = j; break; }
+      }
+      return [i, temoin];
+    });
+
+    var communes = [];
+    for (var i = 0; i < regles.length; i++) {
+      for (var j = i + 1; j < regles.length; j++) {
+        if (morts.indexOf(i) !== -1 || morts.indexOf(j) !== -1) continue;
+        var partagees = regles[i].cibles.filter(function (c) {
+          return regles[j].cibles.indexOf(c) !== -1;
+        }).sort(function (x, y) { return rangDif(x) - rangDif(y); });
+        if (partagees.length) communes.push([i, j, partagees]);
+      }
+    }
+    return { bloquants: bloquants, mortes: mortes, communes: communes };
+  }
+
+  /* ===== fin du controle pur ============================================= */
+
   var cascade = {
-    regles: [], eteintes: [], categories: [], circuits: {},
-    couleurs: [], reference: [], apercu: { circuit: null, pleines: {} }
+    regles: [], eteintes: [], categories: [], circuits: [], couleurs: [],
+    reference: [], apercu: { circuit: null, pleines: {} },
+    charge: false, modifie: false
   };
 
   function rangCouleur(nom) { return cascade.couleurs.indexOf(nom); }
 
+  function teinteDe(nom) {
+    var cle = String(nom).toLowerCase();
+    // `hasOwnProperty` : ces noms viennent du classeur, et « constructor »
+    // rendrait une fonction sur un objet litteral.
+    return Object.prototype.hasOwnProperty.call(TEINTES, cle) ? TEINTES[cle] : null;
+  }
+
   function pastilleCouleur(nom) {
     var i = document.createElement("i");
-    var hexa = TEINTES[String(nom).toLowerCase()];
+    var hexa = teinteDe(nom);
     if (hexa) i.style.setProperty("--teinte", hexa);
     i.setAttribute("aria-hidden", "true");
     return i;
   }
 
-  /** Une puce cliquable « ● Rouge ». `onclic` recoit le nouvel etat. */
-  function puceCouleur(nom, actif, onclic, suffixe, inactif) {
+  /** Une puce cliquable « ● Rouge ». `inactif` la rend inerte SANS la sortir du
+   *  clavier : `disabled` ferait disparaitre le « aucun bloc » pour qui navigue
+   *  au clavier ou ecoute la page, alors que c'est justement l'information. */
+  function puceCouleur(nom, actif, onclic, suffixe, inactif, cle) {
     var b = document.createElement("button");
     b.type = "button";
     b.className = "puce-couleur";
     b.setAttribute("aria-pressed", actif ? "true" : "false");
+    if (cle) b.dataset.focus = cle;
     b.appendChild(pastilleCouleur(nom));
     var t = document.createElement("span");
     t.textContent = nom + (suffixe || "");
     b.appendChild(t);
-    if (inactif) { b.disabled = true; return b; }
+    if (inactif) {
+      b.setAttribute("aria-disabled", "true");
+      b.classList.add("inerte");
+      return b;
+    }
     b.addEventListener("click", function () {
       onclic(b.getAttribute("aria-pressed") !== "true");
     });
     return b;
   }
 
+  /** Redessine SANS perdre le clavier. Chaque controle porte une cle stable ;
+   *  on la retient avant de tout reconstruire, et on rend le focus apres.
+   *  Sans ca, cocher trois couleurs demande de retraverser toute la page. */
+  function avecFocus(redessiner) {
+    var actif = document.activeElement;
+    var cle = (actif && actif.dataset) ? actif.dataset.focus : null;
+    redessiner();
+    if (!cle) return;
+    var repris = document.querySelector('[data-focus="' + cle + '"]');
+    if (repris) repris.focus();
+  }
+
   function memeJeu(a, b) {
     return a.length === b.length && a.every(function (x) { return b.indexOf(x) !== -1; });
   }
 
+  /** Deux listes de regles disent-elles la meme chose ?
+   *  ⚠️ Appariement un a un : sans lui, quatre regles faites de deux copies de
+   *  deux regles du classeur passaient pour « comme le classeur », et
+   *  l'avertissement de D7 se taisait a tort. */
   function memesRegles(a, b) {
     if (a.length !== b.length) return false;
+    var restantes = b.slice();
     return a.every(function (r) {
-      return b.some(function (x) {
-        return x.seuil === r.seuil && memeJeu(x.parmi, r.parmi)
-            && memeJeu(x.cibles, r.cibles);
-      });
+      for (var i = 0; i < restantes.length; i++) {
+        if (restantes[i].seuil === r.seuil
+            && memeJeu(restantes[i].parmi, r.parmi)
+            && memeJeu(restantes[i].cibles, r.cibles)) {
+          restantes.splice(i, 1);
+          return true;
+        }
+      }
+      return false;
     });
   }
 
-  /** La condition de `b` entraine-t-elle celle de `a` ? Exact : dans le pire
-   *  des cas, satisfaire `b` laisse a `a` `seuil(b) - |parmi(b) hors parmi(a)|`
-   *  couleurs pleines. Meme test que `cascade.implique()` cote serveur. */
-  function implique(b, a) {
-    var hors = b.parmi.filter(function (x) { return a.parmi.indexOf(x) === -1; }).length;
-    return (b.seuil - hors) >= a.seuil;
-  }
-
-  function controlerCascade() {
-    var soucis = [];
-    var fautives = {};
-    function noter(rangs, niveau, texte) {
-      rangs.forEach(function (i) {
-        fautives[i] = (niveau === "erreur") ? "erreur"
-                    : (fautives[i] === "erreur" ? "erreur" : niveau);
-      });
-      soucis.push({ niveau: niveau, texte: texte });
-    }
-
-    cascade.regles.forEach(function (r, i) {
-      if (!r.parmi.length || !r.cibles.length) {
-        noter([i], "erreur", "Règle " + (i + 1) + " incomplète : il lui manque "
-          + (!r.parmi.length ? "un déclencheur" : "une couleur à valider") + ".");
-        return;
-      }
-      // La cascade descend. Une phrase peut ecrire l'inverse, une grille non :
-      // c'est le seul defaut que la forme « phrase » introduit.
-      var facile = Math.min.apply(null, r.parmi.map(rangCouleur));
-      r.cibles.forEach(function (c) {
-        if (rangCouleur(c) >= facile) {
-          noter([i], "erreur", "Règle " + (i + 1) + " : « " + c + " » n'est pas "
-            + "plus facile que « " + cascade.couleurs[facile] + " ». La cascade "
-            + "descend, elle ne remonte pas.");
-        }
-      });
-    });
-
-    if (!soucis.length) {
-      cascade.regles.forEach(function (b, i) {
-        cascade.regles.forEach(function (a, j) {
-          if (i === j || !a.parmi.length || !a.cibles.length) return;
-          if (fautives[i] === "morte") return;
-          if (!implique(b, a)) return;
-          if (!b.cibles.every(function (c) { return a.cibles.indexOf(c) !== -1; })) return;
-          // Deux phrases equivalentes s'impliquent l'une l'autre : on ne signale
-          // que la seconde, sinon chacune accuse l'autre.
-          if (implique(a, b) && memeJeu(a.cibles, b.cibles) && j > i) return;
-          noter([i], "morte", "Règle " + (i + 1) + " sans effet : elle ne peut "
-            + "pas se déclencher sans que la règle " + (j + 1) + ", plus facile "
-            + "à satisfaire, ait déjà validé tout ce qu'elle valide.");
-        });
-      });
-
-      for (var i = 0; i < cascade.regles.length; i++) {
-        for (var j = i + 1; j < cascade.regles.length; j++) {
-          if (fautives[i] === "morte" || fautives[j] === "morte") continue;
-          var communes = cascade.regles[i].cibles.filter(function (c) {
-            return cascade.regles[j].cibles.indexOf(c) !== -1;
-          });
-          if (communes.length) {
-            noter([i, j], "note", "Règles " + (i + 1) + " et " + (j + 1)
-              + " valident toutes deux « " + communes.join(", ") + " ». Elles "
-              + "s'additionnent, elles ne se remplacent pas : il suffit que "
-              + "l'une tienne.");
-          }
-        }
-      }
-    }
-
-    var ordre = { erreur: 0, morte: 1, note: 2 };
-    soucis.sort(function (a, b) { return ordre[a.niveau] - ordre[b.niveau]; });
-    return { soucis: soucis, fautives: fautives };
-  }
-
-  function dessinerControle(bilan) {
+  function dessinerControle(constats) {
     var hote = $("controleCascade");
     hote.innerHTML = "";
     if (!cascade.regles.length) return;
+
+    var lignes = [];
+    constats.bloquants.forEach(function (b) {
+      var code = b[0], rang = b[1], detail = b[2];
+      if (code === "trop") {
+        lignes.push(["erreur", detail + " règles, " + REGLES_MAX + " au maximum."]);
+      } else if (code === "sans_declencheur") {
+        lignes.push(["erreur", "Règle " + (rang + 1) + " incomplète : il lui "
+          + "manque une couleur déclencheur."]);
+      } else if (code === "sans_cible") {
+        lignes.push(["erreur", "Règle " + (rang + 1) + " incomplète : il lui "
+          + "manque une couleur à valider."]);
+      } else if (code === "seuil") {
+        lignes.push(["erreur", "Règle " + (rang + 1) + " : il en faut "
+          + detail[0] + ", mais " + detail[1] + " couleur(s) sont cochées."]);
+      } else if (code === "remonte") {
+        lignes.push(["erreur", "Règle " + (rang + 1) + " : « " + detail[0]
+          + " » n'est pas plus facile que « " + detail[1] + " ». La cascade "
+          + "descend, elle ne remonte pas."]);
+      }
+    });
+    constats.mortes.forEach(function (m) {
+      lignes.push(["morte", m[1] === null
+        ? "Règle " + (m[0] + 1) + " sans effet : les autres règles validaient "
+          + "déjà tout ce qu'elle valide."
+        : "Règle " + (m[0] + 1) + " sans effet : elle ne peut pas se déclencher "
+          + "sans que la règle " + (m[1] + 1) + ", plus facile à satisfaire, "
+          + "ait déjà validé tout ce qu'elle valide."]);
+    });
+    constats.communes.forEach(function (c) {
+      lignes.push(["note", "Règles " + (c[0] + 1) + " et " + (c[1] + 1)
+        + " valident toutes deux « " + c[2].join(", ") + " ». Elles "
+        + "s'additionnent, elles ne se remplacent pas : il suffit que l'une "
+        + "tienne."]);
+    });
 
     var boite = document.createElement("div");
     boite.className = "controle";
     var titre = document.createElement("div");
     titre.className = "titre";
-    var erreurs = bilan.soucis.filter(function (s) { return s.niveau === "erreur"; }).length;
-    titre.textContent = bilan.soucis.length
-      ? "Contrôle — " + bilan.soucis.length + " point(s)"
+    var erreurs = lignes.filter(function (l) { return l[0] === "erreur"; }).length;
+    titre.textContent = lignes.length
+      ? "Contrôle — " + lignes.length + " point(s)"
         + (erreurs ? ", dont " + erreurs + " qui empêche(nt) d'enregistrer" : "")
       : "Contrôle — rien à signaler";
     boite.appendChild(titre);
 
-    if (!bilan.soucis.length) {
+    if (!lignes.length) {
       boite.appendChild(ligneSouci("bon", "✓", "Aucune règle morte, aucune "
         + "cascade qui remonte, aucune couleur validée par deux règles."));
     }
-    bilan.soucis.forEach(function (s) {
-      boite.appendChild(ligneSouci(s.niveau,
-        s.niveau === "erreur" ? "✕" : (s.niveau === "morte" ? "!" : "i"), s.texte));
+    lignes.forEach(function (l) {
+      boite.appendChild(ligneSouci(l[0],
+        l[0] === "erreur" ? "✕" : (l[0] === "morte" ? "!" : "i"), l[1]));
     });
     hote.appendChild(boite);
   }
@@ -2798,6 +2949,7 @@
     l.className = "souci " + niveau;
     var s = document.createElement("span");
     s.className = "signe";
+    s.setAttribute("aria-hidden", "true");
     s.textContent = signe;
     l.appendChild(s);
     var t = document.createElement("span");
@@ -2806,14 +2958,30 @@
     return l;
   }
 
+  /** Le niveau a afficher sur chaque phrase : « erreur » l'emporte. */
+  function fautives(constats) {
+    var par_rang = {};
+    function noter(rang, niveau) {
+      if (rang < 0) return;
+      if (par_rang[rang] !== "erreur") par_rang[rang] = niveau;
+    }
+    constats.bloquants.forEach(function (b) { noter(b[1], "erreur"); });
+    constats.mortes.forEach(function (m) { noter(m[0], "morte"); });
+    constats.communes.forEach(function (c) {
+      noter(c[0], "note"); noter(c[1], "note");
+    });
+    return par_rang;
+  }
+
   function dessinerRegles() {
-    var bilan = controlerCascade();
+    var constats = analyserRegles(cascade.regles);
+    var marques = fautives(constats);
     var hote = $("reglesCascade");
     hote.innerHTML = "";
 
     cascade.regles.forEach(function (regle, rang) {
       var bloc = document.createElement("div");
-      bloc.className = "phrase" + (bilan.fautives[rang] ? " f-" + bilan.fautives[rang] : "");
+      bloc.className = "phrase" + (marques[rang] ? " f-" + marques[rang] : "");
 
       var haut = document.createElement("div");
       haut.className = "haut";
@@ -2825,8 +2993,12 @@
       sup.type = "button";
       sup.className = "discret";
       sup.textContent = "Retirer";
+      // Quatre boutons « Retirer » identiques ne se distinguent pas a l'oreille.
+      sup.setAttribute("aria-label", "Retirer la règle " + (rang + 1));
+      sup.dataset.focus = "r" + rang + "-sup";
       sup.addEventListener("click", function () {
         cascade.regles.splice(rang, 1);
+        cascade.modifie = true;
         redessinerCascade();
       });
       haut.appendChild(sup);
@@ -2837,6 +3009,7 @@
       l1.appendChild(mot("Quand"));
       var quant = document.createElement("select");
       quant.className = "quantif";
+      quant.dataset.focus = "r" + rang + "-seuil";
       for (var n = 1; n <= Math.max(regle.parmi.length, 1); n++) {
         var o = document.createElement("option");
         o.value = n;
@@ -2850,18 +3023,27 @@
         "Combien de couleurs pleines déclenchent la règle " + (rang + 1));
       quant.addEventListener("change", function () {
         regle.seuil = parseInt(quant.value, 10);
+        cascade.modifie = true;
         redessinerCascade();
       });
       l1.appendChild(quant);
-      l1.appendChild(texteSimple(regle.parmi.length > 1 ? "parmi" : "toutes les"));
+      // Une seule couleur cochee : « au moins 1 toutes les Rouge » ne se dit
+      // pas. Le quantificateur ne s'accompagne de « parmi » que s'il y a un
+      // choix.
+      if (regle.parmi.length > 1) l1.appendChild(texteSimple("parmi"));
       cascade.couleurs.forEach(function (c) {
         l1.appendChild(puceCouleur(c, regle.parmi.indexOf(c) !== -1, function (nouveau) {
+          // « toutes » est collant : ajouter une couleur a un declencheur
+          // « toutes » ne doit pas le retrograder en « au moins N » sans le dire.
+          var etaitToutes = regle.seuil === regle.parmi.length;
           if (nouveau) regle.parmi.push(c);
           else regle.parmi.splice(regle.parmi.indexOf(c), 1);
-          regle.seuil = Math.min(Math.max(regle.seuil, 1),
-                                 Math.max(regle.parmi.length, 1));
+          regle.seuil = etaitToutes
+            ? Math.max(regle.parmi.length, 1)
+            : Math.min(Math.max(regle.seuil, 1), Math.max(regle.parmi.length, 1));
+          cascade.modifie = true;
           redessinerCascade();
-        }));
+        }, null, false, "r" + rang + "-p-" + c));
       });
       l1.appendChild(texteSimple("sont validées"));
       bloc.appendChild(l1);
@@ -2870,6 +3052,7 @@
       l2.className = "l";
       var fleche = document.createElement("span");
       fleche.className = "fleche";
+      fleche.setAttribute("aria-hidden", "true");
       fleche.textContent = "→";
       l2.appendChild(fleche);
       l2.appendChild(mot("valider"));
@@ -2877,8 +3060,9 @@
         l2.appendChild(puceCouleur(c, regle.cibles.indexOf(c) !== -1, function (nouveau) {
           if (nouveau) regle.cibles.push(c);
           else regle.cibles.splice(regle.cibles.indexOf(c), 1);
+          cascade.modifie = true;
           redessinerCascade();
-        }));
+        }, null, false, "r" + rang + "-c-" + c));
       });
       bloc.appendChild(l2);
       hote.appendChild(bloc);
@@ -2898,15 +3082,16 @@
     var plus = document.createElement("button");
     plus.type = "button";
     plus.className = "ajout";
+    plus.dataset.focus = "ajout";
     plus.textContent = "+ Ajouter une règle";
     plus.addEventListener("click", function () {
       cascade.regles.push({ parmi: [], seuil: 1, cibles: [] });
+      cascade.modifie = true;
       redessinerCascade();
     });
     hote.appendChild(plus);
 
-    dessinerControle(bilan);
-    return bilan;
+    dessinerControle(constats);
   }
 
   function mot(texte) {
@@ -2925,11 +3110,24 @@
   function dessinerApercu() {
     var hote = $("apercuCascade");
     hote.innerHTML = "";
-    var noms = Object.keys(cascade.circuits);
-    if (!noms.length) return;
+    var noms = cascade.circuits.map(function (c) { return c.nom; });
+    if (!noms.length) {
+      // Un reglage dont on dit que l'apercu n'est pas decoratif ne doit pas
+      // s'offrir sans apercu ET sans explication.
+      var rien = document.createElement("p");
+      rien.className = "aide";
+      rien.textContent = "Aucun circuit en base : l'aperçu ne peut rien montrer. "
+        + "Importe le classeur avant de régler la cascade.";
+      hote.appendChild(rien);
+      return;
+    }
     if (noms.indexOf(cascade.apercu.circuit) === -1) cascade.apercu.circuit = noms[0];
 
-    var compte = cascade.circuits[cascade.apercu.circuit] || {};
+    var choisi = cascade.circuits.filter(function (c) {
+      return c.nom === cascade.apercu.circuit;
+    })[0] || { couleurs: {} };
+    var compte = choisi.couleurs;
+
     var boite = document.createElement("div");
     boite.className = "apercu";
 
@@ -2942,6 +3140,7 @@
     l1.className = "ligne";
     l1.appendChild(texteSimple("Sur le circuit"));
     var select = document.createElement("select");
+    select.dataset.focus = "apercu-circuit";
     noms.forEach(function (n) {
       var o = document.createElement("option");
       o.value = n; o.textContent = n;
@@ -2951,7 +3150,7 @@
     select.setAttribute("aria-label", "Circuit de l'aperçu");
     select.addEventListener("change", function () {
       cascade.apercu.circuit = select.value;
-      dessinerApercu();
+      avecFocus(dessinerApercu);
     });
     l1.appendChild(select);
     boite.appendChild(l1);
@@ -2971,8 +3170,8 @@
       puces.appendChild(puceCouleur(c, !!cascade.apercu.pleines[c], function (nouveau) {
         if (nouveau) cascade.apercu.pleines[c] = true;
         else delete cascade.apercu.pleines[c];
-        dessinerApercu();
-      }, n ? " · " + n : " · aucun bloc", !n));
+        avecFocus(dessinerApercu);
+      }, n ? " · " + n : " · aucun bloc", !n, "apercu-" + c));
     });
     boite.appendChild(puces);
 
@@ -2982,8 +3181,7 @@
     var valides = [];
     cascade.regles.forEach(function (r) {
       if (!r.parmi.length || !r.cibles.length) return;
-      var tenues = r.parmi.filter(function (x) { return pleines.indexOf(x) !== -1; }).length;
-      if (tenues < r.seuil) return;
+      if (!tientPhrase(r, pleines)) return;
       r.cibles.forEach(function (c) {
         if (compte[c] && pleines.indexOf(c) === -1 && valides.indexOf(c) === -1) {
           valides.push(c);
@@ -2993,11 +3191,10 @@
 
     var jauge = document.createElement("div");
     jauge.className = "jauge";
-    var total = 0, grimpes = 0, credites = 0;
+    var grimpes = 0, credites = 0;
     cascade.couleurs.forEach(function (c) {
       var n = compte[c] || 0;
       if (!n) return;
-      total += n;
       var quoi = pleines.indexOf(c) !== -1 ? "g"
                : (valides.indexOf(c) !== -1 ? "c" : "f");
       if (quoi === "g") grimpes += n;
@@ -3005,7 +3202,7 @@
       var seg = document.createElement("div");
       seg.className = "seg";
       seg.style.flex = n;
-      var hexa = TEINTES[c.toLowerCase()];
+      var hexa = teinteDe(c);
       if (hexa) seg.style.setProperty("--teinte", hexa);
       var dedans = document.createElement("span");
       dedans.className = quoi;
@@ -3022,7 +3219,9 @@
       .forEach(function (paire) {
         var s = document.createElement("span");
         s.className = paire[0];
-        s.appendChild(document.createElement("b"));
+        var carre = document.createElement("b");
+        carre.setAttribute("aria-hidden", "true");
+        s.appendChild(carre);
         var t = document.createElement("span");
         t.textContent = paire[1];
         s.appendChild(t);
@@ -3034,12 +3233,18 @@
     verdict.className = "verdict-apercu";
     var gros = document.createElement("span");
     gros.className = "gros";
-    gros.textContent = (grimpes + credites) + " / " + total;
+    gros.textContent = (grimpes + credites) + " / " + choisi.blocs;
     verdict.appendChild(gros);
     verdict.appendChild(document.createTextNode("blocs comptés au classement"));
     var detail = document.createElement("em");
     detail.textContent = grimpes + " réellement grimpé" + (grimpes > 1 ? "s" : "")
       + " · " + credites + " crédité" + (credites > 1 ? "s" : "") + " par la règle";
+    if (choisi.sans_couleur) {
+      // Le denominateur ne peut pas mentir par omission : un bloc sans couleur
+      // compte au classement, mais aucune cascade ne le credite.
+      detail.textContent += " · " + choisi.sans_couleur
+        + " bloc(s) sans couleur, hors cascade";
+    }
     verdict.appendChild(detail);
     boite.appendChild(verdict);
 
@@ -3066,11 +3271,11 @@
       // Allume = la regle s'applique. On range l'inverse : une categorie creee
       // a l'inscription a chaud est absente de la liste, donc ALLUMEE.
       i.checked = cascade.eteintes.indexOf(nom) === -1;
-      i.dataset.categorie = "1";
       i.addEventListener("change", function () {
         var k = cascade.eteintes.indexOf(nom);
         if (i.checked) { if (k !== -1) cascade.eteintes.splice(k, 1); }
         else if (k === -1) { cascade.eteintes.push(nom); }
+        cascade.modifie = true;
       });
       label.appendChild(i);
       var g = document.createElement("span");
@@ -3096,24 +3301,34 @@
     // lieu de croire un drapeau stocke : un etat ecrit en double finit par
     // mentir sur ce que les phrases disent vraiment.
     $("avertCascade").hidden = (quoi !== "mesure");
+    // Tant que la carte n'a pas ete chargee, « Enregistrer » ecrirait une regle
+    // VIDE par-dessus celle qui existe. Un GET qui echoue ne doit pas offrir un
+    // bouton destructeur.
+    $("btnCascade").disabled = !cascade.charge;
   }
 
   function redessinerCascade() {
-    dessinerRegles();
-    dessinerApercu();
-    majPresetsCascade();
+    avecFocus(function () {
+      dessinerRegles();
+      dessinerApercu();
+      majPresetsCascade();
+    });
   }
 
   function peindreCascade(d) {
     cascade.couleurs = d.couleurs || [];
     cascade.categories = d.categories || [];
-    cascade.circuits = d.circuits || {};
+    cascade.circuits = d.circuits || [];
     cascade.reference = (d.regle_du_classeur || {}).regles || [];
-    var courante = d.cascade || {};
-    cascade.regles = (courante.regles || []).map(function (r) {
-      return { parmi: r.parmi.slice(), seuil: r.seuil, cibles: r.cibles.slice() };
-    });
-    cascade.eteintes = (courante.categories_eteintes || []).slice();
+    // Revenir sur l'onglet ne doit pas emporter ce qu'on est en train d'ecrire.
+    if (!cascade.modifie) {
+      var courante = d.cascade || {};
+      cascade.regles = (courante.regles || []).map(function (r) {
+        return { parmi: r.parmi.slice(), seuil: r.seuil, cibles: r.cibles.slice() };
+      });
+      cascade.eteintes = (courante.categories_eteintes || []).slice();
+    }
+    cascade.charge = true;
     redessinerCascade();
     dessinerPortee();
   }
@@ -3121,14 +3336,17 @@
   Array.prototype.forEach.call(
     document.querySelectorAll("#presetsCascade input"), function (radio) {
       radio.addEventListener("change", function () {
-        // « Sur mesure » ne remplit rien : c'est l'etat ou l'on bricole, pas un
-        // prereglage. Il ne doit jamais effacer ce qui est en cours.
         if (radio.value === "aucune") cascade.regles = [];
         else if (radio.value === "classeur") {
           cascade.regles = cascade.reference.map(function (r) {
             return { parmi: r.parmi.slice(), seuil: r.seuil, cibles: r.cibles.slice() };
           });
+        } else if (!cascade.regles.length) {
+          // « Sur mesure » sur une liste vide : on ouvre une phrase, sinon le
+          // bouton se decoche tout seul et le clic n'a servi a rien.
+          cascade.regles = [{ parmi: [], seuil: 1, cibles: [] }];
         }
+        cascade.modifie = true;
         redessinerCascade();
       });
     });
@@ -3136,23 +3354,38 @@
   Array.prototype.forEach.call(
     document.querySelectorAll("#rapideCascade button"), function (b) {
       b.addEventListener("click", function () {
-        cascade.eteintes = [];
-        cascade.categories.forEach(function (nom) {
-          var genre = nom.indexOf(" ") === -1
-            ? null : nom.slice(nom.lastIndexOf(" ") + 1).toUpperCase();
-          var allume = (b.dataset.tout !== undefined)
-            ? b.dataset.tout === "1" : genre === b.dataset.genre;
-          if (!allume) cascade.eteintes.push(nom);
+        // On ne touche QU'AUX categories affichees : une categorie disparue du
+        // classeur reste eteinte, comme le fait la bascule individuelle.
+        var inconnues = cascade.eteintes.filter(function (nom) {
+          return cascade.categories.indexOf(nom) === -1;
         });
+        var eteintes = inconnues;
+        cascade.categories.forEach(function (nom) {
+          var morceaux = nom.split(" ");
+          var genre = morceaux.length > 1 ? morceaux[morceaux.length - 1].toUpperCase() : null;
+          var allume;
+          if (b.dataset.tout !== undefined) {
+            allume = b.dataset.tout === "1";
+          } else if (genre === "F" || genre === "H") {
+            allume = genre === b.dataset.genre;
+          } else {
+            // « U13 M », ou un nom sans genre : les raccourcis par genre ne la
+            // concernent pas, ils ne doivent donc pas l'eteindre.
+            allume = cascade.eteintes.indexOf(nom) === -1;
+          }
+          if (!allume) eteintes.push(nom);
+        });
+        cascade.eteintes = eteintes;
+        cascade.modifie = true;
         dessinerPortee();
       });
     });
 
   $("btnCascade").addEventListener("click", function () {
-    var bilan = controlerCascade();
-    var erreurs = bilan.soucis.filter(function (s) { return s.niveau === "erreur"; });
-    if (erreurs.length) {
-      dire(erreurs[0].texte, "erreur");
+    var constats = analyserRegles(cascade.regles);
+    if (constats.bloquants.length) {
+      dire("La règle ne peut pas être enregistrée : regarde le contrôle "
+           + "sous les phrases.", "erreur");
       return;
     }
     var bouton = this;
@@ -3176,15 +3409,20 @@
       dire(message + (d.avertissements.length
         ? " ⚠ " + d.avertissements.join(" ") : ""),
         d.avertissements.length ? "attention" : "ok");
-      peindreCascade({
-        couleurs: cascade.couleurs, categories: cascade.categories,
-        circuits: cascade.circuits,
-        regle_du_classeur: { regles: cascade.reference },
-        cascade: d.cascade
+      cascade.modifie = false;
+      cascade.regles = d.cascade.regles.map(function (r) {
+        return { parmi: r.parmi.slice(), seuil: r.seuil, cibles: r.cibles.slice() };
       });
-    }).catch(signaler).then(function () { bouton.disabled = false; });
+      cascade.eteintes = d.cascade.categories_eteintes.slice();
+      redessinerCascade();
+      dessinerPortee();
+    }).catch(signaler).then(function () {
+      bouton.disabled = !cascade.charge;
+    });
   });
 
+  /** Apres un import, un effacement ou un changement de statut : les DEUX
+   *  ecrans d'administration ont vieilli, pas seulement celui ou l'on est. */
   function chargerCompetition() {
     $("rapportImport").hidden = true;
     appeler("/admin/classeur").then(function (d) {

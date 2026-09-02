@@ -75,11 +75,73 @@ class TestLecture:
         assert d["categories"] == ["U11 F", "U11 H", "U13 H"]
         # De quoi peindre l'apercu : les blocs par couleur ET par circuit, parce
         # qu'une couleur absente d'un circuit ne peut pas etre pleine (D3).
-        assert d["circuits"]["U11"] == {"Jaune": 1, "Vert": 1}
-        assert d["circuits"]["U13"] == {"Jaune": 1, "Bleu": 1}
+        par_nom = {c["nom"]: c for c in d["circuits"]}
+        assert par_nom["U11"]["couleurs"] == {"Jaune": 1, "Vert": 1}
+        assert par_nom["U13"]["couleurs"] == {"Jaune": 1, "Bleu": 1}
+        assert par_nom["U11"]["blocs"] == 2
         assert d["cascade"]["actif"] is False
         assert len(d["regle_du_classeur"]["regles"]) == 4
-        assert d["est_celle_du_classeur"] is False
+
+
+    def test_un_bloc_sans_couleur_est_compte_a_part(self, admin, jeu):
+        """Il compte au classement, mais aucune cascade ne le credite : le taire
+        ferait mentir le denominateur de l'apercu."""
+        from climbcontest.models import Bloc, BlocCircuit
+        muet = Bloc(competition_id=jeu["competition"].id, tag="ZZ1", numero=42,
+                    couleur=None)
+        db.session.add(muet)
+        db.session.flush()
+        db.session.add(BlocCircuit(bloc_id=muet.id,
+                                   circuit_id=jeu["circuits"][0].id))
+        db.session.commit()
+        d = admin.get("/admin/competition/cascade").get_json()
+        u11 = {c["nom"]: c for c in d["circuits"]}["U11"]
+        assert u11["sans_couleur"] == 1
+        assert u11["blocs"] == 3
+
+    def test_une_couleur_en_minuscules_est_rapprochee(self, admin, jeu):
+        """Le classeur ecrit « rouge » aussi bien que « Rouge » ; l'apercu doit
+        compter comme le moteur compte."""
+        from climbcontest.models import Bloc, BlocCircuit
+        autre = Bloc(competition_id=jeu["competition"].id, tag="ZZ2", numero=43,
+                     couleur="  jaune ")
+        db.session.add(autre)
+        db.session.flush()
+        db.session.add(BlocCircuit(bloc_id=autre.id,
+                                   circuit_id=jeu["circuits"][0].id))
+        db.session.commit()
+        d = admin.get("/admin/competition/cascade").get_json()
+        u11 = {c["nom"]: c for c in d["circuits"]}["U11"]
+        assert u11["couleurs"]["Jaune"] == 2
+
+    def test_un_circuit_sans_bloc_colore_reste_dans_l_apercu(self, admin, jeu):
+        """Sinon il disparait du menu et se regle a l'aveugle."""
+        from climbcontest.models import Circuit
+        db.session.add(Circuit(competition_id=jeu["competition"].id, nom="U17"))
+        db.session.commit()
+        d = admin.get("/admin/competition/cascade").get_json()
+        par_nom = {c["nom"]: c for c in d["circuits"]}
+        assert par_nom["U17"] == {"nom": "U17", "couleurs": {}, "blocs": 0,
+                                 "sans_couleur": 0}
+
+    def test_les_blocs_d_une_autre_edition_ne_comptent_pas(self, admin, jeu):
+        """L'apercu doit voir ce que voit le moteur, qui borne ses blocs a la
+        competition. Un lien croise donnerait deux comptes differents."""
+        from climbcontest.models import Bloc, BlocCircuit, Competition
+        from datetime import date
+        autre = Competition(nom="Autre", date=date(2025, 11, 1))
+        db.session.add(autre)
+        db.session.flush()
+        intrus = Bloc(competition_id=autre.id, tag="XX9", numero=99,
+                      couleur="Noir")
+        db.session.add(intrus)
+        db.session.flush()
+        db.session.add(BlocCircuit(bloc_id=intrus.id,
+                                   circuit_id=jeu["circuits"][0].id))
+        db.session.commit()
+        d = admin.get("/admin/competition/cascade").get_json()
+        par_nom = {c["nom"]: c for c in d["circuits"]}
+        assert "Noir" not in par_nom["U11"]["couleurs"]
 
 
 class TestEcriture:
@@ -128,6 +190,47 @@ class TestEcriture:
             "actif": False, "regles": [], "categories_eteintes": ["U19 F"]})
         assert r.status_code == 200
         assert r.get_json()["cascade"]["categories_eteintes"] == ["U19 F"]
+
+    def test_une_cle_absente_n_efface_pas_la_portee(self, admin, jeu):
+        """⚠️ Une cle ABSENTE ne vaut pas une liste vide : sinon un appel qui
+        omet `categories_eteintes` rallume toutes les categories, et recredite
+        leurs blocs, en repondant 200."""
+        admin.post("/admin/competition/cascade", json={
+            "actif": True, "regles": [REGLE_VERT],
+            "categories_eteintes": ["U11 F"]})
+        r = admin.post("/admin/competition/cascade",
+                       json={"actif": True, "regles": [REGLE_VERT]})
+        assert r.status_code == 200
+        assert r.get_json()["cascade"]["categories_eteintes"] == ["U11 F"]
+
+    def test_la_portee_survit_a_une_regle_videe(self, admin, jeu):
+        """On efface ses phrases pour en reecrire d'autres : les huit
+        interrupteurs ne doivent pas partir avec."""
+        admin.post("/admin/competition/cascade", json={
+            "actif": True, "regles": [REGLE_VERT],
+            "categories_eteintes": ["U11 F"]})
+        admin.post("/admin/competition/cascade", json={
+            "actif": False, "regles": [], "categories_eteintes": ["U11 F"]})
+        d = admin.get("/admin/competition/cascade").get_json()
+        assert d["cascade"]["categories_eteintes"] == ["U11 F"]
+
+    def test_trop_de_regles_est_refuse(self, admin, jeu):
+        """Sans plafond, 20 000 regles s'ecrivent en base et font passer un
+        recalcul de 22 ms a 2,2 s -- durablement."""
+        trop = [dict(REGLE_VERT) for _ in range(50)]
+        r = admin.post("/admin/competition/cascade",
+                       json={"actif": True, "regles": trop})
+        assert r.status_code == 400
+        assert "au maximum" in r.get_json()["message"]
+
+    def test_un_nombre_non_fini_ne_fait_pas_un_500(self, admin, jeu):
+        """`json.loads` accepte `Infinity`, et `int(inf)` leve OverflowError."""
+        r = admin.post("/admin/competition/cascade",
+                       data='{"actif": true, "regles": [{"parmi": ["Vert"], '
+                            '"seuil": Infinity, "cibles": ["Jaune"]}]}',
+                       content_type="application/json")
+        assert r.status_code == 400
+        assert r.get_json()["success"] is False
 
     def test_corps_illisible(self, admin, jeu):
         r = admin.post("/admin/competition/cascade",

@@ -19,7 +19,9 @@
    les quatre contrôles dont `implique()`.
 5. [x] **`classement_service`** : `couleurs_requises()` remplacée par
    `cascade(comp)` ; `blocs_du_grimpeur()` ; purge du cache à l'écriture.
-6. [x] **`tools/verify_ranking.py`** : appel adapté (cascade vide).
+6. [x] **Rien à faire sur `tools/verify_ranking.py`** — vérifié : c'est une
+   réimplémentation autonome de l'algorithme, elle n'importe pas le moteur et
+   n'a donc pas de signature à suivre.
 
 ### Lot B — la console
 
@@ -36,8 +38,11 @@
 
 ### Lot C — la traçabilité
 
-11. [x] **« N grimpés · N crédités »** dans la console, partout où les blocs
-    d'un grimpeur sont montrés, avec les hachures à 45° (D5).
+11. [x] **Le signe des blocs crédités** (D5) : hachures à 45° dans l'aperçu de
+    la console, où l'on voit une couleur entière ; astérisque, infobulle
+    « N grimpés · N crédités » et **légende dans la ligne de comptage** sur la
+    page de résultats, où il n'y a qu'un nombre. ⚠️ Aucun rendu bloc par bloc :
+    c'est la spec 026 qui montre les blocs un par un.
 12. [x] **L'astérisque** sur le compteur de blocs de la page de résultats,
     uniquement quand la cascade a crédité quelque chose.
 
@@ -65,6 +70,8 @@
 | La même, Rouge **incomplète** | rien n'est crédité |
 | « au moins 2 parmi {Vert…Noir} → Jaune », **une seule** pleine | rien (c'est K2) |
 | Deux phrases sur la même cible, une seule tenue | la cible est créditée — l'union, pas l'intersection |
+| Une variante de casse au mur (« rouge » et « Rouge ») | la couleur n'est **pas** pleine tant qu'il reste un bloc, quelle que soit sa casse |
+| Le classement des clubs | reporte les blocs crédités, sans quoi la ligne du club perd l'astérisque |
 | Enchaînement : « Noir → Rouge » puis « Rouge → Jaune », seul Noir plein | Rouge crédité, **Jaune non** (D2, une passe) |
 | Couleur à zéro bloc dans le circuit | jamais pleine ; une phrase qui n'exige qu'elle ne tient jamais (D3) |
 | Bloc sans couleur | ignoré de la cascade, compté s'il est grimpé |
@@ -114,12 +121,21 @@
 | Réussite hors circuit | dans **aucun** des deux — elle ne compte pas au classement |
 | Catégorie éteinte | ne crédite rien |
 
-### La console — `tests/test_pages.py`
+### La console — `tests/test_console_lisible.py::TestCarteCascade`
 
 | Scénario | Attendu |
 | --- | --- |
-| La carte est servie | `id="presetsB"`, `id="editB"`, `id="controle"` présents |
+| La carte est servie | `id="carteCascade"`, et les ancrages `reglesCascade`, `controleCascade`, `apercuCascade`, `porteeCascade`, `avertCascade`, `btnCascade` |
+| Les trois préréglages | `aucune`, `classeur`, `mesure` |
+| L'avertissement part masqué | `id="avertCascade" hidden` |
 | Aucune dépendance extérieure | aucun `src=`/`href=` vers un domaine tiers — non-régression 005/016/021 |
+
+### Les deux contrôles disent pareil — `tests/test_cascade.py`
+
+| Scénario | Attendu |
+| --- | --- |
+| Le contrôle du gabarit face à celui du serveur | 600 jeux de phrases tirés au hasard, **0 désaccord** sur les constats bruts |
+| `implique`, toutes les paires possibles, seuils hors bornes compris | 0 désaccord |
 
 ### Ce qu'un test Python ne peut pas vérifier — à faire au navigateur
 

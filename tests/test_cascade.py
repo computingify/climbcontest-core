@@ -11,7 +11,7 @@ Deux choses sont vérifiées ici, et elles ne se déduisent pas l'une de l'autre
 
 import itertools
 import json
-import re
+import random
 import shutil
 import subprocess
 from pathlib import Path
@@ -263,27 +263,77 @@ class TestLesDeuxControlesDisentPareil:
     """Le contrôle existe en DOUBLE : en Python, qui fait autorité, et en
     JavaScript, pour que la console réponde sans aller-retour.
 
-    Deux copies d'une même règle finissent toujours par diverger. Ce test est
-    ce qui l'empêche : il extrait la fonction du gabarit et la confronte à celle
-    du serveur sur **toutes** les paires possibles — 36 864 — pas sur un
-    échantillon.
+    Deux copies d'une même règle finissent toujours par diverger. Ce test est ce
+    qui l'empêche : il extrait le bloc « contrôle pur » du gabarit et le
+    confronte à `cascade.analyser` — **le contrôle entier**, pas seulement le
+    test d'implication. On compare les constats bruts, pas les messages : les
+    seconds sont traduits d'un côté et pas de l'autre, et ça ne prouverait rien.
     """
 
     GABARIT = (Path(__file__).resolve().parent.parent
                / "climbcontest" / "templates" / "admin.html")
 
-    def test_implique_est_identique(self):
+    def _bloc_pur(self) -> str:
         source = self.GABARIT.read_text(encoding="utf-8")
-        bloc = re.search(r"function implique\(b, a\) \{[\s\S]*?\n  \}", source)
-        assert bloc, "la fonction `implique` a disparu du gabarit"
+        debut = source.index("/* ===== debut du controle pur")
+        fin = source.index("/* ===== fin du controle pur")
+        return source[debut:fin]
 
+    def _jeux(self, combien: int) -> list:
+        """Des jeux de phrases tirés au hasard, seuils absurdes compris."""
+        alea = random.Random(20260902)
+        jeux = []
+        for _ in range(combien):
+            regles = []
+            for _ in range(alea.randint(1, 4)):
+                parmi = [c for c in COULEURS if alea.random() < 0.45]
+                cibles = [c for c in COULEURS if alea.random() < 0.3]
+                seuil = alea.randint(0, 4)
+                regles.append({"parmi": parmi, "seuil": seuil, "cibles": cibles})
+            jeux.append(regles)
+        return jeux
+
+    def test_les_constats_sont_identiques(self):
+        jeux = self._jeux(600)
         script = """
         %s
-        const C = ["Jaune","Vert","Bleu","Mauve","Rouge","Noir"];
+        const jeux = %s;
+        console.log(JSON.stringify(jeux.map(analyserRegles)));
+        """ % (self._bloc_pur(), json.dumps(jeux))
+
+        sortie = subprocess.run(["node", "--input-type=module", "-e", script],
+                                capture_output=True, text=True, timeout=120)
+        assert sortie.returncode == 0, sortie.stderr
+        cote_navigateur = json.loads(sortie.stdout)
+        assert len(cote_navigateur) == len(jeux)
+
+        ecarts = []
+        for regles, js in zip(jeux, cote_navigateur):
+            phrases = tuple(
+                phrase(r["parmi"], r["seuil"], r["cibles"]) for r in regles)
+            py = module.analyser(phrases)
+            # Les codes bloquants, dans le meme ordre.
+            if [(b[0], b[1]) for b in py["bloquants"]] != [
+                    (b[0], b[1]) for b in js["bloquants"]]:
+                ecarts.append(("bloquants", regles, py, js))
+                continue
+            if [tuple(m) for m in py["mortes"]] != [tuple(m) for m in js["mortes"]]:
+                ecarts.append(("mortes", regles, py, js))
+                continue
+            if [(c[0], c[1], list(c[2])) for c in py["communes"]] != [
+                    [c[0], c[1], list(c[2])] for c in js["communes"]]:
+                ecarts.append(("communes", regles, py, js))
+        assert not ecarts, ecarts[:2]
+
+    def test_le_test_d_implication_est_identique(self):
+        """Toutes les paires possibles, seuils hors bornes compris."""
+        script = """
+        %s
+        const C = COULEURS_DIF;
         const cas = [];
         for (let m = 1; m < 64; m++) {
           const parmi = C.filter((_, i) => m & (1 << i));
-          for (let s = 1; s <= parmi.length; s++) cas.push({parmi, seuil: s});
+          for (let s = 0; s <= parmi.length + 1; s++) cas.push({parmi, seuil: s});
         }
         const out = [];
         for (const a of cas) for (const b of cas) {
@@ -291,20 +341,234 @@ class TestLesDeuxControlesDisentPareil:
                     implique(b, a) ? 1 : 0].join(";"));
         }
         console.log(out.join("\\n"));
-        """ % bloc.group(0)
-
+        """ % self._bloc_pur()
         sortie = subprocess.run(["node", "--input-type=module", "-e", script],
-                                capture_output=True, text=True, timeout=60)
+                                capture_output=True, text=True, timeout=120)
         assert sortie.returncode == 0, sortie.stderr
 
-        ecarts = 0
         lignes = sortie.stdout.strip().splitlines()
+        assert len(lignes) > 50000
         for ligne in lignes:
             pa, sa, pb, sb, r = ligne.split(";")
             a = phrase(pa.split("|"), int(sa), ["Jaune"])
             b = phrase(pb.split("|"), int(sb), ["Jaune"])
-            if module.implique(b, a) != (r == "1"):
-                ecarts += 1
-        assert len(lignes) > 30000
-        assert ecarts == 0, f"{ecarts} desaccord(s) entre les deux controles"
+            assert module.implique(b, a) == (r == "1"), ligne
+
+
+class TestRepliExact:
+    """⚠️ Le critère A3 : une édition d'avant la spec 025 doit se classer
+    EXACTEMENT comme avant.
+
+    L'ancien moteur a été supprimé par ce commit ; on le rejoue donc ici, épinglé
+    tel qu'il était, et on le confronte à sa réécriture en phrases. Sans ce test,
+    l'affirmation « la conversion est exacte » ne serait qu'une relecture.
+    """
+
+    COULEURS_ORDONNEES = list(COULEURS)
+
+    def _ancien(self, pleines: set, n: int) -> set:
+        """`_valider_par_couleur` d'avant la spec 025, réduit à sa décision.
+
+        « Les N couleurs pleines les plus dures ; la plus FACILE d'entre elles
+        fixe un seuil ; tout ce qui est plus facile est validé. »
+        """
+        ordre = self.COULEURS_ORDONNEES
+        dures_en_premier = [c for c in reversed(ordre) if c in pleines]
+        if len(dures_en_premier) < n:
+            return set()
+        seuil = min(ordre.index(c) for c in dures_en_premier[:n])
+        return {c for c in ordre if ordre.index(c) < seuil}
+
+    def _nouveau(self, pleines: set, n: int) -> set:
+        valides = set()
+        for phrase in module.regle_du_classeur(n):
+            if phrase.tient(frozenset(pleines)):
+                valides |= phrase.cibles
+        return valides
+
+    def _comptees(self, valide, pleines: set, n: int) -> set:
+        """Les couleurs dont les blocs comptent au classement.
+
+        ⚠️ C'est LA bonne unité de comparaison. Les deux écritures ne
+        s'accordent pas sur le fait de re-nommer une couleur déjà pleine — la
+        nouvelle le fait, l'ancienne non — et ça ne change rien : ses blocs sont
+        déjà comptés. Comparer les seules couleurs « ajoutées » ferait échouer
+        le test sur une différence qui n'existe pas au classement.
+        """
+        return set(pleines) | valide(pleines, n)
+
+    def test_la_conversion_est_exacte(self):
+        """Toutes les combinaisons de couleurs pleines, pour N = 1, 2 et 3."""
+        essais = ecarts = 0
+        for taille in range(len(COULEURS) + 1):
+            for pleines in itertools.combinations(COULEURS, taille):
+                for n in (1, 2, 3):
+                    essais += 1
+                    avant = self._comptees(self._ancien, set(pleines), n)
+                    apres = self._comptees(self._nouveau, set(pleines), n)
+                    if avant != apres:
+                        ecarts += 1
+        assert essais == 192, essais
+        assert ecarts == 0
+
+    def test_sur_les_donnees_reelles_de_novembre_2025(self):
+        """Le même contrôle, sur les couleurs vraiment présentes en 2025 —
+        aucun circuit n'y avait de Noir."""
+        reelles = ["Jaune", "Vert", "Bleu", "Mauve", "Rouge"]
+        for taille in range(len(reelles) + 1):
+            for pleines in itertools.combinations(reelles, taille):
+                for n in (1, 2, 3):
+                    assert (self._comptees(self._ancien, set(pleines), n)
+                            == self._comptees(self._nouveau, set(pleines), n))
+
+
+class TestControleExhaustif:
+    """Le contrôle attrape-t-il TOUTES les phrases sans effet ?
+
+    Un test par paires en laissait passer : une phrase peut être tuée par la
+    RÉUNION de plusieurs autres. On confronte ici `controler` à la vérité,
+    obtenue en retirant réellement chaque phrase.
+    """
+
+    def _sortie(self, phrases, pleines):
+        s = set()
+        for p in phrases:
+            if p.tient(pleines):
+                s |= p.cibles
+        return frozenset(s)
+
+    def _combinaisons(self):
+        return [frozenset(c) for n in range(len(COULEURS) + 1)
+                for c in itertools.combinations(COULEURS, n)]
+
+    def test_une_phrase_tuee_par_la_reunion_de_deux_autres(self):
+        """Aucun test par paires ne voit celle-ci : ni la 1 ni la 3 n'implique
+        la 2 à elle seule."""
+        regles = (
+            phrase(["Rouge"], 1, ["Jaune"]),
+            phrase(["Vert", "Mauve", "Rouge", "Noir"], 2, ["Jaune"]),
+            phrase(["Vert", "Bleu", "Noir"], 1, ["Jaune"]),
+        )
+        bloquants, avertis = module.controler(regles)
+        assert bloquants == []
+        assert any(a.startswith("Regle 2 sans effet") for a in avertis)
+
+    def test_aucune_phrase_signalee_a_tort(self):
+        """Retirer tout ce que le contrôle signale ne doit RIEN changer."""
+        combinaisons = self._combinaisons()
+        jeux = [
+            module.regle_du_classeur(),
+            (phrase(["Rouge"], 1, ["Jaune"]), phrase(["Noir"], 1, ["Jaune"])),
+            (phrase(["Rouge"], 1, ["Jaune", "Vert"]),
+             phrase(["Rouge", "Noir"], 2, ["Jaune"])),
+            (phrase(["Vert", "Bleu"], 1, ["Jaune"]),
+             phrase(["Bleu"], 1, ["Jaune"]),
+             phrase(["Vert"], 1, ["Jaune"])),
+        ]
+        for regles in jeux:
+            _, avertis = module.controler(regles)
+            mortes = {int(a.split()[1]) - 1 for a in avertis if "sans effet" in a}
+            restantes = tuple(r for i, r in enumerate(regles) if i not in mortes)
+            for c in combinaisons:
+                assert self._sortie(restantes, c) == self._sortie(regles, c)
+
+    def test_deux_phrases_identiques_ne_s_excusent_pas_mutuellement(self):
+        """Si on les retirait toutes les deux, la sortie changerait : une seule
+        doit être signalée."""
+        deux = (phrase(["Rouge"], 1, ["Jaune"]), phrase(["Rouge"], 1, ["Jaune"]))
+        _, avertis = module.controler(deux)
+        assert len([a for a in avertis if "sans effet" in a]) == 1
+
+
+class TestEntreesHostiles:
+    """Ce qui est RANGÉ est contrôlé comme ce qui est saisi.
+
+    Un document écrit à la main ou venu d'une version future passerait sinon
+    derrière tous les garde-fous.
+    """
+
+    @pytest.mark.parametrize("regle", [
+        {"parmi": [], "seuil": 0, "cibles": ["Jaune", "Vert"]},
+        {"parmi": ["Rouge", "Noir"], "seuil": False, "cibles": ["Jaune"]},
+        {"parmi": ["Noir"], "seuil": -1, "cibles": ["Jaune"]},
+        {"parmi": ["Jaune"], "seuil": 1, "cibles": ["Noir"]},      # remonte
+        {"parmi": ["Rouge"], "seuil": 2.9, "cibles": ["Jaune"]},
+        {"parmi": ["Rouge"], "seuil": "3", "cibles": ["Jaune"]},
+    ])
+    def test_une_regle_rangee_invalide_est_ignoree(self, regle):
+        """Un seuil nul ou négatif rend `len(parmi & pleines) >= seuil` toujours
+        vrai : la cascade validerait les six couleurs pour TOUT LE MONDE."""
+        casc = module.depuis_options(
+            {"cascade": {"actif": True, "regles": [regle]}})
+        assert not casc
+
+    def test_un_nombre_non_fini_ne_leve_pas(self):
+        """`json.loads` accepte `Infinity`, et `int(inf)` leve OverflowError —
+        que personne ne rattrapait. Le classement doit sortir quand meme."""
+        options = json.loads(
+            '{"cascade": {"actif": true, "regles": [{"parmi": ["Rouge"], '
+            '"seuil": Infinity, "cibles": ["Jaune"]}]}}')
+        assert not module.depuis_options(options)
+        assert not module.depuis_options(json.loads('{"validation_couleur": Infinity}'))
+
+    def test_l_ancienne_option_a_vrai_n_est_pas_un_compte(self):
+        """`int(True)` vaut 1, donc un booleen passerait pour la regle la plus
+        agressive — celle qui change 264 rangs sur 392."""
+        assert not module.depuis_options({"validation_couleur": True})
+
+    def test_trop_de_regles(self):
+        trop = [{"parmi": ["Rouge"], "seuil": 1, "cibles": ["Jaune"]}] * 50
+        with pytest.raises(ErreurMetier):
+            module.depuis_json(trop)
+
+    def test_la_portee_survit_a_une_regle_eteinte(self):
+        """Sinon un aller-retour par une liste vide efface les interrupteurs."""
+        casc = module.depuis_options({"cascade": {
+            "actif": False, "regles": [], "categories_eteintes": ["U11 F"]}})
+        assert casc.categories_eteintes == frozenset({"U11 F"})
+
+    def test_l_aller_retour_est_fidele(self):
+        document, _ = module.valider({
+            "actif": False, "regles": [], "categories_eteintes": ["U11 F", "U13 F"]})
+        relu = module.depuis_options({"cascade": document})
+        assert relu.categories_eteintes == frozenset({"U11 F", "U13 F"})
+
+    def test_les_categories_sont_nettoyees_a_la_lecture(self):
+        """Un document ecrit a la main donne sinon un interrupteur inerte."""
+        casc = module.depuis_options({"cascade": {
+            "actif": False, "categories_eteintes": ["  U11 F  ", "", "   "]}})
+        assert casc.categories_eteintes == frozenset({"U11 F"})
+
+    def test_une_cascade_qui_n_est_pas_un_objet(self):
+        assert not module.depuis_options({"cascade": "pas un objet"})
+
+    def test_une_couleur_hostile_ne_part_pas_entiere_dans_le_message(self):
+        with pytest.raises(ErreurMetier) as e:
+            module.depuis_json([{"parmi": ["Rouge\n2026 ERROR fausse ligne de journal"],
+                                 "seuil": 1, "cibles": ["Jaune"]}])
+        assert "\n" not in e.value.message
+        assert len(e.value.message) < 200
+
+
+class TestEstCelleDuClasseur:
+    def test_une_phrase_sans_effet_ajoutee_ne_change_rien(self):
+        """⚠️ On compare ce que les phrases CALCULENT, pas leur ecriture.
+        Sinon l'ecran crie « le classeur ne saura pas suivre » alors qu'il
+        suit parfaitement — et on apprend a ne plus lire l'avertissement."""
+        avec_morte = Cascade(phrases=module.regle_du_classeur()
+                             + (phrase(["Rouge", "Noir"], 2, ["Jaune"]),))
+        assert module.est_celle_du_classeur(avec_morte)
+
+    def test_une_vraie_difference_est_vue(self):
+        autre = Cascade(phrases=(phrase(["Rouge"], 1, ["Jaune"]),))
+        assert not module.est_celle_du_classeur(autre)
+
+
+class TestRegleDuClasseurBornes:
+    def test_un_seuil_absurde_est_refuse(self):
+        """Sans garde, « au moins 0 parmi [] » se declenche sur RIEN et valide
+        les six couleurs pour tout le monde."""
+        for mauvais in (0, -1):
+            with pytest.raises(ValueError):
+                module.regle_du_classeur(mauvais)
 

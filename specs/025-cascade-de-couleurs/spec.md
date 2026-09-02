@@ -64,9 +64,10 @@ Mesuré en rejouant les **1 003 réussites réelles de novembre 2025** avec
 
 En U15 F, sept grimpeuses finissent **premières ex æquo** avec le circuit
 entier, et la gagnante réelle (dossard 22, 3 997 points) tombe **douzième** sans
-avoir rien perdu. Et **259 grimpeurs changent de score sans gagner un seul
-bloc** : un bloc crédité compte dans le dénominateur `1000/n`, donc la cascade
-fait baisser la valeur des blocs faciles **pour tout le monde**.
+avoir rien perdu. Et **259 lignes de classement changent de score sans gagner un
+seul bloc** — 68 grimpeurs distincts, chacun figurant dans plusieurs
+classements : un bloc crédité compte dans le dénominateur `1000/n`, donc la
+cascade fait baisser la valeur des blocs faciles **pour tout le monde**.
 
 **Conséquence pour l'écran** : un aperçu est obligatoire, pas décoratif. On ne
 peut pas enregistrer ce réglage sans voir ce qu'il donne.
@@ -113,14 +114,17 @@ plus facile à satisfaire, a déjà tout donné.
 
 | Défaut | Détection | Niveau |
 | --- | --- | --- |
-| **Règle morte** — sa condition ne peut pas tenir sans qu'une autre, plus facile, ait déjà validé tout ce qu'elle valide | `seuil(B) − card(parmi(B) hors parmi(A)) ≥ seuil(A)` **et** `cibles(B) ⊆ cibles(A)` | avertit |
+| **Règle morte** — on peut la retirer sans rien changer | retirer la phrase et comparer la sortie sur les **64** combinaisons de couleurs pleines | avertit |
 | **Cascade qui remonte** — « toutes les Jaune → valider les Rouge » | une cible doit être plus facile que la plus facile de ses déclencheurs | **bloque** |
 | **Deux phrases sur la même couleur** — elles s'additionnent, elles ne se remplacent pas | intersection des cibles, hors phrases mortes | informe |
 | **Phrase incomplète** — déclencheur ou cible vide | ensemble vide | **bloque** |
+| **Seuil hors bornes** — « il en faut 4 » sur trois couleurs cochées | `1 ≤ seuil ≤ nombre de couleurs cochées` | **bloque** |
+| **Trop de phrases** — plus de 30 | six couleurs n'en demandent pas autant, et 20 000 phrases font passer un recalcul de 22 ms à 2,2 s, durablement | **bloque** |
 
-Le test de règle morte est **exact** : 3 890 paires tirées au hasard ont été
-confrontées à une vérification par force brute sur les 64 combinaisons, **0
-désaccord**. Il ne signale pas à tort et ne laisse rien passer.
+La détection de règle morte est **exhaustive, pas par paires**. Un test par
+paires en laissait passer : une phrase peut être tuée par la **réunion** de
+plusieurs autres sans qu'aucune ne l'implique à elle seule. On retire donc
+réellement chaque phrase et on compare la sortie sur les 64 combinaisons.
 
 ### F4 — Où la règle s'applique : un interrupteur par catégorie
 
@@ -145,13 +149,18 @@ aucun des quatre circuits de novembre 2025 n'a de Noir.
 
 ### F6 — Un bloc crédité se voit
 
-Partout où les blocs d'un grimpeur sont montrés : **aplat plein = grimpé,
-hachures à 45° sur la même teinte = crédité**, et le compteur écrit
-« **7 grimpés · 29 crédités** ». Sur le mur, la place manque : un astérisque sur
-le compteur suffit.
+Deux endroits, deux traitements, parce que la place n'est pas la même :
 
-Le même signe est repris par la spec 026 (la fiche du grimpeur à l'écran) : une
-seule convention à retenir, jamais deux.
+- **dans l'aperçu de la console**, où l'on voit une couleur entière d'un coup :
+  **aplat plein = grimpé, hachures à 45° sur la même teinte = crédité** ;
+- **sur la page de résultats**, où il n'y a qu'un nombre : le compteur porte un
+  **astérisque**, l'infobulle dit « 7 grimpés · 29 crédités », et la **ligne de
+  comptage** sous le titre porte la légende — parce que la colonne « Blocs »
+  disparaît sur téléphone et qu'une infobulle ne s'atteint ni au doigt ni sur un
+  vidéoprojecteur.
+
+Le signe des hachures est repris par la spec 026 (la fiche du grimpeur à
+l'écran), qui montre les blocs un par un : une seule convention à retenir.
 
 ### F7 — L'avertissement quand le classeur ne suit plus
 
@@ -193,14 +202,14 @@ stocké : un état écrit en double finit toujours par mentir.
 
 | # | Critère |
 | --- | --- |
-| A1 | Cascade éteinte (défaut), `tools/verify_ranking.py fixtures/contest-nov2025.json` sort **196 conformes, 0 écart** |
+| A1 | Cascade éteinte (défaut), le moteur reproduit novembre 2025 — `test_classement.py::TestDonneesReelles::test_reproduit_novembre_2025`, 196 lignes, 0 écart. ⚠️ `tools/verify_ranking.py` sort le même verdict mais **ne prouve rien ici** : c'est une réimplémentation autonome, il n'importe pas le moteur |
 | A2 | Préréglage « comme le classeur », les quatre cas mesurés le 02/09 se rejouent : K1 Rouge+Noir → 36 blocs, K2 Noir seul → 1, K3 Noir+Bleu → 27, K4 Mauve+Rouge+Noir → 36 |
-| A3 | Une édition portant l'ancien `options.validation_couleur = 2` produit **exactement** le même classement qu'avant la spec |
+| A3 | L'ancien `options.validation_couleur = N` se convertit **exactement** — l'ancien algorithme est rejoué dans `test_cascade.py::TestRepliExact` et confronté aux phrases sur **toutes** les combinaisons de couleurs pleines, pour N = 1, 2 et 3 : 192 comparaisons, 0 écart |
 | A4 | Éteindre « U11 F » ne change que le classement de « U11 F » — et le scratch U11, qui contient ses grimpeuses, reste calculé grimpeur par grimpeur |
 | A5 | Une phrase « toutes les Jaune → valider les Rouge » **empêche** l'enregistrement, avec un message qui nomme la phrase |
 | A6 | La phrase « toutes les Rouge et Noir → valider Jaune », ajoutée au préréglage du classeur, est signalée **sans effet**, sans bloquer |
 | A7 | L'aperçu affiche le nombre de blocs par couleur du circuit choisi, et désactive les couleurs absentes |
-| A8 | Un grimpeur créditant des blocs affiche « N grimpés · N crédités » dans la console |
+| A8 | Un grimpeur créditant des blocs se distingue sur la page de résultats : compteur marqué d'un astérisque, « N grimpés · N crédités » en infobulle, et la légende de l'astérisque dans la ligne de comptage — celle-ci reste lisible là où la colonne « Blocs » disparaît (téléphone, mur) |
 | A9 | La carte est réservée au rôle `ADMIN` |
 | A10 | Aucune dépendance extérieure ajoutée à la console — non-régression des specs 005/016/021 |
 
@@ -216,3 +225,13 @@ stocké : un état écrit en double finit toujours par mentir.
 | Liste de phrases vide | équivaut à « aucune cascade » ; le préréglage s'affiche en conséquence |
 | Une phrase dont tous les déclencheurs sont absents du circuit | ne se déclenche jamais ; ce n'est pas une erreur, un circuit n'a pas à porter les six couleurs |
 | `options.cascade` illisible | lu comme vide, avertissement au journal — même tolérance que `lire_options()` |
+| `options.cascade` **valide en forme mais invalide en fond** (seuil nul, cascade qui remonte) | **ignoré**, avertissement au journal. Ce qui est rangé est contrôlé comme ce qui est saisi : un `seuil` à zéro rendrait la condition toujours vraie et validerait les six couleurs pour tout le monde |
+| Un bloc dont le classeur écrit la couleur en minuscules (« rouge ») | rapproché de « Rouge ». Sans ça, la couleur passait pour **pleine** alors qu'il restait un bloc à faire |
+
+⚠️ **Une conséquence à connaître avant d'éteindre une catégorie en cours de
+journée.** Les blocs crédités des catégories restées allumées pèsent sur le
+dénominateur `1000/n`, que **tout le monde partage**. Mesuré sur novembre 2025,
+préréglage « une seule couleur pleine », en éteignant U15 F : 70 grimpeurs
+**hors** U15 F changent de score au scratch général. Le classement de chaque
+catégorie suit bien sa propre règle (A4), mais les scratchs bougent pour tout le
+monde.

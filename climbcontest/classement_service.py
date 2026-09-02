@@ -186,42 +186,46 @@ def invalider(competition_id: int | None = None) -> None:
 # circuit met cote a cote des classements qui parlent des memes grimpeurs --
 # on passe de « U13 scratch » a « U13 F » sans traverser la barre.
 def blocs_du_grimpeur(comp: Competition, participant: Participant) -> dict:
-    """Ce qu'un grimpeur a fait, et ce que la cascade lui ajoute — spec 025 (F6).
+    """Ce qu'UN grimpeur a fait, vu du moteur : trois ensembles disjoints.
 
-    Rend `{grimpes, credites}` :
+        grimpes      -- ses réussites réelles, SUR LES BLOCS DE SON CIRCUIT
+        credites     -- ce que la cascade lui ajoute, jamais grimpé
+        hors_circuit -- ses réussites réelles hors de son circuit, sans valeur
+                        au classement. Un juge a forcé l'avertissement de la
+                        spec 019 : la réussite est bien enregistrée, elle ne
+                        compte simplement pas.
 
-    - `grimpes` — ses réussites réelles **sur les blocs de son circuit** ;
-    - `credites` — ce que la cascade lui ajoute, jamais hors de son circuit.
+    ⚠️ **Les trois sont disjoints par construction, pas par convention.**
+    `credites` est l'étendu MOINS le brut, donc jamais un bloc de `grimpes` ;
+    `hors_circuit` est le brut MOINS les blocs du circuit, donc jamais un bloc
+    des deux autres. La fiche du grimpeur (spec 026) peint l'union des deux
+    premiers : si un identifiant tombait dans deux ensembles, elle afficherait
+    le même bloc deux fois, dans deux états contraires.
 
-    ⚠️ **Les deux ensembles sont disjoints par construction**, et c'est une
-    garantie de contrat : `credites` est l'étendu MOINS le brut. La fiche du
-    grimpeur (spec 026) peint `grimpes | credites` et afficherait deux fois le
-    même bloc s'ils se recouvraient.
+    ⚠️ **C'est le SEUL accesseur, et il ne doit pas être recopié.** L'extension
+    par couleur se calcule à l'intérieur du classement, groupe par groupe, et
+    n'est stockée nulle part : la recalculer ailleurs créerait deux chemins vers
+    la même vérité. Les réussites viennent de `charger()`, comme le classement,
+    pour la même raison.
 
-    ⚠️ Ce que cet accesseur ne rend PAS, et pourquoi : les réussites **hors
-    circuit** — un juge a forcé l'avertissement de la spec 019 — et l'heure des
-    réussites. Les deux ont existé ici le 02/09, pour la fiche du grimpeur à
-    l'écran ; Adrien a fait retirer cet affichage le jour même, et un champ que
-    personne ne lit est un champ qui ment tôt ou tard. Le besoin, lui, reste
-    entier : une réussite hors circuit n'est visible nulle part pour la personne
-    concernée. À loger dans une prochaine spec, côté console — c'est là qu'un
-    organisateur peut agir.
+    La règle appliquée est celle de la **catégorie du grimpeur** (spec 025) :
+    c'est le même `cascade.pour()` que le classement, donc l'écran ne peut pas
+    montrer autre chose que ce qui est compté.
     """
-    _, blocs, _, _ = charger(comp)
+    _, blocs, reussites, _ = charger(comp)
     du_circuit = (blocs_du_circuit(blocs, participant.circuit)
                   if participant.circuit else set())
 
-    brutes = {
-        bloc_id for (bloc_id,) in
-        db.session.query(Success.bloc_id)
-        .filter(Success.participant_id == participant.id)
-        .all()
-    }
+    brutes = reussites.get(participant.id, set())
     grimpes = brutes & du_circuit
     etendues = _valider_par_couleur(
         grimpes, blocs, du_circuit, cascade(comp).pour(participant.categorie))
 
-    return {"grimpes": grimpes, "credites": etendues - grimpes}
+    return {
+        "grimpes": grimpes,
+        "credites": etendues - grimpes,
+        "hors_circuit": brutes - du_circuit,
+    }
 
 
 def ordre(classement):

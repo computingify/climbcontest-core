@@ -315,9 +315,9 @@ class TestOrdreDesClassements:
 class TestBlocsDuGrimpeur:
     """L'accesseur par grimpeur — spec 025 (F6), et contrat avec la spec 026.
 
-    ⚠️ **Les deux ensembles sont disjoints par construction**, et la fiche du
-    grimpeur en dépend : elle peint `grimpes | credites` et afficherait deux
-    fois le même bloc s'ils se recouvraient.
+    ⚠️ **Les trois ensembles sont disjoints par construction**, et la fiche du
+    grimpeur (spec 026) en dépend : elle peint `grimpes | credites` et
+    afficherait deux fois le même bloc s'ils se recouvraient.
     """
 
     def _regle_vert(self, comp):
@@ -342,23 +342,26 @@ class TestBlocsDuGrimpeur:
         assert d["grimpes"] == {vert.id}
         assert d["credites"] == {jaune.id}
 
-    def test_une_reussite_hors_circuit_ne_compte_dans_aucun_des_deux(self, app, jeu):
+    def test_une_reussite_hors_circuit_est_servie_a_part(self, app, jeu):
         """Un juge a force l'avertissement de la spec 019 : la reussite est bien
-        enregistree, elle ne compte simplement pas au classement — et elle n'est
-        donc ni grimpee (au sens du circuit) ni creditee."""
+        enregistree, elle ne compte simplement pas au classement. C'est le seul
+        endroit du systeme ou elle devient visible pour la personne concernee."""
         lea, dehors = jeu["participants"][0], jeu["blocs"][2]   # DV21, circuit U13
         enregistrer_reussite(lea, dehors, hors_circuit_force=True)
         d = classement_service.blocs_du_grimpeur(jeu["competition"], lea)
+        assert d["hors_circuit"] == {dehors.id}
         assert d["grimpes"] == set()
         assert d["credites"] == set()
 
-    def test_les_deux_ensembles_sont_disjoints(self, app, jeu):
+    def test_les_trois_ensembles_sont_disjoints(self, app, jeu):
         lea = jeu["participants"][0]
         enregistrer_reussite(lea, jeu["blocs"][1])
         enregistrer_reussite(lea, jeu["blocs"][2], hors_circuit_force=True)
         self._regle_vert(jeu["competition"])
         d = classement_service.blocs_du_grimpeur(jeu["competition"], lea)
         assert d["grimpes"] & d["credites"] == set()
+        assert d["grimpes"] & d["hors_circuit"] == set()
+        assert d["credites"] & d["hors_circuit"] == set()
 
     def test_une_categorie_eteinte_ne_credite_rien(self, app, jeu):
         lea = jeu["participants"][0]

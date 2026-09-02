@@ -1065,6 +1065,13 @@ import { selectionDuPodium, marchesDuPodium }
     }
 
     el.titre.textContent = titreTexte;
+    // ⚠️ Un signe sans légende est pire que pas de signe. La colonne « Blocs »
+    // disparaît en densité 4 — le téléphone en deux lignes — et une infobulle
+    // ne s'atteint ni au doigt ni sur un mur. La légende vit donc ici, et
+    // seulement quand il y a vraiment des blocs crédités.
+    if (lignes.some(function (l) { return l.credites; })) {
+      compteTexte += " · * blocs crédités par la cascade de couleurs";
+    }
     el.compte.textContent = compteTexte;
     majSuivant();
 
@@ -1263,14 +1270,15 @@ import { selectionDuPodium, marchesDuPodium }
     // podium n'a plus ni l'une ni l'autre.
     var blocs = n.querySelector(".blocs");
     if (blocs) {
-      blocs.textContent = l.blocs;            // l'en-tête dit déjà « Blocs »
       // ⚠️ Avec la cascade de couleurs (spec 025), ce nombre compte des blocs
       // que le grimpeur n'a PAS grimpés : réussir toute une couleur en valide
       // d'autres. Un astérisque le dit — la place manque pour la phrase, mais
       // « 36 blocs » sans rien serait faux devant quelqu'un qui l'a vu grimper.
       // Absent quand la cascade est éteinte, ce qui est le défaut.
+      // L'infobulle ne s'atteint ni au doigt ni au vidéoprojecteur : c'est la
+      // ligne de comptage, sous le titre, qui porte la légende de l'astérisque.
+      blocs.textContent = l.blocs + (l.credites ? "*" : "");
       if (l.credites) {
-        blocs.textContent = l.blocs + "*";
         blocs.title = (l.blocs - l.credites) + " grimpé"
           + (l.blocs - l.credites > 1 ? "s" : "") + " · " + l.credites
           + " crédité" + (l.credites > 1 ? "s" : "") + " par la cascade de couleurs";
