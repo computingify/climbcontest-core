@@ -127,7 +127,12 @@ club a un mur ; le jour où il en aura deux, ce sera une autre spec.
 - [ ] **A6** — Aucun trait n'est rogné par le bord du dessin.
 - [ ] **A7** — Une zone « sienne » garde sa trame de profil lisible.
 - [ ] **A8** — Un bloc dans une zone absente du plan alimente `hors_plan`.
-- [ ] **A9** — Le dossard n'utilise **aucune** couleur.
+- [ ] **A9** — Le dossard n'utilise **aucune couleur porteuse de sens** :
+  sa palette est faite de gris chauds (`#EFECE6` … `#8D8473`), qui deviennent
+  une échelle de gris à l'impression noir et blanc. Le critère disait
+  « aucune couleur », ce qui est faux au sens strict — ces gris sont
+  chromatiques. Ce qui compte, et qui est tenu : **rien de ce que le
+  dossard doit dire ne dépend de la teinte**.
 - [ ] **A10** — Les 120 fiches tiennent toujours sur 20 feuilles : le SVG ne
   change pas la hauteur utile.
 - [ ] **A11** — Aucune ressource extérieure dans la page.

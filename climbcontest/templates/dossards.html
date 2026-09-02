@@ -327,6 +327,11 @@
       {% endfor %}
     </div>
 
+    {#- ⚠️ Un plan VIDE ne laisse pas un cadre vide. Les deux specs le
+        demandent, et la colonne se rendait quand meme : trente-sept
+        millimetres de titre et de filet, sans un trait dedans, sur cent vingt
+        fiches. -#}
+    {% if f.plan.murs or f.plan.reperes or f.plan.contour %}
     <div class="mur">
       <h2>Le mur</h2>
       <svg class="plan" viewBox="{{ f.plan.cadrage }}"
@@ -363,6 +368,7 @@
       <p class="hors-plan">Hors plan : zone {{ f.hors_plan|join(", ") }}.</p>
       {% endif %}
     </div>
+    {% endif %}
   </article>
   {% endfor %}
 </div>

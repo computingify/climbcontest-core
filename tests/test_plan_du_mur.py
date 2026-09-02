@@ -279,3 +279,167 @@ class TestLePlanVoyageAvecLeCatalogue:
         r = connecte_orga.post("/admin/plan", json=_plan())
         assert r.status_code == 200
         assert [m["zone"] for m in fiches.plan_courant()["murs"]] == ["A"]
+
+
+class TestLesQuatreCheminsDeCoordonneesSontBornes:
+    """⚠️ Seuls les points de MUR étaient bornés. L'étiquette, le point d'un
+    repère et le contour ne voyaient que « c'est un nombre ».
+
+    Le contour hors vue est atteignable par le RECOLLAGE, que la spec 029 §3
+    documente comme le chemin de retour arrière : il partait tel quel dans le
+    catalogue, où un rendu à l'échelle écrase toute la salle en un point.
+    """
+
+    def test_une_etiquette_hors_de_la_vue(self):
+        with pytest.raises(plan_du_mur.PlanInvalide, match="étiquette"):
+            plan_du_mur.valider(_plan(murs=[{
+                "zone": "A", "profil": "vertical",
+                "points": [[0, 0], [10, 0], [10, 10]], "etiquette": [500, 500]}]))
+
+    def test_un_repere_hors_de_la_vue(self):
+        with pytest.raises(plan_du_mur.PlanInvalide, match="Sortie"):
+            plan_du_mur.valider(_plan(reperes=[{"texte": "Sortie",
+                                                "point": [99999, 0]}]))
+
+    def test_un_contour_hors_de_la_vue(self):
+        with pytest.raises(plan_du_mur.PlanInvalide, match="contour"):
+            plan_du_mur.valider(_plan(contour=[[0, 0], [99999, 0], [0, 88888]]))
+
+    def test_un_contour_de_quatre_cents_points(self):
+        with pytest.raises(plan_du_mur.PlanInvalide, match="maximum"):
+            plan_du_mur.valider(_plan(contour=[[1, 1]] * 400))
+
+
+class TestLeNonFiniNeDoitJamaisPasser:
+    """⚠️ Le cas le plus grave trouvé en relecture, et il ne touche PAS que le
+    plan.
+
+    `json.loads` accepte `NaN` et `Infinity` par défaut, `json.dumps` les
+    réécrit tels quels. Un seul `NaN` rendait le CATALOGUE ENTIER illisible
+    pour un analyseur strict : le téléphone du juge ne perdait pas le plan, il
+    perdait la synchronisation des participants, des blocs et des circuits —
+    en silence.
+    """
+
+    @pytest.mark.parametrize("valeur", [float("nan"), float("inf"), float("-inf")])
+    def test_dans_un_point_de_mur(self, valeur):
+        with pytest.raises(plan_du_mur.PlanInvalide):
+            plan_du_mur.valider(_plan(murs=[{
+                "zone": "A", "profil": "vertical",
+                "points": [[0, 0], [valeur, 0], [10, 10]], "etiquette": None}]))
+
+    def test_dans_une_etiquette(self):
+        with pytest.raises(plan_du_mur.PlanInvalide):
+            plan_du_mur.valider(_plan(murs=[{
+                "zone": "A", "profil": "vertical",
+                "points": [[0, 0], [10, 0], [10, 10]],
+                "etiquette": [float("nan"), 1]}]))
+
+    def test_le_catalogue_reste_lisible_par_un_analyseur_strict(self, connecte_orga, jeu):
+        """Le test qui compte : ce n'est pas le plan qu'on protège, c'est tout
+        ce qui voyage avec lui."""
+        connecte_orga.post("/admin/plan", json=_plan())
+        brut = connecte_orga.get("/api/v2/catalog").data.decode()
+
+        def refuse(constante):
+            raise AssertionError(f"le catalogue porte « {constante} » : "
+                                 "un analyseur strict le rejettera en entier")
+
+        json.loads(brut, parse_constant=refuse)
+
+
+class TestLesBornesAnnonceesParLaSpec:
+    """Chaque ligne du tableau F5 de la spec 029, éprouvée."""
+
+    def test_plus_de_cinquante_reperes(self):
+        un = {"texte": "R", "point": [1, 1]}
+        with pytest.raises(plan_du_mur.PlanInvalide, match="maximum"):
+            plan_du_mur.valider(_plan(reperes=[un] * (plan_du_mur.REPERES_MAXI + 1)))
+
+    def test_plus_de_soixante_points_sur_un_mur(self):
+        with pytest.raises(plan_du_mur.PlanInvalide, match="points"):
+            plan_du_mur.valider(_plan(murs=[{
+                "zone": "A", "profil": "vertical",
+                "points": [[1, 1]] * (plan_du_mur.POINTS_MAXI + 1),
+                "etiquette": None}]))
+
+    def test_un_texte_de_repere_trop_long_est_tronque(self):
+        propre = plan_du_mur.valider(_plan(reperes=[
+            {"texte": "S" * 80, "point": [1, 1]}]))
+        assert len(propre["reperes"][0]["texte"]) == plan_du_mur.TEXTE_MAXI
+
+    def test_un_document_trop_gros_repond_413(self, connecte_orga, app):
+        """⚠️ La spec promet 413, pas 400 — et le contrôle doit venir AVANT
+        l'analyse : le vérifier après `valider()` faisait construire quatre
+        cent mille tuples avant de refuser."""
+        enorme = _plan(reperes=[{"texte": "S", "point": [1, 1]}] * 20000)
+        r = connecte_orga.post("/admin/plan", json=enorme)
+        assert r.status_code == 413
+
+
+class TestLesRolesEtLesReparationsSontVisibles:
+
+    def test_un_role_insuffisant_est_refuse(self, client, app):
+        """A2 ne testait que l'anonyme.
+
+        ⚠️ Le dépôt n'a que deux rôles, et `organisateur` est le plus bas :
+        le 403 n'est atteignable que par un compte SANS rôle — celui qu'on a
+        créé puis dont on a retiré les droits. C'est exactement le cas que
+        `test_audit_novembre` protège pour le réimport, et il vaut ici aussi :
+        dessiner le mur réécrit ce que cent vingt dossards vont porter.
+        """
+        from werkzeug.security import generate_password_hash
+
+        from climbcontest.models import Utilisateur
+
+        app.config["SECRET_KEY"] = "une-vraie-cle-de-test-suffisamment-longue"
+        # Fabriqué EN BASE : l'API de comptes refuse un compte sans rôle
+        # (« ne sert à rien »), et c'est précisément pour ça que ce test est de
+        # la défense en profondeur — même un compte apparu par un chemin
+        # imprévu ne doit pas pouvoir redessiner le mur.
+        db.session.add(Utilisateur(identifiant="sans_droit",
+                                   mot_de_passe_hache=generate_password_hash(MDP),
+                                   actif=True))
+        db.session.commit()
+        client.post("/admin/connexion", json={"identifiant": "sans_droit",
+                                              "mot_de_passe": MDP})
+        assert client.get("/admin/plan").status_code == 403
+        assert client.post("/admin/plan", json=_plan()).status_code == 403
+        assert client.delete("/admin/plan").status_code == 403
+
+    def test_l_enregistrement_renvoie_le_plan_TEL_QU_IL_A_ETE_RANGE(
+            self, connecte_orga, app):
+        """⚠️ Le serveur répare en silence. La page affirmait ensuite « le plan
+        enregistré est celui affiché » : recoller « abcd » laissait « abcd » à
+        l'écran quand le dossard imprimait « ABC »."""
+        r = connecte_orga.post("/admin/plan", json=_plan(murs=[{
+            "zone": "abcd", "profil": "trampoline",
+            "points": [[0, 0], [10, 0], [10, 10]], "etiquette": None}]))
+        assert r.status_code == 200
+        rendu = r.get_json()["plan"]
+        assert rendu["murs"][0]["zone"] == "ABC"
+        assert rendu["murs"][0]["profil"] == "vertical"
+
+    def test_le_retour_a_l_usine_renvoie_le_plan_d_usine(self, connecte_orga, app):
+        """Sans ça, la page réaffichait le plan qu'elle venait de supprimer."""
+        connecte_orga.post("/admin/plan", json=_plan())
+        rendu = connecte_orga.delete("/admin/plan").get_json()["plan"]
+        assert len(rendu["murs"]) == len(fiches.PLAN["murs"])
+
+
+class TestUnPlanVideNeLaissePasUnCadreVide:
+    """Les deux specs le demandent (028 §5, 029 §5) et la colonne se rendait
+    quand même : trente-sept millimètres de titre et de filet, sans un trait
+    dedans, sur cent vingt fiches."""
+
+    def test_la_colonne_disparait(self, connecte_orga, jeu):
+        connecte_orga.post("/admin/plan", json=_plan(murs=[], reperes=[]))
+        page = connecte_orga.get("/admin/dossards").data.decode()
+        assert 'class="mur"' not in page
+        assert "Le mur" not in page
+
+    def test_elle_reste_des_qu_il_y_a_quelque_chose_a_montrer(
+            self, connecte_orga, jeu):
+        connecte_orga.post("/admin/plan", json=_plan(murs=[]))
+        page = connecte_orga.get("/admin/dossards").data.decode()
+        assert 'class="mur"' in page, "un repère seul mérite encore le plan"

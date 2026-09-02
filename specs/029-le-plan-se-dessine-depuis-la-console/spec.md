@@ -51,9 +51,17 @@ parce qu'une ligne de base est abîmée.
 
 ### F3 — Une page de console, pas un fichier à ouvrir
 
-`GET /admin/plan`, réservée à un organisateur, atteignable depuis
-**Compétition → Le mur**. Elle sert la planche de dessin — la même que
-`tools/plan-du-mur/`, à trois différences près :
+`GET /admin/plan`, réservée à un organisateur, atteignable depuis une carte
+**« Le plan de la salle »** dans la vue **Circuits**.
+
+> Cette section annonçait « Compétition → Le mur », et aucune entrée de menu de
+> ce nom n'a été créée. La carte a été posée dans **Circuits**, à côté des
+> étiquettes de blocs et de l'impression des dossards — c'est-à-dire avec le
+> reste du papier qu'on prépare. Le placement est meilleur ; c'est la spec qui
+> est corrigée, pas le code rattrapé en douce.
+
+Elle sert la planche de dessin — la même que `tools/plan-du-mur/`, à trois
+différences près :
 
 1. elle **charge le plan courant** au lieu du dernier dessin du navigateur ;
 2. elle porte un bouton **« Enregistrer dans ClimbContest »** ;

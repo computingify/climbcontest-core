@@ -474,21 +474,31 @@ def page_plan():
     prevu une page dans la console qui permet de lancer l'outil [...] et
     d'injecter ce nouveau plan via un bouton ? Sinon il faut le faire. »
     """
-    return render_template("plan.html",
-                           plan=fiches.plan_courant(),
-                           profils=fiches.PROFILS,
-                           usine=fiches.plan_courant() is fiches.PLAN)
+    # Une seule lecture : la PR a justement ajoute un test de budget de
+    # requetes pour ce motif, il aurait ete malvenu de le trahir ici.
+    plan = fiches.plan_courant()
+    return render_template("plan.html", plan=plan, profils=fiches.PROFILS,
+                           usine=plan is fiches.PLAN)
 
 
 @bp.post("/plan")
 @exige_role(ORGANISATEUR)
 def plan_enregistrer():
     """{"vue": [l, h], "murs": [...], "reperes": [...], "contour": [...] | null}"""
+    from .. import plan_du_mur
+
+    # ⚠️ La taille se controle AVANT d'analyser quoi que ce soit. La verifier
+    # apres `valider()` et `json.dumps()` faisait construire quatre cent mille
+    # tuples et serialiser le document avant de le refuser -- et rendait 400 la
+    # ou la spec 029 F5 promet un 413.
+    if (request.content_length or 0) > plan_du_mur.TAILLE_MAXI:
+        return jsonify({"success": False,
+                        "message": "Le plan dépasse la taille maximale."}), 413
+
     corps = _corps_objet()
     if corps is None:
         return jsonify({"success": False, "message": "Corps JSON attendu"}), 400
 
-    from .. import plan_du_mur
     try:
         propre = plan_du_mur.ecrire(corps, par=getattr(utilisateur_courant(), "identifiant", None))
     except plan_du_mur.PlanInvalide as e:
@@ -499,6 +509,13 @@ def plan_enregistrer():
     zones = sum(1 for m in propre["murs"] if m["zone"])
     return jsonify({
         "success": True,
+        # ⚠️ On renvoie le plan TEL QU'IL A ETE RANGE. Le serveur repare en
+        # silence -- zone mise en capitales et tronquee a trois, texte de
+        # repere a vingt-quatre, profil inconnu replie -- et la page affirmait
+        # ensuite « le plan enregistre est celui affiche ». Recoller un bloc
+        # portant « abcd » laissait « abcd » a l'ecran quand le dossard
+        # imprimait « ABC ».
+        "plan": propre,
         "murs": len(propre["murs"]),
         "zones": zones,
         "reperes": len(propre["reperes"]),
@@ -516,6 +533,9 @@ def plan_effacer():
     efface = plan_du_mur.effacer()
     return jsonify({
         "success": True,
+        # Le plan d'usine, pour que la page reprenne CE qu'elle vient de
+        # retablir et non ce qu'elle avait charge au depart.
+        "plan": fiches.PLAN,
         "efface": efface,
         "message": ("Retour au plan d'usine." if efface
                     else "Aucun plan enregistré : c'est déjà le plan d'usine."),

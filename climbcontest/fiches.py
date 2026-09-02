@@ -71,6 +71,21 @@ MARGE_PLAN = 1.0
 LETTRE_MAXI = 9.0
 LETTRE_MINI = 3.5        # 1,06 mm sur la colonne de 37 mm : le plancher lisible
 
+# ⚠️ La largeur d'une capitale, en fraction de sa taille. C'est la largeur du
+# PIRE glyphe, pas la moyenne.
+#
+# La première version prenait 0,62 -- la moyenne d'une capitale condensée
+# grasse. Mesuré au navigateur sur la boîte réelle d'un mur de quinze unités,
+# avec la police effectivement servie et le halo compris : ONZE combinaisons de
+# deux caractères sur trente-neuf débordaient, « NM » de 2,6 unités, soit
+# 0,39 mm de chaque côté. « M », « N » et « W » crèvent la moyenne.
+#
+# Une moyenne ne borne rien. 0,85 borne. Le relevé d'Annonay n'a que des
+# lettres seules et son rendu ne change pas d'un pixel -- le plafond de
+# `LETTRE_MAXI` mord avant. Mais depuis la spec 029 le nom de zone est de la
+# donnée saisie : « M2 » arrivera.
+LARGEUR_CAPITALE = 0.85
+
 
 # Le mur de bloc d'Annonay, relevé par Adrien le 02/09/2026 avec
 # la planche de la console (`/admin/plan`, spec 029). C'est la salle, pas une
@@ -137,13 +152,16 @@ ZONES_DU_PLAN = frozenset(
     m["zone"] for m in PLAN["murs"] if m["zone"])
 
 
-def zones_du_plan() -> frozenset[str]:
+def zones_du_plan(plan: dict | None = None) -> frozenset[str]:
     """Les zones dessinées par le plan qui s'applique.
 
     Déduit du plan, jamais recopié : deux listes qui divergeraient feraient
     disparaître une zone du message « hors plan » sans rien casser visiblement.
+
+    `plan` se passe quand l'appelant l'a déjà lu — c'est le cas de `construire`,
+    qui rend jusqu'à cent vingt fiches et ne doit lire la base qu'une fois.
     """
-    return frozenset(m["zone"] for m in plan_courant()["murs"] if m["zone"])
+    return frozenset(m["zone"] for m in (plan or plan_courant())["murs"] if m["zone"])
 
 
 def _cadre(points) -> tuple[float, float, float, float]:
@@ -180,13 +198,14 @@ def _centroide(points) -> tuple[float, float]:
 def taille_lettre(points, texte: str) -> float:
     """La taille de la lettre, ajustée à la boîte du mur.
 
-    Une capitale condensée grasse occupe environ 0,62 fois sa taille en largeur
-    et 0,72 en hauteur ; on ne remplit la boîte qu'à 80 % en largeur pour
-    laisser respirer le halo.
+    On ne remplit la boîte qu'à 80 % en largeur, pour laisser respirer le halo,
+    et la largeur d'une capitale est prise à `LARGEUR_CAPITALE` — celle du PIRE
+    glyphe, pas la moyenne. Voir le commentaire de cette constante : une
+    moyenne ne borne rien.
     """
     x0, y0, x1, y1 = _cadre(points)
     n = max(1, len(texte))
-    largeur = (x1 - x0) * 0.8 / (n * 0.62) if x1 > x0 else LETTRE_MAXI
+    largeur = ((x1 - x0) * 0.8 / (n * LARGEUR_CAPITALE)) if x1 > x0 else LETTRE_MAXI
     hauteur = (y1 - y0) * 0.97 if y1 > y0 else LETTRE_MAXI
     return max(LETTRE_MINI, min(LETTRE_MAXI, largeur, hauteur))
 
@@ -420,7 +439,7 @@ def construire(comp, participants) -> list[dict]:
     # Une seule lecture du plan pour toute la planche : `construire` sert
     # jusqu'a cent vingt fiches, et le plan ne change pas entre deux.
     plan = plan_courant()
-    dessinees = frozenset(m["zone"] for m in plan["murs"] if m["zone"])
+    dessinees = zones_du_plan(plan)
 
     planche = []
     for p in participants:

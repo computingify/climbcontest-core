@@ -16,6 +16,7 @@ D'où deux règles qui gouvernent tout ce module :
 
 import json
 import logging
+import math
 
 from .extensions import db
 from .models import Reglage
@@ -29,6 +30,7 @@ CLE = "plan_du_mur"
 MURS_MAXI = 200
 REPERES_MAXI = 50
 POINTS_MINI, POINTS_MAXI = 3, 60
+CONTOUR_MAXI = 60               # même plafond qu'un mur : c'est un polygone aussi
 VUE_MINI, VUE_MAXI = 40, 400
 ZONE_MAXI = 3
 TEXTE_MAXI = 24
@@ -40,8 +42,16 @@ class PlanInvalide(ValueError):
 
 
 def _nombre(v, quoi):
-    if isinstance(v, bool) or not isinstance(v, (int, float)):
-        raise PlanInvalide(f"{quoi} : « {v} » n'est pas un nombre")
+    """⚠️ `math.isfinite` n'est pas une coquetterie.
+
+    `json.loads` accepte `NaN` et `Infinity` par défaut, et `json.dumps` les
+    réécrit tels quels. Un seul `NaN` dans le plan rendait le CATALOGUE ENTIER
+    illisible pour un analyseur strict — kotlinx.serialization, Moshi,
+    `JSON.parse`. Le téléphone du juge ne perdait pas le plan : il perdait la
+    synchronisation des participants, des blocs et des circuits, en silence.
+    """
+    if isinstance(v, bool) or not isinstance(v, (int, float)) or not math.isfinite(v):
+        raise PlanInvalide(f"{quoi} : « {v} » n'est pas un nombre utilisable")
     return round(float(v), 2)
 
 
@@ -49,6 +59,24 @@ def _point(p, quoi):
     if not isinstance(p, (list, tuple)) or len(p) != 2:
         raise PlanInvalide(f"{quoi} : un point s'écrit avec deux nombres")
     return (_nombre(p[0], quoi), _nombre(p[1], quoi))
+
+
+def _dans_la_vue(p, largeur, hauteur, quoi):
+    """Un point, borné au dessin.
+
+    ⚠️ Les QUATRE chemins de coordonnées passent par ici. Seuls les points de
+    mur étaient bornés : l'étiquette, le point d'un repère et le contour ne
+    voyaient que « c'est un nombre ». Un contour à 99 999 — atteignable en
+    recollant un bloc, le chemin de retour arrière que la spec documente —
+    partait tel quel dans le catalogue, où un rendu à l'échelle écrase toute la
+    salle en un point.
+    """
+    x, y = _point(p, quoi)
+    if not (0 <= x <= largeur and 0 <= y <= hauteur):
+        raise PlanInvalide(
+            f"{quoi} sort du dessin : ({x:g}, {y:g}) hors de "
+            f"{largeur:g} × {hauteur:g}")
+    return (x, y)
 
 
 def valider(brut: dict) -> dict:
@@ -88,12 +116,7 @@ def valider(brut: dict) -> dict:
             raise PlanInvalide(
                 f"{quoi} a {len(points)} points ; il en faut entre "
                 f"{POINTS_MINI} et {POINTS_MAXI}")
-        propres = [_point(p, quoi) for p in points]
-        for x, y in propres:
-            if not (0 <= x <= largeur and 0 <= y <= hauteur):
-                raise PlanInvalide(
-                    f"{quoi} sort du dessin : ({x:g}, {y:g}) hors de "
-                    f"{largeur:g} × {hauteur:g}")
+        propres = [_dans_la_vue(p, largeur, hauteur, quoi) for p in points]
 
         # ⚠️ Un profil inconnu ne fait PAS échouer l'enregistrement : il se
         # replie. Un plan par ailleurs bon ne doit pas être perdu pour un mot.
@@ -109,7 +132,9 @@ def valider(brut: dict) -> dict:
             "zone": zone,
             "profil": profil,
             "points": tuple(propres),
-            "etiquette": _point(etiquette, quoi) if etiquette else None,
+            "etiquette": (_dans_la_vue(etiquette, largeur, hauteur,
+                                       f"l'étiquette de {quoi}")
+                          if etiquette else None),
         })
 
     reperes_bruts = brut.get("reperes") or []
@@ -126,14 +151,21 @@ def valider(brut: dict) -> dict:
         texte = str(r.get("texte") or "").strip()[:TEXTE_MAXI]
         if not texte:
             continue                      # un repère sans mot ne dit rien
-        reperes.append({"texte": texte,
-                        "point": _point(r.get("point"), f"le repère « {texte} »")})
+        reperes.append({
+            "texte": texte,
+            "point": _dans_la_vue(r.get("point"), largeur, hauteur,
+                                  f"le repère « {texte} »"),
+        })
 
     contour = brut.get("contour")
     if contour is not None:
         if not isinstance(contour, (list, tuple)) or len(contour) < POINTS_MINI:
             raise PlanInvalide("le contour doit porter au moins trois points")
-        contour = tuple(_point(p, "le contour") for p in contour)
+        if len(contour) > CONTOUR_MAXI:
+            raise PlanInvalide(
+                f"le contour a {len(contour)} points ; le maximum est {CONTOUR_MAXI}")
+        contour = tuple(_dans_la_vue(p, largeur, hauteur, "le contour")
+                        for p in contour)
 
     return {"vue": (largeur, hauteur), "contour": contour,
             "murs": tuple(murs), "reperes": tuple(reperes)}
@@ -165,6 +197,11 @@ def lire():
     """
     try:
         ligne = db.session.get(Reglage, CLE)
+    except RuntimeError:
+        # Hors contexte applicatif : ce n'est pas une panne, c'est un appel
+        # depuis un test unitaire ou un script. On se tait -- une trace
+        # d'exception ici faisait passer un cas normal pour un incident.
+        return None
     except Exception:                                    # base indisponible
         logger.exception("plan : lecture impossible, repli sur le plan d'usine")
         return None

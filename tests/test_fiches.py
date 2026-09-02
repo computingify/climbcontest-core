@@ -149,12 +149,33 @@ class TestLaLettreTientDansSonMur:
         plan = fiches.plan_pour(set())
         assert {m["taille"] for m in plan["murs"]} == {fiches.LETTRE_MAXI}
 
-    @pytest.mark.parametrize("texte", ["A", "A1", "Z12"])
-    def test_la_lettre_retrecit_avec_le_nombre_de_caracteres(self, texte):
+    @pytest.mark.parametrize("texte", ["A", "A1", "NM", "MK", "WW", "Z12", "MMM"])
+    def test_la_lettre_tient_dans_sa_boite_au_pire_glyphe(self, texte):
+        """⚠️ Ce test rejouait 0,62 -- la constante de l'implémentation --
+        contre elle-même : il valait « 12 ≤ 15 » quoi que fasse la police, et
+        ne pouvait pas tomber. Il est mesuré au navigateur qu'il mentait :
+        onze combinaisons de deux caractères sur trente-neuf débordaient.
+
+        Il borne désormais par la largeur du PIRE glyphe, celle que
+        l'implémentation utilise pour se protéger — et les cas éprouvés sont
+        ceux qui débordaient réellement : « NM », « MK », « WW ».
+        """
         carre = ((0, 0), (15, 0), (15, 15), (0, 15))
         taille = fiches.taille_lettre(carre, texte)
-        largeur_estimee = taille * 0.62 * len(texte)
-        assert largeur_estimee <= 15, f"« {texte} » deborde : {largeur_estimee:.1f}"
+        au_pire = taille * fiches.LARGEUR_CAPITALE * len(texte)
+        assert au_pire <= 15, f"« {texte} » deborde : {au_pire:.1f}"
+
+    def test_la_largeur_de_capitale_borne_au_lieu_de_moyenner(self):
+        """Une moyenne ne borne rien. Si quelqu'un ramène cette constante vers
+        la moyenne d'une capitale (~0,62) pour gagner en taille de police, ce
+        test le dira -- et le débordement reviendra sur du papier distribué."""
+        assert fiches.LARGEUR_CAPITALE >= 0.8
+
+    def test_le_releve_d_annonay_garde_sa_taille(self):
+        """Le correctif ne doit mordre que là où il le faut : les dix-sept
+        zones du club n'ont qu'une lettre, leur rendu est inchangé."""
+        plan = fiches.plan_pour(set(), fiches.PLAN)
+        assert {m["taille"] for m in plan["murs"]} == {fiches.LETTRE_MAXI}
 
     def test_un_mur_minuscule_garde_une_lettre_lisible(self):
         """Mieux vaut une lettre serrée qu'une lettre absente : le plancher
