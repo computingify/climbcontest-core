@@ -249,11 +249,40 @@ class TestLaRoute:
         assert page.count('class="feuille"') == 1
 
     def test_huit_par_page_et_la_geometrie_en_variables(self, page):
-        """198/2 en largeur, 285/4 en hauteur. Trois variables, ce qui a permis
-        de rendre trois densites et de choisir en les regardant."""
-        for valeur in ("--etiquette-largeur: 99mm", "--etiquette-hauteur: 71.25mm",
-                       "--qr: 40mm"):
+        """Des variables, ce qui a permis de rendre trois densites et de
+        choisir en les regardant."""
+        for valeur in ("--etiquette-largeur: 94mm", "--etiquette-hauteur: 68mm",
+                       "--feuille-hauteur: 272mm", "--qr: 42mm"):
             assert valeur in page, valeur
+
+    def test_la_feuille_est_plus_PETITE_que_la_page(self, page):
+        """⚠️ LE defaut du PDF du 02/09, et il n'avait aucun test.
+
+        La feuille faisait 198 x 285 mm sur une page utile de 198 x 285 : la
+        surface EXACTE. Sur une vraie imprimante, dont la zone imprimable est
+        plus petite, le moteur coupait chaque feuille en deux et posait la
+        derniere ligne de la rangee du bas -- « U11 · U13 · U15 » -- seule sur
+        la page suivante. Sept feuilles sortaient en quatorze pages.
+
+        Ce test tient l'INVARIANT, pas les nombres.
+        """
+        import re
+
+        def mm(nom):
+            trouve = re.search(nom + r":\s*([0-9.]+)mm", page)
+            assert trouve, nom
+            return float(trouve.group(1))
+
+        marge = mm("@page \{ size: A4 portrait; margin")
+        utile_h, utile_l = 297 - 2 * marge, 210 - 2 * marge
+        assert mm("--feuille-hauteur") <= utile_h - 2, "pas de marge en hauteur"
+        assert mm("--feuille-largeur") <= utile_l - 1, "pas de marge en largeur"
+        assert (mm("--etiquette-hauteur") * 4) <= mm("--feuille-hauteur")
+        assert (mm("--etiquette-largeur") * 2) <= mm("--feuille-largeur")
+
+    def test_la_feuille_elle_meme_est_insecable(self, page):
+        bloc = page.split("  .feuille {")[1].split("}")[0]
+        assert "break-inside: avoid" in bloc
 
     def test_la_disposition_est_horizontale(self, page):
         """QR a gauche, texte a droite. Une etiquette se colle au-dessus du
@@ -271,3 +300,89 @@ class TestLaRoute:
             connecte_orga.get("/admin/etiquettes?zone=D")
         assert "2 etiquette(s)" in caplog.text
         assert "orga" in caplog.text
+
+
+class TestLesCouleursSImpriment:
+    """⚠️ « Les impressions PDF ne sont que en noir et blanc » — Adrien, 02/09.
+
+    Ce n'etait ni son Mac ni la bibliotheque de QR. Un navigateur ne pose AUCUN
+    aplat de couleur a l'impression tant que « Graphismes d'arriere-plan » n'est
+    pas coche dans sa boite de dialogue — ce que personne ne coche. Les
+    pastilles de difficulte, qui sont des `background`, sortaient donc en ronds
+    VIDES. `print-color-adjust: exact` est la seule chose qui le change, et rien
+    dans le depot ne la portait.
+    """
+
+    @pytest.fixture()
+    def page(self, connecte_orga, salle):
+        return connecte_orga.get("/admin/etiquettes").data.decode()
+
+    def test_le_gabarit_force_l_impression_des_aplats(self, page):
+        assert "-webkit-print-color-adjust: exact" in page, (
+            "le prefixe reste necessaire : Safari ne connait que celui-la")
+        assert "print-color-adjust: exact" in page
+
+    def test_les_six_teintes_de_difficulte_sont_bien_la(self, page):
+        """Sans elles, la regle ci-dessus ne colorerait rien."""
+        for teinte in ("#F2C230", "#3FA45B", "#3A7BD5",
+                       "#8E5FBF", "#D0342C", "#222"):
+            assert teinte in page, teinte
+
+
+class TestLEtiquetteRemplitSonPapier:
+    """« Il faut que ces étiquettes soient plus grosses car tu laisses beaucoup
+    trop de blanc autour ; on a presque 2 cm entre le texte et le trait de
+    découpage » — Adrien, 02/09.
+
+    Mesure faite dans le navigateur sur la planche d'origine : 15,8 mm de vide
+    sous le texte, et autant à sa droite. Le papier était le même, la
+    lisibilité à deux mètres non.
+    """
+
+    @pytest.fixture()
+    def page(self, connecte_orga, salle):
+        return connecte_orga.get("/admin/etiquettes").data.decode()
+
+    def test_le_texte_a_grossi_partout(self, page):
+        """Les quatre lignes, pas seulement une : c'est leur somme qui remplit
+        la hauteur."""
+        for regle in (".zone-du-bloc {", ".difficulte {", ".prises {",
+                      ".circuits {"):
+            bloc = page.split(regle)[1].split("}")[0]
+            taille = float(re.search(r"font-size: ([0-9.]+)mm", bloc).group(1))
+            assert taille >= 4.0, (regle, taille)
+
+    def test_la_pastille_suit_le_texte(self, page):
+        bloc = page.split("  .pastille {")[1].split("}")[0]
+        assert float(re.search(r"width: ([0-9.]+)mm", bloc).group(1)) >= 4.0
+
+    def test_la_taille_du_numero_vient_du_serveur(self, page):
+        """⚠️ Une taille fixe ne pouvait pas convenir aux deux : « J6 » a de la
+        place pour 26 mm, « J32 » n'en a que pour 19,5. La colonne de texte fait
+        42 mm — le CSS ne sait pas compter les caractères, le serveur si."""
+        assert "font-size: var(--taille, 22mm)" in page
+        assert "--taille:" in page
+
+    def test_le_numero_tient_dans_sa_colonne(self):
+        """La propriété qui compte, sur toutes les longueurs plausibles."""
+        for texte in ("J6", "V21", "J32", "M100", "B1234"):
+            taille = fiches.taille_numero_mm(texte)
+            largeur = len(texte) * fiches.CHASSE_NUMERO * taille
+            assert largeur <= fiches.LARGEUR_NUMERO_MM + 0.01, (texte, largeur)
+            assert taille <= fiches.TAILLE_NUMERO_MAXI_MM
+
+    def test_un_numero_court_prend_toute_la_place_permise(self, page):
+        assert fiches.taille_numero_mm("J6") == fiches.TAILLE_NUMERO_MAXI_MM
+
+    def test_deux_numeros_de_meme_longueur_ont_la_meme_taille(self):
+        """Une planche dont les numéros dansent d'une étiquette à l'autre a
+        l'air bancale : la taille est arrondie, pas calculée au micron."""
+        assert fiches.taille_numero_mm("V21") == fiches.taille_numero_mm("J32")
+
+    def test_un_numero_vide_ne_fait_pas_exploser_l_impression(self):
+        assert fiches.taille_numero_mm("") == fiches.TAILLE_NUMERO_MAXI_MM
+        assert fiches.taille_numero_mm(None) == fiches.TAILLE_NUMERO_MAXI_MM
+
+    def test_la_planche_porte_la_taille_de_chaque_etiquette(self, salle):
+        planche = fiches.etiquettes(salle)
+        assert planche and all(e["taille_numero"] > 0 for e in planche)

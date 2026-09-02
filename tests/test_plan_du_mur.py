@@ -176,6 +176,26 @@ class TestLaRouteDeLaConsole:
         assert "PLAN_DU_SERVEUR" in page
         assert "Enregistrer dans ClimbContest" in page
 
+    def test_le_retour_a_la_console_mene_a_la_console(self, connecte_orga, client):
+        """⚠️ Le lien pointait sur `/admin`, et rendait « Not Found ».
+
+        `/admin` est le PREFIXE des routes JSON — `/admin/plan`,
+        `/admin/classeur`, `/admin/dossards` — et aucune ne repond a la racine
+        du prefixe. L'editeur du plan devenait un cul-de-sac : une fois dedans,
+        le seul retour etait le bouton du navigateur. Signale par Adrien le
+        02/09.
+
+        On ne se contente pas de comparer la chaine : on DEMANDE l'adresse au
+        serveur. C'est ce qui aurait attrape le defaut.
+        """
+        import re
+
+        page = connecte_orga.get("/admin/plan").data.decode()
+        liens = re.findall(r'<a class="faux-bouton" href="([^"]+)"', page)
+        assert liens, "plus de lien de retour vers la console"
+        for adresse in liens:
+            assert client.get(adresse).status_code == 200, adresse
+
     def test_la_page_n_appelle_rien_a_l_exterieur(self, connecte_orga):
         """La règle du dépôt : on imprime parfois la veille au soir, sans
         réseau. Une police Google suffirait à casser la page."""

@@ -365,12 +365,76 @@ def _groupes(blocs) -> list[dict]:
 # coherence DU CALCUL -- monotonie, cout d'une ligne, cout d'une marge -- mais
 # aucun test ne peut verifier que ces quatre nombres decrivent encore le CSS.
 # Seule une mesure au navigateur le dit.
-HAUTEUR_UTILE_MM = 58.3          # ce qui reste sous le titre « TES N BLOCS »
-HAUTEUR_LIGNE_MM = 7.3           # une ligne de cases
-HAUTEUR_LIGNE_SUP_MM = 8.0       # chaque ligne SUPPLEMENTAIRE (ligne + gouttiere)
+# ⚠️ REMESURE le 02/09, quand la fiche est passee de 66 a 62 mm de haut pour
+# que la feuille cesse de deborder de la page (voir l'entete de
+# `dossards.html`). Quatre millimetres de fiche en moins, quatre millimetres de
+# budget de blocs en moins.
+# Mesure du 02/09 sur le gabarit a 62 mm : `.blocs` fait 56,62 mm de haut,
+# dont 3,65 pour le titre et sa marge. Reste 52,98, arrondis a 52,9.
+HAUTEUR_UTILE_MM = 52.9          # ce qui reste sous le titre « TES N BLOCS »
 MARGE_GROUPE_MM = 1.2            # entre deux groupes de couleur
 
+# --- Et sa LARGEUR, qui manquait ---------------------------------------------
+#
+# ⚠️ Le calcul ne regardait que la hauteur. La largeur n'etait bornee par rien
+# du tout : `repeat(var(--cols), 1fr)` vaut `minmax(auto, 1fr)`, et une piste
+# de grille ne descend jamais sous la largeur du texte qu'elle contient. Neuf
+# colonnes de « M52 » dans soixante millimetres faisaient donc SOIXANTE-DIX
+# millimetres de grille, et les dernieres cases se peignaient PAR-DESSUS le
+# plan du mur. Mesure du 02/09 : les 120 fiches de la planche debordaient,
+# toutes, de 5,75 mm -- avant meme le changement de format.
+#
+# Le nombre de colonnes et la TAILLE DU TEXTE se choisissent donc ensemble :
+# moins de colonnes, c'est des cases plus larges et un texte plus gros, mais
+# plus de lignes ; et chaque ligne coute moins cher quand le texte est plus
+# petit. On garde le premier couple qui tient -- donc le plus gros texte.
+LARGEUR_BLOCS_MM = 59.8          # mesure : 59,8 mm dans une fiche de 138
+GOUTTIERE_CASE_MM = 0.5          # `gap` entre deux cases
+HABILLAGE_CASE_MM = 0.8          # remplissage + filets, de part et d'autre
+CHASSE_CASE = 0.82               # largeur d'un caractere du numero, en em
+
+TAILLE_CASE_MAXI_MM = 3.0        # la taille de reference, celle du gabarit
+TAILLE_CASE_MINI_MM = 2.0        # sous laquelle on ne descend pas : on prefere
+                                 # une fiche pleine a un numero illisible
+
+# La hauteur d'une ligne de cases se DEDUIT de la taille du texte, au lieu
+# d'etre une constante mesuree a 3 mm : 4,2 mm d'habillage (remplissage,
+# filets, ligne de zone) plus 1,05 fois la taille du texte. A 3 mm, la formule
+# rend 7,35 -- la valeur qui etait ecrite en dur.
+HAUTEUR_LIGNE_FIXE_MM = 4.2
+HAUTEUR_LIGNE_PAR_TAILLE = 1.05
+
 COLONNES_MINI, COLONNES_MAXI = 6, 12
+
+
+def taille_case_mm(colonnes: int, caracteres: int) -> float:
+    """La plus grande taille de numero qui tient dans une case, en mm.
+
+    `caracteres` est la longueur du PLUS LONG numero de la fiche : c'est lui
+    qui fixe la largeur de toutes les pistes, une grille a colonnes egales ne
+    connaissant qu'une largeur.
+    """
+    largeur_case = ((LARGEUR_BLOCS_MM - (colonnes - 1) * GOUTTIERE_CASE_MM)
+                    / colonnes)
+    utile = largeur_case - HABILLAGE_CASE_MM
+    if caracteres <= 0 or utile <= 0:
+        return TAILLE_CASE_MAXI_MM
+    tient = utile / (caracteres * CHASSE_CASE)
+    return max(TAILLE_CASE_MINI_MM,
+               min(TAILLE_CASE_MAXI_MM, int(tient * 20) / 20))
+
+
+def hauteur_ligne_mm(taille: float) -> float:
+    """La hauteur d'une ligne de cases, pour un numero de cette taille."""
+    return HAUTEUR_LIGNE_FIXE_MM + HAUTEUR_LIGNE_PAR_TAILLE * taille
+
+
+# Les deux valeurs mesurees d'origine, desormais DEDUITES de la formule a la
+# taille de reference : 4,2 + 1,05 x 3 = 7,35 (mesure : 7,3) et une ligne de
+# plus coute en outre sa gouttiere (mesure : 8,0). Elles restent nommees, parce
+# qu'elles disent le cout d'une ligne dans le cas ordinaire.
+HAUTEUR_LIGNE_MM = hauteur_ligne_mm(TAILLE_CASE_MAXI_MM)
+HAUTEUR_LIGNE_SUP_MM = HAUTEUR_LIGNE_MM + GOUTTIERE_CASE_MM
 
 # Combien de fiches par feuille, et combien d'etiquettes. Les deux DECOULENT de
 # la geometrie des gabarits : 2 colonnes x 3 lignes pour les fiches (A4
@@ -380,39 +444,91 @@ FICHES_PAR_FEUILLE = 6
 ETIQUETTES_PAR_FEUILLE = 8
 
 
-def hauteur_mm(tailles: list[int], colonnes: int) -> float:
+def hauteur_mm(tailles: list[int], colonnes: int,
+               taille_texte: float = TAILLE_CASE_MAXI_MM) -> float:
     """La hauteur qu'occuperaient ces groupes de blocs sur `colonnes` colonnes.
 
     Le nombre de LIGNES ne depend pas du nombre de blocs mais du nombre de
     COULEURS et du remplissage de chacune : une couleur de 22 blocs sur 8
     colonnes prend trois lignes a elle seule, et chaque groupe paie en plus sa
     marge.
+
+    `taille_texte` par defaut vaut la taille de reference du gabarit : appelee
+    sans elle, la fonction rend ce qu'elle rendait avant que la taille devienne
+    variable.
     """
+    ligne = hauteur_ligne_mm(taille_texte)
     total = 0.0
     for n in tailles:
         lignes = -(-n // colonnes)                            # ceil
-        total += HAUTEUR_LIGNE_MM + (lignes - 1) * HAUTEUR_LIGNE_SUP_MM
+        total += ligne + (lignes - 1) * (ligne + GOUTTIERE_CASE_MM)
     return total + MARGE_GROUPE_MM * max(0, len(tailles) - 1)
 
 
-def colonnes_qui_tiennent(groupes) -> int:
-    """Le nombre de colonnes le plus PETIT qui fait tenir tous les blocs.
+def mise_en_page_blocs(groupes) -> tuple[int, float]:
+    """Le couple (colonnes, taille du numero en mm) qui fait tenir la fiche.
 
-    ⚠️ C'est calcule ici et pas laisse au CSS. `auto-fit` choisit ses colonnes
-    d'apres la largeur disponible, sans rien savoir de la hauteur que ca
-    produira : quand un groupe passait sur deux lignes, la fiche debordait et
-    ses cadres chevauchaient la fiche voisine. Signale par Adrien le 02/09.
+    ⚠️ C'est calcule ici et pas laisse au CSS, POUR LES DEUX AXES.
 
-    Le plus petit nombre de colonnes qui tient donne les cases les PLUS
-    GRANDES -- donc les plus lisibles -- sans deborder.
+    En hauteur : `auto-fit` choisit ses colonnes d'apres la largeur disponible,
+    sans rien savoir du nombre de lignes que ca produira -- quand un groupe
+    passait sur deux lignes, la fiche debordait sur sa voisine (Adrien, 02/09).
+
+    En largeur : une piste `1fr` ne descend jamais sous la largeur de son
+    texte. Neuf colonnes de « M52 » faisaient soixante-dix millimetres de
+    grille dans une colonne de soixante, et les dernieres cases se peignaient
+    par-dessus le plan du mur -- sur les 120 fiches de la planche, mesure du
+    02/09. Le CSS seul ne peut pas arbitrer : lui n'a pas le droit de changer
+    la taille du texte, nous si.
+
+    On parcourt les colonnes du plus PETIT nombre au plus grand. Peu de
+    colonnes donne des cases larges et un gros texte, mais beaucoup de lignes ;
+    et une ligne coute moins cher quand le texte est plus petit. Le premier
+    couple qui tient en hauteur est donc celui qui garde le plus gros texte.
     """
     tailles = [len(g["blocs"]) for g in groupes if g["blocs"]]
     if not tailles:
-        return COLONNES_MINI
+        return COLONNES_MINI, TAILLE_CASE_MAXI_MM
+    plus_long = max((len(b["numero"]) for g in groupes for b in g["blocs"]),
+                    default=1)
+    dernier = (COLONNES_MAXI, taille_case_mm(COLONNES_MAXI, plus_long))
     for colonnes in range(COLONNES_MINI, COLONNES_MAXI + 1):
-        if hauteur_mm(tailles, colonnes) <= HAUTEUR_UTILE_MM:
-            return colonnes
-    return COLONNES_MAXI
+        taille = taille_case_mm(colonnes, plus_long)
+        if hauteur_mm(tailles, colonnes, taille) <= HAUTEUR_UTILE_MM:
+            return colonnes, taille
+    return dernier
+
+
+def colonnes_qui_tiennent(groupes) -> int:
+    """Le nombre de colonnes seul — voir `mise_en_page_blocs`."""
+    return mise_en_page_blocs(groupes)[0]
+
+
+# --- La taille du numero d'une etiquette, en millimetres ----------------------
+#
+# ⚠️ MESUREES DANS LE NAVIGATEUR, comme le budget de hauteur d'une fiche, et
+# pas estimees : la premiere version tablait sur 0,58 em par caractere, la
+# mesure en a donne 0,705, et « M40 » debordait de neuf millimetres.
+#
+# La colonne de texte fait 94 mm (l'etiquette) moins 6 (le remplissage) moins
+# 42 (le QR) moins 3 (la gouttiere) = 43 mm ; on en garde 42 pour l'arrondi.
+LARGEUR_NUMERO_MM = 42.0
+CHASSE_NUMERO = 0.72              # largeur d'un caractere, en em (mesure : 0,705)
+TAILLE_NUMERO_MAXI_MM = 26.0      # au-dela, le numero mange les autres lignes
+
+
+def taille_numero_mm(texte: str) -> float:
+    """La plus grande taille a laquelle ce numero tient dans sa colonne.
+
+    Arrondie au demi-millimetre inferieur : deux etiquettes voisines dont les
+    numeros font la meme longueur doivent avoir EXACTEMENT la meme taille,
+    sinon la planche a l'air bancale. Un texte vide rend le maximum.
+    """
+    n = len(texte or "")
+    if n <= 0:
+        return TAILLE_NUMERO_MAXI_MM
+    tient = LARGEUR_NUMERO_MM / (n * CHASSE_NUMERO)
+    return min(TAILLE_NUMERO_MAXI_MM, int(tient * 2) / 2)
 
 
 def en_feuilles(elements: list, par_feuille: int) -> list[list]:
@@ -461,6 +577,7 @@ def construire(comp, participants) -> list[dict]:
         zones = {b.zone for b in blocs if b.zone}
         groupes = _groupes(blocs)
 
+        colonnes, taille_case = mise_en_page_blocs(groupes)
         planche.append({
             "dossard": p.dossard,
             "nom": p.nom_complet,
@@ -470,7 +587,10 @@ def construire(comp, participants) -> list[dict]:
             "qr": qr.svg(p.dossard, cote_mm=COTE_QR_MM),
             "total": len(blocs),
             "groupes": groupes,
-            "colonnes": colonnes_qui_tiennent(groupes),
+            "colonnes": colonnes,
+            # La taille du numero d'un bloc suit le nombre de colonnes : voir
+            # `mise_en_page_blocs`. Elle part au gabarit comme `--case`.
+            "taille_case": taille_case,
             "plan": plan_pour(zones, plan),
             # Pour l'etiquette accessible du SVG : un lecteur d'ecran ne lit
             # pas un polygone, il lit le texte qu'on lui donne.
@@ -526,6 +646,8 @@ def etiquettes(comp, zone: str | None = None, tag: str | None = None) -> list[di
             "tag": bloc.tag,
             "zone": bloc.zone,
             "numero": numero(bloc),
+            # La taille du numero suit sa LONGUEUR : voir `taille_numero_mm`.
+            "taille_numero": taille_numero_mm(numero(bloc)),
             "couleur": bloc.couleur,
             "couleur_prises": bloc.couleur_prises,
             "circuits": sorted(par_bloc.get(bloc.id, ())),

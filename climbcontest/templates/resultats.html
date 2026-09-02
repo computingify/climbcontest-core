@@ -121,6 +121,13 @@
      classe, plutôt qu'une exception glissée dans la règle existante. */
   .commande.hors-mur { display: block; }
   body.mur .commande.hors-mur { display: none; }
+  /* ⚠️ Le bouton de rotation, lui, existe DES DEUX COTES. Il n'apparaissait
+     qu'en `?mur` : sur la page normale -- celle qu'on branche au
+     videoprojecteur sans passer par `?mur`, exactement comme la loupe
+     ci-dessus -- rien ne permettait de lancer ni d'arreter le defilement.
+     « Je n'ai plus le bouton play et pause sur l'écran résultat », Adrien
+     02/09. Sur le mur il demarre en lecture ; ailleurs, a l'arret. */
+  .commande.partout { display: block; }
   .commande:hover { background: var(--carte2); color: var(--encre); }
   .commande[aria-pressed="true"] { border-color: var(--groupe); color: var(--groupe); }
   .commande:focus-visible { outline: 2px solid var(--groupe); outline-offset: 2px; }
@@ -829,7 +836,7 @@
        L'attribut n'apparaissait qu'au premier clic -- le seul moment ou il
        n'apprend plus rien. Les deux boutons de cet en-tete sont des bascules ;
        ils se comportaient differemment. -->
-  <button id="pause" class="commande" type="button" hidden
+  <button id="pause" class="commande partout" type="button"
           aria-pressed="false"
           aria-label="Mettre la rotation en pause">⏸</button>
 </header>
@@ -932,7 +939,12 @@ import { decorer, decrire, monter, peutDessiner, zonesDe }
     minuteurRotation: null,
     dureeAffichage: 0,         // le temps que la catégorie reste à l'écran
     signatureDefilement: null, // ce qui justifie de relancer le défilement
-    enPause: false,            // la rotation, figée à la demande
+    // La rotation tourne toute seule SUR LE MUR, et seulement là (choix
+    // d'Adrien, 02/09) : un parent qui regarde la catégorie de son enfant sur
+    // son téléphone ne doit pas la voir partir toute seule. Ailleurs le
+    // bouton ▶ existe quand même, à l'arrêt : c'est lui qui transforme la
+    // page normale en écran de projection.
+    enPause: !MUR,             // la rotation, figée à la demande
     sansRecherche: false,      // le champ, masqué pour le vidéoprojecteur
     groupesMasques: [],        // les classements que la console ne veut pas montrer
     animationDefilement: null,
@@ -1918,13 +1930,22 @@ import { decorer, decrire, monter, peutDessiner, zonesDe }
     return ROTATION_FIXE_MS || etat.dureeAffichage || DUREE_MIN_MS;
   }
 
-  el.pause.hidden = !MUR;
-  el.pause.addEventListener("click", function () {
-    etat.enPause = !etat.enPause;
+  /** Le glyphe, l'étiquette et `aria-pressed` disent la MÊME chose que l'état.
+   *  Appelée aussi au chargement : le bouton d'une page normale doit montrer
+   *  ▶ avant qu'on ait cliqué, sinon il annonce une rotation qui ne tourne
+   *  pas. */
+  function majBoutonPause() {
     el.pause.textContent = etat.enPause ? "▶" : "⏸";
     el.pause.setAttribute("aria-pressed", String(etat.enPause));
     el.pause.setAttribute("aria-label",
-      etat.enPause ? "Reprendre la rotation" : "Mettre la rotation en pause");
+      etat.enPause ? "Faire défiler les classements"
+                   : "Mettre la rotation en pause");
+  }
+
+  majBoutonPause();
+  el.pause.addEventListener("click", function () {
+    etat.enPause = !etat.enPause;
+    majBoutonPause();
     if (etat.enPause) {
       clearTimeout(etat.minuteurRotation);
       figerJauge();
@@ -1955,10 +1976,26 @@ import { decorer, decrire, monter, peutDessiner, zonesDe }
   }
 
   function programmerRotation() {
-    if (!MUR || etat.enPause) return;
+    // ⚠️ Plus de garde sur `?mur` : c'est `enPause` qui decide, et il part a
+    // l'arret hors du mur. Le mode ne pilote plus que la valeur de DEPART.
+    if (etat.enPause) return;
     clearTimeout(etat.minuteurRotation);
     var visibles = groupesVisibles();
-    if (visibles.length < 2) { jauger(0); return; }
+    if (visibles.length < 2) {
+      jauger(0);
+      // ⚠️ ON NE RENONCE PAS. La rotation etait armee UNE FOIS, 1,2 s apres le
+      // chargement. Un mur allume avant la competition n'avait alors aucun
+      // classement -- `visibles.length` valait 0 -- et cette fonction sortait
+      // SANS reprogrammer quoi que ce soit. Passer la competition « En
+      // cours » ne le reveillait pas : l'ecran restait fige sur la premiere
+      // categorie jusqu'a un rechargement a la main. Signale par Adrien le
+      // 02/09 (« je m'attends a ce que la page se mette en play »).
+      //
+      // On repasse donc au rythme du rafraichissement : des que deux
+      // classements existent, le defilement demarre tout seul.
+      etat.minuteurRotation = setTimeout(programmerRotation, dureeRotation());
+      return;
+    }
 
     // La MÊME durée que celle que le défilement vient de calculer.
     var duree = dureeRotation();
@@ -2023,9 +2060,19 @@ import { decorer, decrire, monter, peutDessiner, zonesDe }
 
   function dessinerBarre() {
     // Sur le mur, la barre montre le CYCLE : seulement ce qui défile. Sur
-    // téléphone elle montre TOUT ce qu'on peut demander, classement club
+    // téléphone elle montre tout ce qu'on peut demander, classement club
     // compris — et, en tête, les favoris du spectateur s'il en a.
-    var groupes = MUR ? groupesVisibles() : etat.classements;
+    //
+    // ⚠️ `groupesVisibles()` DES DEUX CÔTÉS. La barre lisait
+    // `etat.classements` sur téléphone, c'est-à-dire la charge brute, masque
+    // compris : éteindre un scratch dans la console ne retirait pas sa
+    // pastille, et le classement restait accessible d'un doigt. « Je retire
+    // des scratchs de l'affichage, je rafraîchis, rien ne se passe » —
+    // Adrien, 02/09. Le réglage de la spec 020 s'applique PARTOUT, c'est ce
+    // que `groupesVisibles()` dit de lui-même deux cents lignes plus haut :
+    // deux commentaires disaient l'inverse l'un de l'autre, et le code
+    // suivait le mauvais.
+    var groupes = groupesVisibles();
     if (!MUR && etat.favoris.length) {
       groupes = [{ groupe: GROUPE_FAVORIS, type: "favoris", lignes: [] }].concat(groupes);
     }
@@ -2086,7 +2133,7 @@ import { decorer, decrire, monter, peutDessiner, zonesDe }
     el.liste.innerHTML = "";
     dessiner();
     centrerBarre();
-    if (MUR) programmerRotation();
+    programmerRotation();
   }
 
   // --- Le balayage tactile : d'une catégorie à l'autre ---------------------
@@ -2657,7 +2704,9 @@ import { decorer, decrire, monter, peutDessiner, zonesDe }
     setTimeout(appliquer, 0);
   }
 
-  if (MUR) setTimeout(programmerRotation, 1200);
+  // Le premier armement. `programmerRotation` se garde elle-meme sur
+  // `enPause`, qui vaut deja « a l'arret » hors du mur.
+  setTimeout(programmerRotation, 1200);
 })();
 </script>
 </body>
