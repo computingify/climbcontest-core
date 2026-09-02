@@ -328,3 +328,29 @@ class TestLOrdreDesClassementsVientDuServeur:
     def test_la_console_ne_reordonne_plus_rien(self, page):
         """Le JavaScript ne doit plus porter de copie de la regle."""
         assert "function ordonner(" not in page
+
+
+class TestCarteCascade:
+    """La carte de la cascade de couleurs est servie — spec 025.
+
+    Un test de gabarit ne prouve pas que l'écran marche ; il prouve qu'il est
+    LÀ. Le reste se vérifie au navigateur, et la spec le dit.
+    """
+
+    def test_la_carte_est_dans_la_vue_general(self, page):
+        assert 'id="carteCascade"' in page
+        assert "Cascade de couleurs" in page
+
+    def test_les_trois_prereglages(self, page):
+        for valeur in ("aucune", "classeur", "mesure"):
+            assert 'value="%s"' % valeur in page
+
+    def test_les_ancrages_du_script(self, page):
+        for identifiant in ("reglesCascade", "controleCascade", "apercuCascade",
+                            "porteeCascade", "avertCascade", "btnCascade"):
+            assert 'id="%s"' % identifiant in page
+
+    def test_l_avertissement_du_classeur_part_masque(self, page):
+        """Il ne doit crier qu'une fois la règle écartée de celle du classeur."""
+        assert 'id="avertCascade" hidden' in page
+

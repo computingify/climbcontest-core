@@ -91,6 +91,11 @@ class Ligne:
     score: int
     rang: int
     blocs_reussis: int
+    # Combien de ces blocs viennent de la CASCADE et non d'un scan (spec 025,
+    # D5). Sans ce champ, « 36 blocs » ne dit plus ce qu'il dit : le dossard 59
+    # de novembre 2025 en aurait grimpe 7. Zero quand la cascade est eteinte,
+    # ce qui est le defaut -- la page ne montre alors rien de plus.
+    blocs_credites: int = 0
     # Renseigne UNIQUEMENT pour un classement de clubs : combien de grimpeurs
     # composent la ligne. Un champ dedie plutot qu'un detournement de `dossard`
     # -- un detournement se paie toujours plus tard, quand quelqu'un affiche
@@ -110,6 +115,8 @@ class Ligne:
             "rang": self.rang,
             "blocs": self.blocs_reussis,
         }
+        if self.blocs_credites:
+            base["credites"] = self.blocs_credites
         if self.membres is not None:
             base["membres"] = self.membres
         if self.libelle is not None:
@@ -136,25 +143,80 @@ class Classement:
         }
 
 
+@dataclass(frozen=True)
+class Phrase:
+    """« Quand au moins `seuil` parmi `parmi` sont validées → valider `cibles`. »
+
+    C'est l'unité de la règle, telle qu'elle se lit dans la console (spec 025).
+    Le `seuil` est ce qui permet d'exprimer le « et » du classeur — deux couleurs
+    pleines — qu'une correspondance couleur → couleur ne sait pas dire.
+    """
+
+    parmi: frozenset[str]
+    seuil: int
+    cibles: frozenset[str]
+
+    def tient(self, pleines: frozenset[str]) -> bool:
+        return len(self.parmi & pleines) >= self.seuil
+
+
+@dataclass(frozen=True)
+class Cascade:
+    """La règle de l'édition, et les catégories qui ne la suivent pas.
+
+    On range les catégories **éteintes**, jamais les allumées — même principe
+    que `cycle.groupes_masques` (spec 020), et pour la même raison : une
+    catégorie créée à l'inscription à chaud est absente de toute liste écrite le
+    matin. Rangée en « allumées » elle sortirait éteinte, et ses grimpeurs
+    seraient classés sous une autre règle que leurs camarades sans que rien ne
+    le dise.
+    """
+
+    phrases: tuple[Phrase, ...] = ()
+    categories_eteintes: frozenset[str] = frozenset()
+
+    def __bool__(self) -> bool:
+        return bool(self.phrases)
+
+    def pour(self, categorie: str | None) -> "Cascade":
+        """La cascade telle qu'elle s'applique à CE grimpeur.
+
+        C'est le cœur de la portée par catégorie : la règle n'est plus un
+        paramètre de la compétition mais du grimpeur, résolu par sa catégorie.
+        Les scratchs, qui mélangent les catégories, héritent donc naturellement
+        de la règle de chacun — exactement ce que fait le classeur, dont
+        `Inter!DJ19` se calcule ligne par ligne.
+        """
+        if categorie is not None and categorie in self.categories_eteintes:
+            return Cascade()
+        return self
+
+
 def _valider_par_couleur(
     reussites: set[int],
     blocs: dict[int, BlocCalcul],
     blocs_du_circuit: set[int],
-    couleurs_requises: int,
+    cascade: Cascade,
 ) -> set[int]:
     """Étend les réussites d'un participant par la règle des couleurs.
 
-    Règle du classeur (`Inter!DJ19`) : **un grimpeur qui a réussi 100 % des blocs
-    de N couleurs plus difficiles se voit valider tous les blocs des couleurs
-    plus faciles**.
+    Réussir **tous** les blocs d'une couleur la rend « pleine » ; les phrases de
+    la cascade disent ce qu'un jeu de couleurs pleines valide en plus.
 
-    `couleurs_requises` est le N — le classeur documente plusieurs variantes
-    (deux couleurs pleines, une seule). C'est une option par compétition, parce
-    que le format change d'une édition à l'autre.
+    Deux points qui sont des décisions, pas des détails d'implémentation :
+
+    - **une seule passe** (D2) : ce qu'une phrase valide n'alimente jamais
+      `pleines`, donc une couleur créditée ne peut pas en déclencher une autre.
+      Sans ça, « Noir → Rouge » et « Rouge → tout » se composeraient en une règle
+      que personne n'a écrite ;
+    - **une couleur à zéro bloc n'est jamais pleine** (D3). Sinon « toutes les
+      Noir » serait vrai sans effort sur un circuit sans Noir — c'est-à-dire sur
+      les quatre circuits de novembre 2025 — et la cascade se déclencherait pour
+      tout le monde, tout le temps.
 
     Renvoie l'ensemble étendu ; ne modifie rien sur place.
     """
-    if couleurs_requises <= 0:
+    if not cascade:
         return reussites
 
     # Combien de blocs par couleur dans ce circuit, et combien réussis.
@@ -168,24 +230,22 @@ def _valider_par_couleur(
         if bloc_id in reussites:
             reussis_par_couleur[couleur] += 1
 
-    # Les couleurs entièrement réussies, de la plus dure à la plus facile.
-    pleines = [
-        c for c in reversed(COULEURS)
+    pleines = frozenset(
+        c for c in COULEURS
         if total_par_couleur.get(c, 0) > 0
         and reussis_par_couleur.get(c, 0) == total_par_couleur[c]
-    ]
-    if len(pleines) < couleurs_requises:
-        return reussites
+    )
 
-    # La plus FACILE des couleurs pleines retenues fixe le seuil : tout ce qui
-    # est plus facide qu'elle est validé.
-    retenues = pleines[:couleurs_requises]
-    seuil = min(COULEURS.index(c) for c in retenues)
+    validees: set[str] = set()
+    for phrase in cascade.phrases:
+        if phrase.tient(pleines):
+            validees |= phrase.cibles
+    if not validees:
+        return reussites
 
     etendues = set(reussites)
     for bloc_id in blocs_du_circuit:
-        couleur = blocs[bloc_id].couleur
-        if couleur and COULEURS.index(couleur) < seuil:
+        if blocs[bloc_id].couleur in validees:
             etendues.add(bloc_id)
     return etendues
 
@@ -201,7 +261,7 @@ def calculer_groupe(
     membres: list[ParticipantCalcul],
     blocs: dict[int, BlocCalcul],
     reussites_par_participant: dict[int, set[int]],
-    couleurs_requises: int = 0,
+    cascade: Cascade = Cascade(),
 ) -> Classement:
     """Calcule le classement d'un groupe d'UN SEUL circuit. Fonction pure."""
     classement = Classement(groupe=groupe, type=type_groupe, circuit=circuit)
@@ -217,7 +277,7 @@ def calculer_groupe(
             f"aucun bloc n'appartient au circuit « {circuit} »")
 
     return _classer(classement, membres, {m.id: du_circuit for m in membres},
-                    blocs, reussites_par_participant, couleurs_requises)
+                    blocs, reussites_par_participant, cascade)
 
 
 def calculer_scratch(
@@ -225,7 +285,7 @@ def calculer_scratch(
     membres: list[ParticipantCalcul],
     blocs: dict[int, BlocCalcul],
     reussites_par_participant: dict[int, set[int]],
-    couleurs_requises: int = 0,
+    cascade: Cascade = Cascade(),
 ) -> Classement:
     """Un classement qui TRAVERSE les circuits : tout le monde, ou tout un genre.
 
@@ -266,7 +326,7 @@ def calculer_scratch(
             cache[m.circuit] = blocs_du_circuit(blocs, m.circuit)
         par_membre[m.id] = cache[m.circuit]
     return _classer(classement, membres, par_membre, blocs,
-                    reussites_par_participant, couleurs_requises)
+                    reussites_par_participant, cascade)
 
 
 def _classer(
@@ -275,7 +335,7 @@ def _classer(
     blocs_par_membre: dict[int, set[int]],
     blocs: dict[int, BlocCalcul],
     reussites_par_participant: dict[int, set[int]],
-    couleurs_requises: int,
+    cascade: Cascade,
 ) -> Classement:
     """Le calcul lui-même. `blocs_par_membre` porte le filtre par circuit —
     identique pour tout le monde dans un groupe d'un seul circuit, propre à
@@ -283,11 +343,13 @@ def _classer(
     # 1. Ce qui compte pour chaque membre : ses réussites, limitées aux blocs de
     #    son circuit, éventuellement étendues par la règle des couleurs.
     tenues: dict[int, set[int]] = {}
+    credites: dict[int, int] = {}
     for m in membres:
         autorises = blocs_par_membre.get(m.id, set())
         brutes = reussites_par_participant.get(m.id, set()) & autorises
         tenues[m.id] = _valider_par_couleur(
-            brutes, blocs, autorises, couleurs_requises)
+            brutes, blocs, autorises, cascade.pour(m.categorie))
+        credites[m.id] = len(tenues[m.id]) - len(brutes)
 
     # 2. La valeur d'un bloc dépend de CE groupe : 1000 / le nombre de membres
     #    qui l'ont réussi. Un même bloc ne vaut pas la même chose ailleurs.
@@ -324,6 +386,7 @@ def _classer(
             score=score,
             rang=rang,
             blocs_reussis=len(tenues[m.id]),
+            blocs_credites=credites[m.id],
         ))
 
     return classement
@@ -399,7 +462,7 @@ def calculer_tout(
     blocs: dict[int, BlocCalcul],
     reussites_par_participant: dict[int, set[int]],
     circuits: set[str] | None = None,
-    couleurs_requises: int = 0,
+    cascade: Cascade = Cascade(),
 ) -> dict[str, Classement]:
     """Tous les classements : une entrée par catégorie et une par circuit.
 
@@ -419,7 +482,7 @@ def calculer_tout(
     for categorie, membres in par_categorie.items():
         resultats[categorie] = calculer_groupe(
             categorie, "categorie", membres[0].circuit, membres, blocs,
-            reussites_par_participant, couleurs_requises)
+            reussites_par_participant, cascade)
 
     for circuit, membres in par_circuit.items():
         if circuits is not None and circuit not in circuits:
@@ -430,15 +493,15 @@ def calculer_tout(
             continue
         resultats[circuit] = calculer_groupe(
             circuit, "circuit", circuit, membres, blocs,
-            reussites_par_participant, couleurs_requises)
+            reussites_par_participant, cascade)
 
     resultats.update(_scratchs(participants, par_circuit, blocs,
-                               reussites_par_participant, couleurs_requises))
+                               reussites_par_participant, cascade))
     return resultats
 
 
 def _scratchs(participants, par_circuit, blocs, reussites_par_participant,
-              couleurs_requises) -> dict[str, Classement]:
+              cascade) -> dict[str, Classement]:
     """Le scratch général, et un par genre.
 
     On ne les produit que s'ils APPRENNENT quelque chose :
@@ -456,7 +519,7 @@ def _scratchs(participants, par_circuit, blocs, reussites_par_participant,
         return {}
 
     resultats = {SCRATCH: calculer_scratch(
-        SCRATCH, tous, blocs, reussites_par_participant, couleurs_requises)}
+        SCRATCH, tous, blocs, reussites_par_participant, cascade)}
 
     par_genre: dict[str, list[ParticipantCalcul]] = defaultdict(list)
     for p in tous:
@@ -470,6 +533,6 @@ def _scratchs(participants, par_circuit, blocs, reussites_par_participant,
                 nom = f"{SCRATCH} {genre}"
                 resultats[nom] = calculer_scratch(
                     nom, par_genre[genre], blocs, reussites_par_participant,
-                    couleurs_requises)
+                    cascade)
 
     return resultats

@@ -828,7 +828,8 @@ import { selectionDuPodium, marchesDuPodium }
       });
       if (trouvee) {
         lignes.push({ cle: "fav-" + f.id, participant_id: f.id, rang: trouvee.rang,
-                      score: trouvee.score, blocs: trouvee.blocs, nom: trouvee.nom,
+                      score: trouvee.score, blocs: trouvee.blocs,
+                      credites: trouvee.credites, nom: trouvee.nom,
                       club: trouvee.club, dossard: trouvee.dossard,
                       contexte: libelleDe(groupe) });
       } else {
@@ -1032,7 +1033,8 @@ import { selectionDuPodium, marchesDuPodium }
               || String(l.dossard || "").indexOf(q) !== -1) {
             lignes.push({ cle: c.groupe + "-" + cleDe(l),
                           participant_id: l.participant_id, rang: l.rang,
-                          score: l.score, blocs: l.blocs, nom: l.nom, club: l.club,
+                          score: l.score, blocs: l.blocs, credites: l.credites,
+                          nom: l.nom, club: l.club,
                           dossard: l.dossard, contexte: libelleDe(c) });
           }
         });
@@ -1054,8 +1056,8 @@ import { selectionDuPodium, marchesDuPodium }
       var avecCategorie = groupe.type === "scratch" || groupe.type === "circuit";
       lignes = (groupe.lignes || []).map(function (l) {
         return { cle: cleDe(l), participant_id: l.participant_id,
-                 rang: l.rang, score: l.score, blocs: l.blocs, nom: l.nom,
-                 club: l.club, dossard: l.dossard,
+                 rang: l.rang, score: l.score, blocs: l.blocs,
+                 credites: l.credites, nom: l.nom, club: l.club, dossard: l.dossard,
                  contexte: avecCategorie ? (l.categorie || null) : null };
       });
       titreTexte = libelleDe(groupe);
@@ -1249,7 +1251,8 @@ import { selectionDuPodium, marchesDuPodium }
     if (etat.densite >= 4 && !estPodium) {
       // Les colonnes ont disparu : leur contenu revient ici plutôt que d'être
       // perdu. Une ligne de plus vaut mieux qu'une information de moins.
-      appoint.push(l.blocs + (l.blocs > 1 ? " blocs" : " bloc"));
+      appoint.push(l.blocs + (l.blocs > 1 ? " blocs" : " bloc")
+                   + (l.credites ? "*" : ""));
       var perdu = (tete || 0) - l.score;
       if (perdu > 0) appoint.push("−" + perdu);
     }
@@ -1259,7 +1262,22 @@ import { selectionDuPodium, marchesDuPodium }
     // Les colonnes chiffrées n'existent que dans le tableau : une carte de
     // podium n'a plus ni l'une ni l'autre.
     var blocs = n.querySelector(".blocs");
-    if (blocs) blocs.textContent = l.blocs;   // l'en-tête dit déjà « Blocs »
+    if (blocs) {
+      blocs.textContent = l.blocs;            // l'en-tête dit déjà « Blocs »
+      // ⚠️ Avec la cascade de couleurs (spec 025), ce nombre compte des blocs
+      // que le grimpeur n'a PAS grimpés : réussir toute une couleur en valide
+      // d'autres. Un astérisque le dit — la place manque pour la phrase, mais
+      // « 36 blocs » sans rien serait faux devant quelqu'un qui l'a vu grimper.
+      // Absent quand la cascade est éteinte, ce qui est le défaut.
+      if (l.credites) {
+        blocs.textContent = l.blocs + "*";
+        blocs.title = (l.blocs - l.credites) + " grimpé"
+          + (l.blocs - l.credites > 1 ? "s" : "") + " · " + l.credites
+          + " crédité" + (l.credites > 1 ? "s" : "") + " par la cascade de couleurs";
+      } else {
+        blocs.removeAttribute("title");
+      }
+    }
 
     // L'écart au premier : ce que tout service de résultats affiche juste après
     // la position. Le premier n'a pas d'écart — un « 0 » ferait croire à une

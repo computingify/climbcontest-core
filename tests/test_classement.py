@@ -10,9 +10,17 @@ from pathlib import Path
 
 import pytest
 
+from climbcontest.cascade import regle_du_classeur
 from climbcontest.classement import (
-    BlocCalcul, ParticipantCalcul, calculer_clubs, calculer_groupe, calculer_tout,
+    BlocCalcul, Cascade, ParticipantCalcul, Phrase, calculer_clubs,
+    calculer_groupe, calculer_tout,
 )
+
+
+def cascade_classeur(seuil=2, eteintes=()):
+    """La regle du classeur, telle qu'elle se lisait avant en un entier."""
+    return Cascade(phrases=regle_du_classeur(seuil),
+                   categories_eteintes=frozenset(eteintes))
 
 FIXTURE = Path(__file__).resolve().parent.parent / "fixtures" / "contest-nov2025.json"
 
@@ -295,7 +303,7 @@ class TestValidationParCouleur:
         """
         blocs = self._jeu()
         c = calculer_groupe("U11 F", "categorie", "U11", [p(1)], blocs,
-                            {1: {3, 5}}, couleurs_requises=2)   # il manque le 4
+                            {1: {3, 5}}, cascade=cascade_classeur(2))   # il manque le 4
         assert c.lignes[0].blocs_reussis == 2, "aucune extension attendue"
 
     def test_une_couleur_hors_du_circuit_ne_compte_pas_comme_pleine(self):
@@ -313,7 +321,7 @@ class TestValidationParCouleur:
         }
         # Il tient le Vert (plein dans U11) ET le Noir (plein, mais hors circuit).
         c = calculer_groupe("U11 F", "categorie", "U11", [p(1)], blocs,
-                            {1: {2, 3}}, couleurs_requises=2)
+                            {1: {2, 3}}, cascade=cascade_classeur(2))
         assert c.lignes[0].blocs_reussis == 1, \
             "seul le Vert est plein dans le circuit : deux couleurs ne sont pas atteintes"
 
@@ -321,26 +329,26 @@ class TestValidationParCouleur:
         """Une ligne d'import sans couleur ne doit pas casser la page publique."""
         blocs = {1: b(1, couleur=""), 2: b(2, couleur="Vert")}
         calculer_groupe("U11 F", "categorie", "U11", [p(1)], blocs,
-                        {1: {2}}, couleurs_requises=1)
+                        {1: {2}}, cascade=cascade_classeur(1))
 
     def test_deux_couleurs_pleines_validentles_plus_faciles(self):
         """Vert et Bleu entièrement réussis → les Jaunes sont validés."""
         blocs = self._jeu()
         c = calculer_groupe("U11 F", "categorie", "U11", [p(1)], blocs,
-                            {1: {3, 4, 5}}, couleurs_requises=2)
+                            {1: {3, 4, 5}}, cascade=cascade_classeur(2))
         assert c.lignes[0].blocs_reussis == 5      # les 2 jaunes en plus
 
     def test_une_seule_couleur_pleine_ne_suffit_pas(self):
         blocs = self._jeu()
         c = calculer_groupe("U11 F", "categorie", "U11", [p(1)], blocs,
-                            {1: {5}}, couleurs_requises=2)   # Bleu seul
+                            {1: {5}}, cascade=cascade_classeur(2))   # Bleu seul
         assert c.lignes[0].blocs_reussis == 1
 
     def test_variante_a_une_couleur(self):
         """Le classeur documente plusieurs variantes : le nombre est réglable."""
         blocs = self._jeu()
         c = calculer_groupe("U11 F", "categorie", "U11", [p(1)], blocs,
-                            {1: {5}}, couleurs_requises=1)
+                            {1: {5}}, cascade=cascade_classeur(1))
         assert c.lignes[0].blocs_reussis == 5      # Bleu plein valide vert+jaune
 
     def test_les_blocs_valides_comptent_dans_le_denominateur(self):
@@ -349,7 +357,7 @@ class TestValidationParCouleur:
         sans = calculer_groupe("U11 F", "categorie", "U11", [p(1), p(2)], blocs,
                                {1: {1}, 2: {3, 4, 5}})
         avec = calculer_groupe("U11 F", "categorie", "U11", [p(1), p(2)], blocs,
-                               {1: {1}, 2: {3, 4, 5}}, couleurs_requises=2)
+                               {1: {1}, 2: {3, 4, 5}}, cascade=cascade_classeur(2))
         # Sans l'option, le grimpeur 1 est seul sur le bloc 1 : il vaut 1000.
         assert next(l for l in sans.lignes if l.dossard == 1).score == 1000
         # Avec, le grimpeur 2 l'obtient aussi : le bloc ne vaut plus que 500.

@@ -211,10 +211,12 @@ du futur moteur de classement.
 
 ---
 
-## 5. Deux mécanismes en réserve (à décider)
+## 5. Deux mécanismes de plus, tous deux repris
 
 Le classeur sait faire deux choses de plus, qui n'étaient **pas actives** en
-novembre 2025 — l'algorithme brut suffit à reproduire les résultats.
+novembre 2025 — l'algorithme brut suffit à reproduire les résultats. Les deux
+sont désormais reprises côté serveur : la saisie manuelle par la console
+(spec 005), la validation par couleur par la **spec 025**.
 
 ### La validation par couleur
 
@@ -237,14 +239,29 @@ ont été extraites et dédupliquées par structure) : la formule réelle de
   plafond de la cascade diffère — les **3** premières couleurs pour un genre,
   les **2** premières pour l'autre.
 
-**Ce que fait le backend** (`classement._valider_par_couleur`) : une option par
-compétition (`options.validation_couleur = N`), inactive par défaut — N couleurs
-pleines valident tout ce qui est plus facile que la plus facile d'entre elles.
-**Ce n'est pas la même variante que le classeur.** Tant que la règle reste
-inactive des deux côtés (l'état réel), aucun écart possible. Si elle devait être
-activée pour une édition, il faudrait d'abord trancher la variante — et
-l'implémenter à l'identique des deux côtés, sous peine d'un classement affiché
-différent du classeur.
+**Ce que fait le backend depuis la spec 025** : la règle s'écrit en **phrases**
+— « quand au moins 2 parmi ⟨Vert⟩ ⟨Bleu⟩ ⟨Mauve⟩ ⟨Rouge⟩ ⟨Noir⟩ sont validées →
+valider ⟨Jaune⟩ » — et se règle depuis la console, vue **Général**. Elle est
+**vide par défaut**, et un **interrupteur par catégorie** reproduit
+`Listes!D29:D38` : c'était la dernière divergence de portée avec le classeur.
+
+Le préréglage « comme le classeur » écrit exactement la règle mesurée le 02/09 —
+quatre phrases, « au moins 2 parmi les couleurs plus dures ». Rouge et Noir n'y
+sont jamais validables, faute d'avoir deux couleurs plus dures au-dessus d'eux ;
+le classeur fait pareil.
+
+⚠️ **La variante par genre n'est pas reprise** (décision D6 du 02/09) : elle est
+documentée ici, jamais mesurée, et une seule règle par édition la rend
+inexprimable. Si elle refait surface, il faudra rouvrir la spec.
+
+⚠️ **Une règle sur mesure n'est pas reproductible par le classeur** : ses
+formules ne connaissent que « deux couleurs plus dures ». La console affiche un
+avertissement dès que la règle s'en écarte, et c'est alors la page de résultats
+qui fait foi (décision D7).
+
+L'ancienne option `options.validation_couleur = N` reste lue en repli. Sa
+conversion est **exacte** — « au moins N parmi les couleurs plus dures » — et
+mesurée : 9 000 comparaisons entre l'ancien calcul et les phrases, 0 écart.
 
 ### La saisie manuelle
 

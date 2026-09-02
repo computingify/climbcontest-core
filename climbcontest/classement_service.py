@@ -21,7 +21,8 @@ import time
 from collections import defaultdict
 
 from .classement import (
-    BlocCalcul, Classement, ParticipantCalcul, calculer_clubs, calculer_tout,
+    BlocCalcul, Cascade, Classement, ParticipantCalcul, _valider_par_couleur,
+    blocs_du_circuit, calculer_clubs, calculer_tout,
 )
 from .extensions import db
 from .models import Bloc, BlocCircuit, Circuit, Competition, Participant, Success
@@ -61,18 +62,17 @@ def _options(comp: Competition) -> dict:
     return lire_options(comp)
 
 
-def couleurs_requises(comp: Competition) -> int:
-    """Combien de couleurs pleines valident les couleurs plus faciles.
+def cascade(comp: Competition) -> Cascade:
+    """La règle de cascade de l'édition — vide par défaut (spec 025).
 
-    0 = validation par couleur désactivée, ce qui est le défaut : elle n'était
-    pas active en novembre 2025. C'est une **option par compétition**, parce que
-    le format change d'une édition à l'autre — décision du 28/08.
+    Vide est le défaut, et ça compte : la règle n'était active ni en novembre
+    2025, ni en mars 2026. Une édition qui n'en parle pas se classe comme avant.
+
+    Import tardif : `cascade` lit `contest.ErreurMetier`, qui remonte à
+    `models` — le faire en tête créerait un cycle.
     """
-    valeur = _options(comp).get("validation_couleur", 0)
-    try:
-        return max(0, int(valeur))
-    except (TypeError, ValueError):
-        return 0
+    from .cascade import depuis_options
+    return depuis_options(_options(comp))
 
 
 def charger(comp: Competition):
@@ -134,7 +134,7 @@ def classements(comp: Competition, forcer: bool = False) -> tuple[dict[str, Clas
         participants, blocs, reussites, circuits = charger(comp)
         resultat = calculer_tout(
             participants, blocs, reussites, circuits,
-            couleurs_requises=couleurs_requises(comp),
+            cascade=cascade(comp),
         )
         # Derive des classements par categorie, jamais recalcule : c'est ce qui
         # garantit qu'il ne pourra pas diverger d'eux (spec 010).
@@ -185,6 +185,45 @@ def invalider(competition_id: int | None = None) -> None:
 # correspondantes, et les scratchs generaux au debut a gauche ». Grouper par
 # circuit met cote a cote des classements qui parlent des memes grimpeurs --
 # on passe de « U13 scratch » a « U13 F » sans traverser la barre.
+def blocs_du_grimpeur(comp: Competition, participant: Participant) -> dict:
+    """Ce qu'un grimpeur a fait, et ce que la cascade lui ajoute — spec 025 (F6).
+
+    Rend `{grimpes, credites}` :
+
+    - `grimpes` — ses réussites réelles **sur les blocs de son circuit** ;
+    - `credites` — ce que la cascade lui ajoute, jamais hors de son circuit.
+
+    ⚠️ **Les deux ensembles sont disjoints par construction**, et c'est une
+    garantie de contrat : `credites` est l'étendu MOINS le brut. La fiche du
+    grimpeur (spec 026) peint `grimpes | credites` et afficherait deux fois le
+    même bloc s'ils se recouvraient.
+
+    ⚠️ Ce que cet accesseur ne rend PAS, et pourquoi : les réussites **hors
+    circuit** — un juge a forcé l'avertissement de la spec 019 — et l'heure des
+    réussites. Les deux ont existé ici le 02/09, pour la fiche du grimpeur à
+    l'écran ; Adrien a fait retirer cet affichage le jour même, et un champ que
+    personne ne lit est un champ qui ment tôt ou tard. Le besoin, lui, reste
+    entier : une réussite hors circuit n'est visible nulle part pour la personne
+    concernée. À loger dans une prochaine spec, côté console — c'est là qu'un
+    organisateur peut agir.
+    """
+    _, blocs, _, _ = charger(comp)
+    du_circuit = (blocs_du_circuit(blocs, participant.circuit)
+                  if participant.circuit else set())
+
+    brutes = {
+        bloc_id for (bloc_id,) in
+        db.session.query(Success.bloc_id)
+        .filter(Success.participant_id == participant.id)
+        .all()
+    }
+    grimpes = brutes & du_circuit
+    etendues = _valider_par_couleur(
+        grimpes, blocs, du_circuit, cascade(comp).pour(participant.categorie))
+
+    return {"grimpes": grimpes, "credites": etendues - grimpes}
+
+
 def ordre(classement):
     if classement.type == "scratch":            # les generaux, tout a gauche
         return (0, "", 0, classement.groupe)
