@@ -39,7 +39,13 @@
 // changement. `couleurs.js` change aussi (le circuit « Noir » depend du
 // theme), et une coquille qui melangerait l'ancien CSS et le nouveau module
 // afficherait de la craie sur du papier.
-const CACHE = "climbcontest-juge-v6";
+// v7 le 03/09 (spec 041) -- la MATIERE imprimee : lisere d'encre et ombre du
+// bouton. Tout est dans le CSS du gabarit `/juge`, que la coquille porte : sans
+// changement de nom, un telephone deja installe rouvrirait l'ancienne feuille
+// et ne verrait rien. Et `couleurs.js` gagne `estLeNoir`, que `juge.js` importe
+// desormais : une coquille qui melangerait l'ancien module et le nouveau
+// `juge.js` planterait au premier bloc scanne.
+const CACHE = "climbcontest-juge-v7";
 
 /**
  * Ce qu'on garde pour pouvoir démarrer sans réseau.

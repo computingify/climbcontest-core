@@ -14,7 +14,7 @@
 import { CLE_RANGEMENT, choisirJeton, jetonDUneAdresse } from "./jeton.js";
 import { Api } from "./api.js";
 import { Catalogue, doitRafraichir } from "./catalogue.js";
-import { couleurDeCircuit, encreSur } from "./couleurs.js";
+import { couleurDeCircuit, encreSur, estLeNoir } from "./couleurs.js";
 import { Expediteur } from "./expediteur.js";
 import { FileDeReussites } from "./file.js";
 import { ETATS, Historique, refCourte } from "./historique.js";
@@ -193,6 +193,11 @@ function redessiner() {
     racine.removeProperty("--circuit");
     racine.removeProperty("--encre-circuit");
   }
+  // Le circuit « Noir » est le seul dont la teinte est deja l'encre du theme.
+  // La carte teintee de son circuit y virerait au gris, et son lisere se
+  // confondrait avec l'aplat : elle reste donc du papier (spec 041, N2). Le
+  // CSS ne sachant pas comparer deux couleurs, c'est le nom qui le dit.
+  $("carteBloc").classList.toggle("encre", blocFait && estLeNoir(etat.couleurBloc));
 
   // Le garde-fou de la spec 019, recalcule ICI et pas dans `retenir()` : le
   // grimpeur peut etre scanne APRES le bloc, et l'option « garder le grimpeur

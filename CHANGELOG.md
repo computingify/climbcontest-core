@@ -19,6 +19,27 @@ qu'on ne met pas à jour le matin d'une compétition :
 
 ## [Non publié]
 
+### Modifié
+
+- **L'application juge prend la matière imprimée de « Plein Jour »** (spec 041,
+  qui referme la spec 035). La carte du bloc scanné passe d'un simple trait à un
+  **aplat** de la couleur de son circuit, cerclé d'un liseré d'encre ; la
+  pastille du bloc prend le même liseré — la matière des étiquettes collées sous
+  les blocs. Le bouton « Envoyer » gagne un liseré et une ombre, et le bouton
+  désactivé passe en trait **pointillé** : un emplacement qui attend, plus une
+  surface pleine. Tout est pris sur l'encre du thème, si bien que la matière
+  devient de la craie en thème sombre au lieu de disparaître.
+- **Le circuit « Noir » garde sa carte en papier.** C'est le seul dont la teinte
+  est déjà l'encre : sa carte teintée virait au gris quand toutes les autres
+  prennent leur couleur, et le liseré de sa pastille se confondait avec l'aplat.
+
+### Corrigé
+
+- **La pulsation du bouton « Envoyer » effaçait son ombre** deux fois par
+  seconde : `box-shadow` est une propriété unique, et les images-clés du souffle
+  la réécrivaient entièrement. Elles reportent désormais l'ombre et ne font
+  varier que la lueur du circuit.
+
 ## [0.19.0] — 2026-09-03
 
 ### Ajouté

@@ -3,7 +3,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 
-import { CIRCUITS, NOIR, couleurDeCircuit, encreSur, enSombre }
+import { CIRCUITS, NOIR, couleurDeCircuit, encreSur, enSombre, estLeNoir }
   from "../../climbcontest/static/juge/couleurs.js";
 import { Catalogue } from "../../climbcontest/static/juge/catalogue.js";
 
@@ -34,6 +34,42 @@ test("le circuit « Noir » prend l'encre du thème — spec 039", () => {
   // Et dans les deux cas, l'aplat reçoit une encre qui se lit dessus.
   assert.equal(encreSur(NOIR.clair), "#F7F9FC");  // encre CLAIRE sur l'aplat sombre
   assert.equal(encreSur(NOIR.sombre), "#12140F"); // encre SOMBRE sur la craie
+});
+
+test("« Noir » se reconnaît par son NOM, pas par sa valeur — spec 041", () => {
+  // La carte du bloc est teintée de son circuit et cerclée d'encre. Sur
+  // « Noir », la teinte EST l'encre : la carte virerait au gris et le liseré
+  // se confondrait avec l'aplat. Le CSS ne sachant pas comparer deux couleurs,
+  // c'est `juge.js` qui pose la classe — et il la déduit du nom.
+  assert.equal(estLeNoir("Noir"), true);
+  // Les mêmes règles de lecture que le classeur, sinon un « NOIR » saisi en
+  // capitales laisserait passer la carte grise sans que personne comprenne.
+  assert.equal(estLeNoir("  NOIR "), true);
+  assert.equal(estLeNoir("noir"), true);
+  // Les cinq autres circuits gardent leur carte teintée.
+  for (const nom of ["Jaune", "Vert", "Bleu", "Mauve", "Rouge"]) {
+    assert.equal(estLeNoir(nom), false, nom);
+  }
+  // Et un nom absent ne doit jamais jeter : le bloc pas encore scanné passe
+  // ici à chaque rendu.
+  assert.equal(estLeNoir(null), false);
+  assert.equal(estLeNoir(undefined), false);
+  assert.equal(estLeNoir(""), false);
+  assert.equal(estLeNoir(42), false);
+});
+
+test("le marqueur du Noir ne se déduit PAS d'une comparaison de couleurs", () => {
+  // ⚠️ Le piège qu'on ferme ici. Écrire `couleurDeCircuit(nom) === NOIR.clair`
+  // marcherait aujourd'hui et casserait en silence le jour où l'encre du thème
+  // et `NOIR.clair` divergent d'un point — deux constantes distinctes, qui ne
+  // sont égales que par coïncidence. Ce test fige le fait que `estLeNoir` ne
+  // lit JAMAIS la table des couleurs : il rend `true` pour le nom même si on
+  // lui ment sur le thème, et `false` pour un circuit d'une couleur voisine.
+  assert.equal(estLeNoir("Noir"), estLeNoir("noir"));
+  // « Noir » vaut deux couleurs différentes selon le thème, et le marqueur,
+  // lui, ne bouge pas : c'est bien le nom qui décide.
+  assert.notEqual(couleurDeCircuit("Noir", false), couleurDeCircuit("Noir", true));
+  assert.equal(estLeNoir("Noir"), true);
 });
 
 test("hors navigateur, le thème est CLAIR — le défaut de l'application", () => {

@@ -1,3 +1,20 @@
+/* ⚠️ CE FICHIER N'EST PAS CE QUI A ETE LIVRE. C'est la feuille qui a ete
+   INJECTEE par-dessus le vrai `juge.html` pour produire les captures du
+   PREMIER tour (`captures/`). Elle est gardee pour que ces captures restent
+   reproductibles, et pour rien d'autre.
+
+   Trois choses ont change entre elle et le code livre, et les recopier d'ici
+   serait une regression :
+     - l'ombre du bouton est l'ombre FRANCHE de 5 px, celle qu'Adrien a
+       refusee (« trop franche ») ; le livre porte l'ombre S3, courte puis
+       floue ;
+     - le circuit « Noir » n'y est pas traite : c'est ce tour d'apercu qui a
+       revele le probleme, tranche ensuite en N2 ;
+     - la valeur livree est prise sur des jetons, pas ecrite en dur.
+
+   La feuille qui fait foi est le bloc `<style>` de
+   `climbcontest/templates/juge.html`. */
+
 /* ============================================================
    La MATIERE IMPRIMEE de « Plein Jour » (spec 035, direction A)
    Ce que la 039 n'a pas livre : elle a pris la PALETTE de la
