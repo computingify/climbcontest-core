@@ -17,7 +17,9 @@ qu'on ne met pas à jour le matin d'une compétition :
 - **MINEUR** — nouvelle fonctionnalité, compatible.
 - **CORRECTIF** — correction, compatible.
 
-## [0.18.1] — 2026-09-03
+## [Non publié]
+
+## [0.19.0] — 2026-09-03
 
 ### Ajouté
 
@@ -51,6 +53,26 @@ qu'on ne met pas à jour le matin d'une compétition :
     cadre épaissi qui se remplissait — et elle a été retirée en entier après
     l'avoir regardée à l'écran.
 
+### Modifié
+
+- **L'application juge s'ouvre en clair** (spec 039). Son fond était sombre **en
+  dur** : rien ne regardait `prefers-color-scheme`, et un bénévole qui ouvrait
+  l'application en plein jour, dans une salle à baie vitrée, lisait un écran
+  noir sans l'avoir demandé — luminosité poussée à fond, donc batterie. Le clair
+  devient le **défaut** ; le sombre reste, **inchangé au point près**, sous la
+  requête media. **Aucun réglage dans l'application** : le système décide, comme
+  sur la console depuis la spec 021.
+  ⚠️ Le circuit **« Noir »** prend désormais l'encre du thème — presque noir sur
+  le papier, craie sur l'ardoise. La craie n'était pas un choix de couleur,
+  c'était une rustine du fond sombre, et elle ne se voit pas davantage sur du
+  papier sable. Les cinq autres circuits ne bougent pas.
+  ⚠️ La coquille hors-ligne passe en **v6** : elle porte le gabarit, donc tout le
+  CSS. Un téléphone déjà installé prend la nouvelle version **au lancement
+  suivant** — fermer et rouvrir l'application, jamais en pleine compétition.
+  ⚠️ L'**app juge Android reste sombre** : les deux clients ne se ressemblent
+  plus tant qu'une spec ne l'a pas fait suivre.
+
+## [0.18.1] — 2026-09-03
 ### Corrigé
 
 - **Le bouton « Installer » de la console n'a jamais pu fonctionner**, depuis
@@ -110,23 +132,6 @@ qu'on ne met pas à jour le matin d'une compétition :
 ## [0.18.0] — 2026-09-03
 
 ### Modifié
-
-- **L'application juge s'ouvre en clair** (spec 039). Son fond était sombre **en
-  dur** : rien ne regardait `prefers-color-scheme`, et un bénévole qui ouvrait
-  l'application en plein jour, dans une salle à baie vitrée, lisait un écran
-  noir sans l'avoir demandé — luminosité poussée à fond, donc batterie. Le clair
-  devient le **défaut** ; le sombre reste, **inchangé au point près**, sous la
-  requête media. **Aucun réglage dans l'application** : le système décide, comme
-  sur la console depuis la spec 021.
-  ⚠️ Le circuit **« Noir »** prend désormais l'encre du thème — presque noir sur
-  le papier, craie sur l'ardoise. La craie n'était pas un choix de couleur,
-  c'était une rustine du fond sombre, et elle ne se voit pas davantage sur du
-  papier sable. Les cinq autres circuits ne bougent pas.
-  ⚠️ La coquille hors-ligne passe en **v6** : elle porte le gabarit, donc tout le
-  CSS. Un téléphone déjà installé prend la nouvelle version **au lancement
-  suivant** — fermer et rouvrir l'application, jamais en pleine compétition.
-  ⚠️ L'**app juge Android reste sombre** : les deux clients ne se ressemblent
-  plus tant qu'une spec ne l'a pas fait suivre.
 
 - **La recherche de la page de résultats se déploie** au lieu d'apparaître. Un
   appui sur la loupe — qui **termine** désormais la rangée, la lecture passant
@@ -987,7 +992,6 @@ Adrien le 01/09 au soir.
   jamais. Le contrat d'API, lui, **ne bouge pas** — l'application Android
   publiée (`V3.1.4`) parle aux mêmes routes qu'avant.
 
-
 ### Modifié
 
 - **La catégorie apparaît sur les scratchs, et seulement là.** Un scratch —
@@ -1013,7 +1017,6 @@ Adrien le 01/09 au soir.
   n'est pas recopié, il se **déduit** des deux constantes dont le calcul de
   densité se sert déjà (389 px de mobilier, plus 140 px pour lire un nom).
 
-
 ### Corrigé
 
 - **Les options de l'édition se lisaient en deux endroits.**
@@ -1033,7 +1036,6 @@ Adrien le 01/09 au soir.
   référence d'une réussite posée sur un bloc hors circuit répondait « ce scan est
   bien arrivé », ce qui est vrai et trompeur : il est arrivé, et il ne compte pas.
   Elle le dit maintenant, et renvoie vers la vue « Circuits ».
-
 
 - **Le quatrième circuit n'était jamais importé.** `importer.py` figeait les
   colonnes de circuit de l'onglet `Plan` à **J, L, N** — trois — parce que la
@@ -1070,7 +1072,6 @@ Adrien le 01/09 au soir.
   fenêtre, plus dans la carte. Et toute la console fait maintenant **défiler sa
   zone de message dans la vue** : un refus ne peut plus passer inaperçu, quelle
   que soit la vue et la longueur de la page.
-
 
 - **Le classement par club n'affichait qu'une ligne.** `participant_id` vaut
   `0` pour toutes ses lignes — un club n'est pas un participant — et c'est lui
@@ -2147,6 +2148,7 @@ livrer — spec 001, itération 3.
 - Les données et les secrets vivent dans `shared/`, hors des releases : un
   déploiement ou un retour arrière ne peut pas les toucher.
 
+[0.19.0]: https://github.com/computingify/climbcontest-core/releases/tag/v0.19.0
 [0.18.1]: https://github.com/computingify/climbcontest-core/releases/tag/v0.18.1
 [0.18.0]: https://github.com/computingify/climbcontest-core/releases/tag/v0.18.0
 [0.17.0]: https://github.com/computingify/climbcontest-core/releases/tag/v0.17.0
