@@ -151,50 +151,57 @@ dix-sept pastilles identiques, pas dix-sept tailles.
 > surbrillance vert pour dire que la zone est terminée. Et bien celui-là, je le
 > remplirais en fonction de l'avancement. » (Adrien, 03/09)
 
-> ## ⛔ TRANCHÉE LE 03/09 : **le cadre ne sera pas rempli.**
+> ## ✅ TRANCHÉE LE 03/09 : **le cadre se remplit**, en quatre paramètres.
 >
-> Adrien a répondu, après avoir vu la maquette et posé une piste de plus
-> (« mets cette jauge au-dessus de tout et rends-la plus large ») : **« on ne
-> remplit pas le cadre »**. Le cadre vert garde son tout-ou-rien, la pastille
-> dit l'avancement, et c'est tout.
+> ⚠️ **Adrien a d'abord répondu « on ne remplit pas le cadre », puis est revenu
+> sur sa réponse après avoir regardé la comparaison d'épaisseurs.** Les deux
+> réponses sont vraies dans l'ordre où elles ont été données ; c'est la seconde
+> qui vaut. On le note parce que l'historique du dépôt garde la première, et
+> qu'un lecteur pressé pourrait s'y arrêter.
 >
-> ⚠️ **Ce n'est pas un abandon par lassitude : c'est un rejet motivé, et les
-> raisons sont mesurées.** Elles valent d'être lues par le prochain qui aura la
-> même idée — elle est bonne, et elle ne tient pas sur ce relevé :
+> | | Retenu |
+> | --- | --- |
+> | **E1a — la pose** | **C — rognée dans le pan** : posée sur l'arête, mais **découpée par la forme du pan**, donc seule sa moitié intérieure est peinte |
+> | **E1b — l'épaisseur** | **×2**, soit **3,2 unités** |
+> | **E1c — l'ordre de peinture** | **La pastille passe devant** : le compteur devient un **cartouche serti** dans le cadre |
+> | **E2 — le coin de départ** | **Le serveur le garantit**, et **un test le vérifie** |
 >
-> 1. **La pose recommandée ne survit pas à l'épaississement.** R1b rentre le
->    cadre de 10 %, soit **0,75 unité sur un pan de 15**. Dès que le trait
->    dépasse **1,5 unité** d'épaisseur, sa moitié extérieure ressort du pan et
->    on retrouve le débord chez la voisine qu'on voulait éviter. Or « plus
->    large » était précisément la demande.
-> 2. **`scale()` est uniforme, les pans ne le sont pas.** Sur un pan deux fois
->    plus haut que large — D (15×30), L (15×25) — un rentrait par mise à
->    l'échelle rentre deux fois plus en haut et en bas qu'à gauche et à droite.
->    Le cadre n'est plus à distance constante du bord.
-> 3. **« Au-dessus de tout » était déjà le cas, et c'était le problème.** La
->    couche des cadres est peinte après tous les murs, donc après les lettres,
->    leurs halos et les pastilles : la jauge **ampute le compteur**. À ×2,
->    l'arête basse recouvre **77 %** de la hauteur de la pastille — et au pire
->    moment, puisque cette arête est le troisième quart du contour : peinte dès
->    2/4, et **toujours** à 4/4, le cas qu'on regarde le plus. Ce n'est pas
->    réglable : la pastille descend à **0,084 unité** du bord bas.
+> ### Pourquoi ces quatre-là et pas d'autres — les mesures qui les imposent
 >
-> Une quatrième pose a été trouvée en chemin — **rognée dans le pan**, posée sur
-> l'arête mais découpée par la forme du pan, donc à distance constante et sans
-> jamais mordre la voisine quelle que soit l'épaisseur. Elle est décrite dans la
-> maquette. **Elle n'est pas implémentée** : sans remplissage, elle n'a plus
-> d'emploi. Elle reste la bonne réponse au jour où on voudrait épaissir un trait
-> de cadre sur ce relevé.
+> 1. **La pose C est la seule qui survive à l'épaississement.** Posée sur
+>    l'arête (A), la jauge mord **1,6 unité** chez la voisine à ×2 — et les pans
+>    d'Annonay se touchent bord à bord. Rentrée de 10 % (B), elle ne tient que
+>    tant que le trait reste sous **1,5 unité** : au-delà, sa moitié extérieure
+>    ressort. Découpée par la forme du pan, elle est à distance constante du
+>    bord **quelle que soit l'épaisseur**, et ne peut structurellement pas
+>    déborder.
+> 2. **`scale()` ne convient pas pour rentrer un cadre.** Il est uniforme, les
+>    pans ne le sont pas : sur D (15×30) et L (15×25), un rentrait par mise à
+>    l'échelle rentre deux fois plus en haut qu'à gauche. Le découpage, lui, suit
+>    la forme.
+> 3. **La pastille devant, parce que l'inverse ampute le compteur.** L'ordre de
+>    peinture actuel met les cadres après les pastilles : à ×2, l'arête basse
+>    recouvre **77 %** de la hauteur de la pastille — et au pire moment, cette
+>    arête étant le troisième quart du contour, donc peinte dès 2/4 et
+>    **toujours** à 4/4. Vérifié à l'écran sur la page réelle : à ×1 le
+>    « 12/12 » est net, à ×2 il est rogné. Le prix de l'inversion est chiffré et
+>    accepté : la pastille masque **60 %** de l'arête basse, soit **15 %** du
+>    périmètre — une encoche **constante**, présente sur toutes les zones et à
+>    toutes les valeurs, donc un décor et non un signal. Le levier pour la
+>    réduire est `PASTILLE_LARGEUR`, jamais l'ordre de peinture.
+> 4. **Le coin de départ est une garantie du serveur.** Une jauge de contour
+>    part d'un coin, et `plan.js` est écrit pour **ne rien savoir de la
+>    géométrie** — c'est ce qui lui permet de survivre à un changement de plan.
+>    Le premier point de chaque polygone est donc le coin haut-gauche, et un
+>    test l'exige. Le piège devient **détectable** au lieu d'être documenté.
 >
-> **L'invariant A12 reste donc un test**, et non une tautologie : le compteur et
-> l'anneau vert restent deux signaux, et rien ne garantit tout seul qu'ils
-> disent la même chose.
+> ### Ce que ça change pour l'invariant A12
 >
-> La maquette `maquettes/remplissage.html` est **conservée** : c'est la trace du
-> pourquoi. Ce qui suit décrit la question telle qu'elle était posée.
+> « Le compteur et l'anneau vert ne se contredisent jamais » devient une
+> **tautologie** : les deux dérivent du même compte. Le test reste, mais il ne
+> protège plus une cohérence — il protège la dérivation unique.
 
-**Statut : REJETÉE (03/09).** Ce qui suit est le dossier de la question, gardé
-pour sa valeur d'archive. C'était une **unification** : le
+**Statut : ACCEPTÉE (03/09), en implémentation.** C'est une **unification** : le
 cadre vert « zone terminée » (`.cadre-zone.z-finie`) et le compteur cessent
 d'être deux signaux pour devenir deux lectures de la même donnée — « terminée »
 n'est plus un état à part, c'est le cadre plein. L'invariant A12 (« le compteur
