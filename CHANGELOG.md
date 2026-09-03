@@ -21,6 +21,35 @@ qu'on ne met pas à jour le matin d'une compétition :
 
 ### Ajouté
 
+- **Le QR de poste, posé sur la table du juge** (spec 034). Le juge arrive à sa
+  table, ouvre l'application, scanne le carton posé devant lui : son téléphone
+  s'appelle « Zone C » dans la console. Il n'a rien tapé. Le nom du poste
+  existait depuis la spec 011 et se **tapait à la main** — un réglage optionnel,
+  invisible depuis l'écran principal, dans une application qu'on ouvre pour
+  scanner : personne ne le faisait, et quand c'était fait, deux téléphones du
+  même mur portaient deux noms différents.
+  - Le QR porte **`CCPOSTE:` + le nom de la zone**. Le préfixe n'est pas
+    décoratif : le même viseur voit aussi les dossards (`42`), les blocs
+    (`ZJ6`) et le lien de l'organisateur. Sans lui, un bloc scanné par erreur
+    depuis cet écran renommerait le poste « ZJ6 » **sans que personne le
+    voie**, et la console afficherait « ZJ6 » en face de tous les envois de la
+    journée. Chaque refus porte **son** message, jamais « QR invalide ».
+  - Du **texte brut**, pas une URL : une URL scannée par l'appareil photo natif
+    ouvrirait un navigateur, et le juge se retrouverait hors de son
+    application, dans une instance sans file d'attente.
+  - **Une nouvelle page `/admin/postes`** dans la console (vue Téléphones) :
+    une affiche par zone, **trois par A4**, QR de 70 mm généré localement. Les
+    zones se déduisent du **plan courant**, jamais d'une liste tenue à la main :
+    un mur ajouté dans « Dessiner le plan du mur » sort son QR à l'impression
+    suivante. C'est la seule page d'impression qui marche **sans compétition
+    active** — on imprime ces cartons la veille au soir, avant l'import du
+    classeur.
+  - Le préfixe est écrit **deux fois**, en Python et en JavaScript. Un test lit
+    `poste.js` et le compare à `fiches.PREFIXE_QR_POSTE` : le jour où les deux
+    divergent, tous les QR imprimés cesseraient d'être lus sans qu'une ligne ait
+    l'air fausse. Un décodeur indépendant (OpenCV) relit par ailleurs ce qu'on
+    produit.
+
 - **Un simulateur de juges** (`tools/simulateur_juges.py`). Un panneau local
   ouvre une compétition entière depuis le Mac : nombre de juges, cadence,
   répartition dans le temps, aléas du terrain, démarrage et arrêt en un clic.

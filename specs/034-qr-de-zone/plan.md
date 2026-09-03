@@ -2,22 +2,22 @@
 
 ## Étapes
 
-- [ ] **E0 — La spec** (`spec.md`, `architecture.md`, `plan.md`), l'index, et
+- [x] **E0 — La spec** (`spec.md`, `architecture.md`, `plan.md`), l'index, et
       les **maquettes** HTML statiques de l'écran console et de la planche
       imprimée. Commitées **avant** la première ligne de code : c'est la
       demande, et c'est ce qui manque aux specs 027 et 032.
-- [ ] **E1 — `poste.js`**, le décodage, testable sur Node. Les tests d'abord
+- [x] **E1 — `poste.js`**, le décodage, testable sur Node. Les tests d'abord
       dans le même commit, jamais dans un commit d'après.
-- [ ] **E2 — Le geste dans la PWA** : le bouton dans les réglages, la fonction
+- [x] **E2 — Le geste dans la PWA** : le bouton dans les réglages, la fonction
       `scannerMonPoste()`, la coquille hors ligne (`sw.js` → `v4`).
-- [ ] **E3 — `fiches.postes()`** et le préfixe côté Python, avec le test qui
+- [x] **E3 — `fiches.postes()`** et le préfixe côté Python, avec le test qui
       tient les deux préfixes égaux.
-- [ ] **E4 — La route et le gabarit** `/admin/postes` + `postes.html`.
-- [ ] **E5 — La console** : la carte dans la vue Téléphones, la clé `zones` de
+- [x] **E4 — La route et le gabarit** `/admin/postes` + `postes.html`.
+- [x] **E5 — La console** : la carte dans la vue Téléphones, la clé `zones` de
       `/admin/referentiels`.
-- [ ] **E6 — Vérification à l'écran** : serveur de démo, Playwright, captures de
+- [x] **E6 — Vérification à l'écran** : serveur de démo, Playwright, captures de
       la console et de la planche.
-- [ ] **E7 — Revue du diff complet**, changelog, PR.
+- [x] **E7 — Revue du diff complet**, changelog, PR.
 
 ## Plan de test
 
@@ -55,13 +55,13 @@
 | `fiches` | ordre | trié par nom de zone |
 | `fiches` | contenu du QR | `CCPOSTE:` + la zone, exactement |
 | `fiches` | le SVG rendu | dimensionné à `COTE_QR_POSTE_MM` |
-| `fiches` | taille de module à 80 mm | > `qr.MODULE_MINI_MM` |
+| `fiches` | taille de module à 70 mm | > `qr.MODULE_MINI_MM` |
 | `fiches` | ce n'est pas un Micro QR | version ≥ 1, symbologie standard |
 | `fiches` | `zone="C"` | une seule affiche |
 | `fiches` | `zone="Q"` absente du plan | liste **vide**, pas une exception |
 | `fiches` | plan dessiné dans la console | les zones du plan **courant**, pas celles d'usine |
 | `fiches` | plan sans aucun mur nommé | liste vide |
-| `en_feuilles` | 17 affiches, 2 par feuille | 9 feuilles, la dernière à 1 |
+| `en_feuilles` | 4 affiches, 3 par feuille | 2 feuilles, la dernière à 1 |
 | route | anonyme | 401 |
 | route | rôle insuffisant | 403 |
 | route | organisateur, sans compétition active | **200** — le plan ne dépend pas d'une compétition |
@@ -73,21 +73,29 @@
 | gabarit | impression | `@page`, `margin: 10mm`, `print-color-adjust` |
 | gabarit | pagination | `break-before: page` sur `.feuille`, pas sur l'affiche |
 | **cohérence** | préfixe `poste.js` == `fiches.PREFIXE_QR_POSTE` | égaux |
+| **décodeur** | OpenCV relit le QR produit | le texte exact, pour 6 noms de zone |
+| gabarit | budget de hauteur | QR + rembourrage ≤ hauteur d'affiche, et 3 × 90 ≤ 277 |
 | `referentiels` | avec compétition | `zones` = les zones du plan courant |
 | `referentiels` | sans compétition | `zones` **quand même** rempli, 200 |
 | `juge.html` | le bouton existe | `#btnScannerPoste` dans `#ecranReglages` |
-| `juge.html` | le `<header>` | **inchangé** par rapport à `origin/master` |
+| `juge.html` | le `<header>` | ne contient **pas** `btnScannerPoste` — un test qui survit au merge |
 | `sw.js` | la coquille | contient `poste.js`, et le cache a changé de nom |
 | `admin.html` | la carte | `#btnPostes` et `#pZone` dans `#vueTelephones` |
 
 ### Vérification à l'écran (E6)
 
-| Écran | Ce qu'on regarde |
+**Fait le 03/09.** Les captures sont dans `captures/`.
+
+| Écran | Ce qu'on a vu |
 | --- | --- |
-| `/console` → Téléphones | La carte, la liste des zones remplie |
-| `/admin/postes` | 9 feuilles, deux affiches par feuille, QR net |
-| `/admin/postes?zone=C` | Une seule affiche |
-| `/juge` → Réglages | Le bouton sous le champ du nom |
+| `/console` → Téléphones | La carte est là, la liste porte les 17 zones du plan |
+| `/admin/postes` | ⚠️ **Un défaut** : le mode d'emploi sortait coupé — 164 mm de contenu dans 136. Corrigé en passant à l'horizontale, 3 par page |
+| `/admin/postes` (après) | 6 feuilles, trois affiches par feuille, rien de coupé |
+| `/juge` → Réglages | Le bouton sous le champ du nom, avec son explication |
+
+C'est exactement ce que la vérification à l'écran est censée attraper, et
+qu'aucun test n'attrapait : la géométrie d'impression ne se relit pas, elle se
+regarde.
 
 ### Suites complètes
 

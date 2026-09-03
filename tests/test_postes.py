@@ -30,6 +30,13 @@ from climbcontest.models import Utilisateur
 
 MDP = "un-mot-de-passe-assez-long"
 
+try:
+    import cv2
+    import numpy as np
+    DECODEUR = True
+except ImportError:                                   # pragma: no cover
+    DECODEUR = False
+
 POSTE_JS = Path(__file__).resolve().parents[1] / "climbcontest" / "static" / "juge" / "poste.js"
 GABARIT = Path(__file__).resolve().parents[1] / "climbcontest" / "templates" / "postes.html"
 
@@ -137,6 +144,45 @@ class TestLeContenuDuQr:
         assert f'width="{fiches.COTE_QR_POSTE_MM}mm"' in planche[0]["qr"]
 
 
+@pytest.mark.skipif(not DECODEUR, reason="opencv absent")
+class TestVraimentLisible:
+    """On decode ce qu'on produit, avec un decodeur INDEPENDANT de l'encodeur.
+
+    C'est le seul test qui prouve quelque chose : un QR d'allure correcte que
+    personne ne lit passerait toutes les autres verifications, et se
+    decouvrirait le samedi matin avec les cartons deja poses. Meme harnais que
+    `test_qr_et_dossards.py`.
+    """
+
+    @staticmethod
+    def _image(texte, echelle=10, marge=4):
+        m = qr.matrice(texte)
+        n = len(m)
+        total = n + 2 * marge
+        img = np.ones((total, total), np.uint8) * 255
+        for y in range(n):
+            for x in range(n):
+                if m[y][x]:
+                    img[y + marge, x + marge] = 0
+        return cv2.resize(img, (total * echelle,) * 2,
+                          interpolation=cv2.INTER_NEAREST)
+
+    @pytest.mark.parametrize("zone", ["A", "C", "Z", "ABC", "M1", "Mur jaune"])
+    def test_un_decodeur_independant_relit_le_qr_de_poste(self, zone):
+        texte = fiches.texte_qr_poste(zone)
+        lu, _, _ = cv2.QRCodeDetector().detectAndDecode(self._image(texte))
+        assert lu == texte, f"produit {texte!r}, relu {lu!r}"
+
+    def test_ce_qui_est_relu_redonne_le_nom_de_la_zone(self):
+        """La boucle complete : on imprime, un decodeur lit, la regle de
+        `poste.js` retrouve « C ». Le prefixe est verifie ici sur le texte
+        REELLEMENT encode, pas sur une constante."""
+        lu, _, _ = cv2.QRCodeDetector().detectAndDecode(
+            self._image(fiches.texte_qr_poste("C")))
+        assert lu.startswith(fiches.PREFIXE_QR_POSTE)
+        assert lu[len(fiches.PREFIXE_QR_POSTE):] == "C"
+
+
 class TestLaTailleDuNom:
 
     def test_un_nom_court_prend_la_taille_maximale(self, app):
@@ -171,13 +217,20 @@ class TestLeFiltreParZone:
 
 class TestLaPagination:
 
-    def test_deux_affiches_par_feuille(self, app):
-        assert fiches.POSTES_PAR_FEUILLE == 2
+    def test_trois_affiches_par_feuille(self, app):
+        """⚠️ Trois, pas deux.
+
+        La premiere version en posait deux, en colonne : le contenu faisait
+        164 mm dans une affiche de 136, et le mode d'emploi sortait COUPE.
+        Constate a l'ecran. La disposition horizontale tient en 90 mm, et
+        17 zones passent de 9 feuilles a moitie vides a 6 pleines.
+        """
+        assert fiches.POSTES_PAR_FEUILLE == 3
 
     def test_la_derniere_feuille_peut_etre_incomplete(self, app):
-        planche = fiches.postes(plan=_plan("A", "B", "C"))
+        planche = fiches.postes(plan=_plan("A", "B", "C", "D"))
         feuilles = fiches.en_feuilles(planche, fiches.POSTES_PAR_FEUILLE)
-        assert [len(f) for f in feuilles] == [2, 1]
+        assert [len(f) for f in feuilles] == [3, 1]
 
     def test_aucune_affiche_ne_se_perd(self, app):
         planche = fiches.postes(plan=fiches.PLAN)
@@ -281,9 +334,9 @@ class TestLaRoute:
         assert "<svg" in html
 
     def test_la_pagination_est_faite_en_python(self, connecte_orga, app):
-        plan_du_mur.ecrire(_plan("A", "B", "C"), par="orga")
+        plan_du_mur.ecrire(_plan("A", "B", "C", "D"), par="orga")
         html = connecte_orga.get("/admin/postes").get_data(as_text=True)
-        # Deux feuilles pour trois affiches : le decoupage vient du serveur.
+        # Deux feuilles pour quatre affiches : le decoupage vient du serveur.
         assert html.count('class="feuille"') == 2
 
 
@@ -312,7 +365,7 @@ class TestLeGabarit:
         """
         source = GABARIT.read_text(encoding="utf-8")
         assert "--feuille-largeur: 188mm;" in source
-        assert "--feuille-hauteur: 272mm;" in source
+        assert "--feuille-hauteur: 270mm;" in source
 
     def test_le_saut_de_page_porte_sur_la_feuille(self):
         source = GABARIT.read_text(encoding="utf-8")
@@ -322,6 +375,17 @@ class TestLeGabarit:
         """Sans `print-color-adjust`, un navigateur ne pose aucun fond."""
         source = GABARIT.read_text(encoding="utf-8")
         assert "print-color-adjust: exact" in source
+
+    def test_le_contenu_tient_dans_la_hauteur_de_l_affiche(self):
+        """⚠️ Le defaut trouve a l'ecran, mesure ici.
+
+        Le QR plus le rembourrage doivent tenir dans la hauteur de l'affiche.
+        La premiere version empilait QR (80) + nom (34) + mode d'emploi en
+        COLONNE dans 136 mm : 164 mm de contenu, et le mode d'emploi sortait
+        coupe. En horizontal, c'est le QR qui dicte la hauteur.
+        """
+        assert (fiches.COTE_QR_POSTE_MM + 2 * 5) <= 90     # 5 mm de rembourrage
+        assert fiches.POSTES_PAR_FEUILLE * 90 <= 277        # la surface utile d'un A4
 
     def test_l_affiche_dit_quoi_faire(self):
         """Un benevole qui n'a pas ecoute le briefing doit trouver le geste."""

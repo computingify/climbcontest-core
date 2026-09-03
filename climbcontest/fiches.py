@@ -43,10 +43,12 @@ COTE_QR_MM = 24.0
 # cet ecran renommerait son poste « ZJ6 » sans s'en apercevoir.
 PREFIXE_QR_POSTE = "CCPOSTE:"
 
-# Le QR d'une affiche de poste. Presque le double de celui d'une etiquette de
-# bloc : ce n'est pas un autocollant colle au mur, c'est un carton pose sur une
-# table, et le telephone le vise de biais, souvent d'une seule main.
-COTE_QR_POSTE_MM = 80.0
+# Le QR d'une affiche de poste. Nettement plus gros que celui d'une etiquette
+# de bloc (42 mm) : ce n'est pas un autocollant colle au mur, c'est un carton
+# pose sur une table, et le telephone le vise de biais, souvent d'une seule
+# main. A 70 mm, un « CCPOSTE:A » donne 2,4 mm par module -- pres de cinq fois
+# le plancher de `qr.MODULE_MINI_MM`.
+COTE_QR_POSTE_MM = 70.0
 
 
 # Les six profils de mur, ORDONNÉS du moins au plus déversant. L'ordre EST
@@ -463,8 +465,20 @@ HAUTEUR_LIGNE_SUP_MM = HAUTEUR_LIGNE_MM + GOUTTIERE_CASE_MM
 # ici sans changer la geometrie laisserait des trous ou couperait une feuille.
 FICHES_PAR_FEUILLE = 6
 ETIQUETTES_PAR_FEUILLE = 8
-# Et DEUX affiches de poste : 2 x 136 = 272 mm, sur une page utile de 277.
-POSTES_PAR_FEUILLE = 2
+# Et TROIS affiches de poste : 3 x 90 = 270 mm, sur une page utile de 277.
+#
+# ⚠️ La premiere version en posait DEUX (188 x 136 mm), en colonne : QR au
+# milieu, nom dessous. Constate a l'ecran, pas devine -- le contenu faisait
+# 164 mm de haut dans une affiche de 136, et le mode d'emploi sortait COUPE en
+# bas. La disposition passe a l'horizontale (QR a gauche, texte a droite),
+# comme les etiquettes de blocs depuis la spec 024 et pour la meme raison : un
+# carton pose a plat est large et bas, empiler verticalement gaspille la
+# largeur et manque de hauteur.
+#
+# Le gain n'est pas que de place : 17 zones tenaient sur 9 feuilles a moitie
+# vides, elles tiennent sur 6 pleines. « Je me retrouve avec des pages vides »
+# etait le reproche du 02/09 sur les etiquettes ; il vaut ici aussi.
+POSTES_PAR_FEUILLE = 3
 
 
 def hauteur_mm(tailles: list[int], colonnes: int,
@@ -569,11 +583,11 @@ def taille_numero_mm(texte: str) -> float:
 #
 # Meme mecanique, meme raison : « C » a de la place pour 34 mm, « Mur jaune »
 # n'en a pas, et une taille fixe ferait deborder l'un ou ratatiner l'autre.
-# L'affiche fait 188 mm de large, moins 2 x 10 de rembourrage : on en garde 165
-# pour l'arrondi.
-LARGEUR_NOM_POSTE_MM = 165.0
+# La colonne de texte fait 188 mm (l'affiche) moins 10 (le rembourrage) moins
+# 70 (le QR) moins 6 (la gouttiere) = 102 mm ; on en garde 100 pour l'arrondi.
+LARGEUR_NOM_POSTE_MM = 100.0
 CHASSE_NOM_POSTE = 0.72           # meme graisse (800) que le numero d'etiquette
-TAILLE_NOM_POSTE_MAXI_MM = 34.0   # au-dela, le nom mange le QR et le mode d'emploi
+TAILLE_NOM_POSTE_MAXI_MM = 30.0   # au-dela, le nom mange le mode d'emploi
 
 
 def taille_nom_poste_mm(texte: str) -> float:

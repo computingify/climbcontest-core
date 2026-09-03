@@ -118,43 +118,60 @@ quoi que ce soit.
 | *(aucun)* | Une affiche par zone du plan courant |
 | `?zone=C` | Une seule affiche : celle qu'on a perdue ou déchirée |
 
-**Deux par A4**, chacune 188 × 136 mm :
+> ⚠️ **Corrigé en regardant l'écran.** Cette section disait « deux par A4 »,
+> en disposition **verticale** (188 × 136 mm) : QR de 80 mm, puis le nom, puis
+> le mode d'emploi. Le contenu faisait **164 mm de haut dans une affiche de
+> 136** — le mode d'emploi sortait **coupé** en bas de chaque affiche, et
+> aucun test ne le voyait. Trouvé à la première capture, pas au troisième
+> relecteur.
+>
+> La disposition passe à l'**horizontale** — QR à gauche, texte à droite —
+> comme les étiquettes de blocs depuis la spec 024, et pour la même raison : un
+> carton posé à plat est **large et bas**. Elle tient en 90 mm, ce qui fait
+> **trois par page** : les 17 zones passent de 9 feuilles à moitié vides à
+> **6 pleines**. « Je me retrouve avec des pages vides » était le reproche du
+> 02/09 sur les étiquettes ; il valait ici aussi.
+
+**Trois par A4**, chacune 188 × 90 mm :
 
 ```
-┌────────────────────────────────────────────┐
-│                                            │
-│              ┌──────────────┐              │
-│              │              │              │
-│              │      QR      │              │
-│              │    80 mm     │              │
-│              │ CCPOSTE:C    │              │
-│              └──────────────┘              │
-│                                            │
-│                   ZONE                     │
-│                    C          ← 40 mm      │
-│                                            │
-│   Réglages → Scanner le QR de mon poste    │
-└────────────────────────────────────────────┘
-                188 × 136 mm
+┌──────────────────────────────────────────────────┐
+│  ┌──────────────┐    ZONE                        │
+│  │              │    ┌─┐                         │
+│  │      QR      │    │C│  ← 30 mm                │
+│  │    70 mm     │    └─┘                         │
+│  │ « CCPOSTE:C »│                                │
+│  │              │   ┌──────────────────────────┐ │
+│  └──────────────┘   │ ⚙ Réglages → Scanner le  │ │
+│                     │ QR de mon poste          │ │
+│                     └──────────────────────────┘ │
+└──────────────────────────────────────────────────┘
+                  188 × 90 mm
 ```
 
 Grande, parce que ce n'est pas une étiquette qu'on colle : c'est un carton posé
 sur une table, que le juge doit repérer en arrivant et qui doit rester lisible
 quand quelqu'un pose un stylo dessus. Le nom de la zone est le plus gros élément
-— c'est ce qu'on vérifie avant de scanner.
+— c'est ce qu'on vérifie avant de scanner. Le QR fait 70 mm, contre 42 pour une
+étiquette de bloc : on le vise d'une seule main, l'autre étant occupée.
 
 La marche à suivre est **écrite sur l'affiche** : un bénévole qui n'a pas écouté
 le briefing trouve le geste sans demander.
 
 ### F5 — Le QR, généré localement
 
-`qr.svg("CCPOSTE:" + zone, cote_mm=80)`. Aucun appel réseau, comme les dossards
+`qr.svg("CCPOSTE:" + zone, cote_mm=70)`. Aucun appel réseau, comme les dossards
 depuis la spec 005 et les étiquettes depuis la 024 : on imprime parfois la
 veille au soir, parfois sans connexion.
 
-À 80 mm, un `CCPOSTE:Zone C` tient en version 1 ou 2 : plus de 2 mm par module,
-soit quatre fois le plancher de `qr.MODULE_MINI_MM`. La marge est là pour les
-noms de zone longs, que le plan autorise.
+À 70 mm, un `CCPOSTE:A` tient en version 1 : **2,4 mm par module**, soit près de
+cinq fois le plancher de `qr.MODULE_MINI_MM`. La marge est là pour les noms de
+zone longs, que le plan d'usine autorise.
+
+Et surtout : un **décodeur indépendant** (OpenCV) relit ce qu'on produit, dans
+`tests/test_postes.py::TestVraimentLisible`. C'est le seul test qui prouve
+quelque chose — un QR d'allure correcte que personne ne lit passerait toutes
+les autres vérifications, et se découvrirait le samedi matin.
 
 ### F6 — Un préfixe, deux langages, un test qui les tient
 
@@ -196,27 +213,27 @@ la vue **Téléphones** de la console, les tests.
 
 ## 4. Critères d'acceptation
 
-- [ ] **A1** — `GET /admin/postes` rend **une affiche par zone du plan
-  courant**, deux par A4, sans qu'aucune liste de zones soit écrite à la main.
-- [ ] **A2** — L'affiche porte le QR, le nom de la zone en gros, et la marche à
+- [x] **A1** — `GET /admin/postes` rend **une affiche par zone du plan
+  courant**, trois par A4, sans qu'aucune liste de zones soit écrite à la main.
+- [x] **A2** — L'affiche porte le QR, le nom de la zone en gros, et la marche à
   suivre.
-- [ ] **A3** — Le QR contient `CCPOSTE:` + le nom de la zone, et se relit par un
-  décodeur indépendant à 80 mm.
-- [ ] **A4** — `?zone=C` ne rend que cette zone.
-- [ ] **A5** — La pagination est faite en Python (`fiches.en_feuilles`) ; une
+- [x] **A3** — Le QR contient `CCPOSTE:` + le nom de la zone, et se relit par un
+  **décodeur indépendant** (OpenCV).
+- [x] **A4** — `?zone=C` ne rend que cette zone.
+- [x] **A5** — La pagination est faite en Python (`fiches.en_feuilles`) ; une
   affiche n'est jamais coupée entre deux pages.
-- [ ] **A6** — Un plan **sans aucune zone** rend une page qui le dit et renvoie
+- [x] **A6** — Un plan **sans aucune zone** rend une page qui le dit et renvoie
   vers `/admin/plan`, 200 — pas une page blanche, pas une 500.
-- [ ] **A7** — `poste.js` décode `CCPOSTE:Zone C` en `"Zone C"`.
-- [ ] **A8** — `poste.js` refuse un QR de bloc, un dossard, un lien
+- [x] **A7** — `poste.js` décode `CCPOSTE:Zone C` en `"Zone C"`.
+- [x] **A8** — `poste.js` refuse un QR de bloc, un dossard, un lien
   d'organisateur et un préfixe sans nom — chacun avec **son** message.
-- [ ] **A9** — Le geste « Scanner le QR de mon poste » existe dans les réglages
+- [x] **A9** — Le geste « Scanner le QR de mon poste » existe dans les réglages
   de la PWA et appelle `identite.renommer()`.
-- [ ] **A10** — Le préfixe de `poste.js` et celui de `fiches.py` sont égaux, et
+- [x] **A10** — Le préfixe de `poste.js` et celui de `fiches.py` sont égaux, et
   un test le vérifie.
-- [ ] **A11** — Aucune ressource extérieure dans la page imprimée.
-- [ ] **A12** — Anonyme → 401, rôle insuffisant → 403, comme `/admin/dossards`.
-- [ ] **A13** — Le bloc `<header>` de `juge.html` est **inchangé** par cette
+- [x] **A11** — Aucune ressource extérieure dans la page imprimée.
+- [x] **A12** — Anonyme → 401, rôle insuffisant → 403, comme `/admin/dossards`.
+- [x] **A13** — Le bloc `<header>` de `juge.html` est **inchangé** par cette
   branche.
 
 ## 5. Cas limites

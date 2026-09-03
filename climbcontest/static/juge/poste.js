@@ -7,8 +7,8 @@
  * ⚠️ **LE PRÉFIXE EST LA RAISON D'ÊTRE DE CE MODULE.**
  *
  * Trois familles de QR circulent le jour J, et le même viseur les voit toutes :
- * le dossard (`42`), le bloc (`ZJ6`), le lien de l'organisateur
- * (`https://…/juge?j=…`). Sans préfixe, un juge qui scanne un bloc par erreur
+ * le dossard (`42`), le bloc (`ZJ6`), le lien de l'organisateur (une adresse
+ * qui porte `?j=…`). Sans préfixe, un juge qui scanne un bloc par erreur
  * depuis cet écran renommerait son poste « ZJ6 » **sans s'en apercevoir**, et
  * la console afficherait « ZJ6 » en face de tous ses envois de la journée.
  * Le préfixe rend la confusion *impossible*, pas improbable.

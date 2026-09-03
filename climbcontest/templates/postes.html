@@ -13,10 +13,17 @@
      1. se REPERER en arrivant -- le nom de la zone est donc l'élément le plus
         gros de la page, lisible d'un mètre en marchant ;
      2. se scanner d'une seule main, de biais, un téléphone dans l'autre --
-        d'où un QR de 80 mm, presque le double de celui d'une étiquette de
+        d'où un QR de 70 mm, bien plus gros que les 42 mm d'une étiquette de
         bloc collée au mur ;
      3. dire QUOI FAIRE. Un bénévole qui n'a pas écouté le briefing doit
         trouver le geste sans demander : la marche à suivre est écrite dessus.
+
+     ⚠️ DISPOSITION HORIZONTALE -- QR à gauche, texte à droite, comme les
+     étiquettes de blocs depuis la spec 024. La première version empilait en
+     colonne (QR, puis nom, puis mode d'emploi) sur une affiche de 136 mm : le
+     contenu en faisait 164, et le mode d'emploi sortait COUPÉ en bas.
+     Constaté À L'ÉCRAN, pas deviné. Un carton posé à plat est large et bas ;
+     empiler verticalement gaspille la largeur et manque de hauteur.
 
      Tout est en MILLIMETRES, et AUCUNE dependance exterieure : on imprime la
      veille au soir, parfois sans reseau. Le QR est genere localement par
@@ -27,15 +34,15 @@
      occupe la surface utile EXACTE sort en DOUBLE de pages sur une vraie
      imprimante, dont la zone imprimable est plus petite que la surface
      théorique. Sept feuilles étaient sorties en quatorze pages.
-     La feuille tient ici dans 188 x 272 sur une page utile de 190 x 277. */
+     La feuille tient ici dans 188 x 270 sur une page utile de 190 x 277. */
   @page { size: A4 portrait; margin: 10mm; }
 
   :root {
     --affiche-largeur: 188mm;
-    --affiche-hauteur: 136mm;   /* 2 x 136 = 272, pour 277 utiles */
+    --affiche-hauteur: 90mm;    /* 3 x 90 = 270, pour 277 utiles */
     --feuille-largeur: 188mm;
-    --feuille-hauteur: 272mm;
-    --qr: 80mm;
+    --feuille-hauteur: 270mm;
+    --qr: 70mm;
   }
 
   * { box-sizing: border-box; }
@@ -67,32 +74,34 @@
   .feuille + .feuille { break-before: page; page-break-before: always; }
 
   .affiche {
-    height: var(--affiche-hauteur); padding: 8mm 10mm;
-    display: flex; flex-direction: column;
-    align-items: center; justify-content: center; gap: 4mm;
+    height: var(--affiche-hauteur); padding: 5mm;
+    display: flex; align-items: center; gap: 6mm;
     overflow: hidden;
     break-inside: avoid; page-break-inside: avoid;
     /* Le trait de coupe. En pointillé : on découpe dessus. */
     border-bottom: 0.3mm dashed #aaa;
   }
 
+  .qr { flex: none; }
   .qr svg { display: block; width: var(--qr); height: var(--qr); }
+
+  .quoi { flex: 1; min-width: 0; }
 
   /* LE plus gros élément : c'est ce qu'on lit en arrivant, à un mètre, pour
      savoir qu'on est à la bonne table.
      ⚠️ La taille vient du SERVEUR (`--taille`), pas d'une constante : « C »
-     a de la place pour 34 mm, « Mur jaune » n'en a pas, et une taille fixe
-     ferait déborder l'un ou ratatiner l'autre. Même mécanique que
-     `--taille` sur les étiquettes de blocs. */
-  .zone { text-align: center; line-height: 1; }
-  .zone .mot { font-size: 6mm; font-weight: 700; letter-spacing: 0.3em;
+     a de la place pour 30 mm, « ABC » un peu moins, et une taille fixe ferait
+     déborder l'un ou ratatiner l'autre. Même mécanique que `--taille` sur les
+     étiquettes de blocs. */
+  .zone { line-height: 1; }
+  .zone .mot { font-size: 4.4mm; font-weight: 700; letter-spacing: 0.22em;
                text-transform: uppercase; color: #666; }
-  .zone .nom { font-size: var(--taille, 34mm); font-weight: 800;
-               letter-spacing: -0.02em; white-space: nowrap; margin-top: 2mm; }
+  .zone .nom { font-size: var(--taille, 30mm); font-weight: 800;
+               letter-spacing: -0.02em; white-space: nowrap; margin-top: 1.5mm; }
 
-  .mode-emploi { background: #F2EFE8; border-radius: 2mm; padding: 3mm 5mm;
-                 font-size: 4mm; color: #333; text-align: center;
-                 max-width: 150mm; line-height: 1.45; }
+  .mode-emploi { background: #F2EFE8; border-radius: 2mm; padding: 2.5mm 3.5mm;
+                 font-size: 3.6mm; color: #333; line-height: 1.4;
+                 margin-top: 3mm; }
   .mode-emploi b { font-weight: 700; }
 
   .vide { padding: 20mm 0; text-align: center; color: #666; font-size: 4mm;
@@ -115,7 +124,7 @@
 
 <div class="entete">
   <h1>QR de poste{% if filtre %} — zone {{ filtre }}{% endif %}</h1>
-  <p>{{ total }} à imprimer, <strong>deux par page</strong>, une par zone du
+  <p>{{ total }} à imprimer, <strong>trois par page</strong>, une par zone du
      plan, à couper sur les pointillés. Vérifie l'échelle d'impression :
      <strong>100 %</strong>, sans « ajuster à la page », sinon les QR sortiront
      trop petits pour être lus.</p>
@@ -141,14 +150,16 @@
     {% for p in feuille %}
     <div class="affiche" style="--taille:{{ p.taille_nom }}mm">
       <div class="qr">{{ p.qr|safe }}</div>
-      <div class="zone">
-        <div class="mot">Zone</div>
-        <div class="nom">{{ p.zone }}</div>
-      </div>
-      <div class="mode-emploi">
-        Sur ton téléphone : <b>⚙ Réglages</b> →
-        <b>Scanner le QR de mon poste</b>.<br>
-        Ce téléphone s'appellera « {{ p.zone }} » dans la console.
+      <div class="quoi">
+        <div class="zone">
+          <div class="mot">Zone</div>
+          <div class="nom">{{ p.zone }}</div>
+        </div>
+        <div class="mode-emploi">
+          Sur ton téléphone : <b>⚙ Réglages</b> →
+          <b>Scanner le QR de mon poste</b>.<br>
+          Ce téléphone s'appellera « {{ p.zone }} » dans la console.
+        </div>
       </div>
     </div>
     {% endfor %}
