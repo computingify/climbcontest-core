@@ -822,6 +822,25 @@
   .plan .cadre-zone.z-finie { stroke: var(--ok); stroke-width: 1.6; }
   .plan .cadre-zone.visee { stroke: var(--pl-anneau); stroke-width: 2.2; }
   .plan g[data-zone].visee { filter: drop-shadow(0 0 2.5px var(--pl-lueur)); }
+
+  /* L'avancement du grimpeur DANS la zone (spec 036) : « 1/4 », blocs valides
+     sur blocs de son circuit qui s'y trouvent. Meme halo que la lettre, et pour
+     la meme raison -- un chiffre pose sur un aplat de profil devient illisible
+     sans lui. La place et le corps sont calcules par `plan.js` a partir de la
+     lettre ; ici, il n'y a que des couleurs.
+
+     ⚠️ Une zone SANS bloc du circuit ne porte pas de compteur : le noeud existe
+     mais reste vide, et `a-compte` -- pose par `decorer` -- est ce qui le
+     montre. Cacher le vide en CSS evite de creer et supprimer des noeuds a
+     chaque repeinture. */
+  .plan .compte-zone { font-family: var(--titre); font-weight: 800;
+                       font-variant-numeric: tabular-nums;
+                       fill: var(--pl-lettre); text-anchor: middle;
+                       dominant-baseline: central; paint-order: stroke fill;
+                       stroke: var(--pl-halo); }
+  .plan .compte-zone.compte-finie { fill: var(--ok); }
+  .plan g[data-zone]:not(.a-compte) .compte-zone { display: none; }
+
   .sf-anime .plan g[data-zone].visee {
     animation: sf-rebond 760ms cubic-bezier(.34,1.56,.64,1) both; }
   @keyframes sf-rebond {
@@ -959,8 +978,8 @@ import { selectionDuPodium, marchesDuPodium }
 // La fiche du grimpeur (spec 026). La LOGIQUE vit dans ces deux modules pour
 // etre testable sans navigateur (`tests/js/suivi.test.mjs`, `plan.test.mjs`) ;
 // ce qui suit n'est que du branchement au DOM.
-import { blocsDeZone, compteDeZone, ecrireDiese, etatsDesZones, lireDiese }
-  from "/static/resultats/suivi.js";
+import { blocsDeZone, compteDeZone, comptesDesZones, ecrireDiese, estFait,
+         etatsDesZones, lireDiese } from "/static/resultats/suivi.js";
 import { decorer, decrire, monter, peutDessiner, zonesDe }
   from "/static/resultats/plan.js";
 (function () {
@@ -2594,7 +2613,11 @@ import { decorer, decrire, monter, peutDessiner, zonesDe }
       var t = div("sf-couleur-tete", bloc);
       div("", t, "i").style.background = teinteDifficulte(g.couleur);
       div("", t, "span").textContent = g.couleur || "sans couleur";
-      var faits = g.blocs.filter(function (b) { return b.etat !== "reste"; }).length;
+      // ⚠️ `estFait` et non `b.etat !== "reste"` ecrit a la main. C'etait le
+      // seul des quatre compteurs de la page a ne pas passer par la regle du
+      // module -- et donc le seul qui pouvait s'en ecarter en silence le jour
+      // ou un quatrieme etat apparait.
+      var faits = g.blocs.filter(function (b) { return estFait(b.etat); }).length;
       div("", t, "em").textContent = faits + "/" + g.blocs.length;
       var cases = div("sf-cases", bloc);
       g.blocs.forEach(function (b) { cases.appendChild(caseDeBloc(b)); });
@@ -2697,6 +2720,10 @@ import { decorer, decrire, monter, peutDessiner, zonesDe }
   function peindreMur(vue, refaire) {
     var d = fiche.donnees;
     var etats = etatsDesZones(d.groupes || []);
+    // L'avancement par zone (spec 036). Il est pose par `decorer`, avec les
+    // etats : le dessin PERSISTE d'une repeinture a l'autre, et le chiffre doit
+    // suivre une reussite qui arrive pendant qu'on regarde le plan.
+    var comptes = comptesDesZones(d.groupes || []);
     var zone = fiche.zone;
 
     if (refaire) {
@@ -2741,7 +2768,7 @@ import { decorer, decrire, monter, peutDessiner, zonesDe }
     if (titre) titre.textContent = zone ? "Zone " + zone : "Le mur";
 
     var dessine = vue.querySelector("svg.plan");
-    if (dessine) decorer(dessine, etats, zone);
+    if (dessine) decorer(dessine, etats, zone, comptes);
 
     var panneau = vue.querySelector(".sf-panneau");
     if (!panneau) return;
