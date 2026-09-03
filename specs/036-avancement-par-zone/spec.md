@@ -151,7 +151,50 @@ dix-sept pastilles identiques, pas dix-sept tailles.
 > surbrillance vert pour dire que la zone est terminée. Et bien celui-là, je le
 > remplirais en fonction de l'avancement. » (Adrien, 03/09)
 
-**Statut : ouverte. Rien n'est implémenté.** C'est une **unification** : le
+> ## ⛔ TRANCHÉE LE 03/09 : **le cadre ne sera pas rempli.**
+>
+> Adrien a répondu, après avoir vu la maquette et posé une piste de plus
+> (« mets cette jauge au-dessus de tout et rends-la plus large ») : **« on ne
+> remplit pas le cadre »**. Le cadre vert garde son tout-ou-rien, la pastille
+> dit l'avancement, et c'est tout.
+>
+> ⚠️ **Ce n'est pas un abandon par lassitude : c'est un rejet motivé, et les
+> raisons sont mesurées.** Elles valent d'être lues par le prochain qui aura la
+> même idée — elle est bonne, et elle ne tient pas sur ce relevé :
+>
+> 1. **La pose recommandée ne survit pas à l'épaississement.** R1b rentre le
+>    cadre de 10 %, soit **0,75 unité sur un pan de 15**. Dès que le trait
+>    dépasse **1,5 unité** d'épaisseur, sa moitié extérieure ressort du pan et
+>    on retrouve le débord chez la voisine qu'on voulait éviter. Or « plus
+>    large » était précisément la demande.
+> 2. **`scale()` est uniforme, les pans ne le sont pas.** Sur un pan deux fois
+>    plus haut que large — D (15×30), L (15×25) — un rentrait par mise à
+>    l'échelle rentre deux fois plus en haut et en bas qu'à gauche et à droite.
+>    Le cadre n'est plus à distance constante du bord.
+> 3. **« Au-dessus de tout » était déjà le cas, et c'était le problème.** La
+>    couche des cadres est peinte après tous les murs, donc après les lettres,
+>    leurs halos et les pastilles : la jauge **ampute le compteur**. À ×2,
+>    l'arête basse recouvre **77 %** de la hauteur de la pastille — et au pire
+>    moment, puisque cette arête est le troisième quart du contour : peinte dès
+>    2/4, et **toujours** à 4/4, le cas qu'on regarde le plus. Ce n'est pas
+>    réglable : la pastille descend à **0,084 unité** du bord bas.
+>
+> Une quatrième pose a été trouvée en chemin — **rognée dans le pan**, posée sur
+> l'arête mais découpée par la forme du pan, donc à distance constante et sans
+> jamais mordre la voisine quelle que soit l'épaisseur. Elle est décrite dans la
+> maquette. **Elle n'est pas implémentée** : sans remplissage, elle n'a plus
+> d'emploi. Elle reste la bonne réponse au jour où on voudrait épaissir un trait
+> de cadre sur ce relevé.
+>
+> **L'invariant A12 reste donc un test**, et non une tautologie : le compteur et
+> l'anneau vert restent deux signaux, et rien ne garantit tout seul qu'ils
+> disent la même chose.
+>
+> La maquette `maquettes/remplissage.html` est **conservée** : c'est la trace du
+> pourquoi. Ce qui suit décrit la question telle qu'elle était posée.
+
+**Statut : REJETÉE (03/09).** Ce qui suit est le dossier de la question, gardé
+pour sa valeur d'archive. C'était une **unification** : le
 cadre vert « zone terminée » (`.cadre-zone.z-finie`) et le compteur cessent
 d'être deux signaux pour devenir deux lectures de la même donnée — « terminée »
 n'est plus un état à part, c'est le cadre plein. L'invariant A12 (« le compteur
@@ -166,7 +209,7 @@ colonne empilée (L sur M).
 
 | Variante | Verdict de la maquette |
 | --- | --- |
-| **R1b — le contour qui se remplit, rentré de 10 %** | **Recommandé** |
+| **R1b — le contour qui se remplit, rentré de 10 %** | Recommandé **avant** la demande d'épaississement ; ne tient plus au-delà de 1,5 unité de trait |
 | R2 — le contour gradué, un segment par bloc | La version riche de R1b, si on veut **compter** sur le plan |
 | R1 — le même contour, posé sur l'arête | Écarté : il déborde chez la voisine et les jauges se soudent |
 | R3 — le remplissage par le bas | Écarté : il fabrique une arête horizontale au milieu du pan |
