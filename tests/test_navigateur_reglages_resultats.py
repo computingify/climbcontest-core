@@ -141,10 +141,47 @@ SONDE_LECTURE = """
     note("apresrechargement", $("#pause").classList.contains("arretee"));
 """ % {"prete": PRETE}
 
+SONDE_RECHERCHE = """
+    await attendre("la page prete", %(prete)s);
+    const lignes = () => $$(".ligne[data-participant]").length;
+    note("inertAvant", $("#boiteRecherche").hasAttribute("inert"));
+    note("lignesAvant", lignes());
+
+    // Le geste : on ouvre.
+    $("#ouvrirRecherche").click();
+    await attendre("deployee", () => !$("#boiteRecherche").hasAttribute("inert"));
+    note("ouverte", $("#ouvrirRecherche").getAttribute("aria-expanded"));
+
+    // On tape. ⚠️ Le filtre traverse TOUS les classements, y compris ceux que
+    // la console masque : un parent ne connait pas la categorie de son enfant.
+    // Un grimpeur present dans quatre classements rend donc QUATRE lignes --
+    // chacune disant de quel classement elle vient. Ce n'est pas un defaut,
+    // c'est la fonctionnalite ; le test le constate au lieu de compter.
+    const champ = $("#recherche");
+    champ.value = "Grimpeur 2";
+    champ.dispatchEvent(new Event("input", { bubbles: true }));
+    await attendre("filtre", () => {
+      const vues = $$(".ligne[data-participant]");
+      return vues.length > 0
+        && vues.every((n) => n.textContent.indexOf("Grimpeur 2") !== -1);
+    });
+    note("lignesFiltrees", lignes());
+    note("toutesLeBonNom", $$(".ligne[data-participant]")
+      .every((n) => n.textContent.indexOf("Grimpeur 2") !== -1));
+
+    // On referme par la croix : le champ se vide, la liste revient.
+    $("#fermerRecherche").click();
+    await attendre("repliee", () => $("#boiteRecherche").hasAttribute("inert"));
+    note("champVide", $("#recherche").value === "");
+    note("lignesApres", lignes());
+    note("focusRendu", vue().document.activeElement.id);
+""" % {"prete": PRETE, "avant": 3}
+
 SONDES = {
     "rotation": SONDE_ROTATION,
     "volee": SONDE_A_LA_VOLEE,
     "lecture": SONDE_LECTURE,
+    "recherche": SONDE_RECHERCHE,
 }
 
 
@@ -339,3 +376,45 @@ class TestLaLectureSurvitAuRechargement:
         assert mesures["apresrechargement"] == "false", (
             "la page est repartie a l'arret apres rechargement : c'est le "
             "defaut du 03/09")
+
+
+class TestLaRechercheSeDeploieEtSeReplie:
+    """« Au clic sur le bouton recherche, c'est le bouton qui s'anime et qui
+    déploie horizontalement une zone de texte. » — Adrien, 03/09 (spec 037,
+    variante V3).
+
+    Le geste entier, dans un vrai navigateur : ouvrir, taper, filtrer, refermer,
+    et vérifier que la liste est revenue. C'est le seul test qui prouve que les
+    trois morceaux — la classe CSS, `inert`, et le vidage du champ — tirent dans
+    le même sens.
+    """
+
+    def test_le_geste_entier(self, serveur):
+        url, verdict, _ = serveur
+        rendu = piloter(f"{url}/__harnais?quoi=recherche", verdict, secondes=60)
+        mesures = _mesures(rendu)
+
+        # Au départ : replié, et hors de l'ordre de tabulation.
+        assert mesures["inertAvant"] == "true", (
+            "le champ doit partir `inert` : invisible ET inatteignable au Tab")
+        assert mesures["lignesAvant"] == "3"
+
+        # Ouvert : l'attribut dit ce qui s'est passé.
+        assert mesures["ouverte"] == "true"
+
+        # Le filtre marche, et il traverse TOUS les classements : le même
+        # grimpeur ressort une fois par classement où il figure, chaque ligne
+        # disant d'où elle vient. C'est voulu — un parent ne connaît pas la
+        # catégorie de son enfant.
+        assert mesures["toutesLeBonNom"] == "true"
+        assert int(mesures["lignesFiltrees"]) >= 1, mesures["lignesFiltrees"]
+
+        # Refermé : le champ est VIDE et la liste est revenue. Une liste filtrée
+        # sans champ visible serait indéchiffrable — c'est la règle de la
+        # spec 020, et elle survit au changement de motif.
+        assert mesures["champVide"] == "true"
+        assert mesures["lignesApres"] == "3", mesures["lignesApres"]
+
+        # Et le focus revient sur la loupe, sinon le clavier repart du début de
+        # la page.
+        assert mesures["focusRendu"] == "ouvrirRecherche", mesures["focusRendu"]

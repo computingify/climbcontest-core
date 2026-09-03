@@ -9,21 +9,32 @@
      Le juge arrive à sa table, ouvre l'application, scanne le carton posé
      devant lui : son téléphone s'appelle « Zone C ». Il n'a rien tapé.
 
-     ⚠️ Ce que l'affiche doit permettre, dans cet ordre :
-     1. se REPERER en arrivant -- le nom de la zone est donc l'élément le plus
-        gros de la page, lisible d'un mètre en marchant ;
-     2. se scanner d'une seule main, de biais, un téléphone dans l'autre --
-        d'où un QR de 70 mm, bien plus gros que les 42 mm d'une étiquette de
-        bloc collée au mur ;
-     3. dire QUOI FAIRE. Un bénévole qui n'a pas écouté le briefing doit
-        trouver le geste sans demander : la marche à suivre est écrite dessus.
+     ⚠️ L'AFFICHE NE PORTE PLUS DE MODE D'EMPLOI (retouche du 03/09). Elle en
+     portait un — « ⚙ Réglages → Scanner le QR de mon poste ». Adrien, après
+     relecture : « sur ces planches qui sont imprimées, tu n'as pas besoin de
+     mettre le texte qui permet de comprendre comment est-ce qu'il faut le
+     scanner ». La marche à suivre est partie DANS L'APPLICATION, où elle
+     arrive au bon moment : tant que le poste n'est pas nommé, l'écran
+     d'accueil affiche un message en haut et le bouton qui scanne au milieu.
+     Un mode d'emploi imprimé se lit une fois, quand on n'en a pas besoin ;
+     un message dans l'application se lit quand on en a besoin, et disparaît
+     ensuite.
 
-     ⚠️ DISPOSITION HORIZONTALE -- QR à gauche, texte à droite, comme les
-     étiquettes de blocs depuis la spec 024. La première version empilait en
-     colonne (QR, puis nom, puis mode d'emploi) sur une affiche de 136 mm : le
-     contenu en faisait 164, et le mode d'emploi sortait COUPÉ en bas.
-     Constaté À L'ÉCRAN, pas deviné. Un carton posé à plat est large et bas ;
-     empiler verticalement gaspille la largeur et manque de hauteur.
+     Ce qui reste sur le carton est ce qui sert À LA TABLE :
+     1. le NOM DE LA ZONE, le plus gros élément — c'est ce qu'on lit en
+        arrivant, à un mètre, pour savoir qu'on est à la bonne table ;
+     2. le QR, qu'on vise d'une seule main, l'autre étant occupée.
+
+     ⚠️ HUIT AFFICHES PAR A4, en DEUX COLONNES. Adrien : « lors de
+     l'impression tu m'en rentres beaucoup plus sur une feuille — à quatre,
+     j'en voudrais au moins six, voire huit ». Le mode d'emploi parti, une
+     affiche n'a plus besoin de la pleine largeur : deux colonnes de quatre
+     tiennent les 17 zones sur 3 feuilles au lieu de 6.
+
+     ⚠️ TOUTE LA GÉOMÉTRIE VIENT DU SERVEUR (`fiches.geometrie_postes()`).
+     Ce gabarit ne décide de RIEN : il pose les millimètres qu'on lui donne.
+     C'est ce qui permet de repasser à six affiches par feuille en changeant
+     `fiches.POSTES_PAR_FEUILLE` — une valeur, pas une refonte du CSS.
 
      Tout est en MILLIMETRES, et AUCUNE dependance exterieure : on imprime la
      veille au soir, parfois sans reseau. Le QR est genere localement par
@@ -38,18 +49,24 @@
   @page { size: A4 portrait; margin: 10mm; }
 
   :root {
-    --affiche-largeur: 188mm;
-    --affiche-hauteur: 90mm;    /* 3 x 90 = 270, pour 277 utiles */
     --feuille-largeur: 188mm;
     --feuille-hauteur: 270mm;
-    --qr: 70mm;
+  }
+
+  /* La densité et tout ce qui en descend. Une seule source : le serveur. */
+  :root {
+    --colonnes: {{ geo.colonnes }};
+    --affiche-largeur: {{ geo.largeur_mm }}mm;
+    --affiche-hauteur: {{ geo.hauteur_mm }}mm;
+    --qr: {{ geo.cote_qr_mm }}mm;
+    --rembourrage: {{ geo.rembourrage_mm }}mm;
+    --gouttiere: {{ geo.gouttiere_mm }}mm;
   }
 
   * { box-sizing: border-box; }
   /* ⚠️ LES APLATS DE COULEUR S'IMPRIMENT. Sans cette declaration, un
      navigateur ne pose aucun fond a l'impression tant que « Graphismes
-     d'arriere-plan » n'est pas coche -- ce que personne ne coche. Le bandeau
-     du mode d'emploi sortirait en blanc sur blanc. */
+     d'arriere-plan » n'est pas coche -- ce que personne ne coche. */
   * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
 
   body {
@@ -69,16 +86,19 @@
              overflow: clip;
              break-inside: avoid; page-break-inside: avoid;
              display: grid;
-             grid-template-columns: var(--affiche-largeur);
+             grid-template-columns: repeat(var(--colonnes), var(--affiche-largeur));
              align-content: start; }
   .feuille + .feuille { break-before: page; page-break-before: always; }
 
   .affiche {
-    height: var(--affiche-hauteur); padding: 5mm;
-    display: flex; align-items: center; gap: 6mm;
+    width: var(--affiche-largeur); height: var(--affiche-hauteur);
+    padding: var(--rembourrage);
+    display: flex; align-items: center; gap: var(--gouttiere);
     overflow: hidden;
     break-inside: avoid; page-break-inside: avoid;
-    /* Le trait de coupe. En pointillé : on découpe dessus. */
+    /* Les traits de coupe. En pointillé : on découpe dessus, et deux affiches
+       qui se touchent se coupent d'un seul coup de massicot. */
+    border-right: 0.3mm dashed #aaa;
     border-bottom: 0.3mm dashed #aaa;
   }
 
@@ -90,19 +110,19 @@
   /* LE plus gros élément : c'est ce qu'on lit en arrivant, à un mètre, pour
      savoir qu'on est à la bonne table.
      ⚠️ La taille vient du SERVEUR (`--taille`), pas d'une constante : « C »
-     a de la place pour 30 mm, « ABC » un peu moins, et une taille fixe ferait
-     déborder l'un ou ratatiner l'autre. Même mécanique que `--taille` sur les
-     étiquettes de blocs. */
+     a de la place pour le maximum, « ABC » un peu moins, et une taille fixe
+     ferait déborder l'un ou ratatiner l'autre. Même mécanique que `--taille`
+     sur les étiquettes de blocs.
+
+     Le petit mot au-dessus et la lettre en dessous composent EXACTEMENT le nom
+     que le téléphone se donnera après avoir scanné ce carton — « Zone C » — et
+     que la console affichera en face de ses envois. Le mot vient de
+     `fiches.MOT_ZONE`, le même que `poste.js` compose. */
   .zone { line-height: 1; }
   .zone .mot { font-size: 4.4mm; font-weight: 700; letter-spacing: 0.22em;
                text-transform: uppercase; color: #666; }
-  .zone .nom { font-size: var(--taille, 30mm); font-weight: 800;
+  .zone .nom { font-size: var(--taille, 26mm); font-weight: 800;
                letter-spacing: -0.02em; white-space: nowrap; margin-top: 1.5mm; }
-
-  .mode-emploi { background: #F2EFE8; border-radius: 2mm; padding: 2.5mm 3.5mm;
-                 font-size: 3.6mm; color: #333; line-height: 1.4;
-                 margin-top: 3mm; }
-  .mode-emploi b { font-weight: 700; }
 
   .vide { padding: 20mm 0; text-align: center; color: #666; font-size: 4mm;
           line-height: 1.6; }
@@ -124,10 +144,13 @@
 
 <div class="entete">
   <h1>QR de poste{% if filtre %} — zone {{ filtre }}{% endif %}</h1>
-  <p>{{ total }} à imprimer, <strong>trois par page</strong>, une par zone du
-     plan, à couper sur les pointillés. Vérifie l'échelle d'impression :
-     <strong>100 %</strong>, sans « ajuster à la page », sinon les QR sortiront
-     trop petits pour être lus.</p>
+  <p>{{ total }} à imprimer, <strong>{{ geo.par_feuille }} par page</strong>, une
+     par zone du plan, à couper sur les pointillés. Vérifie l'échelle
+     d'impression : <strong>100 %</strong>, sans « ajuster à la page », sinon
+     les QR sortiront trop petits pour être lus.</p>
+  <p>Le carton ne porte <strong>pas de mode d'emploi</strong> : c'est
+     l'application qui le donne. Tant qu'un téléphone n'a pas de poste, son
+     écran d'accueil affiche « Scanner le QR de mon poste ».</p>
 </div>
 
 {% if not feuilles %}
@@ -152,13 +175,8 @@
       <div class="qr">{{ p.qr|safe }}</div>
       <div class="quoi">
         <div class="zone">
-          <div class="mot">Zone</div>
+          <div class="mot">{{ mot_zone }}</div>
           <div class="nom">{{ p.zone }}</div>
-        </div>
-        <div class="mode-emploi">
-          Sur ton téléphone : <b>⚙ Réglages</b> →
-          <b>Scanner le QR de mon poste</b>.<br>
-          Ce téléphone s'appellera « {{ p.zone }} » dans la console.
         </div>
       </div>
     </div>

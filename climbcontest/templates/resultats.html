@@ -209,15 +209,74 @@
   }
   #barre .etiquette { position: relative; }
   #barre button:focus-visible { outline: 2px solid var(--encre); outline-offset: 2px; }
+  /* ======================================================================
+     LA RECHERCHE QUI SE DEPLOIE — spec 037.
+
+     « Au clic sur le bouton recherche, c'est le bouton qui s'anime et qui
+     deploie horizontalement une zone de texte » (Adrien, 03/09). Variante V3
+     retenue sur maquette : le champ RECOUVRE la rangee des commandes.
+
+     ⚠️ DEUX ETATS, ET UN SEUL SURVIT DESORMAIS. La spec 033 memorisait « la
+     recherche est-elle offerte » et la posait a « masquee » par defaut. Ce
+     reglage n'a plus lieu d'etre : le champ est REPLIE tant qu'on ne le
+     demande pas, ce qui EST « masquee par defaut », en mieux -- on n'a plus a
+     se souvenir d'un choix, il n'y en a plus. Le stockage ne garde donc que
+     l'etat lecture/pause. Ouvrir la recherche est un GESTE, pas un reglage :
+     ca ne se memorise pas.
+     ====================================================================== */
+  .commandes { position: relative; display: flex; align-items: center; gap: 10px;
+               flex: none; }
+  /* Sous le repli de l'en-tete, la rangee est seule sur sa ligne : elle prend
+     toute la largeur, et le champ avec elle. */
+  @media (max-width: 680px) { .commandes { width: 100%; } }
+
+  #boiteRecherche {
+    position: absolute; top: 0; right: 0; height: 100%;
+    display: flex; align-items: center; gap: 8px;
+    /* Ancre a DROITE et large de ce qu'il peut : sur telephone la rangee fait
+       la largeur de l'ecran, sur grand ecran le champ s'ouvre par-dessus le
+       bandeau de droite. « Quitte a avoir un champ court » (Adrien, E5) : un
+       seul comportement a expliquer le jour J. */
+    width: min(420px, calc(100vw - 36px));
+    background: var(--fond);
+    /* Le deploiement : le rectangle se decouvre depuis la loupe, qui occupe
+       les 2,4 em de droite. `clip-path` plutot qu'une largeur : la largeur
+       ferait sauter le champ a l'interieur pendant l'animation. */
+    clip-path: inset(0 0 0 calc(100% - 2.4em) round 999px);
+    opacity: 0; pointer-events: none;
+    transition: clip-path 340ms cubic-bezier(.32,.72,.28,1), opacity 120ms ease;
+  }
+  .commandes.ouverte #boiteRecherche {
+    clip-path: inset(0 0 0 0 round 999px); opacity: 1; pointer-events: auto;
+  }
+  /* Les commandes s'effacent SOUS le champ. Elles restent en place : les
+     deplacer ferait bouger le bouton qu'on vient de toucher. */
+  .commandes.ouverte .commande:not(#fermerRecherche) { opacity: 0; }
+  .commande { transition: opacity 160ms ease; }
+
+  /* ⚠️ SUR GRAND ECRAN, LE BANDEAU DE DROITE RECULE AUSSI.
+     La rangee des commandes n'est seule sur sa ligne que sous 680 px. Au-dessus,
+     le champ s'ouvre par-dessus le nom de l'edition et l'heure -- et il les
+     coupait en plein milieu, ce qui se lit comme un defaut d'affichage et non
+     comme un panneau qui s'ouvre. Constate a l'ecran, pas a la relecture.
+     Le bandeau s'efface donc le temps de la recherche : c'est ce que
+     « recouvrir » veut dire, et il revient des qu'on referme. */
+  header:has(.commandes.ouverte) .droite {
+    opacity: 0; transition: opacity 160ms ease;
+  }
+  .droite { transition: opacity 220ms ease 120ms; }
+
   #recherche {
-    flex: none; margin: 12px 24px 0; padding: 11px 14px;
-    width: calc(100% - 48px); max-width: 420px;
+    flex: 1; min-width: 0; height: 2.4em; padding: 0 14px;
     background: var(--carte); color: var(--encre);
-    border: 1px solid var(--trait); border-radius: 10px; font: inherit;
+    border: 1px solid var(--trait); border-radius: 999px; font: inherit;
+    font-size: 0.95rem; outline: none;
   }
   #recherche::placeholder { color: var(--encre2); }
-  body.mur #recherche { display: none; }
-  body.sans-recherche #recherche { display: none; }
+  #recherche:focus { border-color: var(--groupe); }
+  /* Le champ n'existe pas sur le mur : personne ne cherche sur un
+     videoprojecteur, et rien ne s'y touche. */
+  body.mur .commandes.ouverte #boiteRecherche { display: none; }
 
   /* ---- Le classement ---- */
   main { flex: 1; min-height: 0; display: flex; flex-direction: column;
@@ -615,7 +674,6 @@
     #competition { font-size: 0.95rem; }
     .meta { white-space: normal; }
     #barre { padding: 10px 16px; }
-    #recherche { margin: 10px 16px 0; width: calc(100% - 32px); }
     main { padding: 12px 16px 24px; }
   }
 
@@ -921,41 +979,68 @@
     </div>
     <div id="suivant"></div>
   </div>
-  <!-- ⚠️ `aria-pressed="true"` DES LE GABARIT : le champ part masque depuis la
-       spec 033 (R6), et l'attribut doit dire l'etat avant que le script ne
-       tourne. Il valait « false » sous une etiquette qui annonce « Afficher » :
-       les deux se contredisaient le temps du chargement. -->
-  <button id="masquerRecherche" class="commande hors-mur" type="button"
-          aria-pressed="true" aria-label="Afficher la recherche">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1"
-         stroke-linecap="round" aria-hidden="true">
-      <circle cx="10.5" cy="10.5" r="6.2" /><path d="M15.2 15.2 L20 20" />
-    </svg>
-  </button>
-  <!-- ⚠️ `aria-pressed` est pose DES LE DEPART, comme sur le bouton voisin.
-       Sans lui, un lecteur d'ecran annonce « bouton » et non « bouton a bascule,
-       non active » : rien ne dit que la rotation TOURNE, ni qu'on peut l'arreter.
-       L'attribut n'apparaissait qu'au premier clic -- le seul moment ou il
-       n'apprend plus rien. Les deux boutons de cet en-tete sont des bascules ;
-       ils se comportaient differemment. -->
-  <button id="pause" class="commande partout" type="button"
-          aria-pressed="false"
-          aria-label="Mettre la rotation en pause">
+  <!-- ⚠️ LES DEUX COMMANDES SONT DANS UNE RANGEE, et la LOUPE la TERMINE
+       (spec 037, E3 et E4). Deux raisons, et la seconde est structurelle :
+
+       1. « Echange le logo recherche et play sur telephone » (Adrien, 03/09).
+          La loupe termine la rangee, parce que c'est de la que le champ se
+          deploie vers la gauche.
+       2. Le champ RECOUVRE cette rangee quand il s'ouvre : il lui faut donc
+          un parent positionne, et un parent qui sait ou est la loupe.
+
+       Sous 680 px l'en-tete se replie et cette rangee est seule sur sa ligne :
+       c'est ce qui donne au champ toute la largeur. Au-dessus, elle termine
+       une ligne deja pleine et le champ s'ouvre par-dessus le bandeau de
+       droite -- « quitte a avoir un champ court » (Adrien, E5). -->
+  <div class="commandes">
+    <!-- ⚠️ `aria-pressed` est pose DES LE DEPART. Sans lui, un lecteur
+         d'ecran annonce « bouton » et non « bouton a bascule, non active » :
+         rien ne dit que la rotation TOURNE, ni qu'on peut l'arreter.
+         L'attribut n'apparaissait qu'au premier clic -- le seul moment ou il
+         n'apprend plus rien. -->
+    <button id="pause" class="commande partout" type="button"
+            aria-pressed="false"
+            aria-label="Mettre la rotation en pause">
     <!-- Le meme carre de 24, la meme hauteur optique de 12,8 : c'est ce qui
          fait que le bouton ne change pas d'allure quand il change d'etat. -->
     <svg class="ico-lecture" viewBox="0 0 24 24" fill="currentColor"
          aria-hidden="true"><path d="M8.4 5.6 19 12 8.4 18.4Z" /></svg>
-    <svg class="ico-pause" viewBox="0 0 24 24" fill="currentColor"
-         aria-hidden="true">
-      <rect x="7.3" y="5.6" width="3.6" height="12.8" rx="1.1" />
-      <rect x="13.1" y="5.6" width="3.6" height="12.8" rx="1.1" />
-    </svg>
-  </button>
+      <svg class="ico-pause" viewBox="0 0 24 24" fill="currentColor"
+           aria-hidden="true">
+        <rect x="7.3" y="5.6" width="3.6" height="12.8" rx="1.1" />
+        <rect x="13.1" y="5.6" width="3.6" height="12.8" rx="1.1" />
+      </svg>
+    </button>
+
+    <button id="ouvrirRecherche" class="commande hors-mur" type="button"
+            aria-expanded="false" aria-controls="boiteRecherche"
+            aria-label="Chercher un grimpeur">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1"
+           stroke-linecap="round" aria-hidden="true">
+        <circle cx="10.5" cy="10.5" r="6.2" /><path d="M15.2 15.2 L20 20" />
+      </svg>
+    </button>
+
+    <!-- ⚠️ `inert` DES LE GABARIT. Un champ anime mais toujours focusable est
+         le piege classique de ce motif : le Tab part dedans alors que rien ne
+         se voit. `inert` le sort de l'ordre de tabulation ET du pointeur,
+         d'un seul attribut, et le script ne fait que l'oter. -->
+    <div id="boiteRecherche" inert>
+      <input id="recherche" type="search"
+             placeholder="Chercher un nom ou un dossard…"
+             autocomplete="off" aria-label="Chercher un grimpeur">
+      <button id="fermerRecherche" class="commande hors-mur" type="button"
+              aria-label="Fermer la recherche">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1"
+             stroke-linecap="round" aria-hidden="true">
+          <path d="M6.5 6.5 17.5 17.5M17.5 6.5 6.5 17.5" />
+        </svg>
+      </button>
+    </div>
+  </div>
 </header>
 
 <div id="barre" role="group" aria-label="Catégories"></div>
-<input id="recherche" type="search" placeholder="Chercher un nom ou un dossard…"
-       autocomplete="off" aria-label="Chercher un grimpeur">
 
 <main>
   <div id="attente" hidden></div>
@@ -1106,7 +1191,7 @@ import { decorer, decrire, monter, peutDessiner, zonesDe }
     // l'adresse, et la page normale repartait donc à l'arrêt à chaque
     // rechargement, quoi qu'on ait cliqué avant.
     enPause: lireEnPause(),    // la rotation, figée à la demande
-    sansRecherche: false,      // le champ, masqué pour le vidéoprojecteur
+    rechercheOuverte: false,   // le champ déployé — un GESTE, jamais mémorisé
     groupesMasques: [],        // les classements que la console ne veut pas montrer
     animationDefilement: null,
   };
@@ -1129,7 +1214,10 @@ import { decorer, decrire, monter, peutDessiner, zonesDe }
     competition: document.getElementById("competition"),
     suivant: document.getElementById("suivant"),
     pause: document.getElementById("pause"),
-    masquerRecherche: document.getElementById("masquerRecherche"),
+    ouvrirRecherche: document.getElementById("ouvrirRecherche"),
+    fermerRecherche: document.getElementById("fermerRecherche"),
+    boiteRecherche: document.getElementById("boiteRecherche"),
+    commandes: document.querySelector(".commandes"),
   };
 
   if (MUR) document.body.classList.add("mur");
@@ -1155,18 +1243,15 @@ import { decorer, decrire, monter, peutDessiner, zonesDe }
   // ils ne regardent que cet appareil et n'ont rien à faire sur le réseau.
   // C'est le raisonnement des favoris, une centaine de lignes plus haut.
   //
-  // 1. **La recherche masquée.** Le champ est indispensable sur le téléphone
-  //    d'un parent et parasite sur un mur. Il était déjà masqué en `?mur`, mais
-  //    ce mode emporte aussi la rotation et le grand format : on projette
-  //    souvent sans.
+  // ⚠️ IL N'EN RESTE QU'UN. La spec 033 mémorisait aussi « la recherche est-elle
+  // offerte », posée à « masquée » par défaut. Depuis que le champ se DÉPLOIE
+  // (spec 037), ce réglage n'a plus d'objet : le champ est replié tant qu'on ne
+  // le demande pas, ce qui EST « masquée par défaut » — sans avoir à se
+  // souvenir de quoi que ce soit. Ouvrir la recherche est un GESTE ; un geste
+  // ne se mémorise pas, sinon la page rouvre toute seule un champ que personne
+  // n'a demandé.
   //
-  //    ⚠️ Le défaut a été INVERSÉ le 03/09 (spec 033, R6) : « par défaut sur la
-  //    page résultat, je veux que la recherche soit cachée ». Le prix est réel
-  //    et il est écrit dans la spec : un parent qui ouvre la page ne voit plus
-  //    le champ, il faut toucher la loupe. Le bouton reste, et le choix est
-  //    retenu — celui qui l'ouvre une fois ne le rouvre plus.
-  //
-  // 2. **La lecture ou la pause.** `enPause` se déduisait de la seule adresse,
+  // **La lecture ou la pause.** `enPause` se déduisait de la seule adresse,
   //    au chargement : la page normale repartait donc TOUJOURS à l'arrêt,
   //    quoi qu'on ait cliqué avant. « Quand je recharge la page résultat, le
   //    bouton play se désactive. Moi, je veux qu'on reste en play si on est en
@@ -1190,18 +1275,9 @@ import { decorer, decrire, monter, peutDessiner, zonesDe }
 
   function ecrireAffichage() {
     try {
-      window.localStorage.setItem(CLE_AFFICHAGE, JSON.stringify({
-        sansRecherche: etat.sansRecherche,
-        enPause: etat.enPause,
-      }));
-    } catch (e) { /* sans stockage, les choix ne durent que la visite */ }
-  }
-
-  /** Masquée par DÉFAUT : c'est le renversement du 03/09. Une valeur mémorisée
-   *  l'emporte, dans les deux sens. */
-  function lireSansRecherche() {
-    var garde = lireAffichage().sansRecherche;
-    return typeof garde === "boolean" ? garde : true;
+      window.localStorage.setItem(CLE_AFFICHAGE,
+                                  JSON.stringify({ enPause: etat.enPause }));
+    } catch (e) { /* sans stockage, le choix ne dure que la visite */ }
   }
 
   /** En pause au départ, sauf sur le mur — et sauf si cet écran a retenu
@@ -1211,13 +1287,35 @@ import { decorer, decrire, monter, peutDessiner, zonesDe }
     return typeof garde === "boolean" ? garde : !MUR;
   }
 
-  function basculerRecherche(masquee) {
-    etat.sansRecherche = masquee;
-    document.body.classList.toggle("sans-recherche", masquee);
-    el.masquerRecherche.setAttribute("aria-pressed", String(masquee));
-    el.masquerRecherche.setAttribute(
-      "aria-label", masquee ? "Afficher la recherche" : "Masquer la recherche");
-    ecrireAffichage();
+  /** Déploie ou replie le champ.
+   *
+   *  ⚠️ Replier VIDE le champ, et ce n'est pas une politesse : masquer un
+   *  filtre encore actif laisserait une liste filtrée sans rien pour
+   *  l'expliquer. La règle vient de la spec 020 et ne change pas.
+   *
+   *  ⚠️ `inert` fait le travail d'accessibilité à lui seul — hors de l'ordre de
+   *  tabulation, hors du pointeur. Un champ animé mais toujours focusable est
+   *  le piège classique de ce motif : le Tab part dedans alors que rien ne se
+   *  voit.
+   */
+  function deployerRecherche(ouverte) {
+    if (etat.rechercheOuverte === ouverte) return;
+    etat.rechercheOuverte = ouverte;
+    el.commandes.classList.toggle("ouverte", ouverte);
+    el.boiteRecherche.inert = !ouverte;
+    el.ouvrirRecherche.setAttribute("aria-expanded", String(ouverte));
+
+    if (ouverte) {
+      el.recherche.focus();
+    } else if (el.recherche.value) {
+      el.recherche.value = "";
+      etat.noeuds = {};
+      el.liste.innerHTML = "";
+    }
+    dessiner();
+    // Le focus REVIENT sur la loupe : sans ça, il retombe sur le corps du
+    // document et le clavier repart du début de la page.
+    if (!ouverte) el.ouvrirRecherche.focus();
   }
 
   function lireFavoris() {
@@ -1518,7 +1616,9 @@ import { decorer, decrire, monter, peutDessiner, zonesDe }
 
     // Le champ masqué ne filtre plus rien, même si une valeur y traîne : une
     // liste filtrée sans champ visible serait indéchiffrable.
-    var q = (MUR || etat.sansRecherche)
+    // Le champ replié ne filtre plus rien, même si une valeur y traînait : une
+    // liste filtrée sans champ visible serait indéchiffrable.
+    var q = (MUR || !etat.rechercheOuverte)
       ? "" : el.recherche.value.trim().toLowerCase();
     var lignes, titreTexte, compteTexte;
 
@@ -2401,7 +2501,7 @@ import { decorer, decrire, monter, peutDessiner, zonesDe }
   document.addEventListener("touchstart", function (e) {
     if (MUR || e.touches.length !== 1) { toucher = null; return; }
     // On ignore ce qui part de la barre : elle défile déjà horizontalement.
-    if (e.target.closest && e.target.closest("#barre, #recherche")) { toucher = null; return; }
+    if (e.target.closest && e.target.closest("#barre, .commandes")) { toucher = null; return; }
     toucher = { x: e.touches[0].clientX, y: e.touches[0].clientY };
   }, { passive: true });
 
@@ -2433,22 +2533,18 @@ import { decorer, decrire, monter, peutDessiner, zonesDe }
     dessiner();
   });
 
-  el.masquerRecherche.addEventListener("click", function () {
-    var masquee = !etat.sansRecherche;
-    basculerRecherche(masquee);
-    // Masquer un filtre ENCORE ACTIF laisserait une liste filtrée sans rien
-    // pour expliquer pourquoi. On vide donc la recherche en même temps.
-    if (masquee && el.recherche.value) {
-      el.recherche.value = "";
-      etat.noeuds = {};
-      el.liste.innerHTML = "";
-    }
-    dessiner();
+  el.ouvrirRecherche.addEventListener("click", function () {
+    deployerRecherche(!etat.rechercheOuverte);
+  });
+  el.fermerRecherche.addEventListener("click", function () {
+    deployerRecherche(false);
   });
 
-  // L'état est relu au démarrage : le choix survit au rechargement, ce qui est
-  // tout l'intérêt sur une machine qui projette toute la journée.
-  basculerRecherche(lireSansRecherche());
+  // Échap referme : un champ qui recouvre sa rangée doit toujours avoir une
+  // sortie au clavier.
+  document.addEventListener("keydown", function (e) {
+    if (e.key === "Escape" && etat.rechercheOuverte) deployerRecherche(false);
+  });
 
   // Redimensionnement : la hauteur des lignes et le défilement en dépendent.
   var minuteurTaille;
@@ -2796,7 +2892,7 @@ import { decorer, decrire, monter, peutDessiner, zonesDe }
       + (siens.length > 1 ? " blocs" : " bloc");
     var c = compteDeZone(d.groupes || [], zone);
     var compte = div("sf-compte", t, "span");
-    compte.textContent = c.faits === c.total ? "terminee" : c.faits + " sur " + c.total;
+    compte.textContent = c.faits === c.total ? "terminée" : c.faits + " sur " + c.total;
     if (c.faits === c.total) compte.classList.add("finie");
     var cases = div("sf-cases", bas);
     siens.forEach(function (b) { cases.appendChild(caseDeBloc(b)); });
