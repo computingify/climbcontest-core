@@ -1,0 +1,48 @@
+/* ============================================================
+   La MATIERE IMPRIMEE de « Plein Jour » (spec 035, direction A)
+   Ce que la 039 n'a pas livre : elle a pris la PALETTE de la
+   direction A (papier sable, encre presque noire), pas sa matiere
+   — le lisere d'encre et l'ombre franche qui donnent aux surfaces
+   l'aspect des etiquettes de blocs collees au mur (spec 024).
+   ============================================================ */
+
+/* Les cartes se decollent du papier d'un cheveu. */
+.carte { box-shadow: 0 2px 0 rgba(26, 22, 17, .06); }
+
+/* La carte du bloc scanne : un fond teinte de SON circuit, cercle
+   d'encre. Aujourd'hui le fond reste neutre et le trait est un
+   circuit dilue — de loin, la carte ne dit pas sa couleur. */
+#carteBloc.fait {
+  background: color-mix(in srgb, var(--circuit) 13%, var(--carte-active));
+  border-color: var(--encre);
+  border-width: 2.5px;
+}
+/* La pastille du bloc prend son lisere : l'aplat cercle d'encre,
+   c'est-a-dire exactement l'etiquette qui est collee sous le bloc. */
+#carteBloc.fait .valeur:not(.attente) { border: 2px solid var(--encre); }
+
+/* Le bouton IMPRIME : un aplat, un lisere, une ombre franche de 5 px.
+   Il a l'air pose sur la page, pas peint dessus. */
+#envoyer:not(:disabled) {
+  border: 2px solid var(--encre);
+  border-radius: 18px;
+  box-shadow: 0 5px 0 var(--encre);
+}
+/* Desactive, il devient un emplacement qui attend : un trait POINTILLE,
+   qui ne se confond avec aucune surface pleine. */
+#envoyer:disabled {
+  border: 2px dashed var(--trait-attente);
+  box-shadow: none;
+}
+
+/* ⚠️ Le souffle (spec 007, parite Android) anime `box-shadow` : sans
+   cette redefinition, la pulsation EFFACE l'ombre franche a chaque
+   battement. La maquette de la 035 ignorait le souffle — c'est le
+   seul vrai point de couture entre la direction A et l'existant. */
+@keyframes souffle {
+  0%, 100% { transform: scale(1);
+             box-shadow: 0 5px 0 var(--encre); }
+  50%      { transform: scale(1.015);
+             box-shadow: 0 5px 0 var(--encre),
+                         0 0 26px color-mix(in srgb, var(--circuit) 45%, transparent); }
+}

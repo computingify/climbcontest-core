@@ -21,7 +21,7 @@ tant que la première n'est pas validée.**
 - [x] Captures à 390 × 844 exactement, une par direction et une par écran
 - [x] Écrire `spec.md`, `architecture.md`, `plan.md`, mettre à jour
       `docs/specs-index.md`
-- [ ] **Porte 2 — Adrien tranche D1 à D5** (§ 7 de la spec)
+- [x] **Porte 2 — Adrien tranche D1 à D5** (§ 7 de la spec) — **franchie le 03/09**, les cinq réponses sont au § 7 bis
 
 ## Étape 2 — L'implémentation (spec et PR séparées, pas encore ouvertes)
 

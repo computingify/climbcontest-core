@@ -1,0 +1,159 @@
+<!doctype html>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>041 — La matière imprimée : avant / après</title>
+<!--
+  ⚠️ CETTE PAGE NE REDESSINE RIEN.
+
+  Les dix captures viennent du VRAI `climbcontest/templates/juge.html` servi
+  tel quel, avec son vrai CSS et sa vraie police, dans un navigateur réglé sur
+  390 × 844 — la taille exacte de l'écran. La colonne « après » est la même
+  page, avec le seul fichier `matiere.css` injecté par-dessus.
+
+  C'est la leçon de la spec 036 : une maquette redessinée ne prouve rien, elle
+  ne fait que confirmer la lecture de celui qui l'a dessinée.
+-->
+<style>
+  :root {
+    --fond: #12141A; --carte: #1B1E26; --trait: #2C313D;
+    --encre: #EEF1F6; --encre2: #9AA3B2; --ocre: #E0A94A; --vert: #3DBE72;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--fond); color: var(--encre);
+         font: 15px/1.6 -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif; }
+  header { padding: 28px 24px 18px; border-bottom: 1px solid var(--trait); }
+  h1 { margin: 0 0 6px; font-size: 1.5rem; letter-spacing: -.01em; }
+  .sous { margin: 0; color: var(--encre2); max-width: 70ch; }
+  .barre { display: flex; flex-wrap: wrap; gap: 10px; padding: 18px 24px;
+           border-bottom: 1px solid var(--trait); position: sticky; top: 0;
+           background: var(--fond); z-index: 5; }
+  .barre button { font: inherit; font-size: .92rem; padding: 8px 15px;
+                  border-radius: 999px; border: 1px solid var(--trait);
+                  background: var(--carte); color: var(--encre2); cursor: pointer; }
+  .barre button[aria-pressed="true"] { background: var(--ocre); color: #17140F;
+                                        border-color: var(--ocre); font-weight: 600; }
+  .barre .sep { width: 1px; background: var(--trait); margin: 2px 6px; }
+
+  .duo { display: flex; flex-wrap: wrap; gap: 34px; padding: 30px 24px 10px;
+         align-items: flex-start; }
+  figure { margin: 0; }
+  figcaption { font-size: .82rem; letter-spacing: .1em; text-transform: uppercase;
+               color: var(--encre2); margin-bottom: 10px; font-weight: 600; }
+  figure.apres figcaption { color: var(--vert); }
+  .tel { width: 390px; height: 844px; border-radius: 30px; overflow: hidden;
+         border: 1px solid var(--trait); background: #000; }
+  .tel img { display: block; width: 390px; height: 844px; }
+
+  .notes { padding: 10px 24px 60px; max-width: 78ch; }
+  .notes h2 { font-size: 1.1rem; margin: 30px 0 10px; }
+  table { border-collapse: collapse; width: 100%; font-size: .93rem; }
+  th, td { text-align: left; padding: 9px 12px; border-bottom: 1px solid var(--trait);
+           vertical-align: top; }
+  th { color: var(--encre2); font-weight: 600; }
+  code { background: var(--carte); padding: 1px 6px; border-radius: 5px;
+         font-size: .88em; }
+  .q { border-left: 3px solid var(--ocre); background: rgba(224,169,74,.08);
+       padding: 14px 18px; border-radius: 0 8px 8px 0; margin: 18px 0; }
+  .q b { color: var(--ocre); }
+  @media (max-width: 900px) { .tel, .tel img { width: 100%; height: auto; } }
+</style>
+
+<header>
+  <h1>La matière imprimée — ce que la 039 n’a pas livré</h1>
+  <p class="sous">
+    Tu as tranché « <b>A — Plein Jour</b> » le 03/09. La spec 039 en a pris la
+    <b>palette</b> (papier sable, encre presque noire) mais pas la
+    <b>matière</b> : le liseré d’encre et l’ombre franche qui donnent aux
+    surfaces l’aspect des étiquettes de blocs collées au mur.
+    Voici ce que ça change, sur le vrai écran.
+  </p>
+</header>
+
+<div class="barre">
+  <button data-etat="jaune" aria-pressed="true">Bloc scanné — circuit Jaune</button>
+  <button data-etat="noir" aria-pressed="false">Circuit Noir</button>
+  <button data-etat="repos" aria-pressed="false">Rien de scanné</button>
+  <div class="sep"></div>
+  <button data-theme="light" aria-pressed="true">Clair</button>
+  <button data-theme="dark" aria-pressed="false">Sombre</button>
+</div>
+
+<div class="duo">
+  <figure>
+    <figcaption>Aujourd’hui en production</figcaption>
+    <div class="tel"><img id="avant" alt="l'écran juge actuel"></div>
+  </figure>
+  <figure class="apres">
+    <figcaption>Avec la matière imprimée</figcaption>
+    <div class="tel"><img id="apres" alt="l'écran juge avec la matière de « Plein Jour »"></div>
+  </figure>
+</div>
+
+<div class="notes">
+  <h2>Les quatre gestes, et rien d’autre</h2>
+  <table>
+    <tr><th>Ce qui change</th><th>Aujourd’hui</th><th>Proposé</th></tr>
+    <tr><td>La <b>carte du bloc</b> scanné</td>
+        <td>fond neutre, trait d’un circuit dilué</td>
+        <td>fond teinté à 13 % de son circuit, cerclé d’encre sur 2,5 px</td></tr>
+    <tr><td>La <b>pastille</b> du bloc</td>
+        <td>aplat plein, sans contour</td>
+        <td>le même aplat, <b>cerclé d’un liseré d’encre</b> — l’étiquette du mur</td></tr>
+    <tr><td>Le bouton <b>Envoyer</b></td>
+        <td><code>border: 0</code>, une lueur animée</td>
+        <td>liseré d’encre + <b>ombre franche de 5 px</b> : il est posé sur la page</td></tr>
+    <tr><td>Le bouton <b>désactivé</b></td>
+        <td>trait plein de 1,5 px</td>
+        <td>trait <b>pointillé</b> : un emplacement qui attend, pas une surface</td></tr>
+  </table>
+
+  <h2>Ce que l’aperçu a fait apparaître, et que la maquette de la 035 ne montrait pas</h2>
+  <table>
+    <tr><th>#</th><th>Trouvaille</th></tr>
+    <tr><td>1</td><td><b>Le souffle efface l’ombre.</b> La pulsation lente du bouton
+      (spec 007, parité Android) anime <code>box-shadow</code> : sans précaution elle
+      <b>gomme l’ombre franche à chaque battement</b>. C’est la seule vraie couture entre
+      la direction A et l’existant — la maquette de la 035 n’avait pas de souffle.
+      Réglé ici en redéfinissant les images-clés.</td></tr>
+    <tr><td>2</td><td><b>Le liseré tient dans les deux thèmes.</b> La maquette écrivait
+      <code>#17140F</code> en dur. En le prenant sur <code>var(--encre)</code>, il devient
+      craie sur l’ardoise : regarde l’onglet « Sombre », la matière est la même.</td></tr>
+    <tr><td>3</td><td><b>Le circuit « Noir » avale son propre liseré.</b> Vois l’onglet
+      « Circuit Noir » : l’encre EST la couleur du circuit, donc le contour se confond
+      avec l’aplat, et la carte teintée à 13 % de noir vire au <b>gris</b> au lieu du sable.
+      Rien n’est cassé, mais c’est une décision à prendre, pas un bug.</td></tr>
+  </table>
+
+  <div class="q">
+    <b>Ce que j’attends de toi :</b> 1) est-ce que cette matière te va —
+    on l’implémente telle quelle ? 2) et sur le circuit <b>Noir</b>, on laisse
+    la carte grise, ou le liseré passe au papier pour que l’étiquette garde son
+    contour ?
+  </div>
+</div>
+
+<script>
+  var etat = "jaune", theme = "light";
+  function rendre() {
+    // « repos » n'a pas de variante sombre : le bouton desactive ne depend pas
+    // du circuit, et le theme sombre n'y ajoutait rien a regarder.
+    var t = (etat === "repos") ? "light" : theme;
+    document.getElementById("avant").src = "captures/" + t + "-" + etat + "-avant.png";
+    document.getElementById("apres").src = "captures/" + t + "-" + etat + "-apres.png";
+    document.querySelectorAll("[data-etat]").forEach(function (b) {
+      b.setAttribute("aria-pressed", String(b.dataset.etat === etat));
+    });
+    document.querySelectorAll("[data-theme]").forEach(function (b) {
+      b.setAttribute("aria-pressed", String(b.dataset.theme === theme));
+      b.disabled = (etat === "repos");
+      b.style.opacity = (etat === "repos") ? .4 : 1;
+    });
+  }
+  document.querySelector(".barre").addEventListener("click", function (e) {
+    var b = e.target.closest("button"); if (!b) return;
+    if (b.dataset.etat) etat = b.dataset.etat;
+    if (b.dataset.theme) theme = b.dataset.theme;
+    rendre();
+  });
+  rendre();
+</script>
