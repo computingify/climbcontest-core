@@ -383,6 +383,16 @@
   #installer { margin: 0 16px 12px; padding: 12px 14px; border-radius: 10px;
                background: var(--carte-active); color: var(--encre2); font-size: 0.88rem;
                line-height: 1.5; }
+
+  /* Le poste pas encore nommé (spec 034, retouche du 03/09). Le MÊME motif que
+     `#relier` : un petit texte en haut de l'écran d'accueil, et juste dessous
+     le geste qui répare. Le juge scanne UNE fois le matin — d'où un bloc qui
+     s'efface dès que le téléphone porte un nom, et un bouton qui reste,
+     lui, dans les Réglages pour les fois d'après. */
+  #poste { margin: 0 16px 14px; padding: 14px; border-radius: 10px;
+           background: var(--carte-active); text-align: center; }
+  #poste .dis { display: block; color: var(--encre2); font-size: 0.88rem;
+                line-height: 1.5; margin-bottom: 12px; }
 </style>
 </head>
 <body>
@@ -454,6 +464,24 @@
      l'organisateur » et n'a aucun geste a sa portee. -->
 <p id="relier" hidden>
   <button class="action" id="btnRelier" type="button">Scanner le QR de l’organisateur</button>
+</p>
+
+<!-- Le poste, sur l'écran d'accueil (spec 034, retouche du 03/09).
+
+     Adrien : « Lorsque le juge arrive à sa table, il va ouvrir l'application et
+     dans l'application, on va lui afficher un petit texte en haut […] Là ici,
+     on aura encore un petit bouton au milieu sur la page d'accueil qui permet
+     de scanner ce QR code qui permet de setter la zone. »
+
+     C'est pour ça que le mode d'emploi a QUITTÉ le carton imprimé : il arrive
+     ici, au moment où il sert. Le bloc est affiché tant que le téléphone n'a
+     pas de nom, et disparaît dès qu'il en a un — le juge scanne une fois le
+     matin, pas cent fois par jour. Le geste reste ensuite dans les Réglages,
+     où il était déjà, pour le carton changé de table ou le nom effacé. -->
+<p id="poste" hidden>
+  <span class="dis">Ce téléphone n'a pas encore de poste. Le carton posé sur ta
+    table porte le QR qui le nomme.</span>
+  <button class="action" id="btnPoste" type="button">Scanner le QR de mon poste</button>
 </p>
 
 <p id="installer" hidden>

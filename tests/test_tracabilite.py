@@ -206,6 +206,55 @@ class TestRoutesDeControle:
         assert len(liste) == 1, "regroupe par identifiant, pas par nom"
         assert liste[0]["nom"] == "Mur vert"
 
+    def test_deux_telephones_du_meme_nom_restent_distinguables(self, client, jeu,
+                                                              organisateur):
+        """⚠️ Le cas normal depuis la spec 034, pas l'accident.
+
+        Deux juges affectes a la meme zone scannent le MEME carton pose sur la
+        table : leurs deux telephones s'appellent « Zone A ». Adrien : « ce que
+        je veux, c'est que tu sois capable de les distinguer cote console ».
+
+        Rien de nouveau n'est invente : c'est `appareil_id`, l'UUID pose par
+        `identite.js` depuis la spec 011, rendu LISIBLE dans le libelle.
+        """
+        envoyer(client, [{"ref": "a", "bib": "1", "bloc": "ZJ6"}],
+                {"id": "3f9a1c2b-1111", "nom": "Zone A"})
+        envoyer(client, [{"ref": "b", "bib": "2", "bloc": "DV21"}],
+                {"id": "7e40aa91-2222", "nom": "Zone A"})
+
+        liste = organisateur.get("/admin/appareils").get_json()["appareils"]
+
+        assert len(liste) == 2
+        assert {a["nom"] for a in liste} == {"Zone A"}, "meme nom, c'est le cas"
+        assert {a["libelle"] for a in liste} == {"Zone A (3f9a1c2b)",
+                                                 "Zone A (7e40aa91)"}
+
+    def test_la_recherche_de_scans_nomme_le_poste_de_la_meme_facon(self, client,
+                                                                   jeu,
+                                                                   organisateur):
+        """Deux vues qui nommeraient un poste differemment obligeraient a faire
+        la correspondance de tete, au pire moment."""
+        envoyer(client, [{"ref": "abc123", "bib": "1", "bloc": "ZJ6"}],
+                {"id": "3f9a1c2b-1111", "nom": "Zone A"})
+
+        appareil = organisateur.get("/admin/appareils").get_json()["appareils"][0]
+        scans = organisateur.get(
+            "/admin/reussites-tracees?ref=abc").get_json()["reussites"]
+
+        assert scans[0]["appareil_libelle"] == appareil["libelle"]
+
+    def test_une_saisie_manuelle_n_a_aucun_libelle_de_poste(self, client, jeu,
+                                                            organisateur):
+        """⚠️ `None`, pas « Sans nom » : lui inventer un appareil serait faux."""
+        enregistrer_reussite(jeu["participants"][0], jeu["blocs"][0],
+                             saisie_par="adrien", ref_client="manuel1")
+
+        scans = organisateur.get(
+            "/admin/reussites-tracees?ref=manuel").get_json()["reussites"]
+
+        assert scans[0]["appareil_libelle"] is None
+        assert scans[0]["saisie_par"] == "adrien"
+
     def test_une_saisie_manuelle_ne_cree_pas_d_appareil(self, client, jeu, organisateur):
         enregistrer_reussite(jeu["participants"][0], jeu["blocs"][0],
                              saisie_par="adrien")

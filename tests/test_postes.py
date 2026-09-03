@@ -24,7 +24,7 @@ import pytest
 
 from werkzeug.security import generate_password_hash
 
-from climbcontest import comptes, fiches, plan_du_mur, qr
+from climbcontest import comptes, contest, fiches, plan_du_mur, qr
 from climbcontest.extensions import db
 from climbcontest.models import Utilisateur
 
@@ -192,9 +192,10 @@ class TestLaTailleDuNom:
         # `white-space: nowrap` dans le gabarit : ce qui ne tient pas serait
         # COUPE, et une zone dont le nom est coupe ne sert plus a rien.
         long = "Z" * 40
+        largeur = fiches.geometrie_postes()["largeur_nom_mm"]
         assert fiches.taille_nom_poste_mm(long) < fiches.TAILLE_NOM_POSTE_MAXI_MM
         assert len(long) * fiches.CHASSE_NOM_POSTE * \
-            fiches.taille_nom_poste_mm(long) <= fiches.LARGEUR_NOM_POSTE_MM
+            fiches.taille_nom_poste_mm(long) <= largeur
 
     def test_deux_noms_de_meme_longueur_ont_la_meme_taille(self, app):
         assert fiches.taille_nom_poste_mm("ABC") == fiches.taille_nom_poste_mm("XYZ")
@@ -202,6 +203,17 @@ class TestLaTailleDuNom:
     def test_la_planche_porte_la_taille(self, app):
         planche = fiches.postes(plan=_plan("A"))
         assert planche[0]["taille_nom"] == fiches.taille_nom_poste_mm("A")
+
+    def test_la_largeur_disponible_suit_la_densite(self, app):
+        """⚠️ Elle n'est PAS une constante.
+
+        Ecrite en dur, elle mentirait des qu'on repasse de huit affiches par
+        feuille a six -- une seule colonne au lieu de deux double la largeur
+        d'une affiche.
+        """
+        deux = fiches.geometrie_postes(par_feuille=8, par_ligne=2)
+        une = fiches.geometrie_postes(par_feuille=8, par_ligne=1)
+        assert une["largeur_nom_mm"] > deux["largeur_nom_mm"]
 
 
 class TestLeFiltreParZone:
@@ -217,25 +229,90 @@ class TestLeFiltreParZone:
 
 class TestLaPagination:
 
-    def test_trois_affiches_par_feuille(self, app):
-        """⚠️ Trois, pas deux.
+    def test_huit_affiches_par_feuille(self, app):
+        """⚠️ Huit, pas trois.
 
-        La premiere version en posait deux, en colonne : le contenu faisait
-        164 mm dans une affiche de 136, et le mode d'emploi sortait COUPE.
-        Constate a l'ecran. La disposition horizontale tient en 90 mm, et
-        17 zones passent de 9 feuilles a moitie vides a 6 pleines.
+        Adrien, le 03/09 apres relecture : « lors de l'impression tu m'en
+        rentres beaucoup plus sur une feuille -- a quatre, j'en voudrais au
+        moins six, voire huit ». On prend le haut de la fourchette.
+
+        L'historique en dit long sur ce qui se paie a l'ecran : deux par
+        feuille en colonne (le mode d'emploi sortait COUPE), puis trois a
+        l'horizontale, puis huit en deux colonnes une fois le mode d'emploi
+        parti dans l'application.
         """
-        assert fiches.POSTES_PAR_FEUILLE == 3
+        assert fiches.POSTES_PAR_FEUILLE == 8
+
+    def test_les_dix_sept_zones_du_plan_d_usine_tiennent_sur_trois_feuilles(self, app):
+        """« Je me retrouve avec des pages vides » etait le reproche du 02/09."""
+        planche = fiches.postes(plan=fiches.PLAN)
+        feuilles = fiches.en_feuilles(planche, fiches.POSTES_PAR_FEUILLE)
+        assert len(feuilles) == 3
 
     def test_la_derniere_feuille_peut_etre_incomplete(self, app):
-        planche = fiches.postes(plan=_plan("A", "B", "C", "D"))
+        planche = fiches.postes(plan=_plan("A", "B", "C", "D", "E", "F", "G",
+                                           "H", "I"))
         feuilles = fiches.en_feuilles(planche, fiches.POSTES_PAR_FEUILLE)
-        assert [len(f) for f in feuilles] == [3, 1]
+        assert [len(f) for f in feuilles] == [8, 1]
 
     def test_aucune_affiche_ne_se_perd(self, app):
         planche = fiches.postes(plan=fiches.PLAN)
         feuilles = fiches.en_feuilles(planche, fiches.POSTES_PAR_FEUILLE)
         assert sum(len(f) for f in feuilles) == len(planche)
+
+
+class TestLaGeometrieSuitLaDensite:
+    """⚠️ **Une seule valeur commande la planche.**
+
+    Adrien arbitre entre six et huit affiches par A4. Repasser a six doit etre
+    une valeur a changer — `fiches.POSTES_PAR_FEUILLE` — et pas une refonte du
+    CSS. Ces tests tiennent cette promesse : la geometrie se DEDUIT, elle ne
+    s'ecrit nulle part deux fois.
+    """
+
+    def test_huit_par_feuille_font_deux_colonnes_de_quatre(self, app):
+        geo = fiches.geometrie_postes(par_feuille=8)
+        assert (geo["colonnes"], geo["lignes"]) == (2, 4)
+
+    def test_six_par_feuille_font_deux_colonnes_de_trois(self, app):
+        geo = fiches.geometrie_postes(par_feuille=6)
+        assert (geo["colonnes"], geo["lignes"]) == (2, 3)
+        # Et les affiches sont PLUS HAUTES : c'est tout ce qui change.
+        assert geo["hauteur_mm"] > fiches.geometrie_postes(par_feuille=8)["hauteur_mm"]
+        assert geo["largeur_mm"] == fiches.geometrie_postes(par_feuille=8)["largeur_mm"]
+
+    def test_les_affiches_remplissent_la_feuille_exactement(self, app):
+        for par_feuille in (4, 6, 8, 10):
+            geo = fiches.geometrie_postes(par_feuille=par_feuille)
+            assert geo["colonnes"] * geo["largeur_mm"] == \
+                pytest.approx(fiches.LARGEUR_FEUILLE_POSTES_MM, abs=0.05)
+            assert geo["lignes"] * geo["hauteur_mm"] == \
+                pytest.approx(fiches.HAUTEUR_FEUILLE_POSTES_MM, abs=0.05)
+
+    def test_le_qr_reste_au_dessus_du_plancher_mesure(self, app):
+        """⚠️ 42 mm est le plancher, et il est MESURE.
+
+        C'est la taille des etiquettes de blocs de la spec 024, qui se scannent
+        a bout de bras. Densifier la planche ne doit jamais passer sous cette
+        barre : un QR qu'on ne lit pas rend le carton inutile, et ca se
+        decouvre le samedi matin.
+        """
+        assert fiches.COTE_QR_POSTE_MM >= 42.0
+
+    def test_le_qr_et_son_rembourrage_tiennent_dans_l_affiche(self, app):
+        for par_feuille in (6, 8):
+            geo = fiches.geometrie_postes(par_feuille=par_feuille)
+            plein = geo["cote_qr_mm"] + 2 * geo["rembourrage_mm"]
+            assert plein <= geo["hauteur_mm"], f"{par_feuille} par feuille"
+            assert plein + geo["gouttiere_mm"] + geo["largeur_nom_mm"] == \
+                pytest.approx(geo["largeur_mm"], abs=0.05)
+
+    def test_le_nom_garde_de_la_place(self, app):
+        """Un QR qui mange toute l'affiche laisserait un nom illisible."""
+        for par_feuille in (6, 8):
+            geo = fiches.geometrie_postes(par_feuille=par_feuille)
+            # Trois caracteres -- le plafond de `plan_du_mur.ZONE_MAXI`.
+            assert fiches.taille_nom_poste_mm("ABC", geo) >= 10.0
 
 
 # --- Le préfixe partagé entre Python et JavaScript ---------------------------
@@ -254,6 +331,32 @@ class TestLePrefixePartage:
         trouve = re.search(r'export const PREFIXE_POSTE = "([^"]+)";', source)
         assert trouve, "PREFIXE_POSTE introuvable dans poste.js"
         assert trouve.group(1) == fiches.PREFIXE_QR_POSTE
+
+    def test_le_mot_zone_js_est_celui_de_python(self):
+        """⚠️ Le deuxieme lien entre le carton et la console (retouche du 03/09).
+
+        Le carton imprime « ZONE » au-dessus de la lettre ; le telephone
+        compose « Zone A » et l'envoie a la console. Si les deux mots
+        divergent, le carton pose sur la table cesse de designer la ligne
+        qu'on lit dans « Qui envoie quoi » -- sans qu'une ligne ait l'air
+        fausse, exactement comme le prefixe.
+        """
+        source = POSTE_JS.read_text(encoding="utf-8")
+        trouve = re.search(r'export const MOT_ZONE = "([^"]+)";', source)
+        assert trouve, "MOT_ZONE introuvable dans poste.js"
+        assert trouve.group(1) == fiches.MOT_ZONE
+
+    def test_le_qr_ne_porte_PAS_le_mot_zone(self):
+        """⚠️ Le QR reste minimal : la lettre seule, le libelle se compose.
+
+        Adrien : « dans le nom qu'on envoie a la console, je veux que ce soit
+        "zone" et la lettre de la zone ». Il ne l'a pas demande DANS le QR --
+        et l'y mettre couterait cinq caracteres de plus par symbole, donc des
+        modules plus petits, pour un libelle qu'on ne pourrait plus changer
+        sans reimprimer dix-sept affiches.
+        """
+        assert fiches.texte_qr_poste("A") == "CCPOSTE:A"
+        assert fiches.MOT_ZONE.lower() not in fiches.texte_qr_poste("A").lower()
 
     def test_le_prefixe_ne_peut_pas_etre_un_tag_de_bloc(self):
         # Un tag de bloc est fait de lettres et de chiffres : le deux-points
@@ -334,10 +437,20 @@ class TestLaRoute:
         assert "<svg" in html
 
     def test_la_pagination_est_faite_en_python(self, connecte_orga, app):
-        plan_du_mur.ecrire(_plan("A", "B", "C", "D"), par="orga")
+        zones = [chr(ord("A") + i) for i in range(fiches.POSTES_PAR_FEUILLE + 1)]
+        plan_du_mur.ecrire(_plan(*zones), par="orga")
         html = connecte_orga.get("/admin/postes").get_data(as_text=True)
-        # Deux feuilles pour quatre affiches : le decoupage vient du serveur.
+        # Une affiche de plus qu'une feuille : le decoupage vient du serveur.
         assert html.count('class="feuille"') == 2
+
+    def test_la_page_pose_la_geometrie_du_serveur(self, connecte_orga, app):
+        """La densite doit se lire dans le HTML rendu, pas seulement en Python."""
+        plan_du_mur.ecrire(_plan("A"), par="orga")
+        html = connecte_orga.get("/admin/postes").get_data(as_text=True)
+        geo = fiches.geometrie_postes()
+        assert f"--colonnes: {geo['colonnes']};" in html
+        assert f"--affiche-hauteur: {geo['hauteur_mm']}mm;" in html
+        assert f"--qr: {geo['cote_qr_mm']}mm;" in html
 
 
 # --- Le gabarit --------------------------------------------------------------
@@ -384,13 +497,45 @@ class TestLeGabarit:
         COLONNE dans 136 mm : 164 mm de contenu, et le mode d'emploi sortait
         coupe. En horizontal, c'est le QR qui dicte la hauteur.
         """
-        assert (fiches.COTE_QR_POSTE_MM + 2 * 5) <= 90     # 5 mm de rembourrage
-        assert fiches.POSTES_PAR_FEUILLE * 90 <= 277        # la surface utile d'un A4
+        geo = fiches.geometrie_postes()
+        assert geo["cote_qr_mm"] + 2 * geo["rembourrage_mm"] <= geo["hauteur_mm"]
+        # Et la planche entiere tient sur la surface utile d'un A4.
+        assert geo["lignes"] * geo["hauteur_mm"] <= 277
 
-    def test_l_affiche_dit_quoi_faire(self):
-        """Un benevole qui n'a pas ecoute le briefing doit trouver le geste."""
+    def test_la_geometrie_ne_s_ecrit_pas_dans_le_gabarit(self):
+        """⚠️ Elle vient du SERVEUR, et c'est ce qui rend la densite reglable.
+
+        Adrien arbitre entre six et huit par feuille. Ecrite en dur ici, la
+        geometrie obligerait a rejouer une demi-douzaine de millimetres a
+        chaque changement -- et c'est exactement comme ca que le CSS et
+        `POSTES_PAR_FEUILLE` ont diverge la premiere fois.
+        """
         source = GABARIT.read_text(encoding="utf-8")
-        assert "Scanner le QR de mon poste" in source
+        for variable in ("--affiche-largeur", "--affiche-hauteur", "--qr",
+                         "--colonnes"):
+            assert f"{variable}: {{{{ geo." in source, variable
+
+    def test_l_affiche_ne_porte_plus_de_mode_d_emploi(self):
+        """⚠️ La retouche du 03/09.
+
+        Adrien : « sur ces planches qui sont imprimees, tu n'as pas besoin de
+        mettre le texte qui permet de comprendre comment est-ce qu'il faut le
+        scanner ». La marche a suivre est partie DANS L'APPLICATION, ou elle
+        arrive au bon moment. Il ne reste sur le carton que ce qui sert a la
+        table : le QR et le nom de la zone.
+        """
+        source = GABARIT.read_text(encoding="utf-8")
+        assert "mode-emploi" not in source
+        affiche = source.split('<div class="affiche"', 1)[1].split("{% endfor %}", 1)[0]
+        assert "Réglages" not in affiche
+        assert "Scanner" not in affiche
+        # Ce qui reste : le QR, et le nom de la zone.
+        assert "p.qr" in affiche and "p.zone" in affiche
+
+    def test_l_affiche_ecrit_le_mot_que_le_telephone_composera(self):
+        """Le carton dit « ZONE C », le telephone se nomme « Zone C »."""
+        source = GABARIT.read_text(encoding="utf-8")
+        assert "{{ mot_zone }}" in source
 
 
 # --- Les referentiels de la console ------------------------------------------
@@ -441,6 +586,53 @@ class TestLaCoutureAvecLApplicationJuge:
         reglages = source.split('id="ecranReglages"', 1)[1].split("</section>", 1)[0]
         assert 'id="btnScannerPoste"' in reglages
 
+    def test_le_geste_est_aussi_sur_l_ecran_d_accueil(self):
+        """⚠️ La retouche du 03/09.
+
+        Adrien : « Lorsque le juge arrive a sa table, il va ouvrir
+        l'application et dans l'application, on va lui afficher un petit texte
+        en haut [...] on aura encore un petit bouton au milieu sur la page
+        d'accueil ». C'est la contrepartie du mode d'emploi retire du carton :
+        il fallait qu'il reapparaisse quelque part, et au bon moment.
+
+        Le MEME motif que `#relier` (spec 014), volontairement : un bloc cache
+        sous l'en-tete, revele au demarrage quand il manque quelque chose.
+        """
+        source = (Path(__file__).resolve().parents[1] / "climbcontest" /
+                  "templates" / "juge.html").read_text(encoding="utf-8")
+        assert 'id="btnPoste"' in source
+        # Hors des ecrans (`.ecran`) : sur l'accueil, comme `#relier`.
+        avant = source.split('id="ecranReglages"', 1)[0]
+        assert 'id="poste" hidden' in avant
+        assert 'id="btnPoste"' in avant
+        # Et il porte son petit texte : un bouton nu ne dit pas ce qu'il fait.
+        bloc = source.split('<p id="poste" hidden>', 1)[1].split("</p>", 1)[0]
+        assert "carton" in bloc
+
+    def test_le_bouton_d_accueil_est_cache_par_defaut(self):
+        """⚠️ Il ne doit apparaitre QUE si le poste n'est pas nomme.
+
+        Le juge scanne son carton une fois le matin. Un bandeau qui resterait
+        toute la journee au-dessus des cartes de scan volerait de la place a ce
+        qu'on touche cent fois.
+        """
+        source = (Path(__file__).resolve().parents[1] / "climbcontest" /
+                  "templates" / "juge.html").read_text(encoding="utf-8")
+        assert '<p id="poste" hidden>' in source
+
+    def test_une_seule_fonction_decide_de_l_affichage_du_bloc(self):
+        """⚠️ Trois appelants, une seule decision.
+
+        Le bloc se montre au demarrage, se cache apres un scan reussi, et
+        revient si le champ du nom est vide a la main. Trois endroits qui
+        poseraient `hidden` eux-memes laisseraient tot ou tard le bloc affiche
+        sur un telephone deja nomme.
+        """
+        source = (Path(__file__).resolve().parents[1] / "climbcontest" /
+                  "static" / "juge" / "juge.js").read_text(encoding="utf-8")
+        assert source.count('$("poste").hidden') == 1
+        assert source.count("proposerDeNommerLePoste()") >= 4  # 1 def + 3 appels
+
     def test_le_geste_n_est_pas_dans_l_en_tete(self):
         """⚠️ L'en-tete est refondu en parallele (fix/revue-du-03-09).
 
@@ -453,6 +645,7 @@ class TestLaCoutureAvecLApplicationJuge:
                   "templates" / "juge.html").read_text(encoding="utf-8")
         entete = source.split("<header>", 1)[1].split("</header>", 1)[0]
         assert "btnScannerPoste" not in entete
+        assert "btnPoste" not in entete
 
     def test_le_module_est_dans_la_coquille_hors_ligne(self):
         """Sans ca, le bouton planterait au premier appui hors reseau."""
@@ -467,3 +660,79 @@ class TestLaCoutureAvecLApplicationJuge:
         vue = source.split('id="vueTelephones"', 1)[1].split("</section>", 1)[0]
         assert 'id="btnPostes"' in vue
         assert 'id="pZone"' in vue
+
+
+# --- Plusieurs téléphones sur la même zone ------------------------------------
+
+
+class TestDeuxTelephonesSurLaMemeZone:
+    """⚠️ **Le nom d'un poste n'est plus unique, et c'est voulu.**
+
+    Adrien, le 03/09 : « il peut y avoir plusieurs téléphones par zone. Dans ce
+    cas-là, les juges vont tous les deux scanner le même QR code, ce qui fait
+    que les téléphones vont porter le même nom. Moi, ce que je veux, c'est que
+    tu sois capable de les distinguer côté console. »
+
+    La donnée existait déjà — `appareil_id`, l'UUID posé par `identite.js`
+    depuis la spec 011, que la vue « Téléphones » montre dans une colonne à
+    part. Ce qui manquait n'était pas un identifiant, c'était de la
+    **lisibilité** : deux lignes « Zone A » côte à côte ne disent pas laquelle
+    est laquelle.
+
+    ⚠️ Une **seule** fonction compose ce libellé, `contest.libelle_poste`.
+    Toutes les vues l'appellent. La forme exacte est encore en arbitrage : elle
+    doit rester une modification d'un seul endroit.
+    """
+
+    def test_le_libelle_porte_le_nom_puis_le_code(self):
+        assert contest.libelle_poste("Zone A", "3f9a1c2b-dead-beef") == \
+            "Zone A (3f9a1c2b)"
+
+    def test_deux_telephones_du_meme_nom_ne_se_ressemblent_pas(self):
+        """⚠️ LE test de cette retouche."""
+        un = contest.libelle_poste("Zone A", "3f9a1c2b-0000-1111")
+        deux = contest.libelle_poste("Zone A", "7e40aa91-0000-1111")
+        assert un != deux
+
+    def test_le_code_fait_huit_caracteres(self):
+        """Ce que l'application affiche dans ses réglages, et que le juge dicte."""
+        libelle = contest.libelle_poste("Zone A", "0123456789abcdef")
+        assert libelle == "Zone A (01234567)"
+        assert contest.CODE_APPAREIL_CARACTERES == 8
+
+    def test_un_telephone_sans_nom_reste_designable(self):
+        assert contest.libelle_poste(None, "3f9a1c2b-x") == "Sans nom (3f9a1c2b)"
+        assert contest.libelle_poste("   ", "3f9a1c2b-x") == "Sans nom (3f9a1c2b)"
+
+    def test_une_saisie_manuelle_n_a_pas_de_libelle(self):
+        """⚠️ `None`, pas « Sans nom » : lui inventer un appareil serait faux.
+
+        L'appelant sait quoi dire à la place — « saisie de adrien ».
+        """
+        assert contest.libelle_poste(None, None) is None
+        assert contest.libelle_poste(None, "") is None
+
+    def test_un_nom_sans_appareil_reste_lui_meme(self):
+        assert contest.libelle_poste("Zone A", None) == "Zone A"
+
+    def test_ce_que_le_carton_nomme_est_ce_que_la_console_affiche(self, app):
+        """La chaîne complète, du plan au libellé de la console.
+
+        Le carton de la zone « A » porte `CCPOSTE:A`, le téléphone compose
+        « Zone A » (`poste.js`), et la console montre « Zone A (…) ».
+        """
+        planche = fiches.postes(plan=_plan("A"))
+        assert planche[0]["texte"] == "CCPOSTE:A"
+        assert planche[0]["libelle"] == "Zone A"
+        assert contest.libelle_poste(planche[0]["libelle"], "3f9a1c2b-x") \
+            .startswith("Zone A (")
+
+    def test_la_console_affiche_le_libelle_partout(self):
+        """Les deux vues qui nomment un poste passent par la même clé."""
+        source = (Path(__file__).resolve().parents[1] / "climbcontest" /
+                  "templates" / "admin.html").read_text(encoding="utf-8")
+        assert "a.libelle" in source            # « Qui envoie quoi »
+        assert "r.appareil_libelle" in source   # la colonne « Téléphone »
+        # Et plus jamais le nom brut, qui ne distingue pas deux « Zone A ».
+        assert "r.appareil_nom ||" not in source
+

@@ -28,7 +28,12 @@
 // v4 le 03/09 -- ajout de `poste.js` (spec 034). Sans ce changement de nom, un
 // iPhone deja installe garderait une coquille ou le module manque, et le
 // bouton « Scanner le QR de mon poste » planterait au premier appui.
-const CACHE = "climbcontest-juge-v4";
+// v5 le 03/09, apres relecture -- le bouton de poste passe sur l'ecran
+// d'accueil et `poste.js` compose desormais « Zone A ». Le fichier existe deja
+// dans la coquille des telephones en v4 : sans changement de NOM, ils
+// garderaient l'ancienne version du module et continueraient de se nommer
+// « A » tout court.
+const CACHE = "climbcontest-juge-v5";
 
 /**
  * Ce qu'on garde pour pouvoir démarrer sans réseau.
