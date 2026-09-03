@@ -1,0 +1,358 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Maquette — Mettre à jour depuis la console</title>
+<style>
+  /* Les jetons de la console sont RECOPIÉS de climbcontest/templates/admin.html.
+     Le fond sable de la planche est un cran plus sombre que celui de la console
+     (#FBFAF8), pour que les écrans s'en détachent. */
+  :root {
+    --p-fond: #E7E1D6; --p-encre: #231F19; --p-encre2: #6E675A;
+    --p-trait: #CFC7B8; --p-puce: #D8D0C1;
+
+    --fond: #FBFAF8; --surface: #FFFFFF; --surface2: #F4F1EB;
+    --trait: #DDD7CB; --encre: #1B1A17; --encre2: #5C574C; --encre3: #8A8375;
+    --accent: #B5761C; --accent-texte: #8A5A0F; --sur-accent: #FFFFFF;
+    --ok: #2E7D4F; --alerte: #B3392A; --attention: #9A6B0B;
+    --titre: system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+    --chiffre: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+    --rayon: 14px; --ombre: 0 10px 30px rgba(27, 26, 23, 0.10);
+    color-scheme: light dark;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --p-fond: #0E0D0A; --p-encre: #EDE9E0; --p-encre2: #9A9385;
+      --p-trait: #2E2B22; --p-puce: #24211A;
+      --fond: #14130F; --surface: #1D1B16; --surface2: #26241D;
+      --trait: #3A3628; --encre: #F2EFE8; --encre2: #B0AA9B; --encre3: #7C766A;
+      --accent: #E0A94A; --accent-texte: #E8BC70; --sur-accent: #1B1A17;
+      --ok: #6FC08A; --alerte: #F08A78; --attention: #E5B44A;
+      --ombre: 0 18px 48px rgba(0, 0, 0, 0.5);
+    }
+  }
+  :root[data-theme="dark"] {
+    --p-fond: #0E0D0A; --p-encre: #EDE9E0; --p-encre2: #9A9385;
+    --p-trait: #2E2B22; --p-puce: #24211A;
+    --fond: #14130F; --surface: #1D1B16; --surface2: #26241D;
+    --trait: #3A3628; --encre: #F2EFE8; --encre2: #B0AA9B; --encre3: #7C766A;
+    --accent: #E0A94A; --accent-texte: #E8BC70; --sur-accent: #1B1A17;
+    --ok: #6FC08A; --alerte: #F08A78; --attention: #E5B44A;
+    --ombre: 0 18px 48px rgba(0, 0, 0, 0.5);
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; padding: 40px 20px 64px;
+    background: var(--p-fond); color: var(--p-encre);
+    font-family: var(--titre); font-size: 15px; line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+  }
+  .page { max-width: 860px; margin: 0 auto; display: flex; flex-direction: column; gap: 36px; }
+
+  .chapeau { display: flex; flex-direction: column; gap: 10px; }
+  .eyebrow {
+    font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.09em;
+    font-weight: 600; color: var(--accent-texte);
+  }
+  h1 {
+    margin: 0; font-size: clamp(1.45rem, 1.1rem + 1.5vw, 1.9rem); line-height: 1.2;
+    font-weight: 700; letter-spacing: -0.02em; text-wrap: balance;
+  }
+  .chapeau p { margin: 0; color: var(--p-encre2); max-width: 64ch; }
+
+  .plaque { display: flex; flex-direction: column; gap: 10px; }
+  .puce {
+    align-self: flex-start; display: inline-block;
+    background: var(--p-puce); border: 1px solid var(--p-trait); border-radius: 999px;
+    padding: 4px 12px; font-size: 0.71rem; text-transform: uppercase;
+    letter-spacing: 0.07em; font-weight: 650; color: var(--p-encre2);
+  }
+  .puce b { color: var(--p-encre); font-weight: 700; }
+  .plaque > p { margin: 0; font-size: 0.87rem; color: var(--p-encre2); max-width: 64ch; }
+
+  /* ---- l'écran : la console ---- */
+  .ecran {
+    background: var(--fond); border: 1px solid var(--trait); border-radius: 18px;
+    box-shadow: var(--ombre); color: var(--encre); overflow: hidden;
+  }
+  .ecran > .dedans { padding: 22px; }
+
+  /* le bandeau, repris de .barre */
+  .barre {
+    display: flex; align-items: center; gap: 14px; padding: 12px 18px;
+    border-bottom: 1px solid var(--trait); background: var(--surface2);
+  }
+  .burger {
+    width: 42px; height: 42px; flex: none; display: grid; place-items: center; gap: 4px;
+    background: var(--surface2); border: 1px solid var(--trait); border-radius: 11px;
+  }
+  .burger i { display: block; width: 17px; height: 1.7px; background: var(--encre2); border-radius: 2px; }
+  .ou { display: flex; flex-direction: column; line-height: 1.25; min-width: 0; }
+  .ou b { font-size: 0.95rem; font-weight: 700; }
+  .ou span { font-size: 0.76rem; color: var(--encre3); }
+  .droite { margin-left: auto; display: flex; align-items: center; gap: 8px; }
+  .jeton {
+    font-size: 0.78rem; color: var(--encre2); background: var(--surface2);
+    border: 1px solid var(--trait); border-radius: 999px; padding: 5px 12px; white-space: nowrap;
+  }
+  /* LA PASTILLE — forme de Sowel (rounded-full, 12 px, semi-gras, icône 14 px,
+     fond au ton à ~12 %), teintée avec l'ocre de ClimbContest. */
+  .pastille {
+    display: inline-flex; align-items: center; gap: 6px;
+    border-radius: 999px; padding: 5px 11px;
+    font-size: 0.75rem; font-weight: 600; white-space: nowrap;
+    color: var(--accent-texte);
+    background: color-mix(in srgb, var(--accent) 12%, transparent);
+    border: 1px solid color-mix(in srgb, var(--accent) 32%, transparent);
+    cursor: pointer;
+  }
+  .pastille svg { width: 14px; height: 14px; flex: none; }
+  .pastille:focus-visible { outline: 2px solid var(--accent-texte); outline-offset: 2px; }
+
+  .fil {
+    margin: 0 0 14px; font-size: 0.72rem; color: var(--encre3);
+    letter-spacing: 0.04em; text-transform: uppercase; font-weight: 600;
+  }
+
+  .carte {
+    background: var(--surface); border: 1px solid var(--trait);
+    border-radius: var(--rayon); padding: 20px;
+  }
+  .carte + .carte { margin-top: 14px; }
+  .carte > h2 { margin: 0 0 14px; font-size: 1.02rem; font-weight: 700; letter-spacing: -0.01em; }
+
+  .etat {
+    display: flex; flex-wrap: wrap; gap: 10px 26px;
+    padding: 12px 14px; margin: 0 0 14px;
+    background: var(--surface2); border: 1px solid var(--trait); border-radius: 10px;
+  }
+  .etat > div { display: flex; flex-direction: column; gap: 1px; }
+  .etat .k {
+    font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.06em;
+    color: var(--encre3); font-weight: 600;
+  }
+  .etat .v {
+    font-family: var(--chiffre); font-size: 0.93rem; font-weight: 600;
+    font-variant-numeric: tabular-nums;
+  }
+  .etat .v.txt { font-family: var(--titre); font-weight: 500; }
+
+  .verdict {
+    display: flex; align-items: center; gap: 8px;
+    margin: 0 0 14px; font-size: 0.88rem; font-weight: 600;
+  }
+  .verdict:last-child { margin-bottom: 0; }
+  .verdict .rond { width: 9px; height: 9px; border-radius: 50%; flex: none; }
+  .est-ok { color: var(--ok); } .est-ok .rond { background: var(--ok); }
+  .est-neuf { color: var(--accent-texte); } .est-neuf .rond { background: var(--accent); }
+  .est-alerte { color: var(--alerte); } .est-alerte .rond { background: var(--alerte); }
+  .est-attention { color: var(--attention); } .est-attention .rond { background: var(--attention); }
+
+  .changelog {
+    background: var(--surface2); border: 1px solid var(--trait); border-radius: 10px;
+    padding: 14px 16px; margin: 0 0 14px; max-height: 210px; overflow: auto;
+  }
+  .changelog h3 {
+    margin: 0 0 6px; font-size: 0.73rem; text-transform: uppercase;
+    letter-spacing: 0.07em; color: var(--accent-texte); font-weight: 700;
+  }
+  .changelog h3:not(:first-child) { margin-top: 14px; }
+  .changelog ul { margin: 0; padding-left: 19px; }
+  .changelog li { font-size: 0.85rem; line-height: 1.5; color: var(--encre2); margin-bottom: 7px; }
+  .changelog li:last-child { margin-bottom: 0; }
+  .changelog li strong { color: var(--encre); font-weight: 650; }
+
+  .boutons { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+  .action, .secondaire {
+    font: inherit; font-size: 0.88rem; font-weight: 600; border-radius: 10px;
+    padding: 9px 16px; border: 1px solid transparent;
+  }
+  .action { background: var(--accent); color: var(--sur-accent); }
+  .secondaire { background: transparent; color: var(--encre2); border-color: var(--trait); }
+  .action[disabled] { opacity: 0.45; }
+  .action:focus-visible, .secondaire:focus-visible { outline: 2px solid var(--accent-texte); outline-offset: 2px; }
+  .mono { font-family: var(--chiffre); font-size: 0.92em; }
+
+  .modale {
+    background: var(--surface); border: 1px solid var(--trait); border-radius: var(--rayon);
+    box-shadow: var(--ombre); max-width: 400px; margin: 0 auto; overflow: hidden;
+  }
+  .modale .dedans { padding: 20px; }
+  .modale h2 { margin: 0 0 6px; font-size: 1.02rem; font-weight: 700; }
+  .modale p { margin: 0; font-size: 0.87rem; color: var(--encre2); }
+  .modale menu {
+    margin: 0; padding: 13px 20px; display: flex; gap: 10px; justify-content: flex-end;
+    background: var(--surface2); border-top: 1px solid var(--trait);
+  }
+
+  .pied {
+    border-top: 1px solid var(--p-trait); padding-top: 16px;
+    font-size: 0.84rem; color: var(--p-encre2);
+  }
+  .pied p { margin: 0; max-width: 68ch; }
+
+  @media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }
+  @media (max-width: 560px) {
+    body { padding: 26px 14px 48px; }
+    .ecran > .dedans { padding: 16px; }
+    .carte { padding: 16px; }
+  }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <header class="chapeau">
+    <span class="eyebrow">Spec 031 — maquette</span>
+    <h1>Mettre à jour depuis la console</h1>
+    <p>Une vérification par jour. Pastille dans le bandeau quand une version est
+       disponible. Installation depuis <b>Réglages</b>, bloquée pendant une compétition.</p>
+  </header>
+
+  <section class="plaque">
+    <span class="puce"><b>Bandeau</b> · la pastille</span>
+    <p>Forme de celle de Sowel, teintée à l'ocre du logo. Elle mène à Réglages.
+       Absente quand il n'y a rien à installer.</p>
+    <div class="ecran">
+      <div class="barre">
+        <span class="burger"><i></i><i></i><i></i></span>
+        <span class="ou"><b>Participants</b><span>Bloc de novembre</span></span>
+        <span class="droite">
+          <button type="button" class="pastille" title="v0.17.0 disponible">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"
+                 stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M12 3v12"/><path d="m7 12 5 5 5-5"/><path d="M5 21h14"/>
+            </svg>
+            v0.17.0
+          </button>
+          <span class="jeton">adrien</span>
+        </span>
+      </div>
+    </div>
+  </section>
+
+  <section class="plaque">
+    <span class="puce"><b>Réglages</b> · rien à faire</span>
+    <p>Le cas courant.</p>
+    <div class="ecran"><div class="dedans">
+      <p class="fil">Réglages</p>
+      <div class="carte">
+        <h2>Version du serveur</h2>
+        <div class="etat">
+          <div><span class="k">En service</span><span class="v">v0.16.0</span></div>
+          <div><span class="k">Vérifié</span><span class="v txt">il y a 4 h</span></div>
+        </div>
+        <p class="verdict est-ok"><span class="rond" aria-hidden="true"></span>Version à jour</p>
+        <div class="boutons"><button type="button" class="action">Vérifier</button></div>
+      </div>
+    </div></div>
+  </section>
+
+  <section class="plaque">
+    <span class="puce"><b>Réglages</b> · une version est disponible</span>
+    <p>Le changelog affiché est le corps de la release GitHub — c'est déjà la
+       section du CHANGELOG, rien n'est réécrit.</p>
+    <div class="ecran"><div class="dedans">
+      <p class="fil">Réglages</p>
+      <div class="carte">
+        <h2>Version du serveur</h2>
+        <div class="etat">
+          <div><span class="k">En service</span><span class="v">v0.16.0</span></div>
+          <div><span class="k">Disponible</span><span class="v">v0.17.0</span></div>
+          <div><span class="k">Publiée</span><span class="v txt">3 sept.</span></div>
+        </div>
+        <p class="verdict est-neuf"><span class="rond" aria-hidden="true"></span>v0.17.0 disponible</p>
+        <div class="changelog">
+          <h3>Corrigé</h3>
+          <ul>
+            <li><strong>La fiche du grimpeur ne s'ouvre plus en rejeu d'archive</strong> (spec 026).</li>
+          </ul>
+          <h3>Ajouté</h3>
+          <ul>
+            <li><strong>Les coutures entre les specs 025, 026 et 028/029 sont tenues par des tests.</strong></li>
+            <li><strong>Un seul harnais de pilotage du navigateur</strong> (<span class="mono">tests/navigateur.py</span>).</li>
+          </ul>
+        </div>
+        <div class="boutons">
+          <button type="button" class="action">Installer v0.17.0</button>
+          <button type="button" class="secondaire">Plus tard</button>
+        </div>
+      </div>
+    </div></div>
+  </section>
+
+  <section class="plaque">
+    <span class="puce"><b>Réglages</b> · compétition en cours</span>
+    <p>Bouton bloqué.</p>
+    <div class="ecran"><div class="dedans">
+      <p class="fil">Réglages</p>
+      <div class="carte">
+        <h2>Version du serveur</h2>
+        <div class="etat">
+          <div><span class="k">En service</span><span class="v">v0.16.0</span></div>
+          <div><span class="k">Disponible</span><span class="v">v0.17.0</span></div>
+        </div>
+        <p class="verdict est-alerte"><span class="rond" aria-hidden="true"></span>Compétition en cours — installation bloquée</p>
+        <div class="boutons"><button type="button" class="action" disabled>Installer v0.17.0</button></div>
+      </div>
+    </div></div>
+  </section>
+
+  <section class="plaque">
+    <span class="puce">Confirmation</span>
+    <p>Simple clic : le retour arrière est automatique et vérifié.</p>
+    <div class="ecran"><div class="dedans">
+      <div class="modale">
+        <div class="dedans">
+          <h2>Installer v0.17.0 ?</h2>
+          <p>Le serveur redémarre — une quinzaine de secondes.</p>
+        </div>
+        <menu>
+          <button type="button" class="secondaire">Annuler</button>
+          <button type="button" class="action">Installer</button>
+        </menu>
+      </div>
+    </div></div>
+  </section>
+
+  <section class="plaque">
+    <span class="puce">Les trois issues</span>
+    <p>Réussite, échec rattrapé, et GitHub muet — la panne qui passait inaperçue avec le minuteur.</p>
+    <div class="ecran"><div class="dedans">
+      <div class="carte">
+        <h2>Version du serveur</h2>
+        <div class="etat">
+          <div><span class="k">En service</span><span class="v">v0.17.0</span></div>
+        </div>
+        <p class="verdict est-ok"><span class="rond" aria-hidden="true"></span>v0.17.0 installée</p>
+      </div>
+      <div class="carte">
+        <h2>Version du serveur</h2>
+        <div class="etat">
+          <div><span class="k">En service</span><span class="v">v0.16.0</span></div>
+          <div><span class="k">Tentée</span><span class="v">v0.17.0</span></div>
+        </div>
+        <p class="verdict est-alerte"><span class="rond" aria-hidden="true"></span>Échec — revenu en v0.16.0</p>
+      </div>
+      <div class="carte">
+        <h2>Version du serveur</h2>
+        <div class="etat">
+          <div><span class="k">En service</span><span class="v">v0.16.0</span></div>
+          <div><span class="k">Vérifié</span><span class="v txt">hier à 18 h</span></div>
+        </div>
+        <p class="verdict est-attention"><span class="rond" aria-hidden="true"></span>GitHub injoignable — quota atteint</p>
+        <div class="boutons"><button type="button" class="action">Réessayer</button></div>
+      </div>
+    </div></div>
+  </section>
+
+  <footer class="pied">
+    <p>La vérification quotidienne coûte 1 requête sur les 60 par heure du quota
+       anonyme. Le minuteur de 2 minutes en consommait 30.</p>
+  </footer>
+
+</div>
+</body>
+</html>
