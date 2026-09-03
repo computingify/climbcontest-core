@@ -57,12 +57,19 @@ echo "== droit de redemarrage cible =="
 # L'agent de tirage tourne en tant que climbcontest et doit pouvoir redemarrer
 # LE SEUL service climbcontest. Rien d'autre : pas de sudo general.
 #
-# La quatrieme ligne est le bouton de la console (spec 031) : l'application
-# demarre l'agent de deploiement, elle ne l'execute pas elle-meme. Les arguments
-# sont listes en entier -- sudo compare la ligne de commande complete, donc
-# cette autorisation ne permet PAS de demarrer un autre service.
+# ⚠️ Il y avait ici une QUATRIEME autorisation, pour que l'application demarre
+# elle-meme l'agent de deploiement (le bouton de la spec 031). Elle est retiree
+# le 2026-09-03 : elle etait juste et elle n'a jamais pu servir. climbcontest
+# .service tourne avec NoNewPrivileges=true, qui interdit a ses processus de
+# gagner des privileges par un binaire SETUID -- et sudo en est un. Le bouton
+# repondait « Le service de deploiement n'a pas pu etre demarre » a tous les
+# coups. C'est climbcontest-deploy.path qui fait ce travail desormais, sans
+# aucune elevation de privilege.
+#
+# La laisser en place serait pire qu'inutile : elle ferait croire que le chemin
+# existe, et la prochaine panne recommencerait l'enquete.
 cat > /etc/sudoers.d/climbcontest <<EOF
-$UTILISATEUR ALL=(root) NOPASSWD: /bin/systemctl restart climbcontest, /bin/systemctl stop climbcontest, /bin/systemctl start climbcontest, /bin/systemctl start --no-block climbcontest-deploy.service
+$UTILISATEUR ALL=(root) NOPASSWD: /bin/systemctl restart climbcontest, /bin/systemctl stop climbcontest, /bin/systemctl start climbcontest
 EOF
 chmod 0440 /etc/sudoers.d/climbcontest
 visudo -cf /etc/sudoers.d/climbcontest >/dev/null || { echo "sudoers invalide"; rm -f /etc/sudoers.d/climbcontest; exit 1; }
@@ -75,6 +82,7 @@ install -o root -g root -m 0755 "$ICI/climbcontest-sauvegarde" /usr/local/bin/
 echo "== unites systemd =="
 install -m 0644 "$ICI/climbcontest.service"        /etc/systemd/system/
 install -m 0644 "$ICI/climbcontest-deploy.service" /etc/systemd/system/
+install -m 0644 "$ICI/climbcontest-deploy.path"    /etc/systemd/system/
 install -m 0644 "$ICI/climbcontest-sauvegarde.service" /etc/systemd/system/
 install -m 0644 "$ICI/climbcontest-sauvegarde.timer"   /etc/systemd/system/
 systemctl daemon-reload
@@ -87,6 +95,9 @@ systemctl daemon-reload
 # deployait sans que personne ne l'ait demande.
 systemctl enable climbcontest.service >/dev/null
 systemctl enable --now climbcontest-sauvegarde.timer >/dev/null
+# Le guetteur du bouton de la console. Ce n'est PAS un minuteur : il ne consulte
+# rien et ne declenche que si l'application ecrit le fichier de demande.
+systemctl enable --now climbcontest-deploy.path >/dev/null
 
 echo
 echo "Socle en place."
