@@ -17,7 +17,7 @@ qu'on ne met pas à jour le matin d'une compétition :
 - **MINEUR** — nouvelle fonctionnalité, compatible.
 - **CORRECTIF** — correction, compatible.
 
-## [Non publié]
+## [0.18.1] — 2026-09-03
 
 ### Corrigé
 
@@ -2098,6 +2098,7 @@ livrer — spec 001, itération 3.
 - Les données et les secrets vivent dans `shared/`, hors des releases : un
   déploiement ou un retour arrière ne peut pas les toucher.
 
+[0.18.1]: https://github.com/computingify/climbcontest-core/releases/tag/v0.18.1
 [0.18.0]: https://github.com/computingify/climbcontest-core/releases/tag/v0.18.0
 [0.17.0]: https://github.com/computingify/climbcontest-core/releases/tag/v0.17.0
 [0.16.0]: https://github.com/computingify/climbcontest-core/releases/tag/v0.16.0
