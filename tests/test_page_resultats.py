@@ -1409,3 +1409,24 @@ class TestLaLegendeDuMurDitLesProfils:
     def test_zone_terminee_reste_la(self, page):
         corps = page.split("function dessinerLegende(leg)")[1].split("\n  }")[0]
         assert "zone terminée" in corps
+
+
+class TestCeQuiSAfficheEstEnFrancaisAccentue:
+    """⚠️ La règle du dépôt distingue deux choses, et une coquille est passée
+    entre les deux : les **littéraux Python** restent en ASCII (messages
+    d'erreur, journaux, JSON), mais tout ce qui **s'affiche** est du français
+    accentué — gabarits, JavaScript compris.
+
+    Le panneau de la fiche écrivait « terminee » sous le plan du mur. Vu à
+    l'écran en vérifiant la fusion des quatre lots du 03/09, pas à la
+    relecture : le mot est court et l'œil le complète.
+    """
+
+    @pytest.fixture()
+    def page(self, client, jeu):
+        return client.get("/").data.decode()
+
+    def test_le_compte_d_une_zone_finie_est_accentue(self, page):
+        assert '? "terminée"' in page
+        assert '? "terminee"' not in page, (
+            "le panneau de la fiche affiche « terminee » sans accent")
