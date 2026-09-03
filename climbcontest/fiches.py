@@ -514,21 +514,29 @@ def colonnes_qui_tiennent(groupes) -> int:
 # 42 (le QR) moins 3 (la gouttiere) = 43 mm ; on en garde 42 pour l'arrondi.
 LARGEUR_NUMERO_MM = 42.0
 CHASSE_NUMERO = 0.72              # largeur d'un caractere, en em (mesure : 0,705)
-TAILLE_NUMERO_MAXI_MM = 26.0      # au-dela, le numero mange les autres lignes
 
-
-def taille_numero_mm(texte: str) -> float:
-    """La plus grande taille a laquelle ce numero tient dans sa colonne.
-
-    Arrondie au demi-millimetre inferieur : deux etiquettes voisines dont les
-    numeros font la meme longueur doivent avoir EXACTEMENT la meme taille,
-    sinon la planche a l'air bancale. Un texte vide rend le maximum.
-    """
-    n = len(texte or "")
-    if n <= 0:
-        return TAILLE_NUMERO_MAXI_MM
-    tient = LARGEUR_NUMERO_MM / (n * CHASSE_NUMERO)
-    return min(TAILLE_NUMERO_MAXI_MM, int(tient * 2) / 2)
+# ⚠️ UNE SEULE TAILLE, la meme sur toute etiquette (spec 033, R7).
+#
+# Elle etait calculee par etiquette : « J6 » sortait a 26 mm et « J24 » a
+# 19,5 mm, parce qu'on prenait la plus grande taille a laquelle chaque numero
+# tenait. C'est logique vu de pres, et bancal vu sur une planche de huit --
+# « le numero J6 ou J24 change de taille en fonction du nombre de caracteres,
+# je veux que la taille de la police soit fixe » (Adrien, 03/09, apres avoir
+# imprime pour de vrai).
+#
+# 42 / (3 x 0,72) = 19,4, arrondi au demi-millimetre inferieur. TROIS
+# caracteres, parce qu'un numero d'etiquette est la lettre de couleur suivie
+# du numero dans la couleur : « J6 », « J24 », « M40 ». Un quatrieme
+# caractere ne mange pas le QR -- `overflow: hidden` et `white-space: nowrap`
+# tiennent la colonne -- il est coupe, ce qui se voit et se corrige.
+#
+# ⚠️ Une constante, et PAS « la plus grande taille qui tient sur cette
+# planche ». Cette seconde option donnerait des numeros plus gros quand la
+# planche n'a que des numeros courts, mais imprimer toute la salle puis la
+# seule zone A rendrait DEUX tailles differentes pour les memes etiquettes :
+# le filtre change le plus long numero de la planche. On recollerait au mur
+# des etiquettes qui ne se ressemblent pas.
+TAILLE_NUMERO_MM = 19.0
 
 
 def en_feuilles(elements: list, par_feuille: int) -> list[list]:
@@ -607,12 +615,24 @@ def construire(comp, participants) -> list[dict]:
 
 
 def etiquettes(comp, zone: str | None = None, tag: str | None = None) -> list[dict]:
-    """Les blocs à coller au mur, dans l'ordre du `Plan`.
+    """Les blocs à coller au mur, **zone par zone, de A à Z**.
 
-    L'ordre est celui de `Bloc.numero` — le numéro de ligne dans l'onglet
-    `Import`, qui suit le `Plan` : les blocs sortent donc zone par zone, comme
-    le classeur les range. On prend la page de la zone Z, on va coller les cinq
-    étiquettes de la zone Z, on ne trie rien à la main.
+    ⚠️ L'ordre était celui de `Bloc.numero` — le numéro de ligne de l'onglet
+    `Import`, qui suit le `Plan`. Les blocs sortaient bien zone par zone, mais
+    dans l'ordre du plan, qui n'est pas l'alphabet : celui d'Annonay commence
+    par X et Y et finit par E. « Je veux qu'ils soient classés dans l'ordre
+    alphabétique des zones, c'est-à-dire la zone A d'abord et tu finis par la
+    Z » (Adrien, 03/09, spec 033 R8).
+
+    Le tri est donc `(zone absente, zone, numéro)` :
+
+    - **`zone IS NULL` en premier critère**, parce que SQLite range les `NULL`
+      AVANT tout le reste. Sans lui, une planche s'ouvrirait sur les blocs qui
+      n'ont aucun mur où aller — l'anomalie en tête de la première feuille.
+    - la zone, sur sa VALEUR : depuis la spec 029 le nom de zone est saisi dans
+      la console, et rien ne garantit qu'il tient sur une lettre.
+    - `Bloc.numero`, qui reste l'ordre du classeur À L'INTÉRIEUR d'une zone :
+      difficulté puis numéro. C'est celui qui existait, et on n'y touche pas.
 
     Deux requêtes, quel que soit le nombre de blocs.
 
@@ -628,7 +648,8 @@ def etiquettes(comp, zone: str | None = None, tag: str | None = None) -> list[di
         requete = requete.filter(Bloc.tag == tag)
     elif zone:
         requete = requete.filter(Bloc.zone == zone)
-    blocs = requete.order_by(Bloc.numero).all()
+    blocs = requete.order_by(
+        Bloc.zone.is_(None), Bloc.zone, Bloc.numero).all()
 
     circuits = {c.id: c.nom
                 for c in Circuit.query.filter_by(competition_id=comp.id).all()}
@@ -646,8 +667,6 @@ def etiquettes(comp, zone: str | None = None, tag: str | None = None) -> list[di
             "tag": bloc.tag,
             "zone": bloc.zone,
             "numero": numero(bloc),
-            # La taille du numero suit sa LONGUEUR : voir `taille_numero_mm`.
-            "taille_numero": taille_numero_mm(numero(bloc)),
             "couleur": bloc.couleur,
             "couleur_prises": bloc.couleur_prises,
             "circuits": sorted(par_bloc.get(bloc.id, ())),
