@@ -1747,24 +1747,39 @@
       .then(function () { $("btnMajVerifier").disabled = false; });
   }
 
-  function faitMaj(cle, valeur, texte) {
-    return '<div><span class="k">' + cle + '</span><span class="v' +
-           (texte ? " txt" : "") + '">' + valeur + "</span></div>";
+  /** Une colonne de la ligne de faits. Construite en DOM et non en innerHTML :
+      `valeur` peut venir de GitHub (un nom de tag), et on ne fabrique pas ce
+      contenu-la. Meme regle que le changelog juste en dessous. */
+  function faitMaj(parent, cle, valeur, texte) {
+    var bloc = document.createElement("div");
+    var k = document.createElement("span");
+    k.className = "k";
+    k.textContent = cle;
+    var v = document.createElement("span");
+    v.className = texte ? "v txt" : "v";
+    v.textContent = valeur;
+    bloc.appendChild(k);
+    bloc.appendChild(v);
+    parent.appendChild(bloc);
   }
 
-  function rendreMaj(d) {
+  /** `pendantLeSuivi` : appele depuis la boucle de suivi, qui gere elle-meme
+      son propre reenclenchement et son decompte. Sans ce drapeau, les deux
+      s'armaient l'un l'autre. */
+  function rendreMaj(d, pendantLeSuivi) {
     var dispo = d.disponible;
     var pose = d.installation;
     var verdict = $("majVerdict");
     var btn = $("btnMajInstaller");
 
-    var faits = faitMaj("En service", d.en_service || "dév.");
-    if (dispo) faits += faitMaj("Disponible", dispo.tag);
+    var faits = $("majFaits");
+    faits.textContent = "";
+    faitMaj(faits, "En service", d.en_service || "dév.");
+    if (dispo) faitMaj(faits, "Disponible", dispo.tag);
     if (d.verifie_le) {
-      faits += faitMaj("Vérifié",
+      faitMaj(faits, "Vérifié",
         depuis(Math.round((Date.now() - new Date(d.verifie_le)) / 1000)), true);
     }
-    $("majFaits").innerHTML = faits;
 
     // Le changelog est du TEXTE, pose avec textContent : c'est le corps d'une
     // release GitHub, donc du contenu qu'on ne fabrique pas soi-meme. Le rendre
@@ -1774,6 +1789,7 @@
 
     btn.hidden = !dispo;
     btn.textContent = dispo ? "Installer " + dispo.tag : "";
+    btn.dataset.tag = dispo ? dispo.tag : "";
     btn.disabled = !!d.blocage;
 
     var mot, ton;
@@ -1803,7 +1819,9 @@
     $("pastilleMaj").hidden = !montrer;
     if (montrer) $("pastilleMajTag").textContent = dispo.tag;
 
-    if (pose && pose.etat === "en_cours") suivreMaj(45);
+    // Une installation deja en cours au chargement de la page -- console
+    // rouverte, ou onglet recharge -- doit etre suivie comme les autres.
+    if (pose && pose.etat === "en_cours" && !pendantLeSuivi) suivreMaj(45);
   }
 
   function suivreMaj(restant) {
@@ -1812,13 +1830,16 @@
     // pas une erreur a afficher, c'est le symptome attendu. On repasse par
     // `fetch` et non par `appeler`, dont le traitement des 401 deconnecterait.
     clearTimeout(minuteurMaj);
-    if (restant <= 0) return;
+    if (restant <= 0) { minuteurMaj = null; return; }
     minuteurMaj = setTimeout(function () {
+      minuteurMaj = null;
       fetch("/admin/maj", { cache: "no-store" })
         .then(function (r) { return r.ok ? r.json() : null; })
         .then(function (d) {
-          if (d && d.success) rendreMaj(d);
-          else suivreMaj(restant - 1);
+          if (d && d.success) {
+            rendreMaj(d, true);
+            if (d.installation && d.installation.etat === "en_cours") suivreMaj(restant - 1);
+          } else suivreMaj(restant - 1);
         })
         .catch(function () { suivreMaj(restant - 1); });
     }, 4000);
@@ -1829,7 +1850,8 @@
   $("pastilleMaj").addEventListener("click", function () { montrerVue("reglages"); });
 
   $("btnMajInstaller").addEventListener("click", function () {
-    var tag = $("btnMajInstaller").textContent.replace("Installer ", "");
+    var tag = $("btnMajInstaller").dataset.tag;
+    if (!tag) return;
     $("dlgMajTitre").textContent = "Installer " + tag + " ?";
     var dlg = $("dlgMaj");
     dlg.returnValue = "";
