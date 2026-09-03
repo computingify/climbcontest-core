@@ -33,6 +33,50 @@ qu'on ne met pas à jour le matin d'une compétition :
   serveur en face. Voir
   [docs/tester-avec-l-emulateur.md](docs/tester-avec-l-emulateur.md).
 
+### Modifié
+
+- **Plus aucun test de CI n'attend une horloge.** Le job `tests` virait au rouge
+  par intermittence, toujours pour la même raison : deux tests navigateur
+  attendaient **pour de vrai** le battement de 15 s de la page de résultats, et
+  un runner chargé en mettait seize. Cinq tests coûtaient 66 s à eux seuls.
+
+  | test | avant | après |
+  | --- | --- | --- |
+  | `TestLeMurSeMetAJouerToutSeul` | 16,5 s | 2,5 s |
+  | `test_reprend_un_autre_port_si_le_sien_est_pris` | 15,9 s | 7,5 s |
+  | `test_le_parcours_complet` (fiche) | 15,3 s | 0,9 s |
+  | `TestVerrouOrphelinAuRedemarrage` | 10,7 s | 1,6 s |
+  | rotation des sauvegardes (2 tests) | 7,8 s | 0,2 s |
+
+  Aucun test n'a été supprimé ni affaibli : chacun a été vérifié en cassant ce
+  qu'il surveille. Trois réglages apparaissent, **tous à défaut inchangé** :
+
+  - **`?periode=`** sur la page de résultats — le battement du rafraîchissement,
+    à côté du `?rotation=` qui existait déjà et pour la même raison. Ce qui
+    n'est pas réglable ne se teste qu'en le regardant passer.
+  - **`CLIMBCONTEST_ATTENTE_VERROU_S`** — combien de temps un worker attend
+    derrière le verrou de schéma (10 s). Un verrou **orphelin** encore frais
+    n'est jamais volé : chaque worker attend ce délai en entier avant de
+    forcer, et c'est aussi la durée d'un redémarrage après plantage.
+  - la sonde `/health` du banc d'essai E2E passe **court** (2 s au lieu de 15).
+    Un port squatté par une socket qui écoute sans jamais répondre laisse la
+    connexion s'établir, puis se tait : la sonde attendait ses 15 s pleines.
+
+### Corrigé
+
+- **Deux sauvegardes dans la même seconde n'en faisaient qu'une.** Le nom de la
+  copie vient d'un horodatage **à la seconde** ; deux appels rapprochés
+  portaient donc le même nom, et le second écrasait le premier sans un mot. Le
+  minuteur tourne toutes les dix minutes, alors ça ne se voyait pas — mais une
+  sauvegarde à la main juste avant un import et une juste après, c'est
+  exactement le geste qu'on veut pouvoir faire. Un ordinal tranche l'égalité,
+  et seulement quand il y en a une : le nom habituel ne change pas.
+
+  Le défaut était **caché par ses propres tests**. Ceux de la rotation dormaient
+  1,05 s entre deux lancements, « parce que l'horodatage est à la seconde » :
+  ils prouvaient que la rotation marche quand les noms diffèrent, et rien du
+  tout sur le cas où ils ne différaient pas.
+
 ## [0.17.0] — 2026-09-03
 
 MINEUR : le serveur se met à jour depuis la console. Le reste est du correctif,

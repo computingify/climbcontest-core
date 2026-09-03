@@ -910,7 +910,17 @@ import { decorer, decrire, monter, peutDessiner, zonesDe }
   var SOURCE = document.body.dataset.source || "/api/public/classement";
   var ARCHIVE = document.body.dataset.archive || null;
 
-  var PERIODE_MS = 15000;      // rafraîchissement des données
+  // Le battement du rafraîchissement. Réglable par l'URL, exactement comme
+  // `?rotation=` plus bas et pour la même raison : ce qui n'est pas réglable
+  // ne se teste qu'en le regardant passer. Deux tests navigateur attendaient
+  // ces quinze secondes en vrai — trente secondes de CI, et le premier rouge
+  // dès qu'un runner chargé les rendait trente-deux.
+  //
+  // Le plancher n'est pas décoratif : l'adresse est publique, et `?periode=0`
+  // ferait battre la page aussi vite que le navigateur veut bien. 100 ms laisse
+  // largement la place aux 300 ms des tests.
+  var PERIODE_MS = Math.max(
+    100, parseFloat(params.get("periode")) * 1000 || 15000);
   var PERIME_MS = 60000;       // au-delà, l'âge passe en rouge
   // La rotation suit la TAILLE du plateau : le temps de lecture doit suivre ce
   // qu'il y a à lire. Une catégorie de 8 ne mérite pas les 30 s d'une de 26.

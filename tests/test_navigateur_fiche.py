@@ -73,6 +73,14 @@ def port_libre() -> int:
         return s.getsockname()[1]
 
 
+# La page relit ses donnees toutes les quinze secondes en usage reel. L'etape
+# 7 attend ce battement -- c'est SON SUJET : une fiche ouverte doit se mettre a
+# jour toute seule. Elle l'attendait pour de vrai : quinze secondes de CI, et
+# le premier rouge des qu'un runner charge en mettait seize. `?periode=` regle
+# ce battement, comme `?rotation=` regle deja le defilement de l'ecran de la
+# salle. Le battement reste le sujet du test ; seule sa valeur change.
+REGLAGE = "/?periode=0.3"
+
 # --- Le pilote : ce qu'un doigt ferait, dans l'ordre -------------------------
 #
 # Il écrit son verdict dans le titre du document, que `--dump-dom` nous rend.
@@ -175,7 +183,7 @@ function rendre(verdict) {
     //    devenaient inertes, la feuille restait ouverte pour toujours et
     //    `overflow: hidden` figeait le classement derriere. Seul un
     //    rechargement s'en sortait.
-    cadre.src = "/#g=" + CIBLE;
+    cadre.src = REGLAGE + "#g=" + CIBLE;
     await attendre("chargement direct", () => cadre.contentDocument
       && cadre.contentDocument.querySelector(".sf-feuille .sf-case"));
     const doc2 = cadre.contentDocument, vue2 = cadre.contentWindow;
@@ -194,7 +202,7 @@ function rendre(verdict) {
     const avant = doc2.querySelectorAll(".sf-case.grimpe").length;
     await fetch("/__reussite/" + CIBLE);
     await attendre("bloc passe au vert",
-      () => doc2.querySelectorAll(".sf-case.grimpe").length > avant, 40000);
+      () => doc2.querySelectorAll(".sf-case.grimpe").length > avant);
     note("avantReussite", avant);
     note("apresReussite", doc2.querySelectorAll(".sf-case.grimpe").length);
 
@@ -311,8 +319,10 @@ def serveur():
     def harnais():
         return Response(
             "<!doctype html><meta charset=utf-8><title>en cours</title>"
-            f"<iframe id=page src='/' style='width:900px;height:1400px;border:0'></iframe>"
-            f"<script>const CIBLE = {cible[0]};</script>"
+            f"<iframe id=page src='{REGLAGE}' "
+            f"style='width:900px;height:1400px;border:0'></iframe>"
+            f"<script>const CIBLE = {cible[0]}; "
+            f"const REGLAGE = {REGLAGE!r};</script>"
             f"<script>{PILOTE}</script>",
             mimetype="text/html")
 

@@ -119,3 +119,56 @@ def jeu(app, competition):
     db.session.commit()
     return {"competition": competition, "blocs": blocs,
             "participants": participants, "circuits": [u11, u13]}
+
+
+# --- Le budget de temps d'un test -------------------------------------------
+#
+# Le job `tests` virait au rouge par intermittence, et toujours de la meme
+# facon : un test qui ATTEND une horloge -- le battement de 15 s de la page de
+# resultats, l'attente d'un verrou de schema, une seconde entiere pour changer
+# d'horodatage. Une attente passe en local et casse sur un runner charge, ou
+# elle devient une seconde de trop ; et elle ne se signale jamais elle-meme.
+#
+# Elles ont ete retirees une par une. Ce garde-fou existe pour qu'elles ne
+# reviennent pas en douce : un test qui depasse le budget fait echouer la suite
+# en NOMMANT le coupable, au lieu de la ralentir jusqu'a ce que quelqu'un s'en
+# apercoive.
+#
+# Le plafond est large. Le plus lent tient aujourd'hui en 7,5 s, dont 5 s que
+# gunicorn passe a renoncer sur un port deja pris. Il n'attrape pas la lenteur,
+# il attrape l'attente.
+BUDGET_S = float(os.environ.get("CLIMBCONTEST_BUDGET_TEST_S", "20"))
+
+_duree_par_test: dict[str, float] = {}
+
+
+def pytest_runtest_logreport(report):
+    """On somme les trois phases : une attente logee dans une fixture compte."""
+    _duree_par_test[report.nodeid] = (
+        _duree_par_test.get(report.nodeid, 0.0) + report.duration)
+
+
+def _hors_budget():
+    return sorted(((n, d) for n, d in _duree_par_test.items() if d > BUDGET_S),
+                  key=lambda paire: -paire[1])
+
+
+def pytest_terminal_summary(terminalreporter):
+    trop_lents = _hors_budget()
+    if not trop_lents:
+        return
+    terminalreporter.section("des tests attendent quelque chose", red=True)
+    for nodeid, duree in trop_lents:
+        terminalreporter.line(f"{duree:6.1f} s  {nodeid}")
+    terminalreporter.line(
+        f"\nBudget : {BUDGET_S:.0f} s par test, fixtures comprises. Au-dela, un "
+        "test n'est pas lent : il attend. Une minuterie, un delai reseau, un "
+        "sleep. Rendre l'attente REGLABLE plutot que la subir -- c'est ce que "
+        "font `?periode=` et CLIMBCONTEST_ATTENTE_VERROU_S. Si l'attente est "
+        "vraiment incompressible, CLIMBCONTEST_BUDGET_TEST_S releve le "
+        "plafond, et le commit dit pourquoi.")
+
+
+def pytest_sessionfinish(session, exitstatus):
+    if _hors_budget() and session.exitstatus == 0:
+        session.exitstatus = 1
