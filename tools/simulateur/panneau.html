@@ -490,9 +490,11 @@ function rendre(etat) {
   $("demarrer").disabled = !c.connecte || enCours;
   $("demarrer").hidden = enCours;
   $("arreter").hidden = !enCours;
-  $("pause").hidden = !enCours;
+  $("pause").hidden = !enCours || etat.vidage;
   $("pause").textContent = etat.en_pause ? "Reprendre" : "Pause";
+  $("arreter").textContent = etat.vidage ? "Arrêter sans attendre" : "Arrêter";
   $("chrono").textContent = !enCours ? ""
+    : etat.vidage ? "vidage des files…"
     : etat.restant != null ? `reste ${duree(etat.restant)}`
     : `en cours depuis ${duree(etat.depuis)}`;
 
