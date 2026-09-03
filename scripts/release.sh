@@ -69,5 +69,9 @@ git push origin "$TAG"
 echo
 echo "Etiquette $TAG poussee. GitHub construit la release."
 echo "  Suivi CI : gh run watch"
-echo "  La VM 110 la tirera dans les 2 minutes qui suivent la publication,"
-echo "  si elle est allumee. Suivre : ssh adrien@192.168.0.32 'journalctl -t climbcontest-deploy -f'"
+echo
+echo "  La VM 110 ne la tirera PAS toute seule : le minuteur a ete retire le"
+echo "  2026-09-03 (spec 031). L'installation se demande depuis la console,"
+echo "  Reglages > Version du serveur -- ou a la main :"
+echo "    ssh adrien@192.168.0.32 'sudo systemctl start climbcontest-deploy.service'"
+echo "  Suivre : ssh adrien@192.168.0.32 'journalctl -t climbcontest-deploy -f'"
