@@ -77,8 +77,10 @@ C'est le point délicat du lot ; il a sa section, la § 6.
 - **Sur un téléphone de 390 px de large comme sur un écran de portable.** Le
   compteur est dimensionné **en proportion de la lettre de la zone**
   (`mur.taille`, calculée par le serveur pour tenir dans le pan) : il grandit et
-  rétrécit avec elle, et un plan redessiné avec des zones plus petites ne le
-  fait pas déborder.
+  rétrécit avec elle. Un libellé plus long — « 12/15 » — rétrécit au lieu de
+  déborder. Ce qu'il suppose, en revanche, ce sont des pans d'au moins ~14,6
+  unités de haut ; c'est une limite réelle, chiffrée et surveillée par un test,
+  et elle est expliquée dans `architecture.md` § 3.
 - La **fiche n'existe pas en mode mur** (`?mur`) — spec 026 F1, garde
   `if (!MUR && !ARCHIVE)`. Le compteur n'est donc jamais projeté dans la salle.
   Ce qui doit rester vrai, c'est qu'il tienne sur un grand écran de bureau,
