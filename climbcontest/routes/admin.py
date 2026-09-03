@@ -35,10 +35,12 @@ from .. import circuits as circuits_module
 from .. import cascade as cascade_module
 from .. import cycle
 from .. import fiches
+from .. import maj
 from ..models import Archive
 from ..sheets import consentement, parametrage
 from ..sheets.client import ErreurClasseur, ecrire_jeton_json
 from ..sheets.importer import importer, lire_tout
+from .sante import VERSION
 
 logger = logging.getLogger(__name__)
 bp = Blueprint("admin", __name__, url_prefix="/admin")
@@ -1449,3 +1451,45 @@ def chercher_reussites():
         "trouvee": bool(lignes) if ref else None,
         "reussites": lignes,
     }), 200
+
+
+# --- Mise a jour du serveur (spec 031) --------------------------------------
+#
+# Trois routes, toutes reservees a un administrateur. Le raisonnement -- une
+# verification par jour, pourquoi le minuteur a ete retire, pourquoi une
+# competition en cours bloque -- est dans climbcontest/maj.py.
+
+
+@bp.get("/maj")
+@exige_role(ADMIN)
+def maj_etat():
+    """Ce que la console affiche : version en service, version disponible, et
+    l'issue d'une installation recente s'il y en a eu une.
+
+    C'est CETTE route qui declenche la verification quotidienne, quand elle est
+    due. Il n'y a aucun minuteur : la console est le seul appelant, donc le
+    quota GitHub n'est consomme que si quelqu'un regarde.
+    """
+    return jsonify({"success": True, **maj.etat(VERSION)}), 200
+
+
+@bp.post("/maj/verifier")
+@exige_role(ADMIN)
+def maj_verifier():
+    """Le bouton « Vérifier » : on interroge GitHub sans attendre l'echeance."""
+    maj.verifier(force=True)
+    return jsonify({"success": True, **maj.etat(VERSION)}), 200
+
+
+@bp.post("/maj/installer")
+@exige_role(ADMIN)
+def maj_installer():
+    """Le bouton « Installer ». Rend la main tout de suite : l'agent redemarre
+    l'application quelques secondes plus tard, donc ce processus meme."""
+    corps = request.get_json(silent=True) or {}
+    try:
+        lancee = maj.installer((corps.get("tag") or "").strip(),
+                               par=g.utilisateur.identifiant)
+    except maj.ErreurMaj as e:
+        return jsonify({"success": False, "message": e.message}), e.code
+    return jsonify({"success": True, "installation": lancee}), 202

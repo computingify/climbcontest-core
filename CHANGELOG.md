@@ -19,6 +19,34 @@ qu'on ne met pas à jour le matin d'une compétition :
 
 ## [Non publié]
 
+### Modifié
+
+- **Le serveur se met à jour depuis la console, et plus tout seul** (spec 031).
+  Le minuteur `climbcontest-deploy.timer` interrogeait GitHub **toutes les deux
+  minutes** : 30 requêtes par heure sur un quota **anonyme de 60 par heure et
+  par adresse IP publique**, partagée par toute la maison. Cinq déploiements
+  avaient échoué le 30/08 pour dépassement, sans que rien ne le signale ailleurs
+  que dans le journal. Et depuis que la VM 110 tourne en permanence, publier un
+  tag mettait en production en moins de deux minutes, sans que personne ne l'ait
+  demandé.
+
+  À la place, une carte **Version du serveur** dans les Réglages, réservée aux
+  administrateurs : elle vérifie **une fois par jour**, affiche le changelog de
+  la release — c'est le corps de la release GitHub, donc déjà la section de ce
+  fichier — et installe en un clic. Une **pastille** paraît dans le bandeau
+  quand une version est disponible, et mène aux Réglages.
+
+  **Une compétition en cours bloque l'installation**, sans contournement dans
+  l'interface : redémarrer coupe vingt-cinq téléphones au milieu des scans. Le
+  geste de secours reste `sudo systemctl start climbcontest-deploy.service`.
+
+  Coût du nouveau rythme : 1 requête sur 60 par heure, contre 30.
+
+  ⚠️ **À poser sur la VM avant que cette version n'y arrive** : la quatrième
+  ligne de `/etc/sudoers.d/climbcontest`, qui autorise l'application à démarrer
+  `climbcontest-deploy.service`. Sans elle, le bouton répond « le service de
+  déploiement n'a pas pu être démarré ».
+
 ### Corrigé
 
 - **Un mur redessiné entre deux compétitions ne peut plus rester invisible sur

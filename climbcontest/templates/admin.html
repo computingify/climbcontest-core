@@ -177,6 +177,63 @@
     border-radius: 999px; padding: 5px 12px; white-space: nowrap;
   }
   @media (max-width: 640px) { .jeton.optionnel { display: none; } }
+  /* La pastille de mise a jour (spec 031). Forme reprise de celle de Sowel --
+     pilule, 0.75rem semi-gras, icone de 14 px -- pour que les deux consoles de
+     la maison signalent la meme chose de la meme facon. La TEINTE, elle, est
+     l'ocre d'ici : Sowel colore ses mises a jour en rouge, ce qui dirait
+     « panne » sur un ecran ou rien n'est casse. */
+  .pastille {
+    display: inline-flex; align-items: center; gap: 6px;
+    border-radius: 999px; padding: 5px 11px; cursor: pointer;
+    font: inherit; font-size: 0.75rem; font-weight: 600; white-space: nowrap;
+    color: var(--accent-texte);
+    background: color-mix(in srgb, var(--accent) 12%, transparent);
+    border: 1px solid color-mix(in srgb, var(--accent) 32%, transparent);
+  }
+  .pastille:hover { background: color-mix(in srgb, var(--accent) 20%, transparent); }
+  .pastille svg { width: 14px; height: 14px; flex: none; }
+
+  /* La carte « Version du serveur » (spec 031). Noms suffixes en -maj : `.etat`
+     est deja pris par les <dl> des fenetres de confirmation. */
+  .etat-maj {
+    display: flex; flex-wrap: wrap; gap: 10px 26px;
+    padding: 12px 14px; margin: 0 0 14px;
+    background: var(--surface2); border: 1px solid var(--trait); border-radius: 10px;
+  }
+  .etat-maj > div { display: flex; flex-direction: column; gap: 1px; }
+  .etat-maj .k {
+    font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.06em;
+    color: var(--encre3); font-weight: 600;
+  }
+  .etat-maj .v {
+    font-family: var(--chiffre); font-size: 0.93rem; font-weight: 600;
+    font-variant-numeric: tabular-nums;
+  }
+  .etat-maj .v.txt { font-family: var(--titre); font-weight: 500; }
+
+  /* ⚠️ La pastille de couleur ne porte JAMAIS seule : le mot est ecrit a cote.
+     Meme regle que le voyant de connexion de l'app juge -- le rouge et le vert
+     seuls sont indistinguables pour environ 8 % des hommes. */
+  .verdict-maj {
+    display: flex; align-items: center; gap: 8px;
+    margin: 0 0 14px; font-size: 0.88rem; font-weight: 600;
+  }
+  .verdict-maj::before {
+    content: ""; width: 9px; height: 9px; border-radius: 50%; flex: none;
+    background: currentColor;
+  }
+  .verdict-maj.est-ok { color: var(--ok); }
+  .verdict-maj.est-neuf { color: var(--accent-texte); }
+  .verdict-maj.est-alerte { color: var(--alerte); }
+  .verdict-maj.est-attention { color: var(--attention); }
+
+  .changelog-maj {
+    background: var(--surface2); border: 1px solid var(--trait); border-radius: 10px;
+    padding: 14px 16px; margin: 0 0 14px; max-height: 260px; overflow: auto;
+    font-size: 0.85rem; line-height: 1.55; color: var(--encre2);
+    white-space: pre-wrap; overflow-wrap: anywhere;
+  }
+  .boutons-maj { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
 
   /* Le tiroir. En dessous de 1080 px, il RECOUVRE : la console n'est pas un
      tableau de bord qu'on regarde en continu -- on l'ouvre, on fait UNE chose,
@@ -892,6 +949,17 @@
       <span id="competitionBarre"></span>
     </div>
     <div class="droite">
+      <!-- Visible seulement quand une version est disponible. Elle ne fait que
+           mener aux Reglages : c'est la-bas qu'on lit le changelog et qu'on
+           decide. Une pastille qui installerait d'un clic serait un bouton de
+           mise en production dans une barre de navigation. -->
+      <button type="button" class="pastille" id="pastilleMaj" hidden>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"
+             stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M12 3v12"/><path d="m7 12 5 5 5-5"/><path d="M5 21h14"/>
+        </svg>
+        <span id="pastilleMajTag"></span>
+      </button>
       <span class="jeton optionnel" id="qui"></span>
     </div>
   </div>
@@ -1393,6 +1461,19 @@
         <p>Ton compte, et les accès des autres organisateurs.</p>
       </div>
 
+      <!-- Reservee aux administrateurs, comme « Creer un compte » plus bas :
+           les trois routes /admin/maj repondent 403 aux autres. -->
+      <div class="carte" id="blocMaj" hidden>
+        <h2>Version du serveur</h2>
+        <div class="etat-maj" id="majFaits"></div>
+        <p class="verdict-maj" id="majVerdict"></p>
+        <div class="changelog-maj" id="majChangelog" hidden></div>
+        <div class="boutons-maj">
+          <button class="action" id="btnMajVerifier">Vérifier</button>
+          <button class="action" id="btnMajInstaller" hidden></button>
+        </div>
+      </div>
+
       <div class="carte">
         <h2>Changer mon mot de passe</h2>
         <p class="aide">L'ancien est demandé même connecté : un ordinateur laissé
@@ -1440,6 +1521,24 @@
        Un <dialog> natif : `showModal()` donne le focus piege, Echap et le
        voile gratuitement et correctement. Une bibliotheque ou un faux modal en
        `position: fixed` ferait moins bien, avec plus de code. -->
+  <!-- Une fenetre a part, et volontairement pas `dlgConfirmer` : celle-ci
+       confirme un geste REVERSIBLE. L'agent de deploiement sonde /health et
+       revient en arriere tout seul si la nouvelle version ne repond pas. Le
+       maintien de deux secondes est reserve a ce qui efface. -->
+  <dialog id="dlgMaj">
+    <form method="dialog">
+      <div class="dedans">
+        <h2 id="dlgMajTitre"></h2>
+        <p class="aide" style="margin-bottom:0">Le serveur redémarre — une
+           quinzaine de secondes.</p>
+      </div>
+      <menu>
+        <button value="annuler" class="secondaire">Annuler</button>
+        <button value="ok" class="action">Installer</button>
+      </menu>
+    </form>
+  </dialog>
+
   <dialog id="dlgConfirmer">
     <form method="dialog">
       <div class="dedans">
@@ -1570,6 +1669,7 @@
     // Le serveur refuse de toute facon (403) -- masquer evite d'offrir un
     // formulaire qui ne marche pas, ce n'est pas la protection.
     $("blocComptes").hidden = etat.moi.roles.indexOf("admin") === -1;
+    $("blocMaj").hidden = etat.moi.roles.indexOf("admin") === -1;
     // Meme regle pour le classeur : les quatre routes sont reservees a un
     // administrateur, le serveur repond 403 aux autres. Masquer l'entree evite
     // d'offrir un ecran qui ne repondrait que des refus.
@@ -1583,6 +1683,9 @@
     // de novembre d'une competition de test restee active.
     var comp = etat.moi.competition ? etat.moi.competition.nom : "aucune compétition active";
     $("competitionBarre").textContent = comp;
+    // Avant d'afficher la premiere vue : la pastille du bandeau doit pouvoir
+    // paraitre sans qu'on soit passe par les Reglages.
+    chargerMaj(false);
     montrerVue("participants");
   }
 
@@ -1619,8 +1722,130 @@
   };
 
   function chargerComptesSiAdmin() {
-    if (etat.moi && etat.moi.roles.indexOf("admin") !== -1) chargerComptes();
+    if (etat.moi && etat.moi.roles.indexOf("admin") !== -1) {
+      chargerComptes();
+      chargerMaj(false);
+    }
   }
+
+  // --- Version du serveur (spec 031) ----------------------------------------
+  //
+  // La console est le SEUL appelant de /admin/maj, et c'est cette route qui
+  // declenche la verification quotidienne. Il n'y a pas de minuteur : celui qui
+  // tirait GitHub toutes les deux minutes a ete retire le 2026-09-03, il
+  // consommait la moitie du quota anonyme de la maison.
+
+  var minuteurMaj = null;
+
+  function chargerMaj(forcer) {
+    if (!etat.moi || etat.moi.roles.indexOf("admin") === -1) return;
+    if (forcer) $("btnMajVerifier").disabled = true;
+    appeler(forcer ? "/admin/maj/verifier" : "/admin/maj",
+            forcer ? { methode: "POST" } : {})
+      .then(rendreMaj)
+      .catch(signaler)
+      .then(function () { $("btnMajVerifier").disabled = false; });
+  }
+
+  function faitMaj(cle, valeur, texte) {
+    return '<div><span class="k">' + cle + '</span><span class="v' +
+           (texte ? " txt" : "") + '">' + valeur + "</span></div>";
+  }
+
+  function rendreMaj(d) {
+    var dispo = d.disponible;
+    var pose = d.installation;
+    var verdict = $("majVerdict");
+    var btn = $("btnMajInstaller");
+
+    var faits = faitMaj("En service", d.en_service || "dév.");
+    if (dispo) faits += faitMaj("Disponible", dispo.tag);
+    if (d.verifie_le) {
+      faits += faitMaj("Vérifié",
+        depuis(Math.round((Date.now() - new Date(d.verifie_le)) / 1000)), true);
+    }
+    $("majFaits").innerHTML = faits;
+
+    // Le changelog est du TEXTE, pose avec textContent : c'est le corps d'une
+    // release GitHub, donc du contenu qu'on ne fabrique pas soi-meme. Le rendre
+    // en HTML serait ouvrir la console a ce que contient un tag.
+    $("majChangelog").hidden = !dispo;
+    $("majChangelog").textContent = dispo ? dispo.changelog : "";
+
+    btn.hidden = !dispo;
+    btn.textContent = dispo ? "Installer " + dispo.tag : "";
+    btn.disabled = !!d.blocage;
+
+    var mot, ton;
+    if (pose && pose.etat === "en_cours") {
+      mot = "Installation de " + pose.tag + " en cours…"; ton = "est-neuf";
+      btn.disabled = true;
+    } else if (pose && pose.etat === "echouee") {
+      mot = "Échec — revenu en " + pose.revenu_en; ton = "est-alerte";
+    } else if (pose && pose.etat === "reussie") {
+      mot = pose.tag + " installée"; ton = "est-ok";
+    } else if (d.erreur) {
+      mot = d.erreur; ton = "est-attention";
+    } else if (d.blocage) {
+      mot = d.blocage; ton = "est-alerte";
+    } else if (dispo) {
+      mot = dispo.tag + " disponible"; ton = "est-neuf";
+    } else {
+      mot = "Version à jour"; ton = "est-ok";
+    }
+    verdict.textContent = mot;
+    verdict.className = "verdict-maj " + ton;
+
+    // La pastille du bandeau ne parait que s'il y a quelque chose a faire :
+    // pendant l'installation, elle disparait -- l'ecran des Reglages dit deja
+    // ou l'on en est, et une pastille qui insiste inviterait a recliquer.
+    var montrer = !!dispo && !(pose && pose.etat === "en_cours");
+    $("pastilleMaj").hidden = !montrer;
+    if (montrer) $("pastilleMajTag").textContent = dispo.tag;
+
+    if (pose && pose.etat === "en_cours") suivreMaj(45);
+  }
+
+  function suivreMaj(restant) {
+    // ⚠️ Pendant l'installation, l'agent REDEMARRE l'application : les requetes
+    // echouent pendant une quinzaine de secondes. Un echec de fetch n'est donc
+    // pas une erreur a afficher, c'est le symptome attendu. On repasse par
+    // `fetch` et non par `appeler`, dont le traitement des 401 deconnecterait.
+    clearTimeout(minuteurMaj);
+    if (restant <= 0) return;
+    minuteurMaj = setTimeout(function () {
+      fetch("/admin/maj", { cache: "no-store" })
+        .then(function (r) { return r.ok ? r.json() : null; })
+        .then(function (d) {
+          if (d && d.success) rendreMaj(d);
+          else suivreMaj(restant - 1);
+        })
+        .catch(function () { suivreMaj(restant - 1); });
+    }, 4000);
+  }
+
+  $("btnMajVerifier").addEventListener("click", function () { chargerMaj(true); });
+
+  $("pastilleMaj").addEventListener("click", function () { montrerVue("reglages"); });
+
+  $("btnMajInstaller").addEventListener("click", function () {
+    var tag = $("btnMajInstaller").textContent.replace("Installer ", "");
+    $("dlgMajTitre").textContent = "Installer " + tag + " ?";
+    var dlg = $("dlgMaj");
+    dlg.returnValue = "";
+    dlg.showModal();
+    dlg.addEventListener("close", function suite() {
+      dlg.removeEventListener("close", suite);
+      if (dlg.returnValue !== "ok") return;
+      appeler("/admin/maj/installer", { methode: "POST", corps: { tag: tag } })
+        .then(function () {
+          dire("Installation de " + tag + " lancée.", "ok");
+          suivreMaj(45);
+          chargerMaj(false);
+        })
+        .catch(signaler);
+    });
+  });
 
   // Le SEUL endroit ou le script connait le seuil : la mise en page, elle, est
   // entierement dans la requete media. On l'interroge au moment du clic et on

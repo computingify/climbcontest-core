@@ -56,8 +56,13 @@ fi
 echo "== droit de redemarrage cible =="
 # L'agent de tirage tourne en tant que climbcontest et doit pouvoir redemarrer
 # LE SEUL service climbcontest. Rien d'autre : pas de sudo general.
+#
+# La quatrieme ligne est le bouton de la console (spec 031) : l'application
+# demarre l'agent de deploiement, elle ne l'execute pas elle-meme. Les arguments
+# sont listes en entier -- sudo compare la ligne de commande complete, donc
+# cette autorisation ne permet PAS de demarrer un autre service.
 cat > /etc/sudoers.d/climbcontest <<EOF
-$UTILISATEUR ALL=(root) NOPASSWD: /bin/systemctl restart climbcontest, /bin/systemctl stop climbcontest, /bin/systemctl start climbcontest
+$UTILISATEUR ALL=(root) NOPASSWD: /bin/systemctl restart climbcontest, /bin/systemctl stop climbcontest, /bin/systemctl start climbcontest, /bin/systemctl start --no-block climbcontest-deploy.service
 EOF
 chmod 0440 /etc/sudoers.d/climbcontest
 visudo -cf /etc/sudoers.d/climbcontest >/dev/null || { echo "sudoers invalide"; rm -f /etc/sudoers.d/climbcontest; exit 1; }
