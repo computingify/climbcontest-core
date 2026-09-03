@@ -72,13 +72,15 @@ C'est le point délicat du lot ; il a sa section, la § 6.
 
 - **Thème clair et thème sombre** (`body.sombre`), sur les six remplissages de
   profil (dalle → toit) qui sont tous des aplats moyennement clairs : le
-  compteur porte le même halo que la lettre de la zone, pour la même raison —
-  sans lui, un chiffre posé sur une trame devient illisible.
+  compteur est posé sur une **pastille** de la couleur du halo de la lettre —
+  sans fond, un chiffre posé sur un aplat de profil devient illisible. La
+  pastille remplace le halo, et le fait mieux : un halo est un contour découpé
+  sur la forme des glyphes, une pastille est un fond.
 - **Sur un téléphone de 390 px de large comme sur un écran de portable.** Le
   compteur est dimensionné **en proportion de la lettre de la zone**
   (`mur.taille`, calculée par le serveur pour tenir dans le pan) : il grandit et
-  rétrécit avec elle. Un libellé plus long — « 12/15 » — rétrécit au lieu de
-  déborder. Ce qu'il suppose, en revanche, ce sont des pans d'au moins ~14,6
+  rétrécit avec elle, **et sa pastille aussi**. Un libellé plus long —
+  « 12/15 » — rétrécit **dans** une pastille qui, elle, ne bouge pas. Ce qu'il suppose, en revanche, ce sont des pans d'au moins ~14,6
   unités de haut ; c'est une limite réelle, chiffrée et surveillée par un test,
   et elle est expliquée dans `architecture.md` § 3.
 - La **fiche n'existe pas en mode mur** (`?mur`) — spec 026 F1, garde
@@ -95,7 +97,7 @@ comme les états de zone, et pas par le dessin : un bloc validé pendant qu'on
 regarde le plan doit faire passer « 1/4 » à « 2/4 » sans reconstruire dix-sept
 polygones.
 
-## 2 bis. Ce que la maquette a tranché
+## 2 bis. Ce que les maquettes ont tranché
 
 `maquettes/compteurs.html` — le vrai relevé d'Annonay, la vraie géométrie
 (polygones, place et taille des lettres sortis de `fiches.plan_pour(set())`), un
@@ -106,15 +108,122 @@ Onze zones sans bloc du circuit, qui ne doivent rien porter.
 
 | Essai | Verdict |
 | --- | --- |
-| **A — le chiffre sous la lettre** | **Retenu.** Un nœud de plus, et rien d'autre ne bouge |
+| A — le chiffre nu sous la lettre | Proposé, **non retenu** |
 | A2 — la lettre rend un cran au chiffre | Écarté. 13 % de corps gagnés, mais la lettre d'un pan changerait de taille **selon le circuit du grimpeur** : deux téléphones côte à côte ne montreraient plus la même salle. Et il faudrait poser une transformation sur la lettre, que la fiche **papier** dessine aussi |
-| B — la pastille (socle arrondi) | Écarté. Le socle a une largeur à lui, que rien ne borne : sur le relevé réel il mord la lettre au-dessus et sort du pan en dessous. Le dimensionner demanderait la boîte du pan, donc de recopier côté page une géométrie qui vit côté serveur |
+| **B — la pastille (socle arrondi)** | **RETENU par Adrien le 03/09** : « j'aime beaucoup la pastille que tu mets là dans l'écran B » |
 | C — l'anneau de progression | Écarté. L'anneau se confond avec le contour vert de « zone terminée » et avec l'anneau ocre de la zone visée : trois cercles pour trois choses différentes |
 
-Le chiffre retenu fait `0,46 × taille` de la lettre, posé à `0,59 × taille` sous
-elle, avec le halo de la lettre. Ce sont les deux plus grandes valeurs qui
-tiennent à la fois sous la lettre et dans le pan — le calcul est dans
-`architecture.md` § 3.
+**Ce qui avait fait écarter B, et pourquoi ça ne tient plus.** La maquette
+dimensionnait le socle sur son **texte** : il avait donc une largeur que rien ne
+bornait, et sur le relevé réel il mordait la lettre au-dessus et sortait du pan
+en dessous. Le socle se dimensionne maintenant sur la **lettre** — largeur
+`1,0 × taille`, hauteur `1,12 × le corps nominal du chiffre` — et il hérite
+donc des bornes que `fiches.taille_lettre` a déjà posées sur la lettre par la
+boîte du pan. **Aucune géométrie n'est relue côté page**, ce qui était
+l'objection de fond.
+
+Les quatre ratios retenus, et le calcul qui les fixe (détail dans
+`plan.js`) : le budget vertical est ce qui reste entre le bas du glyphe de la
+lettre (`0,36 × taille`) et le bas du pan (`0,833 × taille` pour un pan de 15
+unités portant une lettre de 9), soit **0,473 × taille**. La pastille en occupe
+`1,12 × 0,40 = 0,448`, centrée à `0,60` :
+
+| Ratio | Valeur | Ce qu'il borne |
+| --- | --- | --- |
+| `COMPTE_ECHELLE` | 0,40 | le corps du chiffre |
+| `COMPTE_DESCENTE` | 0,60 | la descente de la pastille sous l'axe de la lettre |
+| `PASTILLE_HAUTEUR` | 1,12 | la hauteur du socle, **× le corps nominal** |
+| `PASTILLE_LARGEUR` | 1,0 | la largeur du socle, **× la taille de la lettre** |
+
+- haut = 0,60 − 0,224 = **0,376 ≥ 0,36** — la pastille ne mord pas la lettre ;
+- bas = 0,60 + 0,224 = **0,824 ≤ 0,833** — elle ne sort pas du pan.
+
+Le chiffre perd 13 % de corps par rapport à l'essai A (0,40 au lieu de 0,46) ;
+c'est le prix de la pastille, et il est chiffré. En échange il gagne un **fond**
+au lieu d'un **halo** — un halo est un contour découpé sur la forme des glyphes,
+qui se battait avec les six aplats de profil. La hauteur du socle se calcule sur
+le corps **nominal** et jamais sur le corps réduit d'un libellé long :
+dix-sept pastilles identiques, pas dix-sept tailles.
+
+## 2 ter. Décision ouverte — le cadre de la zone devient-il une jauge ?
+
+> « Je ne mettrais pas un anneau, je mettrais le rectangle que tu mets en
+> surbrillance vert pour dire que la zone est terminée. Et bien celui-là, je le
+> remplirais en fonction de l'avancement. » (Adrien, 03/09)
+
+**Statut : ouverte. Rien n'est implémenté.** C'est une **unification** : le
+cadre vert « zone terminée » (`.cadre-zone.z-finie`) et le compteur cessent
+d'être deux signaux pour devenir deux lectures de la même donnée — « terminée »
+n'est plus un état à part, c'est le cadre plein. L'invariant A12 (« le compteur
+et l'anneau vert jamais contradictoires ») devient alors une tautologie plutôt
+qu'un test.
+
+La maquette qui l'instruit est `maquettes/remplissage.html` : sept variantes,
+sur le vrai relevé, en clair et en sombre. Les cinq cas — 0/4, 1/4, 3/4, 4/4 et
+une zone sans bloc — sont posés sur **cinq pans qui se touchent bord à bord**
+(J, I, H, G, F) et sur cinq profils différents, plus la zone visée (D) et une
+colonne empilée (L sur M).
+
+| Variante | Verdict de la maquette |
+| --- | --- |
+| **R1b — le contour qui se remplit, rentré de 10 %** | **Recommandé** |
+| R2 — le contour gradué, un segment par bloc | La version riche de R1b, si on veut **compter** sur le plan |
+| R1 — le même contour, posé sur l'arête | Écarté : il déborde chez la voisine et les jauges se soudent |
+| R3 — le remplissage par le bas | Écarté : il fabrique une arête horizontale au milieu du pan |
+| R4 — le remplissage horizontal | Écarté : même chose, en vertical, sur une bande qui n'est faite que d'arêtes verticales |
+| R5 — c'est la pastille qui se remplit | Écarté : elle ne répond pas à la demande, et vert sur vert ne se lit pas |
+
+### Les cinq pièges, et ce que la maquette en dit
+
+1. **Les pans se touchent bord à bord.** Un cadre posé sur une arête déborde de
+   la moitié de son épaisseur chez la voisine : les jauges de deux zones
+   voisines se **soudent** en un seul trait qui n'appartient à personne. Le
+   remède est de **rentrer** le cadre dans le pan (`transform: scale(.90)` sur
+   la boîte de la forme — c'est le navigateur qui la calcule, la page ne lit
+   toujours aucune géométrie).
+2. **Le remplissage entre en concurrence avec la couleur de profil.** C'est ce
+   qui tue R3 et R4 : la teinte obtenue **dépend du profil** — vert sur *dalle*
+   (bleu froid) donne un vert-de-gris qui n'existe dans aucune des six teintes,
+   vert sur *incliné* (ocre) donne un olive et vert sur *toit* (rouge) un brun,
+   deux couleurs qui ressemblent à des profils. Une jauge de **contour** ne
+   touche jamais la surface du pan : elle est hors du conflit.
+3. **Trois emphases sur la zone visée.** Réglé en **teignant la jauge** au lieu
+   de lui en ajouter une : la zone visée porte sa jauge en ocre (`--pl-anneau`)
+   et plus épaisse, avec la lueur et le rebond déjà en place. Il n'y a jamais
+   deux cerclages sur le même pan.
+4. **0/4 et « pas de bloc ici » ne doivent pas se ressembler.** Une jauge à zéro
+   ne peint rien — donc rien ne la distingue d'une zone effacée, au niveau du
+   cadre. Le remède est une **piste** : un cadre faible, tracé sur les seules
+   zones qui portent un compteur. 0/4 = piste complète, rien de peint ;
+   pas de bloc = **aucun cadre du tout**.
+5. **340 px de large.** Mesuré : le plan rend **2,39 px par unité**, le trait du
+   cadre fait donc **3,8 px** d'épaisseur. C'est peu — et c'est pour ça que la
+   jauge doit varier en **longueur** et pas en épaisseur : un quart de périmètre
+   d'un pan de 15 unités fait **35,9 px** de long, et 36 px se voient à 3,8 px
+   d'épaisseur. Le chiffre de la pastille, lui, fait **8,6 px** de corps dans un
+   socle de **21,5 × 9,7 px** : lisible sur un écran à deux pixels par point,
+   juste à la limite sur un écran à un.
+
+### Ce qui reste à trancher
+
+- **R1b ou R2** — le contour continu, ou le contour gradué en un segment par
+  bloc. Le relevé d'Annonay rend la question moins vive qu'elle n'en a l'air :
+  ses pans sont **carrés**, donc un quart de périmètre tombe pile sur une arête
+  et une zone à quatre blocs dessine déjà *une arête par bloc*. R2 ne devient
+  indispensable que sur les pans qui ne sont pas carrés (D fait 15 × 30, L
+  15 × 25), où R1b coupe au milieu d'une arête.
+- **Par quel coin la jauge commence.** La page **ne peut pas choisir** : choisir
+  demanderait de savoir quel point est en haut à gauche, donc de lire la
+  géométrie, ce que `plan.js` s'interdit (sa règle 3). La jauge part donc du
+  **premier point du polygone, dans le sens du polygone** — et le coin de départ
+  devient une **garantie du serveur** à écrire dans la spec plutôt qu'une
+  coïncidence à espérer. Aujourd'hui `fiches.PLAN` énumère tous ses pans depuis
+  le coin haut-gauche dans le sens horaire et `plan_public()` les recopie tels
+  quels ; il n'y a **aucun test** qui l'exige, et c'est ce test-là qu'il faudra
+  écrire avant de coder la jauge.
+- **La piste** est un élément neuf sur le plan. Elle règle le piège 4, mais elle
+  ajoute un huitième objet à un dessin qui en porte déjà sept. À valider à
+  l'œil, sur le mur, pas sur une planche.
 
 ## 3. Périmètre
 
@@ -149,6 +258,7 @@ tiennent à la fois sous la lettre et dans le pan — le calcul est dans
 | A1 | Zone où le grimpeur a 4 blocs, 1 fait | la zone porte « 1/4 » |
 | A2 | Zone où il n'a rien fait | « 0/4 » |
 | A3 | Zone entièrement faite | « 4/4 », dans le vert de la réussite |
+| A3b | Zone sans bloc de son circuit | **aucune pastille** non plus — un socle vide serait un fond posé pour ne rien porter |
 | A4 | Zone sans bloc de son circuit | **aucun compteur** |
 | A5 | Bloc crédité par la cascade | compté comme fait (§ 6) |
 | A6 | Zone du circuit absente du plan | rien à dessiner, aucune erreur |
