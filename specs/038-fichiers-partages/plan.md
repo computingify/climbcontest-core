@@ -33,8 +33,9 @@ et `gh pr list` ne renvoie rien.
 - [ ] `scripts/release.sh` — étape 0 : refuse de taguer s'il reste des fragments
 - [ ] `CHANGELOG.md` — `## [Non publié]` retiré
 - [ ] `tools/index_specs.py` et `docs/specs-index.tpl.md`
-- [ ] Migration : les 35 lignes deviennent 35 `resume.md`, **par extraction
-      automatique**, pas à la main
+- [ ] Migration : **chaque ligne** de l'index devient un `resume.md`, par
+      extraction automatique, jamais à la main. Le nombre n'est pas figé ici :
+      il dépend des specs qui auront atterri d'ici là
 - [ ] L'index régénéré est **comparé texte à texte** à l'ancien : la migration
       est bonne si le diff est vide
 - [ ] `.github/workflows/tests.yml` — le job `index` (D5) et le garde du
@@ -59,7 +60,7 @@ l'index à la main.
 | --- | --- | --- |
 | bout en bout | Deux branches ajoutent chacune sa spec | Fusion **sans conflit** — aucune ne touche l'index |
 | bout en bout | Deux branches déposent chacune son fragment | Fusion **sans conflit** — deux fichiers distincts |
-| `index_specs.py` | Les 35 `resume.md` migrés | L'index produit est **identique** à l'actuel, octet pour octet |
+| `index_specs.py` | Tous les `resume.md` migrés | L'index produit est **identique** à l'actuel, octet pour octet |
 | `index_specs.py` | Un `resume.md` ajouté | Une ligne de plus, à sa place dans l'ordre des numéros |
 | job `index` | Une spec est mergée sur master | L'index gagne sa ligne, poussé par le robot, sans qu'aucune PR ne l'ait touché |
 | `assembler_changelog` | Trois fragments, deux rubriques | Une section de version, groupée, fragments supprimés |

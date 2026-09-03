@@ -19,6 +19,130 @@ qu'on ne met pas à jour le matin d'une compétition :
 
 ## [Non publié]
 
+## [0.19.0] — 2026-09-03
+
+### Ajouté
+
+- **La pastille du compteur de zone se remplit de vert** à hauteur de
+  l'avancement, sur le plan du mur de la fiche (spec 036 § 2 ter). « Je veux
+  que le truc avec le nombre de blocs restant se remplisse de vert en fonction
+  de l'avancement. » Une zone à 1 bloc sur 4 porte donc « 1/4 » sur une pastille
+  verte au quart, et une zone terminée une pastille pleine. Le compte est le
+  même que celui du chiffre — les deux dérivent d'une seule fonction, ils ne
+  peuvent pas se contredire — et le vert suit une réussite **en direct**, sans
+  que le mur soit redessiné.
+  - Le vert est un rectangle franc **découpé dans la forme du socle** : il en
+    épouse le bord arrondi à gauche et se coupe net à droite. On lit un
+    **niveau** ; arrondi de son côté, il ferait une petite pastille dans la
+    grande, donc deux objets.
+  - **L'ovale s'élargit à 1,6 fois la lettre** — et uniquement en largeur : sa
+    hauteur et le corps du chiffre ne bougent pas. Un vert qui remplit un rond
+    ne dit pas une proportion. Effet de bord bienvenu : « 12/15 » tient
+    maintenant à sa taille pleine au lieu de rétrécir.
+  - **La lettre de la zone monte**, et la pastille se pose plus haut : les trois
+    espaces du pan — au-dessus de la lettre, entre la lettre et la pastille,
+    sous la pastille — deviennent **égaux**. Ce n'était pas un problème de
+    place mais un chevauchement : le halo de la lettre recouvrait la pastille de
+    près d'une unité de plan. Sous elle, il ne restait que 0,009 × taille — un
+    cinquième de pixel sur un téléphone.
+  - **Le chiffre d'une zone terminée ne vire plus au vert** : sur une pastille
+    pleine, vert sur vert ne se lit pas. C'est le remplissage qui dit
+    « terminée ».
+  - **Le cadre de la zone ne change pas** : il garde son tout-ou-rien et dit
+    « terminée », rien d'autre. Une première version faisait l'inverse — le
+    cadre épaissi qui se remplissait — et elle a été retirée en entier après
+    l'avoir regardée à l'écran.
+
+### Modifié
+
+- **L'application juge s'ouvre en clair** (spec 039). Son fond était sombre **en
+  dur** : rien ne regardait `prefers-color-scheme`, et un bénévole qui ouvrait
+  l'application en plein jour, dans une salle à baie vitrée, lisait un écran
+  noir sans l'avoir demandé — luminosité poussée à fond, donc batterie. Le clair
+  devient le **défaut** ; le sombre reste, **inchangé au point près**, sous la
+  requête media. **Aucun réglage dans l'application** : le système décide, comme
+  sur la console depuis la spec 021.
+  ⚠️ Le circuit **« Noir »** prend désormais l'encre du thème — presque noir sur
+  le papier, craie sur l'ardoise. La craie n'était pas un choix de couleur,
+  c'était une rustine du fond sombre, et elle ne se voit pas davantage sur du
+  papier sable. Les cinq autres circuits ne bougent pas.
+  ⚠️ La coquille hors-ligne passe en **v6** : elle porte le gabarit, donc tout le
+  CSS. Un téléphone déjà installé prend la nouvelle version **au lancement
+  suivant** — fermer et rouvrir l'application, jamais en pleine compétition.
+  ⚠️ L'**app juge Android reste sombre** : les deux clients ne se ressemblent
+  plus tant qu'une spec ne l'a pas fait suivre.
+
+## [0.18.1] — 2026-09-03
+### Corrigé
+
+- **Le bouton « Installer » de la console n'a jamais pu fonctionner**, depuis
+  qu'il existe (spec 031, v0.17.0). Il répondait « Le service de déploiement n'a
+  pas pu être démarré » **à tous les coups**. Découvert le 03/09 au premier vrai
+  clic, en installant la 0.18.0.
+
+  L'application lançait
+  `sudo -n systemctl start --no-block climbcontest-deploy.service`. La règle
+  sudoers l'autorisait mot pour mot, l'appel était correct — et il ne pouvait
+  pas aboutir : `climbcontest.service` tourne avec **`NoNewPrivileges=true`**,
+  qui interdit à ses processus de gagner des privilèges par un binaire
+  **setuid**. `sudo` en est un. Le drapeau ne se contourne pas depuis
+  l'intérieur : c'est exactement son rôle.
+
+  ```
+  $ systemd-run --uid=climbcontest -p NoNewPrivileges=yes /usr/bin/sudo -n -l
+  sudo: The "no new privileges" flag is set, which prevents sudo
+        from running as root.
+  ```
+
+  La vérification du 03/09 avait pourtant « rejoué le chemin exact du bouton ».
+  Elle rejouait la même **commande**, depuis un shell de connexion — pas depuis
+  le **contexte** durci du service. C'est tout l'écart, et il valait le bouton.
+
+  À la place, plus aucune élévation de privilège ne traverse l'application :
+  elle **écrit un fichier** (`shared/deploiement-demande`, le seul chemin que
+  `ReadWritePaths` lui laisse), et une nouvelle unité
+  **`climbcontest-deploy.path`** — qui, elle, appartient à root — démarre
+  l'agent en le voyant changer. Le durcissement est conservé **en entier** ;
+  c'est la quatrième règle sudoers, devenue sans objet, qui est retirée.
+
+  `PathChanged` et non `PathExists`, pour deux raisons distinctes : un second
+  clic réécrit le même fichier — `PathExists` ne se déclenche qu'à l'apparition,
+  et le bouton n'aurait marché qu'une fois ; et une demande qui traîne
+  relancerait l'agent **au démarrage de la machine**, c'est-à-dire une
+  installation automatique le matin d'une compétition, exactement ce que la
+  spec 031 a supprimé.
+
+  ⚠️ **Ce que les tests d'alors prouvaient** : ils remplaçaient
+  `subprocess.run` par un leurre. Ils vérifiaient qu'on **appelait** `sudo` —
+  la seule chose qui, en production, ne pouvait pas marcher. Un test qui simule
+  la partie qui casse ne surveille rien. Ils exercent désormais le vrai
+  mécanisme sur un vrai dossier, et
+  `tests/test_deploiement_sans_privileges.py` tient le contrat entre les trois
+  fichiers que personne ne lit ensemble : aucun module de l'application ne
+  lance de processus tant que son unité porte `NoNewPrivileges=true`, le chemin
+  écrit est celui qui est surveillé, et il est sous un `ReadWritePaths`.
+  Vérifié rouge sur le code d'avant.
+
+  🔧 **Geste à faire une fois sur la VM 110** : les unités systemd ne voyagent
+  pas dans une release. Poser et activer le guetteur, en root —
+  `install -m 0644 climbcontest-deploy.path /etc/systemd/system/`,
+  `systemctl daemon-reload`, `systemctl enable --now climbcontest-deploy.path`.
+  Tant que ce n'est pas fait, le bouton dépose sa demande et rien ne l'écoute.
+
+## [0.18.0] — 2026-09-03
+
+### Modifié
+
+- **La recherche de la page de résultats se déploie** au lieu d'apparaître. Un
+  appui sur la loupe — qui **termine** désormais la rangée, la lecture passant
+  devant — ouvre le champ **par-dessus** les commandes, sur toute la largeur.
+  Un second appui, la croix ou **Échap** le referme et le vide. Sur grand écran,
+  le bandeau de droite s'efface le temps de la recherche.
+  ⚠️ Le réglage mémorisé « masquer la recherche » **disparaît** : le champ est
+  replié tant qu'on ne le demande pas, ce qui est « masquée par défaut » sans
+  rien avoir à retenir. Ouvrir la recherche est un geste, pas un réglage
+  (spec 037).
+
 ### Ajouté
 
 - **L'avancement par zone, sur le plan du mur** de la fiche du grimpeur
@@ -28,7 +152,11 @@ qu'on ne met pas à jour le matin d'une compétition :
   gestes, en touchant chacune pour lire le compteur du panneau. Une zone sans
   bloc de son circuit ne porte **rien** : l'absence est l'information, « 0/4 »
   se dit, « 0/0 » non. Un bloc **crédité** par la cascade compte comme fait,
-  comme partout ailleurs sur cet écran.
+  comme partout ailleurs sur cet écran. Le chiffre est posé sur une **pastille**
+  — un socle arrondi qui le détache des six aplats de profil du plan, choisi par
+  Adrien parmi quatre poses maquettées. La pastille se dimensionne sur la
+  **lettre** de la zone et jamais sur son texte : c'est ce qui la borne, un
+  libellé long rétrécit dedans au lieu de l'élargir.
 - **Le QR de poste, posé sur la table du juge** (spec 034). Le juge arrive à sa
   table, ouvre l'application, scanne le carton posé devant lui : son téléphone
   s'appelle « Zone C » dans la console. Il n'a rien tapé. Le nom du poste
@@ -36,8 +164,10 @@ qu'on ne met pas à jour le matin d'une compétition :
   invisible depuis l'écran principal, dans une application qu'on ouvre pour
   scanner : personne ne le faisait, et quand c'était fait, deux téléphones du
   même mur portaient deux noms différents.
-  - Le QR porte **`CCPOSTE:` + le nom de la zone**. Le préfixe n'est pas
-    décoratif : le même viseur voit aussi les dossards (`42`), les blocs
+  - Le QR porte **`CCPOSTE:` + la lettre de la zone**, et c'est
+    **l'application qui compose le libellé** — « Zone A ». Un QR minimal se lit
+    mieux, et le jour où le libellé change, on ne réimprime pas dix-sept
+    affiches. Le préfixe, lui, n'est pas décoratif : le même viseur voit aussi les dossards (`42`), les blocs
     (`ZJ6`) et le lien de l'organisateur. Sans lui, un bloc scanné par erreur
     depuis cet écran renommerait le poste « ZJ6 » **sans que personne le
     voie**, et la console afficherait « ZJ6 » en face de tous les envois de la
@@ -46,12 +176,25 @@ qu'on ne met pas à jour le matin d'une compétition :
     ouvrirait un navigateur, et le juge se retrouverait hors de son
     application, dans une instance sans file d'attente.
   - **Une nouvelle page `/admin/postes`** dans la console (vue Téléphones) :
-    une affiche par zone, **trois par A4**, QR de 70 mm généré localement. Les
-    zones se déduisent du **plan courant**, jamais d'une liste tenue à la main :
-    un mur ajouté dans « Dessiner le plan du mur » sort son QR à l'impression
-    suivante. C'est la seule page d'impression qui marche **sans compétition
-    active** — on imprime ces cartons la veille au soir, avant l'import du
-    classeur.
+    une affiche par zone, **huit par A4** en deux colonnes, QR de 48 mm généré
+    localement — six millimètres au-dessus du plancher mesuré des étiquettes de
+    blocs. Les 17 zones tiennent sur **3 feuilles**. La densité est **une
+    constante nommée** dont descend toute la géométrie : repasser à six est une
+    valeur à changer, pas une refonte du CSS. Les zones se déduisent du **plan
+    courant**, jamais d'une liste tenue à la main : un mur ajouté dans
+    « Dessiner le plan du mur » sort son QR à l'impression suivante. C'est la
+    seule page d'impression qui marche **sans compétition active** — on imprime
+    ces cartons la veille au soir, avant l'import du classeur.
+  - **Le carton ne porte pas de mode d'emploi**, et c'est l'application qui le
+    donne : tant qu'un téléphone n'a pas de poste, son **écran d'accueil**
+    affiche un petit texte et le bouton qui scanne, puis les efface dès que le
+    poste est nommé. Un mode d'emploi imprimé se lit une fois, quand on n'en a
+    pas besoin. Le geste reste ensuite dans les Réglages.
+  - **Deux téléphones peuvent porter le même nom**, et c'est désormais la
+    norme : deux juges sur la même zone scannent le même carton. La console les
+    distingue par le **code court de l'appareil** — « Zone A (3f9a1c2b) » —
+    partout où un poste est nommé. Rien de nouveau n'est stocké : c'est
+    l'identifiant que chaque téléphone porte depuis la spec 011, rendu lisible.
   - Le préfixe est écrit **deux fois**, en Python et en JavaScript. Un test lit
     `poste.js` et le compare à `fiches.PREFIXE_QR_POSTE` : le jour où les deux
     divergent, tous les QR imprimés cesseraient d'être lus sans qu'une ligne ait
@@ -198,6 +341,29 @@ qu'on ne met pas à jour le matin d'une compétition :
   l'arrêt** : `svg.hidden = false` ne fait rien, `hidden` appartient à
   `HTMLElement`. C'est le défaut corrigé en 0.15.0, revenu par la porte du SVG ;
   le choix d'icône passe désormais par une classe CSS.
+
+- **Le simulateur de juges jetait ce qui restait en file**, et **cumulait ses
+  compteurs** d'un lancement à l'autre. Les deux défauts ont été trouvés en
+  *analysant* un test grandeur nature (25 juges, ~1 350 scans) : l'instrument
+  faussait la mesure qu'il existe pour produire. « Arrêter » coupe désormais les
+  scans **puis laisse les expéditeurs finir** — onze réussites étaient perdues à
+  l'arrêt du run du 03/09, là où un vrai téléphone garde sa file dans IndexedDB
+  et la repart à la reprise ; un simulateur qui perd des réussites que le vrai
+  client ne perd pas fait douter du vrai client. Le vidage se fait **en tâche de
+  fond** (bloquer gèlerait le bouton vingt secondes, et un bouton qui ne répond
+  pas est un bouton sur lequel on appuie trois fois), un second appui coupe
+  court quand le serveur ne répond plus, et ce que le serveur n'a pas tranché
+  **reste en file** et est annoncé comme tel : rien n'est inventé enregistré.
+  Les compteurs, eux, repartent de zéro à chaque lancement — un écart de sept
+  entre les tuiles et le tableau des juges avait coûté une enquête sur une perte
+  de données qui n'existait pas. `paires` fait exception, et volontairement : le
+  serveur, lui, se souvient toujours des passages déjà validés.
+- **« terminee » s'écrivait sans accent** sous le plan du mur de la fiche du
+  grimpeur, quand toutes les cases d'une zone sont cochées. Vu à l'écran, pas à
+  la relecture : le mot est court et l'œil le complète. La règle du dépôt
+  distingue deux choses et la coquille est passée entre les deux — les littéraux
+  **Python** restent en ASCII (messages d'erreur, journaux, JSON), mais tout ce
+  qui **s'affiche** est du français accentué, gabarits et JavaScript compris.
 
 ## [0.17.0] — 2026-09-03
 
@@ -826,7 +992,6 @@ Adrien le 01/09 au soir.
   jamais. Le contrat d'API, lui, **ne bouge pas** — l'application Android
   publiée (`V3.1.4`) parle aux mêmes routes qu'avant.
 
-
 ### Modifié
 
 - **La catégorie apparaît sur les scratchs, et seulement là.** Un scratch —
@@ -852,7 +1017,6 @@ Adrien le 01/09 au soir.
   n'est pas recopié, il se **déduit** des deux constantes dont le calcul de
   densité se sert déjà (389 px de mobilier, plus 140 px pour lire un nom).
 
-
 ### Corrigé
 
 - **Les options de l'édition se lisaient en deux endroits.**
@@ -872,7 +1036,6 @@ Adrien le 01/09 au soir.
   référence d'une réussite posée sur un bloc hors circuit répondait « ce scan est
   bien arrivé », ce qui est vrai et trompeur : il est arrivé, et il ne compte pas.
   Elle le dit maintenant, et renvoie vers la vue « Circuits ».
-
 
 - **Le quatrième circuit n'était jamais importé.** `importer.py` figeait les
   colonnes de circuit de l'onglet `Plan` à **J, L, N** — trois — parce que la
@@ -909,7 +1072,6 @@ Adrien le 01/09 au soir.
   fenêtre, plus dans la carte. Et toute la console fait maintenant **défiler sa
   zone de message dans la vue** : un refus ne peut plus passer inaperçu, quelle
   que soit la vue et la longueur de la page.
-
 
 - **Le classement par club n'affichait qu'une ligne.** `participant_id` vaut
   `0` pour toutes ses lignes — un club n'est pas un participant — et c'est lui
@@ -1986,6 +2148,10 @@ livrer — spec 001, itération 3.
 - Les données et les secrets vivent dans `shared/`, hors des releases : un
   déploiement ou un retour arrière ne peut pas les toucher.
 
+[0.19.0]: https://github.com/computingify/climbcontest-core/releases/tag/v0.19.0
+[0.18.1]: https://github.com/computingify/climbcontest-core/releases/tag/v0.18.1
+[0.18.0]: https://github.com/computingify/climbcontest-core/releases/tag/v0.18.0
+[0.17.0]: https://github.com/computingify/climbcontest-core/releases/tag/v0.17.0
 [0.16.0]: https://github.com/computingify/climbcontest-core/releases/tag/v0.16.0
 [0.15.0]: https://github.com/computingify/climbcontest-core/releases/tag/v0.15.0
 [0.14.0]: https://github.com/computingify/climbcontest-core/releases/tag/v0.14.0

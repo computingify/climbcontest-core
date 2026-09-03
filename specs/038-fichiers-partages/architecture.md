@@ -7,7 +7,7 @@
 ## 1. Ce qui existe déjà, et qu'on ne refait pas
 
 - `docs/specs-index.md`, **82 lignes**, trois sections : le tableau des specs
-  (une ligne par spec, 35 avec la 038), les « specs pressenties » (008 et 009,
+  (une ligne par spec, 36 au 03/09 au soir), les « specs pressenties » (008 et 009,
   réservées sans dossier), et « historique pré-specs » (de la prose stable).
   **Seule la première section bouge** — les deux autres n'ont pas conflité une
   seule fois aujourd'hui.
@@ -40,7 +40,7 @@
 | `scripts/assembler_changelog.py` | **créé** — groupe par rubrique, écrit la section de version, supprime les fragments |
 | `scripts/release.sh` | **étape 0 ajoutée** — refuse de taguer s'il reste des fragments |
 | `CHANGELOG.md` | `## [Non publié]` **retiré** ; tout l'historique publié reste intact |
-| `specs/NNN-*/resume.md` | **créés ×35**, par extraction automatique de l'index actuel |
+| `specs/NNN-*/resume.md` | **créés, un par spec**, par extraction automatique de l'index actuel |
 | `tools/index_specs.py` | **créé** — lit les `resume.md`, écrit l'index |
 | `docs/specs-index.tpl.md` | **créé** — l'en-tête et les deux sections stables |
 | `docs/specs-index.md` | **devient un produit**, avec un en-tête qui le dit |

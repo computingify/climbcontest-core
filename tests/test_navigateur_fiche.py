@@ -117,10 +117,18 @@ function rendre(verdict) {
     bloc.click();
     await attendre("mur", () => $(".sf-pile.au-mur") && $(".sf-feuille svg.plan"));
     note("diese2", vue.location.hash);
-    note("zones", $$(".sf-feuille g[data-zone]").length);
-    note("visee", $$(".sf-feuille g[data-zone].visee").length);
+    // ⚠️ `svg.plan >` : ON COMPTE LES PANS. Depuis la spec 036, une zone a
+    //    DEUX groupes -- son pan, et le compteur, qui vit une couche plus haut
+    //    pour passer devant le cadre. Sans le `>`, chaque zone compterait deux
+    //    fois.
+    note("zones", $$(".sf-feuille svg.plan > g[data-zone]").length);
+    note("visee", $$(".sf-feuille svg.plan > g[data-zone].visee").length);
     note("finies", $$(".sf-feuille .cadre-zone.z-finie").length);
-    note("effacees", $$(".sf-feuille g[data-zone].z-rien").length);
+    note("effacees", $$(".sf-feuille svg.plan > g[data-zone].z-rien").length);
+    // Le compteur de la zone visee rebondit AVEC son pan : il porte la meme
+    // classe, et c'est ce qui lui donne le meme mouvement.
+    note("viseeCompteur",
+      $$(".sf-feuille .compteurs-zone g[data-zone].visee").length);
 
     // 3 bis. La legende des profils — spec 033, R11.
     //
@@ -136,9 +144,11 @@ function rendre(verdict) {
     note("reperes", $$(".sf-legende .repere").length);
     // 3 bis. L'avancement par zone (spec 036) : chaque zone du circuit porte
     //        « faits/total », et les autres ne portent RIEN.
+    const compteurDe = (racine, z) => [...racine.querySelectorAll(
+      ".sf-feuille .compteurs-zone g[data-zone]")]
+      .find((n) => n.getAttribute("data-zone") === z);
     const compteDe = (racine, z) => {
-      const g = [...racine.querySelectorAll(".sf-feuille g[data-zone]")]
-        .find((n) => n.getAttribute("data-zone") === z);
+      const g = compteurDe(racine, z);
       const c = g && g.querySelector(".compte-zone");
       if (!c) return "(absent)";
       return c.textContent || "(vide)";
@@ -149,6 +159,81 @@ function rendre(verdict) {
     note("compteD", compteDe(doc, "D"));
     note("compteurs", $$(".sf-feuille .compte-zone")
       .filter((n) => n.textContent).length);
+    // La PASTILLE (spec 036, pose B) : elle n'est peinte que sous un
+    // compteur. ⚠️ ON MESURE LE `display` CALCULE, pas la presence du noeud :
+    // le socle est decrit pour TOUTES les zones et retire par le CSS
+    // (`:not(.a-compte)`). Un test de balisage serait vert avec dix-sept
+    // socles blancs poses sur des zones ou le grimpeur n'a rien a faire.
+    const socleDe = (z) => {
+      const g = compteurDe(doc, z);
+      const s = g && g.querySelector(".socle-compte");
+      return s ? vue.getComputedStyle(s).display : "(absent)";
+    };
+    note("socleZ", socleDe("Z"));
+    note("socleD", socleDe("D"));
+    const socleBoite = (() => {
+      const g = compteurDe(doc, "Z");
+      const s = g.querySelector(".socle-compte");
+      const t = g.querySelector(".compte-zone");
+      const a = s.getBoundingClientRect(), b = t.getBoundingClientRect();
+      const corps = parseFloat(vue.getComputedStyle(t).fontSize);
+      // ⚠️ ON NE COMPARE PAS LES DEUX BOITES. La boite d'un `<text>` SVG est
+      // sa LIGNE, pas son encre : elle porte les jambages d'une police entiere
+      // et depasse le socle par le haut et par le bas sans qu'un seul pixel de
+      // chiffre en sorte. Ce qu'on verifie, c'est ce qui compte vraiment : le
+      // socle est plus large que le texte, les deux sont CONCENTRIQUES, et le
+      // socle est plus haut que l'encre d'une capitale (0,72 du corps).
+      const centre = (r) => [(r.left + r.right) / 2, (r.top + r.bottom) / 2];
+      const [xs, ys] = centre(a), [xt, yt] = centre(b);
+      return (a.left <= b.left + 0.5 && a.right >= b.right - 0.5
+              && Math.abs(xs - xt) <= 0.5 && Math.abs(ys - yt) <= 1.0
+              && a.height >= 0.72 * corps)
+        ? "porte" : "decale";
+    })();
+    note("socleBoite", socleBoite);
+
+    // 3 ter. LA PASTILLE SE REMPLIT (spec 036, 03/09). Ce qui ne se voit QUE
+    //        dans un vrai navigateur : que la regle CSS attrape bien la barre
+    //        verte, que la decoupe est posee -- sans elle le vert deborderait
+    //        du socle -- et qu'elle est peinte APRES le cadre de la zone.
+    const jaugeDe = (z) => {
+      const g = compteurDe(doc, z);
+      const j = g && g.querySelector(".remplit-compte");
+      if (!j) return "(absente)";
+      const plein = parseFloat(j.getAttribute("data-plein"));
+      // La part, en centiemes -- une valeur sans espace, le verdict est
+      // decoupe sur les espaces.
+      return Math.round(100 * parseFloat(j.getAttribute("width")) / plein) + "%";
+    };
+    note("jaugeZ", jaugeDe("Z"));
+    note("jaugeA", jaugeDe("A"));
+    note("jaugeM", jaugeDe("M"));
+    note("jaugeD", jaugeDe("D"));
+    const jaugeZ = compteurDe(doc, "Z").querySelector(".remplit-compte");
+    const styleJauge = vue.getComputedStyle(jaugeZ);
+    note("jaugeDecoupe", styleJauge.clipPath === "none" ? "aucune" : "posee");
+    note("jaugePeinte", styleJauge.fill.replace(/ /g, ""));
+    // Le vert ne doit pas depasser du socle : meme boite, a la largeur pres.
+    const boiteJauge = (() => {
+      const s = compteurDe(doc, "Z").querySelector(".socle-compte");
+      const a = s.getBoundingClientRect(), b = jaugeZ.getBoundingClientRect();
+      return (b.left >= a.left - 0.5 && b.right <= a.right + 0.5
+              && b.top >= a.top - 0.5 && b.bottom <= a.bottom + 0.5)
+        ? "dedans" : "deborde";
+    })();
+    note("jaugeBoite", boiteJauge);
+    // ⚠️ L'ORDRE DE PEINTURE : les compteurs APRES les cadres. En SVG c'est
+    // l'ordre du document, et rien d'autre ne le dit.
+    const plan = $(".sf-feuille svg.plan");
+    const iCouche = (c) => [...plan.children].indexOf(plan.querySelector("." + c));
+    note("compteurDevant",
+      iCouche("compteurs-zone") > iCouche("cadres-zone") ? "oui" : "non");
+    // Le cadre de la zone, lui, n'a pas bouge : tout-ou-rien, a son epaisseur
+    // d'avant. C'est la moitie de la demande du 03/09.
+    const cadreZ = $$(".sf-feuille .cadre-zone")
+      .find((n) => n.getAttribute("data-zone") === "Z");
+    note("cadreTrait", parseFloat(vue.getComputedStyle(cadreZ).strokeWidth).toFixed(1));
+    note("cadreRempli", cadreZ.getAttribute("stroke-dasharray") || "(plein)");
 
     // 4. Changer de zone REMPLACE l'entree : un seul retour ramene a la fiche.
     const autre = $$(".sf-feuille g[data-zone]")
@@ -213,6 +298,15 @@ function rendre(verdict) {
     await attendre("mur du direct", () => doc2.querySelector(".sf-pile.au-mur")
       && doc2.querySelector(".sf-feuille svg.plan"));
     note("compteApres", compteDe(doc2, "A"));
+    // La pastille est remplie par la meme decoration que le chiffre : elle se
+    // complete au meme battement.
+    note("jaugeApres", (() => {
+      const g = [...doc2.querySelectorAll(".sf-feuille .compteurs-zone g[data-zone]")]
+        .find((n) => n.getAttribute("data-zone") === "A");
+      const j = g.querySelector(".remplit-compte");
+      return Math.round(100 * parseFloat(j.getAttribute("width"))
+                        / parseFloat(j.getAttribute("data-plein"))) + "%";
+    })());
 
     await rendre("OK " + etapes.join(" "));
   } catch (e) {
@@ -443,6 +537,47 @@ class TestDansUnVraiNavigateur:
         assert mesures["compteD"] == "(vide)"
         assert mesures["compteurs"] == "3"
 
+        # La pastille de la pose B : peinte sous les zones qui comptent, RETIREE
+        # ailleurs. Un socle sur une zone sans bloc serait un fond blanc pose
+        # pour ne rien porter.
+        # ⚠️ `display` d'un `<rect>` SVG vaut « inline », pas « block » : ce
+        # qu'on verifie est qu'il n'est pas RETIRE, pas qu'il vaut une valeur
+        # particuliere.
+        assert mesures["socleZ"] != "none"
+        assert mesures["socleD"] == "none"
+        # Et le chiffre est bien DANS son socle, pas a cote.
+        assert mesures["socleBoite"] == "porte"
+
+        # LA PASTILLE SE REMPLIT (spec 036, 03/09). Les memes trois zones que
+        # les compteurs, et les memes nombres : les deux lectures derivent du
+        # meme compte, elles ne peuvent pas se contredire.
+        assert mesures["jaugeZ"] == "100%"      # 2 sur 2 : la pastille pleine
+        assert mesures["jaugeA"] == "50%"       # 1 sur 2 : la moitie
+        assert mesures["jaugeM"] == "0%"        # 0 sur 1 : rien de vert...
+        # ... mais la pastille, elle, est bien la : c'est ce qui distingue
+        # « 0/1 » de « aucun bloc ici », ou il n'y a pas de pastille du tout.
+        assert mesures["socleZ"] != "none"
+        assert mesures["jaugeD"] == "(absente)" or mesures["socleD"] == "none"
+        # Le vert est DECOUPE dans la forme du socle : c'est ce qui lui donne
+        # son bout droit et l'empeche de deborder du fond qui le porte.
+        assert mesures["jaugeDecoupe"] == "posee"
+        assert mesures["jaugeBoite"] == "dedans"
+        # Et il est bien peint : une regle qui n'attraperait pas la barre
+        # laisserait un rectangle noir par defaut, ou rien du tout.
+        assert mesures["jaugePeinte"] not in ("none", "rgb(0,0,0)"), \
+            mesures["jaugePeinte"]
+        # ⚠️ LE COMPTEUR PASSE DEVANT LE CADRE : la pastille fait 14,4 unites
+        # dans un pan de 15, elle croise donc le cadre « terminee ». Dessous,
+        # elle se ferait couper a ses deux extremites.
+        assert mesures["compteurDevant"] == "oui"
+        # Le compteur porte la meme classe que son pan : il rebondit avec lui.
+        assert mesures["viseeCompteur"] == "1"
+        # ⚠️ ET LE CADRE N'A PAS BOUGE. C'est la moitie de la demande du 03/09 :
+        # « repasse la taille du cadre vert de reussite totale a sa taille
+        # d'avant ». Tout-ou-rien, 1,6, et aucun remplissage.
+        assert mesures["cadreTrait"] == "1.6"
+        assert mesures["cadreRempli"] == "(plein)"
+
         # Le clic atteint VRAIMENT la case : c'est ce qu'une regle
         # `pointer-events` mal placee casse, sans rien casser d'autre.
         assert mesures["pointage"] == "atteint"
@@ -486,3 +621,6 @@ class TestDansUnVraiNavigateur:
         # Et le compteur du plan avec elle : la zone A passe de « 1/2 » a
         # « 2/2 » sans que le mur soit remonte.
         assert mesures["compteApres"] == "2/2"
+        # Et la pastille s'est remplie au meme battement : les deux lectures
+        # bougent ensemble, parce qu'elles derivent du meme compte.
+        assert mesures["jaugeApres"] == "100%"

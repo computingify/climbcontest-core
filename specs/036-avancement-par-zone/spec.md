@@ -72,13 +72,17 @@ C'est le point délicat du lot ; il a sa section, la § 6.
 
 - **Thème clair et thème sombre** (`body.sombre`), sur les six remplissages de
   profil (dalle → toit) qui sont tous des aplats moyennement clairs : le
-  compteur porte le même halo que la lettre de la zone, pour la même raison —
-  sans lui, un chiffre posé sur une trame devient illisible.
+  compteur est posé sur une **pastille** de la couleur du halo de la lettre —
+  sans fond, un chiffre posé sur un aplat de profil devient illisible. La
+  pastille remplace le halo, et le fait mieux : un halo est un contour découpé
+  sur la forme des glyphes, une pastille est un fond.
 - **Sur un téléphone de 390 px de large comme sur un écran de portable.** Le
   compteur est dimensionné **en proportion de la lettre de la zone**
   (`mur.taille`, calculée par le serveur pour tenir dans le pan) : il grandit et
-  rétrécit avec elle. Un libellé plus long — « 12/15 » — rétrécit au lieu de
-  déborder. Ce qu'il suppose, en revanche, ce sont des pans d'au moins ~14,6
+  rétrécit avec elle, **et sa pastille aussi**. Un libellé trop long rétrécit
+  **dans** une pastille qui, elle, ne bouge pas — depuis qu'elle fait 1,6 fois
+  la lettre (§ 2 ter), « 12/15 » tient à sa taille pleine et le rétrécissement
+  ne sert plus qu'aux cas extrêmes. Ce qu'il suppose, en revanche, ce sont des pans d'au moins ~14,6
   unités de haut ; c'est une limite réelle, chiffrée et surveillée par un test,
   et elle est expliquée dans `architecture.md` § 3.
 - La **fiche n'existe pas en mode mur** (`?mur`) — spec 026 F1, garde
@@ -95,7 +99,7 @@ comme les états de zone, et pas par le dessin : un bloc validé pendant qu'on
 regarde le plan doit faire passer « 1/4 » à « 2/4 » sans reconstruire dix-sept
 polygones.
 
-## 2 bis. Ce que la maquette a tranché
+## 2 bis. Ce que les maquettes ont tranché
 
 `maquettes/compteurs.html` — le vrai relevé d'Annonay, la vraie géométrie
 (polygones, place et taille des lettres sortis de `fiches.plan_pour(set())`), un
@@ -106,15 +110,147 @@ Onze zones sans bloc du circuit, qui ne doivent rien porter.
 
 | Essai | Verdict |
 | --- | --- |
-| **A — le chiffre sous la lettre** | **Retenu.** Un nœud de plus, et rien d'autre ne bouge |
+| A — le chiffre nu sous la lettre | Proposé, **non retenu** |
 | A2 — la lettre rend un cran au chiffre | Écarté. 13 % de corps gagnés, mais la lettre d'un pan changerait de taille **selon le circuit du grimpeur** : deux téléphones côte à côte ne montreraient plus la même salle. Et il faudrait poser une transformation sur la lettre, que la fiche **papier** dessine aussi |
-| B — la pastille (socle arrondi) | Écarté. Le socle a une largeur à lui, que rien ne borne : sur le relevé réel il mord la lettre au-dessus et sort du pan en dessous. Le dimensionner demanderait la boîte du pan, donc de recopier côté page une géométrie qui vit côté serveur |
+| **B — la pastille (socle arrondi)** | **RETENU par Adrien le 03/09** : « j'aime beaucoup la pastille que tu mets là dans l'écran B » |
 | C — l'anneau de progression | Écarté. L'anneau se confond avec le contour vert de « zone terminée » et avec l'anneau ocre de la zone visée : trois cercles pour trois choses différentes |
 
-Le chiffre retenu fait `0,46 × taille` de la lettre, posé à `0,59 × taille` sous
-elle, avec le halo de la lettre. Ce sont les deux plus grandes valeurs qui
-tiennent à la fois sous la lettre et dans le pan — le calcul est dans
-`architecture.md` § 3.
+**Ce qui avait fait écarter B, et pourquoi ça ne tient plus.** La maquette
+dimensionnait le socle sur son **texte** : il avait donc une largeur que rien ne
+bornait, et sur le relevé réel il mordait la lettre au-dessus et sortait du pan
+en dessous. Le socle se dimensionne maintenant sur la **lettre** — largeur
+`1,0 × taille`, hauteur `1,12 × le corps nominal du chiffre` — et il hérite
+donc des bornes que `fiches.taille_lettre` a déjà posées sur la lettre par la
+boîte du pan. **Aucune géométrie n'est relue côté page**, ce qui était
+l'objection de fond.
+
+Les quatre ratios retenus, et le calcul qui les fixe (détail dans
+`plan.js`) : le budget vertical est ce qui reste entre le bas du glyphe de la
+lettre (`0,36 × taille`) et le bas du pan (`0,833 × taille` pour un pan de 15
+unités portant une lettre de 9), soit **0,473 × taille**. La pastille en occupe
+`1,12 × 0,40 = 0,448`, centrée à `0,60` :
+
+| Ratio | Valeur | Ce qu'il borne |
+| --- | --- | --- |
+| `COMPTE_ECHELLE` | 0,40 | le corps du chiffre |
+| `COMPTE_DESCENTE` | 0,523 | la descente de la pastille sous le centroïde |
+| `PASTILLE_HAUTEUR` | 1,12 | la hauteur du socle, **× le corps nominal** |
+| `PASTILLE_LARGEUR` | 1,6 | la largeur du socle, **× la taille de la lettre** |
+| `LETTRE_MONTEE` | 0,267 | de combien **la lettre monte** au-dessus du centroïde |
+
+⚠️ **Ces valeurs ont bougé le 03/09, deux fois.** Le tableau ci-dessus est celui
+qui vaut ; le paragraphe qui suit dit d'où venaient les précédentes, parce que
+l'arithmétique est la même et que seule la répartition a changé. La pastille est
+passée de 1,0 à 1,6 pour porter la jauge (§ 2 ter), et la lettre s'est mise à
+monter pour lui faire de la place. Le détail du calcul des trois airs égaux est
+dans `architecture.md` § 3.
+
+Avec la première répartition — lettre au centroïde, pastille à 0,60 :
+
+- haut = 0,60 − 0,224 = **0,376 ≥ 0,36** — la pastille ne mordait pas le
+  **glyphe** de la lettre…
+- …mais **son halo, si** : il descend à 0,48, donc il la recouvrait de
+  **0,104 × taille**. C'est ce chevauchement qu'Adrien a vu (« là c'est trop
+  proche »), et c'est la position **E** qui l'a réglé ;
+- bas = 0,60 + 0,224 = **0,824 ≤ 0,833** — elle ne sortait pas du pan, mais il
+  ne restait que 0,009 dessous : la descendre n'était pas une option.
+
+Le chiffre perd 13 % de corps par rapport à l'essai A (0,40 au lieu de 0,46) ;
+c'est le prix de la pastille, et il est chiffré. En échange il gagne un **fond**
+au lieu d'un **halo** — un halo est un contour découpé sur la forme des glyphes,
+qui se battait avec les six aplats de profil. La hauteur du socle se calcule sur
+le corps **nominal** et jamais sur le corps réduit d'un libellé long :
+dix-sept pastilles identiques, pas dix-sept tailles.
+
+## 2 ter. Ce qui se remplit — la pastille, et pas le cadre
+
+> « Je ne mettrais pas un anneau, je mettrais le rectangle que tu mets en
+> surbrillance vert pour dire que la zone est terminée. Et bien celui-là, je le
+> remplirais en fonction de l'avancement. » (Adrien, 03/09)
+
+> ## ✅ TRANCHÉE LE 03/09, **sur le rendu réel** : c'est **la pastille du
+> compteur** qui se remplit de vert. Le cadre de la zone garde son
+> tout-ou-rien.
+>
+> ⚠️ **Cette phrase a deux lectures, et la première implémentation a pris la
+> mauvaise.** « Le rectangle en surbrillance verte » a d'abord été compris comme
+> le **cadre** de la zone : il a été épaissi (×2), rogné dans le pan pour ne pas
+> déborder chez la voisine, et rempli sur la longueur de son contour — quatre
+> paramètres, tous mesurés, tous cohérents entre eux. Mis sous les yeux
+> d'Adrien : **« ah non ce n'est pas ce que je voulais »**. Ce qu'il appelait
+> « le truc avec le nombre de blocs restant », c'était **la pastille**.
+>
+> On garde la trace des deux, parce que l'historique du dépôt garde la première
+> et qu'un lecteur pressé pourrait s'y arrêter — et parce que la leçon vaut
+> plus que le code jeté : **une phrase qui décrit un objet à l'écran se vérifie
+> en montrant l'objet, pas en raisonnant dessus.** La maquette
+> `maquettes/pastille.html` montre les deux rendus réels côte à côte.
+
+### Ce qui est retenu, et qui l'a choisi sur pièce
+
+| | Retenu | Ce que ça règle |
+| --- | --- | --- |
+| **Ce qui se remplit** | **la pastille du compteur** | elle porte déjà le nombre de blocs ; le vert en dit la part sans ajouter d'objet au plan |
+| **La forme du vert** | **bout droit** — un rectangle franc découpé dans le socle | il épouse le bord arrondi à gauche et se coupe net à droite : on lit un **niveau**. Arrondi, il ferait une petite pastille dans la grande, donc **deux objets** |
+| **La force du vert** | **franc**, 62 % | le chiffre est posé dessus : c'est le seul arbitrage du lot, et il a été fait à l'œil sur les trois forces |
+| **La largeur du socle** | **×1,6** la lettre (au lieu de ×1,0) | un vert qui remplit un rond ne dit pas une proportion. **La hauteur ne bouge pas**, ni le corps du chiffre : « seulement l'ovale de fond, et uniquement horizontalement » |
+| **Le cadre de la zone** | **inchangé** — tout-ou-rien, 1,6 unité, sur l'arête | « repasse la taille du cadre vert de réussite totale à sa taille d'avant » |
+| **La place** | position **E, l'équilibre** : la lettre monte de 0,267, la pastille se pose à 0,523 | les **trois airs deviennent égaux** — au-dessus de la lettre, entre la lettre et la pastille, sous la pastille |
+
+### « Là c'est trop proche » — ce que la mesure a dit
+
+La demande était : « descends un peu la jauge de la lettre, ou monte la lettre,
+ou un mélange des deux ». La mesure ne répond qu'à moitié, et c'est le résultat
+utile du lot :
+
+- **sous la pastille il ne restait que 0,009 × taille** — un cinquième de pixel
+  sur un téléphone. La descendre seule ne pouvait rien donner ;
+- **ce qui la collait à la lettre n'était pas la place, c'était un
+  chevauchement** : le **halo** de la lettre recouvrait la pastille de
+  **0,104 × taille**, près d'une unité de plan. Les deux objets se touchaient ;
+- **toute la place libre était au-dessus** de la lettre : 3,18 unités entre son
+  halo et le haut du pan.
+
+D'où six positions, posées sur le vrai dessin et chiffrées
+(`maquettes/pastille.html`), et le choix de **E** : les trois airs égaux, à
+0,086 × taille chacun. Les deux ratios en découlent, ils ne sont pas réglés à
+l'œil :
+
+```
+LETTRE_MONTEE   = 0,833 − 0,086 − 0,48  = 0,267
+COMPTE_DESCENTE = 0,833 − 0,086 − 0,224 = 0,523
+```
+
+### Ce que ça coûte, chiffré et accepté
+
+- **La pastille croise le cadre « terminée »** : 14,4 unités de large dans un
+  pan de 15, contre 13,4 pour l'intérieur du cadre. Elle **passe devant** —
+  peinte dessous, elle se ferait couper à ses deux extrémités, là où le vert dit
+  justement où il s'arrête. C'est donc **le cadre qui porte l'encoche**, une
+  encoche constante, sur toutes les zones comptées.
+- **Le chiffre d'une zone terminée ne vire plus au vert.** Il le faisait quand
+  la pastille était un fond neutre ; sur une pastille pleine de vert, vert sur
+  vert ne se lit pas. C'est le remplissage qui dit « terminée », et le chiffre
+  reste à l'encre.
+- **Un libellé long ne rétrécit plus aussi tôt** : le socle borne le texte, et
+  il fait 1,6 fois la lettre. « 12/15 » sort maintenant à sa taille pleine.
+  C'est le bénéfice direct de l'élargissement — « repasse sa taille à celle
+  d'origine ».
+
+### Ce que la première lecture a laissé derrière elle
+
+Rien dans le code : la jauge de contour, sa piste, son découpage et
+l'épaississement ont tous été retirés. Deux choses lui survivent, parce
+qu'elles se justifient toutes seules :
+
+- **la couche des compteurs**, peinte après les cadres — c'est maintenant la
+  largeur de la pastille qui l'impose ;
+- **le rebond du compteur avec son pan**, et son redémarrage au pluriel.
+
+Ce qui a été retiré et mérite d'être retrouvé si la question revient : la
+**garantie de coin du serveur** (chaque pan réénuméré depuis son coin
+haut-gauche, dans le sens horaire). Elle ne servait qu'à une jauge de contour ;
+elle est dans l'historique de la branche, avec ses deux tests.
 
 ## 3. Périmètre
 
@@ -148,7 +284,8 @@ tiennent à la fois sous la lettre et dans le pan — le calcul est dans
 | --- | --- | --- |
 | A1 | Zone où le grimpeur a 4 blocs, 1 fait | la zone porte « 1/4 » |
 | A2 | Zone où il n'a rien fait | « 0/4 » |
-| A3 | Zone entièrement faite | « 4/4 », dans le vert de la réussite |
+| A3 | Zone entièrement faite | « 4/4 », sur une **pastille entièrement verte** — le chiffre, lui, reste à l'encre : vert sur vert ne se lit pas |
+| A3b | Zone sans bloc de son circuit | **aucune pastille** non plus — un socle vide serait un fond posé pour ne rien porter |
 | A4 | Zone sans bloc de son circuit | **aucun compteur** |
 | A5 | Bloc crédité par la cascade | compté comme fait (§ 6) |
 | A6 | Zone du circuit absente du plan | rien à dessiner, aucune erreur |
@@ -156,6 +293,11 @@ tiennent à la fois sous la lettre et dans le pan — le calcul est dans
 | A8 | Zone visée (on arrive depuis un bloc) | le compteur reste lisible pendant le rebond |
 | A9 | Thème sombre | contraste tenu sur les six profils |
 | A10 | Plan de format inconnu | pas de mur, donc pas de compteur — inchangé |
+| A9b | Zone à 1 bloc sur 4 | la pastille est **verte au quart**, depuis son bord gauche |
+| A9c | Zone à 0 bloc fait | la pastille est là, **rien n'est vert** — le zéro se dit, et il se voit |
+| A9d | Le vert | ne sort **jamais** du socle : il y est découpé |
+| A9e | Réussite enregistrée, mur ouvert | le vert s'allonge au même battement que le chiffre |
+| A9f | Le cadre de la zone | **inchangé** : tout-ou-rien, 1,6 unité, aucun remplissage |
 | A11 | Le compteur du plan et celui du panneau | **le même nombre**, toujours |
 | A12 | Le compteur et l'anneau vert « zone terminée » | **jamais contradictoires** |
 

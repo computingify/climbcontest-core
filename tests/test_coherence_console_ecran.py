@@ -506,7 +506,11 @@ from tests.navigateur import (                                     # noqa: E402
 
 SONDE_ZONE = """
     await attendre("mur", () => $(".sf-feuille"));
-    note("zonesDessinees", $$(".sf-feuille g[data-zone]").length);
+    // ⚠️ `svg.plan >` : ON COMPTE LES PANS. Depuis la spec 036, chaque zone a
+    // deux groupes -- son pan, et le compteur, qui vit une couche plus haut
+    // pour passer devant le cadre. Sans le `>`, ce test compterait deux fois
+    // chaque zone et dirait « six » pour un plan qui en porte trois.
+    note("zonesDessinees", $$(".sf-feuille svg.plan > g[data-zone]").length);
     note("visee", $$(".sf-feuille g[data-zone].visee").length);
     const titre = $(".sf-mur-tete b");
     note("titre", titre ? titre.textContent.trim() : "(aucun)");

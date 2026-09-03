@@ -674,9 +674,15 @@ def page_postes():
 
     logger.info("impression de %d QR de poste par %s (%s)",
                 len(planche), g.utilisateur.identifiant, zone or "toutes zones")
+    # ⚠️ LA GEOMETRIE VIENT DU SERVEUR, pas du CSS : la densite (huit affiches
+    # par A4) commande la hauteur d'une affiche, le nombre de colonnes et la
+    # place laissee au nom. Ecrite en dur dans le gabarit, elle mentirait des
+    # qu'on repasse a six.
     return render_template("postes.html",
                            feuilles=fiches.en_feuilles(planche,
                                                        fiches.POSTES_PAR_FEUILLE),
+                           geo=fiches.geometrie_postes(),
+                           mot_zone=fiches.MOT_ZONE,
                            total=len(planche), filtre=zone)
 
 

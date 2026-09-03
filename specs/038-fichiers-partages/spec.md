@@ -112,8 +112,10 @@ se disputer. Et une PR ne régénère même pas l'index — c'est la CI qui le f
 sur master après le merge (D5), donc un seul écrivain, jamais deux en même
 temps.
 
-- **Coût** : un générateur (~80 lignes), la migration des **34 lignes**
-  existantes en 34 `resume.md`, un test.
+- **Coût** : un générateur (~80 lignes), la migration d'**une ligne d'index
+  par spec** en autant de `resume.md`, un test. (36 lignes au 03/09 au soir ;
+  le compte bouge à chaque spec, d'où un critère qui compare plutôt qu'il ne
+  chiffre.)
 - **Bénéfice de bord** : le statut d'une spec vit **à côté** de la spec. C'est
   là qu'on le change quand on la livre, et l'oubli se voit dans le diff de la
   PR au lieu de se voir trois merges plus tard.
@@ -155,7 +157,7 @@ par PR, l'absence se voit — et un contrôle de CI peut l'exiger.
 | C5 | Une PR qui modifie `docs/specs-index.md` à la main est **refusée** | Garde de CI (lot C) |
 | C6 | L'index reste lisible sur GitHub, sans outil | Relecture d'Adrien |
 | C7 | Un vrai conflit de code **conflite toujours** | Aucun `merge=union` n'est posé nulle part ; un test le vérifie sur un fichier de prose |
-| C8 | Aucune ligne de l'index actuel n'est perdue à la migration | 35 lignes avant, 35 après, comparées texte à texte |
+| C8 | Aucune ligne de l'index actuel n'est perdue à la migration | Même nombre de lignes avant et après, et le diff de l'index régénéré est **vide** |
 | C9 | Taguer avec des fragments non assemblés est **impossible** | `release.sh`, étape 0 |
 | C10 | Un numéro de spec pris sur une branche non poussée est **visible** | `tools/numero_de_spec.py` lit aussi les branches locales et les PR ouvertes |
 

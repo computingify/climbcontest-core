@@ -94,7 +94,9 @@ prévenir et bloquer, Adrien a tranché pour bloquer le 03/09.
 - [x] Une version plus récente affiche son changelog
 - [x] Une compétition `en_cours` grise le bouton et fait répondre 409
 - [x] Une compétition `preparation` ne bloque pas
-- [x] L'installation part avec `--no-block` et rend la main immédiatement
+- [x] L'installation ~~part avec `--no-block`~~ **dépose une demande** et rend
+      la main immédiatement — le critère est tenu, par un autre chemin
+      (2026-09-03, voir `architecture.md` § 4)
 - [x] L'issue (réussie / échouée) se lit, et cesse d'être annoncée passé 10 min
 - [x] Les trois routes répondent 403 à un organisateur, 401 sans session
 - [x] Le quota GitHub est nommé en toutes lettres quand il est atteint
@@ -102,8 +104,9 @@ prévenir et bloquer, Adrien a tranché pour bloquer le 03/09.
 ## 4. Cas limites
 
 **Le processus qui meurt en répondant.** L'agent redémarre l'application,
-c'est-à-dire le processus qui traite la requête d'installation. D'où
-`--no-block` : attendre la fin du service, ce serait attendre sa propre mort.
+c'est-à-dire le processus qui traite la requête d'installation. D'où le
+non-blocage — hier `--no-block`, aujourd'hui l'écriture d'un fichier qui rend la
+main aussitôt : attendre la fin du service, ce serait attendre sa propre mort.
 Côté console, les requêtes échouent une quinzaine de secondes — c'est le
 symptôme attendu, pas une erreur à afficher.
 

@@ -43,12 +43,42 @@ COTE_QR_MM = 24.0
 # cet ecran renommerait son poste « ZJ6 » sans s'en apercevoir.
 PREFIXE_QR_POSTE = "CCPOSTE:"
 
-# Le QR d'une affiche de poste. Nettement plus gros que celui d'une etiquette
-# de bloc (42 mm) : ce n'est pas un autocollant colle au mur, c'est un carton
-# pose sur une table, et le telephone le vise de biais, souvent d'une seule
-# main. A 70 mm, un « CCPOSTE:A » donne 2,4 mm par module -- pres de cinq fois
-# le plancher de `qr.MODULE_MINI_MM`.
-COTE_QR_POSTE_MM = 70.0
+# ⚠️ CE MOT AUSSI EST ECRIT DEUX FOIS : ici et dans `poste.js` (`MOT_ZONE`),
+# qui compose le nom envoye a la console. Adrien, le 03/09 apres relecture :
+# « dans le nom qu'on envoie a la console, je veux que ce soit "zone" et la
+# lettre de la zone ». L'affiche imprime « ZONE » au-dessus de la lettre, le
+# telephone compose « Zone A » : les deux doivent dire la meme chose, sinon le
+# carton pose sur la table et la ligne de la console cessent de se ressembler.
+# Meme test que le prefixe : `TestLePrefixePartage`.
+MOT_ZONE = "Zone"
+
+# Le QR d'une affiche de poste.
+#
+# ⚠️ 42 mm EST LE PLANCHER, et il est mesure : c'est la taille des etiquettes de
+# blocs de la spec 024, qui se scannent a bout de bras. On garde 48 -- six
+# millimetres de marge pour un carton pose a plat, vise de biais et souvent
+# d'une seule main. A 48 mm, un « CCPOSTE:A » (version 1, 21 modules plus huit
+# de zone de silence) donne 1,6 mm par module, soit plus de trois fois le
+# plancher de `qr.MODULE_MINI_MM`.
+#
+# La premiere version en posait 70, sur une affiche pleine largeur. Adrien le
+# 03/09 : « lors de l'impression tu m'en rentres beaucoup plus sur une feuille
+# -- a quatre, j'en voudrais au moins six, voire huit ». Un QR de 70 mm interdit
+# deux colonnes ; 48 les autorise.
+COTE_QR_POSTE_MM = 48.0
+
+# La feuille imprimee, la meme que pour les etiquettes : 188 x 270 sur une page
+# utile de 190 x 277.
+#
+# ⚠️ JAMAIS LA SURFACE EXACTE. Une feuille qui occupe 190 x 277 sort en DOUBLE
+# de pages sur une vraie imprimante, dont la zone imprimable est plus petite que
+# la surface theorique -- sept feuilles etaient sorties en quatorze (spec 032).
+LARGEUR_FEUILLE_POSTES_MM = 188.0
+HAUTEUR_FEUILLE_POSTES_MM = 270.0
+
+# Le blanc autour du contenu d'une affiche, et l'ecart entre le QR et le texte.
+REMBOURRAGE_AFFICHE_POSTE_MM = 4.0
+GOUTTIERE_AFFICHE_POSTE_MM = 4.0
 
 
 # Les six profils de mur, ORDONNÉS du moins au plus déversant. L'ordre EST
@@ -465,20 +495,28 @@ HAUTEUR_LIGNE_SUP_MM = HAUTEUR_LIGNE_MM + GOUTTIERE_CASE_MM
 # ici sans changer la geometrie laisserait des trous ou couperait une feuille.
 FICHES_PAR_FEUILLE = 6
 ETIQUETTES_PAR_FEUILLE = 8
-# Et TROIS affiches de poste : 3 x 90 = 270 mm, sur une page utile de 277.
+# --- Et les affiches de poste (spec 034) ------------------------------------
 #
-# ⚠️ La premiere version en posait DEUX (188 x 136 mm), en colonne : QR au
-# milieu, nom dessous. Constate a l'ecran, pas devine -- le contenu faisait
-# 164 mm de haut dans une affiche de 136, et le mode d'emploi sortait COUPE en
-# bas. La disposition passe a l'horizontale (QR a gauche, texte a droite),
-# comme les etiquettes de blocs depuis la spec 024 et pour la meme raison : un
-# carton pose a plat est large et bas, empiler verticalement gaspille la
-# largeur et manque de hauteur.
+# ⚠️ CETTE VALEUR COMMANDE TOUTE LA PLANCHE. Le nombre de lignes, la hauteur
+# d'une affiche et la largeur laissee au nom de zone en descendent, par
+# `geometrie_postes()` ; le gabarit ne fait que poser les millimetres qu'on lui
+# donne. Repasser a 6 est UNE valeur a changer ici, pas une refonte du CSS.
 #
-# Le gain n'est pas que de place : 17 zones tenaient sur 9 feuilles a moitie
-# vides, elles tiennent sur 6 pleines. « Je me retrouve avec des pages vides »
-# etait le reproche du 02/09 sur les etiquettes ; il vaut ici aussi.
-POSTES_PAR_FEUILLE = 3
+# Adrien, le 03/09 apres relecture : « lors de l'impression tu m'en rentres
+# beaucoup plus sur une feuille -- a quatre, j'en voudrais au moins six, voire
+# huit ». On prend le haut de la fourchette : 17 zones tiennent sur 3 feuilles
+# au lieu de 6, et le QR reste a 48 mm, six de plus que le plancher mesure des
+# etiquettes de blocs.
+#
+# L'historique en dit long sur ce qui se paie a l'ecran : 2 par feuille en
+# colonne (le mode d'emploi sortait COUPE), puis 3 a l'horizontale, puis 8 en
+# deux colonnes une fois le mode d'emploi parti dans l'application.
+POSTES_PAR_FEUILLE = 8
+
+# Deux colonnes. C'est ce qui rend 6 comme 8 possibles sans toucher au QR : une
+# seule colonne obligerait a des affiches de 34 mm de haut pour en poser huit,
+# ou l'on ne mettrait ni un QR de 48 ni un nom lisible.
+POSTES_PAR_LIGNE = 2
 
 
 def hauteur_mm(tailles: list[int], colonnes: int,
@@ -575,6 +613,51 @@ CHASSE_NUMERO = 0.72              # largeur d'un caractere, en em (mesure : 0,70
 # des etiquettes qui ne se ressemblent pas.
 TAILLE_NUMERO_MM = 19.0
 
+
+# --- La geometrie d'une planche d'affiches de poste (spec 034) --------------
+
+
+def geometrie_postes(par_feuille: int | None = None,
+                     par_ligne: int | None = None) -> dict:
+    """Tous les millimetres d'une planche, deduits de sa DENSITE.
+
+    ⚠️ **Une seule valeur commande la planche** : `POSTES_PAR_FEUILLE`. Le
+    nombre de lignes, la largeur et la hauteur d'une affiche, la place laissee
+    au nom de zone en descendent -- et le gabarit ne fait que poser ce qu'on
+    lui donne, en variables CSS. Repasser de 8 a 6 est une valeur a changer
+    ici, pas une refonte du CSS.
+
+    C'est ce qui a manque a la premiere version : la densite vivait dans une
+    constante Python ET dans une demi-douzaine de millimetres ecrits en dur
+    dans le gabarit, et les deux ont diverge des le premier changement.
+
+    Le calcul est volontairement bete : la feuille se divise en colonnes et en
+    lignes, sans gouttiere entre les affiches -- on decoupe sur les pointilles,
+    et deux affiches qui se touchent se coupent d'un seul coup de massicot.
+    """
+    par_feuille = par_feuille or POSTES_PAR_FEUILLE
+    colonnes = min(par_ligne or POSTES_PAR_LIGNE, par_feuille)
+    lignes = -(-par_feuille // colonnes)          # division entiere, arrondie en haut
+
+    largeur = LARGEUR_FEUILLE_POSTES_MM / colonnes
+    hauteur = HAUTEUR_FEUILLE_POSTES_MM / lignes
+    # Ce qui reste au texte une fois le QR, le rembourrage et la gouttiere pris.
+    largeur_nom = (largeur - 2 * REMBOURRAGE_AFFICHE_POSTE_MM
+                   - COTE_QR_POSTE_MM - GOUTTIERE_AFFICHE_POSTE_MM)
+
+    return {
+        "par_feuille": par_feuille,
+        "colonnes": colonnes,
+        "lignes": lignes,
+        "largeur_mm": round(largeur, 2),
+        "hauteur_mm": round(hauteur, 2),
+        "cote_qr_mm": COTE_QR_POSTE_MM,
+        "rembourrage_mm": REMBOURRAGE_AFFICHE_POSTE_MM,
+        "gouttiere_mm": GOUTTIERE_AFFICHE_POSTE_MM,
+        "largeur_nom_mm": round(largeur_nom, 2),
+    }
+
+
 # --- Et la taille du nom de zone d'une affiche de poste (spec 034) -----------
 #
 # ⚠️ Le nom de zone, LUI, reste dimensionne par son texte -- et ce n'est pas un
@@ -583,7 +666,7 @@ TAILLE_NUMERO_MM = 19.0
 #
 #  - une planche d'etiquettes en aligne huit cote a cote, et deux voisines de
 #    tailles differentes se voient. Une affiche de poste est un objet SEUL,
-#    scotche sur sa table ; les trois d'un meme A4 sont decoupees avant d'etre
+#    scotche sur sa table ; les huit d'un meme A4 sont decoupees avant d'etre
 #    posees, et ne se revoient jamais.
 #  - la seconde raison -- imprimer toute la salle puis une seule zone donnerait
 #    deux tailles pour la MEME etiquette -- ne s'applique pas non plus : la
@@ -594,14 +677,14 @@ TAILLE_NUMERO_MM = 19.0
 # correction qu'en R7 : une constante, pas « la plus grande qui tient sur cette
 # planche » (le filtre changerait la taille).
 #
-# La colonne de texte fait 188 mm (l'affiche) moins 10 (le rembourrage) moins
-# 70 (le QR) moins 6 (la gouttiere) = 102 mm ; on en garde 100 pour l'arrondi.
-LARGEUR_NOM_POSTE_MM = 100.0
+# ⚠️ La largeur disponible n'est PAS une constante, elle : elle vient de
+# `geometrie_postes()`, donc de la DENSITE. Ecrite en dur, elle mentirait des
+# qu'on repasse de huit affiches par feuille a six.
 CHASSE_NOM_POSTE = 0.72           # meme graisse (800) que le numero d'etiquette
-TAILLE_NOM_POSTE_MAXI_MM = 30.0   # au-dela, le nom mange le mode d'emploi
+TAILLE_NOM_POSTE_MAXI_MM = 26.0   # au-dela, le nom deborde la hauteur d'affiche
 
 
-def taille_nom_poste_mm(texte: str) -> float:
+def taille_nom_poste_mm(texte: str, geometrie: dict | None = None) -> float:
     """La plus grande taille a laquelle ce nom de zone tient sur une ligne.
 
     Arrondie au demi-millimetre inferieur, et sans plancher a dessein : un nom
@@ -609,17 +692,21 @@ def taille_nom_poste_mm(texte: str) -> float:
     nowrap`, donc ce qui ne tient pas serait coupe -- et un nom de zone coupe
     ne sert plus a rien. Un texte vide rend le maximum.
 
+    La largeur disponible vient de `geometrie_postes()` : elle depend de la
+    DENSITE de la planche, pas d'une constante. On la passe quand on en a deja
+    une sous la main -- une planche entiere n'a pas a la recalculer par affiche.
+
     ⚠️ Ce calcul etait partage avec celui du numero d'etiquette, par un
     `_taille_qui_tient_mm` commun. La R7 a fige le numero : le partage n'a plus
     d'objet, et un helper generique « la plus grande taille qui tient » serait
     surtout une invitation a refaire ce qu'Adrien vient de defaire.
     """
+    geometrie = geometrie or geometrie_postes()
     n = len(texte or "")
     if n <= 0:
         return TAILLE_NOM_POSTE_MAXI_MM
-    tient = LARGEUR_NOM_POSTE_MM / (n * CHASSE_NOM_POSTE)
+    tient = geometrie["largeur_nom_mm"] / (n * CHASSE_NOM_POSTE)
     return min(TAILLE_NOM_POSTE_MAXI_MM, int(tient * 2) / 2)
-
 
 
 def en_feuilles(elements: list, par_feuille: int) -> list[list]:
@@ -797,14 +884,24 @@ def postes(zone: str | None = None, plan: dict | None = None) -> list[dict]:
         # page doit pouvoir la nommer et dire qu'elle n'existe pas.
         zones = [z for z in zones if z == zone]
 
+    # Une seule lecture de la geometrie pour toute la planche : elle ne depend
+    # que de la densite, pas de la zone.
+    geometrie = geometrie_postes()
+
     planche = []
     for z in zones:
         texte = texte_qr_poste(z)
         planche.append({
             "zone": z,
             "texte": texte,
+            # Ce que le telephone affichera apres avoir scanne ce carton, et ce
+            # que la console montrera en face de ses envois. Compose ici comme
+            # dans `poste.js` : l'affiche et la console doivent dire la meme
+            # chose, sinon le carton pose sur la table cesse de designer la
+            # ligne qu'on lit dans « Qui envoie quoi ».
+            "libelle": f"{MOT_ZONE} {z}",
             # La taille du nom suit sa LONGUEUR : voir `taille_nom_poste_mm`.
-            "taille_nom": taille_nom_poste_mm(z),
+            "taille_nom": taille_nom_poste_mm(z, geometrie),
             "qr": qr.svg(texte, cote_mm=COTE_QR_POSTE_MM),
         })
     return planche

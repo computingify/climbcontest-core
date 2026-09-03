@@ -1,0 +1,532 @@
+<!DOCTYPE html>
+<html lang="fr">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Spec 036 — la pastille qui se remplit</title>
+<!--
+  ⚠️ CETTE PAGE MONTRE LE RENDU REEL, pas une maquette.
+
+  Le SVG embarque est celui que `plan.js` monte dans la page de resultats,
+  recopie tel quel, et le CSS du plan est decoupe dans `resultats.html`. Tout ce
+  qu'elle montre est CODE : ovale x1,6, vert franc, bout droit, cadre au
+  tout-ou-rien, position E. Les cartes de comparaison ne font que DEPLACER la
+  lettre et la pastille -- ce que le code ferait avec deux nombres -- pour
+  garder la trace de comment la position s'est decidee.
+
+  Elle se regenere en rejouant `tools/serveur_de_demo.py` et en recopiant le
+  `outerHTML` du `svg.plan`. Si le code change et pas elle, elle ment.
+-->
+<style>
+  :root {
+    --c1: #B8860B;  /* Jaune  */
+    --c2: #2F7D46;  /* Vert   */
+    --c3: #2F6BB0;  /* Bleu   */
+    --c4: #6C4292;  /* Mauve  */
+    --c5: #B33F33;  /* Rouge  */
+    --c6: #3C4453;  /* Noir   */
+
+    --fond: #F1F4F8;
+    --carte: #FFFFFF;
+    --carte2: #E9EDF3;
+    --trait: #D8DEE7;
+    --encre: #0E1420;
+    --encre2: #5A6472;
+    --alerte: #B3352A;
+    --ok: #1E7A45;
+    --or: #EFB61E;        --or-encre: #A87A00;      /* jaune franc */
+    --argent: #B6BFCA;    --argent-encre: #6C7684;  /* gris neutre */
+    --bronze: #C4703A;    --bronze-encre: #8A4820;  /* cuivre */
+    --encre3: #7B8494;
+    --zebre: #E9EDF3;                 /* zébrure : neutre et très peu saturée */
+
+    --groupe: var(--c3);
+    --titre: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    --chiffre: ui-monospace, "SF Mono", "Cascadia Mono", Menlo, Consolas, monospace;
+  }
+  body.sombre {
+    --c1: #E0A93B; --c2: #57B073; --c3: #5C9BE0; --c4: #A97FD0;
+    --c5: #E0705F; --c6: #96A0B2;
+    --fond: #0B0F17; --carte: #161B24; --carte2: #1E2430; --trait: #2A313D;
+    --encre: #F0F3F8; --encre2: #97A2B2; --alerte: #E0705F; --ok: #57D58D;
+    --or: #F0C13F;        --or-encre: #F0C13F;
+    --argent: #C3CBD7;    --argent-encre: #C3CBD7;
+    --bronze: #D08B52;    --bronze-encre: #D08B52;
+    --encre3: #798398; --zebre: #12171F;
+  }
+
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--fond); color: var(--encre);
+         font-family: var(--titre); line-height: 1.55; font-size: 15px; }
+  header { position: sticky; top: 0; z-index: 5; padding: 12px 20px;
+           background: var(--carte); border-bottom: 1px solid var(--trait);
+           display: flex; gap: 14px; align-items: center; flex-wrap: wrap; }
+  header .lien { margin-left: auto; display: flex; gap: 8px; }
+  button.bascule { font: inherit; font-weight: 600; font-size: .82rem;
+                   cursor: pointer; border: 1px solid var(--trait);
+                   background: var(--carte2); color: var(--encre);
+                   border-radius: 999px; padding: 6px 14px; }
+  button.bascule[aria-pressed="true"] { border-color: var(--ok); color: var(--ok); }
+  main { max-width: 1160px; margin: 0 auto; padding: 22px 20px 90px; }
+  h1 { font-size: 1.5rem; margin: 6px 0 4px; }
+  h2 { font-size: 1.12rem; margin: 34px 0 6px; }
+  p { max-width: 80ch; color: var(--encre2); margin: 0 0 12px; }
+  p b, li b, td b, th { color: var(--encre); }
+  ul { max-width: 80ch; color: var(--encre2); padding-left: 20px; }
+  .avis { border-left: 3px solid var(--ok); background: var(--carte2);
+          padding: 12px 16px; border-radius: 0 8px 8px 0; margin: 0 0 20px;
+          font-size: .92rem; color: var(--encre2); max-width: 86ch; }
+  .avis.mesure { border-left-color: var(--alerte); }
+  .rangee { display: flex; flex-wrap: wrap; gap: 18px; align-items: flex-start; }
+  .carte { background: var(--carte); border: 1px solid var(--trait);
+           border-radius: 14px; padding: 12px; }
+  .carte.reco { border-color: var(--ok); box-shadow: inset 0 0 0 1px var(--ok); }
+  .carte.mort { opacity: .72; }
+  .carte h3 { margin: 0 0 2px; font-size: .92rem; }
+  .carte h3 .ret { font-size: .68rem; font-weight: 800; letter-spacing: .06em;
+                   text-transform: uppercase; color: var(--ok);
+                   border: 1px solid var(--ok); border-radius: 999px;
+                   padding: 1px 7px; margin-left: 6px; white-space: nowrap; }
+  .carte h3 .non { color: var(--alerte); border-color: var(--alerte); }
+  .carte p { font-size: .8rem; margin: 4px 0 10px; }
+  .telephone { width: 366px; }
+  .telephone .cadre-tel { width: 340px; margin: 0 auto; background: var(--fond);
+                          border-radius: 12px; border: 1px solid var(--trait);
+                          padding: 8px; }
+  .large { flex: 1 1 470px; min-width: 340px; }
+  .trois { flex: 1 1 320px; }
+  .zoom { display: block; width: 100%; max-width: 520px; height: auto;
+          margin: 0 auto; background: var(--fond); border-radius: 10px; }
+  .chiffres { font-size: .74rem; color: var(--encre3); margin: 8px 0 0;
+              font-family: var(--chiffre); line-height: 1.5; }
+  .chiffres b { color: var(--encre2); font-weight: 700; }
+  table { border-collapse: collapse; font-size: .82rem; margin: 10px 0 0;
+          width: 100%; max-width: 780px; }
+  th, td { text-align: left; padding: 6px 10px; border-bottom: 1px solid var(--trait);
+           color: var(--encre2); }
+  td.n { font-family: var(--chiffre); text-align: right; }
+  tr.reco td { color: var(--encre); font-weight: 600; }
+  .mal { color: var(--alerte); font-weight: 700; }
+
+  /* ⚠️ RIEN A SURCHARGER ICI : depuis que les reglages sont codes, le dessin
+     embarque EST le bon -- ovale x1,6, vert franc, bout droit, cadre au
+     tout-ou-rien, position E. Les cartes de comparaison ne font que DEPLACER
+     la lettre et la pastille, ce que le code ferait avec deux nombres. */
+
+/* --- Copie conforme des regles du plan, depuis resultats.html ------------ */
+  /* --- Le mur ------------------------------------------------------------ */
+  .sf-mur-tete { display: flex; align-items: center; gap: 12px; flex: none;
+                 padding: 11px 14px 11px 10px; border-bottom: 1px solid var(--trait); }
+  .sf-mur-tete b { display: block; font-size: 1rem; font-weight: 800; }
+  .sf-mur-tete span { display: block; font-size: .75rem; color: var(--encre2); }
+  .sf-carte { background: var(--fond); border: 1px solid var(--trait);
+              border-radius: 12px; padding: 12px 10px; }
+  .plan { display: block; width: 100%; height: auto; }
+
+  /* Le REMPLISSAGE dit le profil du pan, et rien d'autre. Du froid au chaud au
+     moment ou le mur passe la verticale : c'est la seule frontiere qui compte
+     pour un grimpeur. Echelle ORDONNEE, elle ne se confond donc pas avec les
+     six couleurs de difficulte, qui sont categorielles. */
+  /* ⚠️ Les SIX TEINTES DE PROFIL sont posées sur `body`, pas sur `.plan`.
+     Elles étaient déclarées sur le dessin lui-même, ce qui suffisait tant que
+     personne d'autre ne les nommait : la légende des profils (spec 033, R11)
+     est un FRÈRE du SVG, pas un descendant, et ses pastilles sortaient
+     blanches. Une variable ne descend que dans son sous-arbre.
+
+     Les `--pl-*`, eux, restent sur `.plan` : ils décrivent le dessin — contour,
+     trame, halo de lettre — et rien d'autre ne les lit. */
+  body { --pf-dalle: #D2E0E7; --pf-vertical: #A6C4D3; --pf-incline: #F0D5A0;
+         --pf-devers: #EEBC7E; --pf-surplomb: #E7A074; --pf-toit: #E28379; }
+  body.sombre {
+         --pf-dalle: #2E3F4C; --pf-vertical: #3D6076; --pf-incline: #9A7238;
+         --pf-devers: #B57430; --pf-surplomb: #BE5B33; --pf-toit: #BC443F; }
+  .plan { --pl-contour: #FFFFFF; --pl-trame: rgba(20,28,36,.17);
+          --pl-lettre: #16232E; --pl-halo: rgba(255,255,255,.92);
+          --pl-anneau: #B5791B; --pl-lueur: #E0A94A; --pl-efface: .5; }
+  body.sombre .plan {
+          --pl-contour: #12131A; --pl-trame: rgba(255,255,255,.13);
+          --pl-lettre: #F5F0E7; --pl-halo: rgba(9,10,14,.85);
+          --pl-anneau: #FFD489; --pl-lueur: #FFC463; --pl-efface: .42; }
+
+  .plan .contour { fill: none; stroke: var(--encre3, var(--encre2));
+                   stroke-width: .9; stroke-dasharray: 3 3; opacity: .5; }
+  .plan .mur { stroke: var(--pl-contour); stroke-width: .9; stroke-linejoin: round; }
+  .plan .mur[data-profil], .plan g[data-profil="dalle"] .mur { fill: var(--pf-vertical); }
+  .plan g[data-profil="dalle"] .mur    { fill: var(--pf-dalle); }
+  .plan g[data-profil="vertical"] .mur { fill: var(--pf-vertical); }
+  .plan g[data-profil="incline"] .mur  { fill: var(--pf-incline); }
+  .plan g[data-profil="devers"] .mur   { fill: var(--pf-devers); }
+  .plan g[data-profil="surplomb"] .mur { fill: var(--pf-surplomb); }
+  .plan g[data-profil="toit"] .mur     { fill: var(--pf-toit); }
+  .plan .trame { pointer-events: none; stroke: none; fill: none; }
+
+  /* Le halo sous la lettre n'est pas un ornement : sur une trame dense, une
+     lettre sans halo devient illisible. `paint-order` peint le contour AVANT
+     le remplissage — sans lui le halo mange la lettre au lieu de la porter. */
+  .plan .lettre { font-family: var(--titre); font-weight: 800;
+                  fill: var(--pl-lettre); text-anchor: middle;
+                  dominant-baseline: central; paint-order: stroke fill;
+                  stroke: var(--pl-halo); }
+  .plan .repere-plan { font-family: var(--titre); font-style: italic;
+                       font-size: 4.6px; text-anchor: middle;
+                       fill: var(--encre2); }
+
+  /* L'ETAT est une emphase, jamais un aplat : un aplat mangerait la trame du
+     profil, et il la mangerait sur les zones qui concernent le grimpeur. */
+  .plan g[data-zone] { opacity: var(--pl-efface); cursor: pointer;
+                       transform-box: view-box; transition: opacity 180ms ease; }
+  .plan g[data-zone].z-reste, .plan g[data-zone].z-finie { opacity: 1; }
+  /* Les cadres passent APRES tous les murs : en SVG l'ordre de peinture est
+     l'ordre du document, et les murs d'Annonay se touchent bord a bord. */
+  .plan .cadre-zone { fill: none; stroke: none; pointer-events: none; }
+  .plan .cadre-zone.z-finie { stroke: var(--ok); stroke-width: 1.6; }
+  .plan .cadre-zone.visee { stroke: var(--pl-anneau); stroke-width: 2.2; }
+  .plan g[data-zone].visee { filter: drop-shadow(0 0 2.5px var(--pl-lueur)); }
+
+  /* L'avancement du grimpeur DANS la zone (spec 036) : « 1/4 », blocs valides
+     sur blocs de son circuit qui s'y trouvent, pose sur une PASTILLE -- le
+     socle arrondi de la pose B, tranchee par Adrien le 03/09. La pastille
+     remplace le halo de la lettre, et le fait mieux : un halo est un contour
+     decoupe sur la forme des glyphes, une pastille est un fond, et c'est un
+     fond qu'il faut sur les six aplats de profil. La place et les tailles sont
+     calculees par `plan.js` a partir de la lettre ; ici, il n'y a que des
+     couleurs.
+
+     ⚠️ Une zone SANS bloc du circuit ne porte pas de compteur. Le texte,
+     vide, ne peint deja rien ; la PASTILLE, elle, peindrait un socle vide, et
+     c'est `a-compte` -- posee par `decorer` -- qui la retire. Les deux noeuds
+     existent toujours : on ne cree ni ne supprime rien a chaque repeinture. */
+  .plan .socle-compte { fill: var(--pl-halo); stroke: none;
+                        pointer-events: none; }
+  .plan g[data-zone]:not(.a-compte) .socle-compte,
+  .plan g[data-zone]:not(.a-compte) .remplit-compte { display: none; }
+
+  /* ⚠️ LA PASTILLE EST LA JAUGE (spec 036, 03/09) : « je veux que seulement le
+     truc avec le nombre de blocs restant se remplisse de vert en fonction de
+     l'avancement ». Le vert est un rectangle franc DECOUPE dans la forme du
+     socle : il en epouse le bord arrondi a gauche et se coupe net a droite, ce
+     qui se lit comme un NIVEAU. Arrondi de son cote, il ferait une petite
+     pastille dans la grande, et on lirait deux objets.
+
+     Le cadre de la zone, lui, ne bouge pas : il garde son tout-ou-rien et dit
+     « terminee », rien d'autre. Un premier essai avait fait l'inverse -- le
+     cadre epaissi qui se remplissait -- et c'est ce qui a ete ecarte sur piece
+     le 03/09 (`specs/036-avancement-par-zone/maquettes/pastille.html`).
+
+     Le vert est FRANC (62 %) : c'est le reglage choisi, et le seul arbitrage du
+     lot -- le chiffre est pose dessus, donc plus le vert est fort, moins il se
+     detache. */
+  .plan .remplit-compte { fill: color-mix(in srgb, var(--ok) 62%, transparent);
+                          stroke: none; pointer-events: none; }
+  .plan .compte-zone { font-family: var(--titre); font-weight: 800;
+                       font-variant-numeric: tabular-nums;
+                       fill: var(--pl-lettre); text-anchor: middle;
+                       dominant-baseline: central; }
+  /* ⚠️ LE CHIFFRE D'UNE ZONE TERMINEE NE VIRE PLUS AU VERT. Il le faisait
+     quand la pastille etait un fond neutre ; sur une pastille PLEINE de vert,
+     vert sur vert ne se lit pas -- deux signaux se disputeraient le meme pixel.
+     C'est la pastille pleine qui dit « terminee », et le chiffre reste a
+     l'encre pour rester lisible. */
+
+  /* ⚠️ LA COUCHE DES COMPTEURS PASSE DEVANT LES CADRES, et c'est la largeur de
+     la pastille qui l'impose : 14,4 unites dans un pan de 15, elle croise le
+     cadre « terminee » de 0,5 unite de chaque cote. Peinte dessous, elle se
+     ferait couper par lui a ses deux extremites -- justement la ou le vert dit
+     ou il s'arrete. Elle passe devant, et c'est le cadre qui porte l'encoche.
+
+     Elle ne prend AUCUN clic : c'est le pan qui est cliquable, et le compteur
+     est pose dessus. */
+  .plan .compteurs-zone { pointer-events: none; }
+  /* La lueur reste sur le PAN. Posee aussi sur le compteur, elle ferait une
+     seconde emphase autour d'un objet de trois pixels de haut. */
+  .plan .compteurs-zone g[data-zone].visee { filter: none; }
+
+  .sf-anime .plan g[data-zone].visee {
+    animation: sf-rebond 760ms cubic-bezier(.34,1.56,.64,1) both; }
+  /* Le compteur rebondit AVEC son pan — il en a le centre de rotation — mais
+     sans la lueur : deux animations, un seul mouvement. */
+  .sf-anime .plan .compteurs-zone g[data-zone].visee {
+    animation: sf-rebond-nu 760ms cubic-bezier(.34,1.56,.64,1) both; }
+  @keyframes sf-rebond-nu {
+    0%   { transform: scale(.74); }
+    45%  { transform: scale(1.20); }
+    68%  { transform: scale(.95); }
+    84%  { transform: scale(1.06); }
+    100% { transform: scale(1); }
+  }
+  @keyframes sf-rebond {
+    0%   { transform: scale(.74); filter: drop-shadow(0 0 0 var(--pl-lueur)); }
+    45%  { transform: scale(1.20); filter: drop-shadow(0 0 10px var(--pl-lueur)); }
+    68%  { transform: scale(.95); }
+    84%  { transform: scale(1.06); }
+    100% { transform: scale(1);   filter: drop-shadow(0 0 2.5px var(--pl-lueur)); }
+  }
+
+  /* ⚠️ La légende dit AUSSI les profils (spec 033, R11). Le plan peint chaque
+     pan selon son inclinaison — six couleurs sur une échelle ordonnée, qui
+     passe du froid au chaud au moment où le mur passe la verticale — et rien à
+     l'écran ne disait laquelle est laquelle. « On a perdu la légende des
+     couleurs qui donnent l'inclinaison du mur et tout ce bazar-là. J'aimerais
+     que tu me le remettes » (Adrien, 03/09).
+
+     Les deux familles de repères ne se dessinent PAS pareil, et c'est
+     volontaire : « zone terminée » est un CONTOUR, parce que l'état est peint
+     comme une emphase sur le plan et jamais comme un aplat ; un profil est un
+     APLAT, parce que c'est exactement ce qu'il est sur le plan. La légende
+     ressemble à ce qu'elle explique. */
+  .sf-legende { margin-top: 12px; display: flex; flex-wrap: wrap; gap: 8px 14px;
+                font-size: .72rem; color: var(--encre2); align-items: center; }
+  .sf-legende .repere { display: inline-flex; align-items: center; gap: 5px; }
+  .sf-legende i { width: 14px; height: 14px; border-radius: 4px; flex: none;
+                  border: 2px solid var(--ok); background: var(--carte2); }
+  .sf-legende .pf { width: 13px; height: 13px; border-radius: 3px; flex: none;
+                    border: 1px solid var(--trait); }
+  /* Un filet vertical entre l'état et les profils : deux familles, une seule
+     ligne, et rien ne disait où l'une finissait. */
+  .sf-legende .sep { width: 1px; height: 13px; flex: none;
+                     background: var(--trait); }
+</style>
+
+<header>
+  <b>Spec 036 — la pastille qui se remplit</b>
+  <span style="font-size:.82rem;color:var(--encre2)">×1,6 · franc · bout droit · position E — en place</span>
+  <span class="lien">
+    <button class="bascule" id="b-sombre" aria-pressed="false">Thème sombre</button>
+    <button class="bascule" id="b-visee" aria-pressed="true">Zone visée (D)</button>
+  </span>
+</header>
+<main>
+<h1>La pastille qui se remplit — ce qui est en place</h1>
+<div class="avis">
+  <b>✅ Tout ce qui est décrit ici est codé</b> — ovale <b>×1,6</b>, vert
+  <b>franc</b>, bout <b>droit</b>, cadre revenu à son <b>tout-ou-rien de
+  1,6</b>, et la position <b>E</b>. Le SVG embarqué dans cette page est celui
+  que <code>plan.js</code> monte vraiment ; les cartes de comparaison ne font
+  que <b>déplacer</b> la lettre et la pastille, ce que le code ferait avec deux
+  nombres. Elle garde la trace de comment ça s'est décidé.
+</div>
+<div class="avis mesure">
+  <b>Ce qui a décidé de la position : sous la pastille, il ne restait que
+  0,08 unité.</b> La descendre seule, c'est
+  gagner <b>un cinquième de pixel</b> sur un téléphone. Ce qui la colle à la
+  lettre n'est d'ailleurs pas la place : c'est que <b>le halo de la lettre
+  recouvre déjà la pastille de 0,94 unité</b> — ils se chevauchent, et c'est ce
+  chevauchement que tu vois. Toute la place libre est <b>au-dessus</b> : 3,18
+  unités entre le halo et le haut du pan. Donc oui, <b>c'est la lettre qui
+  monte</b> — la seule question était de combien, et si la pastille
+  l'accompagne. Réponse retenue : <b>E</b>, les trois airs égaux.
+</div>
+<p>
+  Le grimpeur de démonstration a <b>Z 5/5</b> et <b>B 2/2</b> (terminées, donc
+  pastille pleine <i>et</i> cadre vert), <b>D 3/6</b> (la zone visée),
+  <b>A 3/7</b> et <b>M 1/4</b>. Les douze autres zones ne portent aucun bloc de
+  son circuit : ni pastille, ni cadre.
+</p>
+
+<h2>1. Les six positions, à la loupe — et celle qui est en place</h2>
+<p>
+  Trois nombres sous chaque carte : l'air <b>au-dessus</b> de la lettre, l'air
+  <b>entre</b> la lettre et la pastille — celui dont tu parles — et l'air
+  <b>sous</b> la pastille. Tout est en unités de plan (le pan en fait 15).
+</p>
+<div class="rangee">
+  <div class="carte trois apercu mort">
+    <h3>A — aujourd'hui<span class="ret non">le défaut</span></h3>
+    <p>La lettre au centre du pan, la pastille dessous.</p>
+    <div data-zoom data-l="0" data-d="0.60"></div>
+    <p class="chiffres">haut <b>+3,18</b> · entre <b class="mal">−0,94</b> · bas <b>+0,08</b></p>
+  </div>
+  <div class="carte trois apercu mort">
+    <h3>B — la pastille seule<span class="ret non">sans effet</span></h3>
+    <p>Descendue jusqu'au bord du pan, et pas d'un dixième de plus.</p>
+    <div data-zoom data-l="0" data-d="0.609"></div>
+    <p class="chiffres">haut <b>+3,18</b> · entre <b class="mal">−0,85</b> · bas <b>0,00</b></p>
+  </div>
+  <div class="carte trois apercu">
+    <h3>C — la lettre seule, au maximum</h3>
+    <p>Montée jusqu'à ce que son halo touche le haut du pan.</p>
+    <div data-zoom data-l="0.353" data-d="0.60"></div>
+    <p class="chiffres">haut <b>0,00</b> · entre <b>+2,24</b> · bas <b>+0,08</b></p>
+  </div>
+</div>
+<div class="rangee" style="margin-top:18px">
+  <div class="carte trois apercu">
+    <h3>D — le mélange</h3>
+    <p>La lettre monte de 2,4 unités, la pastille descend de 0,2. Il reste de
+       l'air des deux côtés du pan.</p>
+    <div data-zoom data-l="0.27" data-d="0.58"></div>
+    <p class="chiffres">haut <b>+0,75</b> · entre <b>+1,31</b> · bas <b>+0,26</b></p>
+  </div>
+  <div class="carte trois apercu reco">
+    <h3>E — l'équilibre<span class="ret">en place</span></h3>
+    <p>Les trois airs rigoureusement égaux. Le plus calme, mais le moins
+       d'air entre la lettre et la pastille.</p>
+    <div data-zoom data-l="0.267" data-d="0.523"></div>
+    <p class="chiffres">haut <b>+0,78</b> · entre <b>+0,77</b> · bas <b>+0,78</b></p>
+  </div>
+  <div class="carte trois apercu">
+    <h3>F — les deux au maximum</h3>
+    <p>Tout l'air possible entre les deux, et zéro marge en haut comme en bas.</p>
+    <div data-zoom data-l="0.353" data-d="0.609"></div>
+    <p class="chiffres">haut <b>0,00</b> · entre <b>+2,33</b> · bas <b>0,00</b></p>
+  </div>
+</div>
+
+<h2>2. En place, à la taille où ça se regarde</h2>
+<p>E, sur un téléphone et sur un portable. C'est là que ça se juge.</p>
+<div class="rangee">
+  <div class="carte telephone apercu">
+    <h3>Téléphone, 390 px<span class="ret">E</span></h3>
+    <div class="cadre-tel" data-plan data-l="0.267" data-d="0.523"></div>
+  </div>
+  <div class="carte large apercu">
+    <h3>Grand écran<span class="ret">E</span></h3>
+    <div data-plan data-l="0.267" data-d="0.523"></div>
+  </div>
+</div>
+<div class="rangee" style="margin-top:18px">
+  <div class="carte telephone apercu">
+    <h3>Téléphone — A, ce qu'on quitte</h3>
+    <p>La lettre sur son centroïde, la pastille collée à son halo.</p>
+    <div class="cadre-tel" data-plan data-l="0" data-d="0.60"></div>
+  </div>
+  <div class="carte telephone apercu">
+    <h3>Téléphone — C, l'autre extrême</h3>
+    <p>Tout l'air entre les deux, et le halo au ras du haut du pan.</p>
+    <div class="cadre-tel" data-plan data-l="0.353" data-d="0.60"></div>
+  </div>
+</div>
+
+<h2>3. Le tableau, si tu préfères les nombres</h2>
+<table>
+  <tr><th>Position</th><th>La lettre monte de</th><th>La pastille descend de</th>
+      <th>Air au-dessus</th><th>Air entre</th><th>Air en dessous</th></tr>
+  <tr><td>A — aujourd'hui</td><td class="n">0</td><td class="n">0</td>
+      <td class="n">3,18</td><td class="n mal">−0,94</td><td class="n">0,08</td></tr>
+  <tr><td>B — pastille seule</td><td class="n">0</td><td class="n">0,08</td>
+      <td class="n">3,18</td><td class="n mal">−0,85</td><td class="n">0,00</td></tr>
+  <tr><td>C — lettre seule</td><td class="n">3,18</td><td class="n">0</td>
+      <td class="n">0,00</td><td class="n">2,24</td><td class="n">0,08</td></tr>
+  <tr><td>D — le mélange</td><td class="n">2,43</td><td class="n">0,18</td>
+      <td class="n">0,75</td><td class="n">1,31</td><td class="n">0,26</td></tr>
+  <tr class="reco"><td>E — l'équilibre <b>(en place)</b></td><td class="n">2,40</td><td class="n">−0,69</td>
+      <td class="n">0,78</td><td class="n">0,77</td><td class="n">0,78</td></tr>
+  <tr><td>F — les deux au max</td><td class="n">3,18</td><td class="n">0,08</td>
+      <td class="n">0,00</td><td class="n">2,33</td><td class="n">0,00</td></tr>
+</table>
+<p style="margin-top:12px">
+  ⚠️ « Air entre » se compte depuis le <b>halo</b> de la lettre, pas depuis la
+  lettre : c'est le halo qui touche la pastille, et c'est lui qu'on voit.
+  En E, la pastille <b>remonte</b> de 0,69 — c'est le prix des trois marges
+  égales.
+</p>
+
+<h2>Ce que ça a changé dans le code</h2>
+<ul>
+  <li><b>Deux nombres</b> — <code>LETTRE_MONTEE</code> (0,267) et
+      <code>COMPTE_DESCENTE</code> (0,523) — à côté des trois ratios de la
+      pastille, dans <code>plan.js</code>.</li>
+  <li><b>La fiche papier ne bouge pas</b> : elle dessine sa lettre côté Python
+      et ne porte aucun compteur. La lettre ne monte que sur le plan de
+      l'écran.</li>
+  <li><b>Le test qui borne la pastille mesure maintenant le halo</b> de la
+      lettre — c'est lui qui décide, et personne ne le vérifiait. Il vérifie
+      aussi que le halo ne sort pas du pan par le haut, un risque que la montée
+      vient de créer.</li>
+  <li><b>Le compteur est peint après le cadre</b> : à ×1,6 la pastille croise le
+      cadre « terminée » de 0,5 unité de chaque côté. Dessous, elle se ferait
+      couper à ses deux extrémités — là où le vert dit justement où il
+      s'arrête.</li>
+</ul>
+</main>
+
+<template id="dessin"><svg class="plan" viewBox="-1.0 -1.0 122.0 152.0" role="img" aria-label="Plan du mur"><defs><clipPath id="plan-socle-X"><rect x="62.8" y="10.19" width="14.4" height="4.03" rx="2.02"></rect></clipPath><clipPath id="plan-socle-Y"><rect x="82.8" y="10.19" width="14.4" height="4.03" rx="2.02"></rect></clipPath><clipPath id="plan-socle-D"><rect x="5.3" y="32.69" width="14.4" height="4.03" rx="2.02"></rect></clipPath><clipPath id="plan-socle-Z"><rect x="100.3" y="25.19" width="14.4" height="4.03" rx="2.02"></rect></clipPath><clipPath id="plan-socle-C"><rect x="20.3" y="55.19" width="14.4" height="4.03" rx="2.02"></rect></clipPath><clipPath id="plan-socle-B"><rect x="35.3" y="55.19" width="14.4" height="4.03" rx="2.02"></rect></clipPath><clipPath id="plan-socle-A"><rect x="52.8" y="55.19" width="14.4" height="4.03" rx="2.02"></rect></clipPath><clipPath id="plan-socle-L"><rect x="0.3" y="90.19" width="14.4" height="4.03" rx="2.02"></rect></clipPath><clipPath id="plan-socle-M"><rect x="0.3" y="110.19" width="14.4" height="4.03" rx="2.02"></rect></clipPath><clipPath id="plan-socle-K"><rect x="15.3" y="85.19" width="14.4" height="4.03" rx="2.02"></rect></clipPath><clipPath id="plan-socle-J"><rect x="30.3" y="85.19" width="14.4" height="4.03" rx="2.02"></rect></clipPath><clipPath id="plan-socle-I"><rect x="45.3" y="85.19" width="14.4" height="4.03" rx="2.02"></rect></clipPath><clipPath id="plan-socle-H"><rect x="60.3" y="85.19" width="14.4" height="4.03" rx="2.02"></rect></clipPath><clipPath id="plan-socle-G"><rect x="75.3" y="85.19" width="14.4" height="4.03" rx="2.02"></rect></clipPath><clipPath id="plan-socle-F"><rect x="90.3" y="85.19" width="14.4" height="4.03" rx="2.02"></rect></clipPath><clipPath id="plan-socle-N"><rect x="0.3" y="125.19" width="14.4" height="4.03" rx="2.02"></rect></clipPath><clipPath id="plan-socle-E"><rect x="105.3" y="100.19" width="14.4" height="4.03" rx="2.02"></rect></clipPath></defs><g data-zone="X" data-profil="vertical" style="transform-origin:70px 7.5px" class="z-rien"><polygon class="mur" points="60,0 80,0 80,15 60,15"></polygon><polygon class="trame" points="60,0 80,0 80,15 60,15"></polygon><text class="lettre" x="70" y="5.1" font-size="9" stroke-width="2.16">X</text></g><g data-zone="Y" data-profil="vertical" style="transform-origin:90px 7.5px" class="z-rien"><polygon class="mur" points="80,0 100,0 100,15 80,15"></polygon><polygon class="trame" points="80,0 100,0 100,15 80,15"></polygon><text class="lettre" x="90" y="5.1" font-size="9" stroke-width="2.16">Y</text></g><g data-zone="D" data-profil="toit" style="transform-origin:12.5px 30px" class="z-reste visee a-compte"><polygon class="mur" points="5,15 20,15 20,45 5,45"></polygon><polygon class="trame" points="5,15 20,15 20,45 5,45"></polygon><text class="lettre" x="12.5" y="27.6" font-size="9" stroke-width="2.16">D</text></g><g data-zone="Z" data-profil="vertical" style="transform-origin:107.5px 22.5px" class="z-finie a-compte"><polygon class="mur" points="100,15 115,15 115,30 100,30"></polygon><polygon class="trame" points="100,15 115,15 115,30 100,30"></polygon><text class="lettre" x="107.5" y="20.1" font-size="9" stroke-width="2.16">Z</text></g><g data-zone="C" data-profil="incline" style="transform-origin:27.5px 52.5px" class="z-rien"><polygon class="mur" points="20,45 35,45 35,60 20,60"></polygon><polygon class="trame" points="20,45 35,45 35,60 20,60"></polygon><text class="lettre" x="27.5" y="50.1" font-size="9" stroke-width="2.16">C</text></g><g data-zone="B" data-profil="devers" style="transform-origin:42.5px 52.5px" class="z-finie a-compte"><polygon class="mur" points="35,45 50,45 50,60 35,60"></polygon><polygon class="trame" points="35,45 50,45 50,60 35,60"></polygon><text class="lettre" x="42.5" y="50.1" font-size="9" stroke-width="2.16">B</text></g><g data-zone="A" data-profil="vertical" style="transform-origin:60px 52.5px" class="z-reste a-compte"><polygon class="mur" points="50,45 70,45 70,60 50,60"></polygon><polygon class="trame" points="50,45 70,45 70,60 50,60"></polygon><text class="lettre" x="60" y="50.1" font-size="9" stroke-width="2.16">A</text></g><g data-zone="L" data-profil="toit" style="transform-origin:7.5px 87.5px" class="z-rien"><polygon class="mur" points="0,75 15,75 15,100 0,100"></polygon><polygon class="trame" points="0,75 15,75 15,100 0,100"></polygon><text class="lettre" x="7.5" y="85.1" font-size="9" stroke-width="2.16">L</text></g><g data-zone="M" data-profil="dalle" style="transform-origin:7.5px 107.5px" class="z-reste a-compte"><polygon class="mur" points="0,100 15,100 15,115 0,115"></polygon><polygon class="trame" points="0,100 15,100 15,115 0,115"></polygon><text class="lettre" x="7.5" y="105.1" font-size="9" stroke-width="2.16">M</text></g><g data-zone="K" data-profil="surplomb" style="transform-origin:22.5px 82.5px" class="z-rien"><polygon class="mur" points="15,75 30,75 30,90 15,90"></polygon><polygon class="trame" points="15,75 30,75 30,90 15,90"></polygon><text class="lettre" x="22.5" y="80.1" font-size="9" stroke-width="2.16">K</text></g><g data-zone="J" data-profil="vertical" style="transform-origin:37.5px 82.5px" class="z-rien"><polygon class="mur" points="30,75 45,75 45,90 30,90"></polygon><polygon class="trame" points="30,75 45,75 45,90 30,90"></polygon><text class="lettre" x="37.5" y="80.1" font-size="9" stroke-width="2.16">J</text></g><g data-zone="I" data-profil="devers" style="transform-origin:52.5px 82.5px" class="z-rien"><polygon class="mur" points="45,75 60,75 60,90 45,90"></polygon><polygon class="trame" points="45,75 60,75 60,90 45,90"></polygon><text class="lettre" x="52.5" y="80.1" font-size="9" stroke-width="2.16">I</text></g><g data-zone="H" data-profil="incline" style="transform-origin:67.5px 82.5px" class="z-rien"><polygon class="mur" points="60,75 75,75 75,90 60,90"></polygon><polygon class="trame" points="60,75 75,75 75,90 60,90"></polygon><text class="lettre" x="67.5" y="80.1" font-size="9" stroke-width="2.16">H</text></g><g data-zone="G" data-profil="vertical" style="transform-origin:82.5px 82.5px" class="z-rien"><polygon class="mur" points="75,75 90,75 90,90 75,90"></polygon><polygon class="trame" points="75,75 90,75 90,90 75,90"></polygon><text class="lettre" x="82.5" y="80.1" font-size="9" stroke-width="2.16">G</text></g><g data-zone="F" data-profil="dalle" style="transform-origin:97.5px 82.5px" class="z-rien"><polygon class="mur" points="90,75 105,75 105,90 90,90"></polygon><polygon class="trame" points="90,75 105,75 105,90 90,90"></polygon><text class="lettre" x="97.5" y="80.1" font-size="9" stroke-width="2.16">F</text></g><g data-zone="N" data-profil="dalle" style="transform-origin:7.5px 122.5px" class="z-rien"><polygon class="mur" points="0,115 15,115 15,130 0,130"></polygon><polygon class="trame" points="0,115 15,115 15,130 0,130"></polygon><text class="lettre" x="7.5" y="120.1" font-size="9" stroke-width="2.16">N</text></g><g data-zone="E" data-profil="vertical" style="transform-origin:112.5px 97.5px" class="z-rien"><polygon class="mur" points="105,90 120,90 120,105 105,105"></polygon><polygon class="trame" points="105,90 120,90 120,105 105,105"></polygon><text class="lettre" x="112.5" y="95.1" font-size="9" stroke-width="2.16">E</text></g><g class="cadres-zone"><polygon class="cadre-zone z-rien" points="60,0 80,0 80,15 60,15" data-zone="X"></polygon><polygon class="cadre-zone z-rien" points="80,0 100,0 100,15 80,15" data-zone="Y"></polygon><polygon class="cadre-zone z-reste visee a-compte" points="5,15 20,15 20,45 5,45" data-zone="D"></polygon><polygon class="cadre-zone z-finie a-compte" points="100,15 115,15 115,30 100,30" data-zone="Z"></polygon><polygon class="cadre-zone z-rien" points="20,45 35,45 35,60 20,60" data-zone="C"></polygon><polygon class="cadre-zone z-finie a-compte" points="35,45 50,45 50,60 35,60" data-zone="B"></polygon><polygon class="cadre-zone z-reste a-compte" points="50,45 70,45 70,60 50,60" data-zone="A"></polygon><polygon class="cadre-zone z-rien" points="0,75 15,75 15,100 0,100" data-zone="L"></polygon><polygon class="cadre-zone z-reste a-compte" points="0,100 15,100 15,115 0,115" data-zone="M"></polygon><polygon class="cadre-zone z-rien" points="15,75 30,75 30,90 15,90" data-zone="K"></polygon><polygon class="cadre-zone z-rien" points="30,75 45,75 45,90 30,90" data-zone="J"></polygon><polygon class="cadre-zone z-rien" points="45,75 60,75 60,90 45,90" data-zone="I"></polygon><polygon class="cadre-zone z-rien" points="60,75 75,75 75,90 60,90" data-zone="H"></polygon><polygon class="cadre-zone z-rien" points="75,75 90,75 90,90 75,90" data-zone="G"></polygon><polygon class="cadre-zone z-rien" points="90,75 105,75 105,90 90,90" data-zone="F"></polygon><polygon class="cadre-zone z-rien" points="0,115 15,115 15,130 0,130" data-zone="N"></polygon><polygon class="cadre-zone z-rien" points="105,90 120,90 120,105 105,105" data-zone="E"></polygon></g><g class="compteurs-zone"><g data-zone="X" style="transform-origin:70px 7.5px" class="z-rien"><rect class="socle-compte" x="62.8" y="10.19" width="14.4" height="4.03" rx="2.02"></rect><rect class="remplit-compte" x="62.8" y="10.19" width="0.00" height="4.03" data-plein="14.4" clip-path="url(#plan-socle-X)"></rect><text class="compte-zone" x="70" y="12.207" data-corps="9" font-size="3.60"></text></g><g data-zone="Y" style="transform-origin:90px 7.5px" class="z-rien"><rect class="socle-compte" x="82.8" y="10.19" width="14.4" height="4.03" rx="2.02"></rect><rect class="remplit-compte" x="82.8" y="10.19" width="0.00" height="4.03" data-plein="14.4" clip-path="url(#plan-socle-Y)"></rect><text class="compte-zone" x="90" y="12.207" data-corps="9" font-size="3.60"></text></g><g data-zone="D" style="transform-origin:12.5px 30px" class="z-reste visee a-compte"><rect class="socle-compte" x="5.3" y="32.69" width="14.4" height="4.03" rx="2.02"></rect><rect class="remplit-compte" x="5.3" y="32.69" width="7.20" height="4.03" data-plein="14.4" clip-path="url(#plan-socle-D)"></rect><text class="compte-zone" x="12.5" y="34.707" data-corps="9" font-size="3.60">3/6</text></g><g data-zone="Z" style="transform-origin:107.5px 22.5px" class="z-finie a-compte"><rect class="socle-compte" x="100.3" y="25.19" width="14.4" height="4.03" rx="2.02"></rect><rect class="remplit-compte" x="100.3" y="25.19" width="14.40" height="4.03" data-plein="14.4" clip-path="url(#plan-socle-Z)"></rect><text class="compte-zone" x="107.5" y="27.207" data-corps="9" font-size="3.60">5/5</text></g><g data-zone="C" style="transform-origin:27.5px 52.5px" class="z-rien"><rect class="socle-compte" x="20.3" y="55.19" width="14.4" height="4.03" rx="2.02"></rect><rect class="remplit-compte" x="20.3" y="55.19" width="0.00" height="4.03" data-plein="14.4" clip-path="url(#plan-socle-C)"></rect><text class="compte-zone" x="27.5" y="57.207" data-corps="9" font-size="3.60"></text></g><g data-zone="B" style="transform-origin:42.5px 52.5px" class="z-finie a-compte"><rect class="socle-compte" x="35.3" y="55.19" width="14.4" height="4.03" rx="2.02"></rect><rect class="remplit-compte" x="35.3" y="55.19" width="14.40" height="4.03" data-plein="14.4" clip-path="url(#plan-socle-B)"></rect><text class="compte-zone" x="42.5" y="57.207" data-corps="9" font-size="3.60">2/2</text></g><g data-zone="A" style="transform-origin:60px 52.5px" class="z-reste a-compte"><rect class="socle-compte" x="52.8" y="55.19" width="14.4" height="4.03" rx="2.02"></rect><rect class="remplit-compte" x="52.8" y="55.19" width="6.17" height="4.03" data-plein="14.4" clip-path="url(#plan-socle-A)"></rect><text class="compte-zone" x="60" y="57.207" data-corps="9" font-size="3.60">3/7</text></g><g data-zone="L" style="transform-origin:7.5px 87.5px" class="z-rien"><rect class="socle-compte" x="0.3" y="90.19" width="14.4" height="4.03" rx="2.02"></rect><rect class="remplit-compte" x="0.3" y="90.19" width="0.00" height="4.03" data-plein="14.4" clip-path="url(#plan-socle-L)"></rect><text class="compte-zone" x="7.5" y="92.207" data-corps="9" font-size="3.60"></text></g><g data-zone="M" style="transform-origin:7.5px 107.5px" class="z-reste a-compte"><rect class="socle-compte" x="0.3" y="110.19" width="14.4" height="4.03" rx="2.02"></rect><rect class="remplit-compte" x="0.3" y="110.19" width="3.60" height="4.03" data-plein="14.4" clip-path="url(#plan-socle-M)"></rect><text class="compte-zone" x="7.5" y="112.207" data-corps="9" font-size="3.60">1/4</text></g><g data-zone="K" style="transform-origin:22.5px 82.5px" class="z-rien"><rect class="socle-compte" x="15.3" y="85.19" width="14.4" height="4.03" rx="2.02"></rect><rect class="remplit-compte" x="15.3" y="85.19" width="0.00" height="4.03" data-plein="14.4" clip-path="url(#plan-socle-K)"></rect><text class="compte-zone" x="22.5" y="87.207" data-corps="9" font-size="3.60"></text></g><g data-zone="J" style="transform-origin:37.5px 82.5px" class="z-rien"><rect class="socle-compte" x="30.3" y="85.19" width="14.4" height="4.03" rx="2.02"></rect><rect class="remplit-compte" x="30.3" y="85.19" width="0.00" height="4.03" data-plein="14.4" clip-path="url(#plan-socle-J)"></rect><text class="compte-zone" x="37.5" y="87.207" data-corps="9" font-size="3.60"></text></g><g data-zone="I" style="transform-origin:52.5px 82.5px" class="z-rien"><rect class="socle-compte" x="45.3" y="85.19" width="14.4" height="4.03" rx="2.02"></rect><rect class="remplit-compte" x="45.3" y="85.19" width="0.00" height="4.03" data-plein="14.4" clip-path="url(#plan-socle-I)"></rect><text class="compte-zone" x="52.5" y="87.207" data-corps="9" font-size="3.60"></text></g><g data-zone="H" style="transform-origin:67.5px 82.5px" class="z-rien"><rect class="socle-compte" x="60.3" y="85.19" width="14.4" height="4.03" rx="2.02"></rect><rect class="remplit-compte" x="60.3" y="85.19" width="0.00" height="4.03" data-plein="14.4" clip-path="url(#plan-socle-H)"></rect><text class="compte-zone" x="67.5" y="87.207" data-corps="9" font-size="3.60"></text></g><g data-zone="G" style="transform-origin:82.5px 82.5px" class="z-rien"><rect class="socle-compte" x="75.3" y="85.19" width="14.4" height="4.03" rx="2.02"></rect><rect class="remplit-compte" x="75.3" y="85.19" width="0.00" height="4.03" data-plein="14.4" clip-path="url(#plan-socle-G)"></rect><text class="compte-zone" x="82.5" y="87.207" data-corps="9" font-size="3.60"></text></g><g data-zone="F" style="transform-origin:97.5px 82.5px" class="z-rien"><rect class="socle-compte" x="90.3" y="85.19" width="14.4" height="4.03" rx="2.02"></rect><rect class="remplit-compte" x="90.3" y="85.19" width="0.00" height="4.03" data-plein="14.4" clip-path="url(#plan-socle-F)"></rect><text class="compte-zone" x="97.5" y="87.207" data-corps="9" font-size="3.60"></text></g><g data-zone="N" style="transform-origin:7.5px 122.5px" class="z-rien"><rect class="socle-compte" x="0.3" y="125.19" width="14.4" height="4.03" rx="2.02"></rect><rect class="remplit-compte" x="0.3" y="125.19" width="0.00" height="4.03" data-plein="14.4" clip-path="url(#plan-socle-N)"></rect><text class="compte-zone" x="7.5" y="127.207" data-corps="9" font-size="3.60"></text></g><g data-zone="E" style="transform-origin:112.5px 97.5px" class="z-rien"><rect class="socle-compte" x="105.3" y="100.19" width="14.4" height="4.03" rx="2.02"></rect><rect class="remplit-compte" x="105.3" y="100.19" width="0.00" height="4.03" data-plein="14.4" clip-path="url(#plan-socle-E)"></rect><text class="compte-zone" x="112.5" y="102.207" data-corps="9" font-size="3.60"></text></g></g><text class="repere-plan" x="97" y="52">Escalier</text><text class="repere-plan" x="61" y="111">Haut</text><text class="repere-plan" x="60" y="30">Bas</text></svg></template>
+<script>
+
+const SVG = document.getElementById("dessin").innerHTML;
+const NS = "http://www.w3.org/2000/svg";
+const ZOOM = "0 12 76 52";
+/** La descente de la pastille DANS LE DESSIN EMBARQUE : c'est la position E,
+ *  celle qui est codee. Elle sert a retrouver le centroide de chaque zone. */
+const CODE_DESCENTE = 0.523;
+let n = 0;
+
+/** Deplace la lettre et la pastille, et remplit la pastille.
+ *
+ * `L` : de combien la lettre monte, en fraction de son corps.
+ * `D` : la descente de la pastille sous l'etiquette, meme unite.
+ * Tout est deduit du dessin : `data-corps` porte le corps de la lettre, et la
+ * position actuelle du compteur donne l'etiquette (y - 0,60 x corps). On ne
+ * recopie donc aucune coordonnee de la salle.
+ */
+function poserPastilles(svg, L, D) {
+  svg.querySelectorAll(".compteurs-zone g[data-zone]").forEach(function (g) {
+    const socle = g.querySelector(".socle-compte");
+    const vert = g.querySelector(".remplit-compte");
+    const texte = g.querySelector(".compte-zone");
+    const corps = parseFloat(texte.getAttribute("data-corps"));
+    const zone = g.getAttribute("data-zone");
+    // L'etiquette se retrouve depuis la descente CODEE : le dessin embarque est
+    // deja en position E, on ne recopie donc aucune coordonnee de la salle.
+    const etiquette = parseFloat(texte.getAttribute("y")) - CODE_DESCENTE * corps;
+
+    // La lettre vit dans le groupe du pan, pas ici.
+    const pan = [...svg.querySelectorAll("g[data-zone]")].find(function (e) {
+      return e.getAttribute("data-zone") === zone && e.querySelector(".lettre");
+    });
+    pan.querySelector(".lettre")
+      .setAttribute("y", (etiquette - L * corps).toFixed(2));
+
+    // ⚠️ SEULE LA HAUTEUR de la pastille se deplace : sa largeur, son arrondi
+    // et le corps du chiffre sont ceux du code.
+    const h = parseFloat(socle.getAttribute("height"));
+    const cy = etiquette + D * corps;
+    socle.setAttribute("y", (cy - h / 2).toFixed(2));
+    vert.setAttribute("y", (cy - h / 2).toFixed(2));
+    texte.setAttribute("y", cy.toFixed(2));
+  });
+}
+
+function poser() {
+  document.querySelectorAll("[data-plan], [data-zoom]").forEach(function (hote) {
+    hote.innerHTML = SVG;
+    const svg = hote.querySelector("svg");
+    n += 1;
+    svg.querySelectorAll("clipPath").forEach(function (c) {
+      const neuf = c.id + "-" + n;
+      svg.querySelectorAll('[clip-path="url(#' + c.id + ')"]').forEach(function (e) {
+        e.setAttribute("clip-path", "url(#" + neuf + ")");
+      });
+      c.id = neuf;
+    });
+    if (hote.hasAttribute("data-zoom")) {
+      svg.setAttribute("viewBox", ZOOM);
+      svg.classList.add("zoom");
+    }
+    poserPastilles(svg, parseFloat(hote.dataset.l), parseFloat(hote.dataset.d));
+  });
+  visee();
+}
+
+function visee() {
+  const montre = document.getElementById("b-visee").getAttribute("aria-pressed") === "true";
+  document.querySelectorAll("[data-plan] svg, [data-zoom] svg").forEach(function (svg) {
+    svg.querySelectorAll("[data-zone]").forEach(function (e) {
+      if (e.getAttribute("data-zone") === "D") e.classList.toggle("visee", montre);
+    });
+  });
+}
+
+document.getElementById("b-sombre").addEventListener("click", function () {
+  const on = this.getAttribute("aria-pressed") !== "true";
+  this.setAttribute("aria-pressed", String(on));
+  document.body.classList.toggle("sombre", on);
+});
+document.getElementById("b-visee").addEventListener("click", function () {
+  this.setAttribute("aria-pressed",
+    String(this.getAttribute("aria-pressed") !== "true"));
+  visee();
+});
+poser();
+
+</script>
+</html>

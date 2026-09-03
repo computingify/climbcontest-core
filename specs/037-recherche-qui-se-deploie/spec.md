@@ -1,13 +1,14 @@
 # Spec 037 — la recherche qui se déploie
 
-> **Cette spec ne contient aucune implémentation, et c'est volontaire.** Son
-> livrable est une **décision** d'Adrien, prise sur une maquette qu'on touche :
-> `maquettes/index.html`. Une animation ne se juge pas sur une capture.
+> **Adrien a tranché le 03/09, sur la maquette.** Les trois questions du §5 ont
+> leur réponse, l'implémentation suit dans la même branche, et la maquette reste
+> dans `maquettes/index.html` — c'est elle qui porte le raisonnement.
 >
-> Le code viendra une fois la variante choisie, dans une PR qui suivra celle-ci.
-> C'est le même déroulé que la spec 035, et c'est ce qu'Adrien a demandé
-> explicitement le 03/09 : « pour toutes tes questions il me faut un visuel si
-> c'est de l'UX, donc un HTML que je peux regarder ».
+> | | Retenu |
+> | --- | --- |
+> | **La variante** | **V3** — le champ recouvre la rangée, pleine largeur |
+> | **Le sens de l'échange** | La **loupe termine** la rangée ; le champ se déploie vers la gauche |
+> | **Le grand écran** | **Le même déploiement**, « quitte à avoir un champ court » |
 
 ## 1. D'où vient cette spec
 
@@ -74,30 +75,46 @@ chose.
 
 Ils valent quelle que soit la variante retenue.
 
-- [ ] Sur téléphone, la lecture et la loupe sont **échangées** : la loupe termine
+- [x] Sur téléphone, la lecture et la loupe sont **échangées** : la loupe termine
       la rangée.
-- [ ] Un appui sur la loupe **déploie** le champ par une transition, et lui donne
+- [x] Un appui sur la loupe **déploie** le champ par une transition, et lui donne
       le focus.
-- [ ] Un second appui, la croix, ou **Échap** referme et **vide** le champ ; la
+- [x] Un second appui, la croix, ou **Échap** referme et **vide** le champ ; la
       liste redevient complète.
-- [ ] Le champ fermé n'est **pas** dans l'ordre de tabulation, et la loupe porte
+- [x] Le champ fermé n'est **pas** dans l'ordre de tabulation, et la loupe porte
       un `aria-expanded` qui dit l'état.
-- [ ] `prefers-reduced-motion` : le champ apparaît, sans transition.
-- [ ] Le mode `?mur` est **inchangé** : aucune recherche, aucun bouton.
-- [ ] Le comportement sur grand écran est celui tranché en §5, et il est testé.
-- [ ] Un test au navigateur pilote le geste complet : ouvrir, taper, filtrer,
+- [x] `prefers-reduced-motion` : le champ apparaît, sans transition.
+- [x] Le mode `?mur` est **inchangé** : aucune recherche, aucun bouton.
+- [x] Le comportement sur grand écran est celui tranché en §5, et il est testé.
+- [x] Un test au navigateur pilote le geste complet : ouvrir, taper, filtrer,
       fermer, vérifier que la liste est revenue.
 
-## 5. Ce qu'Adrien doit trancher
+## 5. Ce qu'Adrien a tranché, et ce que ça a entraîné
 
-1. **La variante** — V1, V2 ou V3 (ou un croisement).
-2. **Le sens de l'échange.** La maquette a un bouton « la loupe à droite » qui
-   inverse l'ordre : la loupe au bout de la rangée, ou en tête. J'ai posé la
-   loupe **au bout** par défaut, parce que c'est de là que le champ se déploie
-   naturellement vers la gauche — mais c'est à voir au doigt.
-3. **Le grand écran.** Trois sorties : le même déploiement (le champ y sera
-   court), le comportement actuel (le champ sous la barre), ou rien du tout —
-   sur un vidéoprojecteur, la recherche ne sert pas.
+**V3**, la **loupe au bout**, et **le même déploiement partout**.
+
+### La conséquence qu'on n'avait pas vue en posant la question
+
+⚠️ **Le réglage mémorisé de la spec 033 (R6) disparaît.** Il gardait « la
+recherche est-elle offerte », posée à « masquée » par défaut. Depuis que le
+champ se déploie, ce réglage n'a plus d'objet : le champ est **replié** tant
+qu'on ne le demande pas, ce qui *est* « masquée par défaut » — sans avoir à se
+souvenir de quoi que ce soit.
+
+Ouvrir la recherche est un **geste**, pas un réglage : le mémoriser rouvrirait,
+au chargement suivant, un champ que personne n'a demandé. Le stockage local ne
+garde donc plus que l'état **lecture/pause**.
+
+C'est une simplification, pas une perte : le besoin de la spec 020 — « masquer
+la recherche au vidéoprojecteur » — est toujours servi, et mieux.
+
+### Le défaut trouvé à l'écran, sur grand écran
+
+Le champ s'ouvre par-dessus le bandeau de droite (nom de l'édition, heure,
+compteur) et le **coupait en plein milieu** : ça se lit comme un défaut
+d'affichage, pas comme un panneau qui s'ouvre. Le bandeau **s'efface** donc le
+temps de la recherche et revient à la fermeture. C'est ce que « recouvrir »
+veut dire, et ça n'a été vu qu'en regardant.
 
 ## 6. Cas limites
 

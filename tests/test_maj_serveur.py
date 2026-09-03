@@ -8,6 +8,7 @@ Le reste — télécharger, vérifier l'empreinte, sonder `/health`, revenir en
 arrière — appartient à `climbcontest-deploy`, qui n'est pas du Python et n'est
 pas testé ici. Ce module ne fait que décider et déléguer.
 """
+import json
 from datetime import datetime, timedelta, timezone
 
 import pytest
@@ -162,6 +163,19 @@ class TestCeQueLaConsoleLit:
         assert etat["disponible"]["tag"] == "v0.17.0"
 
 
+@pytest.fixture
+def demande(tmp_path, monkeypatch):
+    """Le fichier que la console dépose pour réclamer une installation.
+
+    ⚠️ Ces tests remplaçaient `subprocess.run` par un leurre. Ils prouvaient
+    qu'on appelait `sudo` — la seule chose qui, en production, ne pouvait pas
+    marcher (voir `test_deploiement_sans_privileges.py`). On exerce maintenant
+    le vrai mécanisme sur un vrai dossier.
+    """
+    monkeypatch.setenv("CLIMBCONTEST_BASE", str(tmp_path))
+    return tmp_path / "shared" / maj.NOM_DEMANDE
+
+
 class TestCompetitionEnCours:
     """Le seul vrai risque de ce bouton : redémarrer pendant les scans."""
 
@@ -169,13 +183,11 @@ class TestCompetitionEnCours:
         etat = maj.etat("v0.16.0")
         assert etat["blocage"] and "bloqu" in etat["blocage"].lower()
 
-    def test_installer_est_refuse(self, competition, github, monkeypatch):
-        lance = []
-        monkeypatch.setattr(maj.subprocess, "run", lambda *a, **k: lance.append(a))
+    def test_installer_est_refuse(self, competition, github, demande):
         maj.etat("v0.16.0")
         with pytest.raises(maj.ErreurMaj):
             maj.installer("v0.17.0")
-        assert not lance, "aucun deploiement ne doit partir"
+        assert not demande.exists(), "aucun deploiement ne doit partir"
 
     def test_une_competition_en_preparation_ne_bloque_pas(self, app, github):
         db.session.add(Competition(nom="Novembre", statut=PREPARATION, active=True))
@@ -185,28 +197,57 @@ class TestCompetitionEnCours:
 
 class TestInstallation:
 
-    def test_elle_delegue_au_service_sans_attendre(self, sans_competition, github, monkeypatch):
-        """`--no-block` n'est pas cosmétique : l'agent redémarre l'application,
-        c'est-à-dire le processus qui traite cette requête."""
-        lance = []
-        monkeypatch.setattr(maj.subprocess, "run",
-                            lambda commande, **k: lance.append(commande))
+    def test_elle_depose_une_demande_sans_attendre(self, sans_competition, github, demande):
+        """Elle n'attend pas : l'agent redémarre l'application, c'est-à-dire le
+        processus qui traite cette requête."""
         maj.etat("v0.16.0")
         maj.installer("v0.17.0", par="chef")
-        assert lance, "le service doit etre demarre"
-        assert "--no-block" in lance[0]
-        assert "climbcontest-deploy.service" in lance[0]
+        assert demande.exists(), "la demande doit etre deposee"
+        corps = json.loads(demande.read_text(encoding="utf-8"))
+        assert corps["tag"] == "v0.17.0"
+        assert corps["par"] == "chef"
 
-    def test_une_version_perimee_a_l_ecran_est_refusee(self, sans_competition, github, monkeypatch):
-        monkeypatch.setattr(maj.subprocess, "run", lambda *a, **k: None)
+    def test_un_second_clic_reecrit_le_fichier(self, sans_competition, github, demande):
+        """`climbcontest-deploy.path` écoute les MODIFICATIONS.
+
+        Un fichier simplement laissé en place ne redéclencherait rien : le
+        bouton ne marcherait qu'une fois, et le second clic n'aurait aucun
+        effet visible.
+        """
+        maj.etat("v0.16.0")
+        maj.installer("v0.17.0", par="chef")
+        premier = demande.stat().st_mtime_ns
+        demande.write_text("{}", encoding="utf-8")   # comme si l'agent avait lu
+        maj.installer("v0.17.0", par="chef")
+        assert demande.stat().st_mtime_ns != premier
+        assert json.loads(demande.read_text(encoding="utf-8"))["tag"] == "v0.17.0"
+
+    def test_une_ecriture_impossible_est_annoncee(self, sans_competition, github,
+                                                  tmp_path, monkeypatch):
+        """Sur la VM, `shared/` est le seul chemin accessible en écriture.
+
+        Le jour où il ne l'est plus, la console doit le dire — pas repartir
+        « en cours » sur un déploiement que personne n'a demandé.
+        """
+        monkeypatch.setenv("CLIMBCONTEST_BASE", str(tmp_path))
+        (tmp_path / "shared").mkdir()
+        (tmp_path / "shared").chmod(0o500)
+        maj.etat("v0.16.0")
+        try:
+            with pytest.raises(maj.ErreurMaj) as leve:
+                maj.installer("v0.17.0")
+        finally:
+            (tmp_path / "shared").chmod(0o700)
+        assert leve.value.code == 500
+
+    def test_une_version_perimee_a_l_ecran_est_refusee(self, sans_competition, github, demande):
         maj.etat("v0.16.0")
         with pytest.raises(maj.ErreurMaj):
             maj.installer("v0.14.0")
 
     def test_l_issue_n_est_annoncee_que_le_temps_de_la_lire(self, sans_competition, github,
-                                                            monkeypatch):
+                                                            demande):
         """Sinon « v0.17.0 installée » resterait à l'écran des semaines."""
-        monkeypatch.setattr(maj.subprocess, "run", lambda *a, **k: None)
         maj.etat("v0.16.0")
         maj.installer("v0.17.0")
         assert maj.etat("v0.17.0")["installation"]["etat"] == "reussie"

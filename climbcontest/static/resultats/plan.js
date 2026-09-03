@@ -37,28 +37,87 @@ export const FORMATS_RENDUS = ["polygones/1"];
 
 // --- Le compteur d'avancement, spec 036 --------------------------------------
 //
-// Le chiffre « 1/4 » se pose SOUS la lettre de la zone, et il ne connaît de la
-// salle que ce que la lettre en connaît : `etiquette` (le centroïde, seul point
-// que le serveur garantit dans le pan) et `taille` (le corps de la lettre, que
-// `fiches.taille_lettre` a déjà borné par la boîte du pan). Aucune géométrie
-// n'est relue ici — c'est ce qui fait qu'un plan redessiné ne casse rien.
+// « 1/4 » se pose SOUS la lettre de la zone, SUR UNE PASTILLE — un socle
+// arrondi qui le détache du remplissage de profil du pan. C'est la pose B de
+// `specs/036-avancement-par-zone/maquettes/compteurs.html`, tranchée par
+// Adrien le 03/09 : « j'aime beaucoup la pastille que tu mets là dans
+// l'écran B ».
 //
-// ⚠️ CES DEUX RATIOS SONT LES DEUX PLUS GRANDS QUI TIENNENT, pas des valeurs à
-// l'œil. Avec `dominant-baseline: central`, une capitale grasse occupe ±0,36 de
-// son corps et le halo déborde de la moitié de son épaisseur (0,12). Il faut
-// donc passer SOUS la lettre — `descente − 0,48 × échelle ≥ 0,36` — et rester
-// AU-DESSUS du bord bas du pan — `descente + 0,48 × échelle ≤ 0,833`, la
-// demi-hauteur d'un pan de 15 unités rapportée à une lettre plafonnée à 9. Les
-// deux se croisent à 0,49 d'échelle. Grossir le chiffre mord la lettre ou sort
-// du pan : `tests/test_suivi.py` relit ces deux nombres et le vérifie pan par
-// pan sur le plan réellement servi.
-export const COMPTE_ECHELLE = 0.46;
-export const COMPTE_DESCENTE = 0.59;
-
-/** L'épaisseur du halo, en fraction du corps du texte qu'il porte.
+// Le compteur ne connaît de la salle que ce que la lettre en connaît :
+// `etiquette` (le centroïde, seul point que le serveur garantit dans le pan) et
+// `taille` (le corps de la lettre, que `fiches.taille_lettre` a déjà borné par
+// la boîte du pan). Aucune géométrie n'est relue ici — c'est ce qui fait qu'un
+// plan redessiné ne casse rien.
+//
+// ⚠️ LA PASTILLE SE DIMENSIONNE SUR LA LETTRE, JAMAIS SUR SON TEXTE. C'est
+// tout le point : un socle calibré sur le libellé a une largeur que rien ne
+// borne, et il sortait du pan — c'est ce qui avait fait écarter la pose B à la
+// première maquette. Calibré sur `taille`, il hérite des bornes que le serveur
+// a déjà posées sur la lettre. Un libellé long rétrécit DANS une pastille qui,
+// elle, ne bouge pas : dix-sept pastilles identiques plutôt que dix-sept
+// tailles.
+//
+// ⚠️ ET LA PASTILLE SE REMPLIT (03/09, deuxième passe). « Je veux que seulement
+// le truc avec le nombre de blocs restant se remplisse de vert en fonction de
+// l'avancement. » La barre verte À L'INTÉRIEUR du socle est la jauge ; le cadre
+// de la zone, lui, garde son tout-ou-rien — il dit « terminée », et rien
+// d'autre. Un premier essai avait fait l'inverse : c'était le CADRE qui se
+// remplissait, épaissi et rogné dans le pan. Même phrase, autre lecture, et
+// c'est celle-ci qui vaut — les deux rendus réels sont dans
+// `maquettes/pastille.html`.
+//
+// ⚠️ LES CINQ RATIOS SONT CALCULÉS, pas choisis à l'œil, et ils se tiennent
+// tous. Ce qu'on répartit, c'est la hauteur du pan :
+//
+//     le pan       2 × 0,833 × taille   demi-hauteur d'un pan de 15 unités,
+//                                       rapportée à une lettre plafonnée à 9
+//     le halo      2 × 0,48             0,36 de glyphe (capitale grasse,
+//                                       `dominant-baseline: central`), plus la
+//                                       moitié des 0,24 d'épaisseur du halo
+//     la pastille  0,448                COMPTE_ECHELLE × PASTILLE_HAUTEUR
+//     ------------------------------------------------------------------
+//     il reste     0,258 × taille, soit TROIS AIRS DE 0,086
+//
+// Les trois airs sont ÉGAUX — au-dessus de la lettre, entre la lettre et la
+// pastille, sous la pastille. C'est la position « E — l'équilibre », choisie
+// par Adrien le 03/09 sur `maquettes/pastille.html`, et les deux ratios de
+// place en découlent :
+//
+//     LETTRE_MONTEE   = 0,833 − 0,086 − 0,48  = 0,267
+//     COMPTE_DESCENTE = 0,833 − 0,086 − 0,224 = 0,523
+//
+// ⚠️ CE QU'ON A RÉGLÉ LÀ, C'EST UN CHEVAUCHEMENT, PAS UN ESPACEMENT. La lettre
+// restait au centroïde et la pastille descendait à 0,60 : le HALO de la lettre
+// recouvrait la pastille de 0,104 × taille, près d'une unité de plan. « Là
+// c'est trop proche » ne demandait donc pas de la place en plus, mais de
+// séparer deux objets qui se touchaient. Descendre la pastille seule n'y
+// pouvait rien — il ne restait que 0,009 × taille sous elle, un cinquième de
+// pixel sur un téléphone. Toute la place libre était AU-DESSUS de la lettre, et
+// c'est là qu'on l'a prise.
+//
+// Le chiffre, lui, ne change pas de corps : 0,40 × taille, comme avant.
+// `tests/test_suivi.py` relit ces nombres et vérifie, pan par pan sur le plan
+// réellement servi, que le halo ne sort pas par le haut et que la pastille ne
+// sort ni par le bas ni par les côtés.
+export const COMPTE_ECHELLE = 0.40;
+export const COMPTE_DESCENTE = 0.523;
+export const PASTILLE_HAUTEUR = 1.12;
+/** La largeur du socle, en fraction de la taille de la LETTRE.
  *
- * La lettre l'avait en clair ; le compteur le reprend, et il n'y a donc plus
- * qu'un seul endroit à changer si le halo devient trop mince ou trop gras. */
+ * ⚠️ 1,6 et non 1,0 : depuis que la pastille porte la jauge, il lui faut de la
+ * longueur — un vert qui remplit un rond ne dit pas une proportion. Sur les
+ * pans d'Annonay ça fait 14,4 unités pour 15 : elle mord donc de 0,5 unité
+ * dans le cadre « terminée » de chaque côté, et lui passe devant. Vu sur pièce
+ * et accepté le 03/09. */
+export const PASTILLE_LARGEUR = 1.6;
+/** De combien la LETTRE monte au-dessus de son centroïde, en fraction de son
+ *  corps. C'est la place qu'on prend pour séparer la lettre de la pastille —
+ *  voir le calcul des trois airs ci-dessus. */
+export const LETTRE_MONTEE = 0.267;
+
+/** L'épaisseur du halo de la LETTRE, en fraction de son corps.
+ *
+ * Le compteur ne l'a plus : la pastille remplace le halo, et le fait mieux. */
 const HALO = 0.24;
 
 /** La largeur d'un chiffre tabulaire, en fraction de son corps.
@@ -67,18 +126,44 @@ const HALO = 0.24;
  * elle sur le PIRE glyphe : elle sert à borner, pas à décrire. */
 const LARGEUR_CHIFFRE = 0.58;
 
+/** Ce que le libellé a le droit d'occuper DANS la pastille, en fraction de sa
+ *  largeur. Le reste est la marge de part et d'autre du texte. */
+const DEDANS = 0.86;
+
 /**
  * Le corps du compteur, pour ce libellé-là.
  *
- * « 1/4 » sort à sa taille pleine ; « 12/15 » rétrécit au lieu de déborder. La
- * borne est la largeur : le libellé ne dépasse jamais une fois `taille`, ce qui
- * le garde dans le pan puisque `taille ≤ 0,94 × largeur` du pan.
+ * « 1/4 » sort à sa taille pleine ; un libellé trop long rétrécit au lieu de
+ * déborder. La borne est la largeur de la PASTILLE — c'est elle qui porte le
+ * texte, et elle est elle-même bornée par la boîte du pan via `taille`.
+ *
+ * ⚠️ Depuis que la pastille fait 1,6 fois la lettre, « 12/15 » tient à sa
+ * taille pleine alors qu'il rétrécissait avant : c'est le bénéfice direct de
+ * l'élargissement, et c'est voulu — « repasse sa taille à celle d'origine »
+ * (Adrien, 03/09). Le rétrécissement reste là pour les libellés qu'aucun
+ * élargissement raisonnable ne ferait tenir.
  */
 export function tailleDuCompte(taille, texte) {
   const corps = Number(taille) > 0 ? Number(taille) : 6;
   const n = Math.max(1, String(texte || "").length);
-  return corps * Math.min(COMPTE_ECHELLE, 1 / (LARGEUR_CHIFFRE * n));
+  return corps * Math.min(COMPTE_ECHELLE,
+                          PASTILLE_LARGEUR * DEDANS / (LARGEUR_CHIFFRE * n));
 }
+
+/**
+ * La part faite d'une zone, entre 0 et 1 — la longueur du vert dans la
+ * pastille. Rend `null` quand il n'y a rien à remplir : une zone sans bloc du
+ * circuit n'a pas de jauge, et c'est différent d'une jauge à zéro.
+ */
+export function partFaite(compte) {
+  const total = Number(compte && compte.total);
+  if (!(total > 0)) return null;
+  const faits = Number(compte && compte.faits) || 0;
+  return Math.max(0, Math.min(1, faits / total));
+}
+
+/** Le préfixe des découpes de pastille. Une par zone, nommée par sa lettre. */
+const DECOUPE = "plan-socle-";
 
 /** Un mur exploitable : une lettre pour le relier, une forme pour le dessiner. */
 function murValide(mur) {
@@ -123,19 +208,57 @@ export function decrire(plan) {
   if (!peutDessiner(plan)) return null;
 
   const enfants = [];
+  const murs = plan.murs.filter(murValide);
+
+  /** La boîte de la pastille d'un mur. Une seule source pour les trois nœuds
+   *  qui en dépendent — le socle, sa découpe et la barre qui le remplit —
+   *  parce que trois calculs de la même boîte finiraient par diverger. */
+  const boiteDuSocle = (mur) => {
+    const [x, y] = Array.isArray(mur.etiquette) ? mur.etiquette : [0, 0];
+    const taille = Number(mur.taille) > 0 ? Number(mur.taille) : 6;
+    // ⚠️ La pastille se calcule sur le corps NOMINAL de la lettre, jamais sur
+    // le corps réduit d'un libellé long : c'est le chiffre qui rentre dans le
+    // socle, pas le socle qui s'étire pour le chiffre. Sans ça, deux zones
+    // voisines porteraient deux pastilles de tailles différentes pour dire la
+    // même chose.
+    const hauteur = taille * COMPTE_ECHELLE * PASTILLE_HAUTEUR;
+    const largeur = taille * PASTILLE_LARGEUR;
+    const cy = y + taille * COMPTE_DESCENTE;
+    return { x: Number((x - largeur / 2).toFixed(2)),
+             y: Number((cy - hauteur / 2).toFixed(2)),
+             width: Number(largeur.toFixed(2)),
+             height: Number(hauteur.toFixed(2)),
+             rx: Number((hauteur / 2).toFixed(2)), cx: x, cy };
+  };
+
+  // LES DÉCOUPES DE PASTILLE, une par zone. C'est elles qui donnent au vert son
+  // BOUT DROIT : la barre est un rectangle franc, découpé dans la forme du
+  // socle, donc elle en épouse le bord arrondi à gauche et se coupe net à
+  // droite. Un rectangle arrondi de son côté ferait une petite pastille DANS la
+  // grande — on lirait deux objets au lieu d'un niveau. Choisi sur pièce le
+  // 03/09 (`maquettes/pastille.html`).
+  enfants.push({
+    tag: "defs",
+    attrs: {},
+    enfants: murs.map((mur) => {
+      const socle = boiteDuSocle(mur);
+      return {
+        tag: "clipPath",
+        attrs: { id: DECOUPE + mur.zone },
+        enfants: [{ tag: "rect", attrs: { x: socle.x, y: socle.y,
+                                          width: socle.width,
+                                          height: socle.height, rx: socle.rx } }],
+      };
+    }),
+  });
 
   if (typeof plan.contour === "string" && plan.contour.includes(",")) {
     enfants.push({ tag: "polygon", attrs: { class: "contour", points: plan.contour } });
   }
 
-  const murs = plan.murs.filter(murValide);
-
   for (const mur of murs) {
     const [x, y] = Array.isArray(mur.etiquette) ? mur.etiquette : [0, 0];
     const taille = Number(mur.taille) > 0 ? Number(mur.taille) : 6;
-    // Le corps d'un compteur de trois caractères : celui de « 1/4 », le cas
-    // courant. `decorer` le refait quand le libellé est plus long.
-    const corps = tailleDuCompte(taille, "0/0");
     enfants.push({
       tag: "g",
       // `data-zone` sur le GROUPE et non sur le polygone : l'état efface la
@@ -148,23 +271,15 @@ export function decrire(plan) {
       enfants: [
         { tag: "polygon", attrs: { class: "mur", points: mur.d } },
         { tag: "polygon", attrs: { class: "trame", points: mur.d } },
-        { tag: "text", attrs: { class: "lettre", x, y, "font-size": taille,
+        // ⚠️ LA LETTRE NE S'ÉCRIT PLUS SUR SON CENTROÏDE : elle monte de
+        // `LETTRE_MONTEE`. C'est ce qui fait la place entre son halo et la
+        // pastille — la place n'existait pas en dessous. Le centroïde reste la
+        // référence de tout le monde, personne ne le recalcule.
+        { tag: "text", attrs: { class: "lettre", x,
+                                y: Number((y - taille * LETTRE_MONTEE).toFixed(2)),
+                                "font-size": taille,
                                 "stroke-width": (taille * HALO).toFixed(2) },
           texte: mur.zone },
-        // Le compteur d'avancement est DÉCRIT VIDE et rempli par `decorer` :
-        // il dépend du grimpeur, et ce dessin-ci est le même pour tout le
-        // monde. C'est aussi ce qui le rend « en direct » sans rien
-        // reconstruire — une réussite qui arrive pendant qu'on regarde le plan
-        // ne repasse que par la décoration.
-        // `data-corps` porte le corps de la LETTRE, seule chose dont
-        // `decorer` a besoin pour redimensionner le chiffre selon sa longueur
-        // sans jamais relire la géométrie du pan.
-        { tag: "text", attrs: { class: "compte-zone", x,
-                                y: y + taille * COMPTE_DESCENTE,
-                                "data-corps": taille,
-                                "font-size": corps.toFixed(2),
-                                "stroke-width": (corps * HALO).toFixed(2) },
-          texte: "" },
       ],
     });
   }
@@ -181,6 +296,65 @@ export function decrire(plan) {
       tag: "polygon",
       attrs: { class: "cadre-zone", points: mur.d, "data-zone": mur.zone },
     })),
+  });
+
+  // ⚠️ LES COMPTEURS SONT UNE COUCHE ENCORE AU-DESSUS, et c'est la pastille de
+  // 1,6 qui l'impose : large de 14,4 unités dans un pan de 15, elle croise le
+  // cadre « terminée » de 0,5 unité de chaque côté. Peinte dessous, elle se
+  // ferait couper par lui aux deux endroits qu'on lit — ses extrémités. Elle
+  // passe donc devant, et c'est le cadre qui porte l'encoche : un décor
+  // constant, présent sur toutes les zones comptées, plutôt qu'un chiffre
+  // rogné.
+  //
+  // Le groupe reprend le `data-zone` ET le centre de rotation de son pan : il
+  // reçoit les mêmes classes d'état, et rebondit avec lui.
+  enfants.push({
+    tag: "g",
+    attrs: { class: "compteurs-zone" },
+    enfants: murs.map((mur) => {
+      const [x, y] = Array.isArray(mur.etiquette) ? mur.etiquette : [0, 0];
+      const taille = Number(mur.taille) > 0 ? Number(mur.taille) : 6;
+      const socle = boiteDuSocle(mur);
+      // Le corps d'un compteur de trois caractères : celui de « 1/4 », le cas
+      // courant. `decorer` le refait quand le libellé est plus long.
+      const corps = tailleDuCompte(taille, "0/0");
+      return {
+        tag: "g",
+        attrs: { "data-zone": mur.zone,
+                 style: "transform-origin:" + x + "px " + y + "px" },
+        enfants: [
+          // La pastille est DÉCRITE POUR TOUTES LES ZONES et cachée par le CSS
+          // sur celles qui ne portent pas de compteur (`:not(.a-compte)`). Sa
+          // géométrie ne dépend que du pan, donc elle ne change jamais : la
+          // décrire une fois évite de créer et détruire un nœud à chaque
+          // repeinture, exactement comme pour le chiffre.
+          { tag: "rect", attrs: { class: "socle-compte", x: socle.x, y: socle.y,
+                                  width: socle.width, height: socle.height,
+                                  rx: socle.rx } },
+          // LA JAUGE. Décrite VIDE — largeur nulle — et remplie par `decorer` :
+          // elle dépend du grimpeur, et ce dessin-ci est le même pour tout le
+          // monde. `data-plein` porte la largeur du socle, seule chose dont
+          // `decorer` a besoin pour en peindre une fraction sans jamais relire
+          // une géométrie.
+          { tag: "rect", attrs: { class: "remplit-compte", x: socle.x, y: socle.y,
+                                  width: 0, height: socle.height,
+                                  "data-plein": socle.width,
+                                  "clip-path": "url(#" + DECOUPE + mur.zone + ")" } },
+          // Le compteur est DÉCRIT VIDE et rempli par `decorer`, pour la même
+          // raison. C'est aussi ce qui le rend « en direct » sans rien
+          // reconstruire — une réussite qui arrive pendant qu'on regarde le
+          // plan ne repasse que par la décoration.
+          //
+          // `data-corps` porte le corps de la LETTRE, seule chose dont
+          // `decorer` a besoin pour redimensionner le chiffre selon sa longueur
+          // sans jamais relire la géométrie du pan.
+          { tag: "text", attrs: { class: "compte-zone", x, y: socle.cy,
+                                  "data-corps": taille,
+                                  "font-size": corps.toFixed(2) },
+            texte: "" },
+        ],
+      };
+    }),
   });
 
   for (const repere of plan.reperes || []) {
@@ -224,8 +398,8 @@ export function monter(description, doc) {
  * la touche pas.
  *
  * `comptes` est ce que rend `comptesDesZones` — omis, aucun compteur ne
- * s'affiche, et c'est un état normal : le mur reste exactement ce qu'il était
- * avant la spec 036.
+ * s'affiche et aucune pastille ne se remplit, et c'est un état normal : le mur
+ * reste exactement ce qu'il était avant la spec 036.
  *
  * Rend `true` si la zone visée existe dans ce plan — c'est-à-dire s'il y avait
  * bien quelque chose à montrer.
@@ -246,18 +420,33 @@ export function decorer(racine, etats, visee, comptes) {
     // posé sur une zone où il n'a plus rien à faire.
     const compte = (comptes || {})[zone];
     const texte = libelleCompte(compte);
+    // ⚠️ `a-compte` se pose sur TOUTES les formes de la zone, et pas seulement
+    // sur celle qui porte le chiffre : c'est cette classe qui allume la
+    // pastille. Une zone comptée s'allume d'un bloc, ou pas du tout.
+    if (texte) n.classList.add("a-compte");
+
     const chiffre = n.querySelector(".compte-zone");
     if (chiffre) {
       chiffre.textContent = texte;
-      chiffre.classList.remove("compte-finie");
       if (texte) {
-        n.classList.add("a-compte");
-        if (compte.faits === compte.total) chiffre.classList.add("compte-finie");
-        // Le corps suit la longueur : « 10/12 » rétrécit au lieu de déborder.
+        // Le corps suit la longueur : un libellé très long rétrécit au lieu de
+        // déborder. La PASTILLE, elle, ne bouge pas — c'est le chiffre qui
+        // rentre dans le socle, jamais le socle qui s'étire pour le chiffre.
         const corps = tailleDuCompte(chiffre.getAttribute("data-corps"), texte);
         chiffre.setAttribute("font-size", corps.toFixed(2));
-        chiffre.setAttribute("stroke-width", (corps * HALO).toFixed(2));
       }
+    }
+
+    // LA JAUGE : la pastille se remplit de vert à hauteur de l'avancement.
+    // ⚠️ Elle se REMET À ZÉRO à chaque passage, comme le chiffre. Le dessin
+    // PERSISTE tant qu'on regarde le même grimpeur, et c'est ce qui rend la
+    // fiche « en direct » : sans remise à zéro, la pastille d'un grimpeur
+    // resterait à moitié pleine sur la fiche du suivant.
+    const jauge = n.querySelector(".remplit-compte");
+    if (jauge) {
+      const part = partFaite(compte);
+      const plein = Number(jauge.getAttribute("data-plein")) || 0;
+      jauge.setAttribute("width", (part === null ? 0 : part * plein).toFixed(2));
     }
     if (zone && zone === visee) trouvee = true;
   }
