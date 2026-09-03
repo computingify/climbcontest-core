@@ -22,7 +22,7 @@
  * Le marqueur force un rechargement complet quand la forme change. Il a été
  * ajouté après être tombé exactement dans ce piège en développant.
  */
-export const FORMAT = 3;
+export const FORMAT = 4;
 
 /** « U13 F » → « U13 ». La même règle que `Participant.circuit`, côté serveur. */
 function circuitDe(categorie) {
@@ -35,19 +35,31 @@ function circuitDe(categorie) {
 
 export class Catalogue {
   /**
-   * ⚠️ Forme **3**. Chaque entrée est un objet, là où les formes 1 et 2
+   * ⚠️ Forme **4**. Chaque entrée est un objet, là où les formes 1 et 2
    * rangeaient des chaînes et une table de couleurs à côté :
    *
-   *     participants : { "42": { n: "Dupont Lea", c: "U13" } }
+   *     participants : { "42": { n: "Dupont Lea", c: "U13 F" } }
    *     blocs        : { "ZJ6": { t: "ZJ6", k: "Jaune", c: ["U11","U13"] } }
    *
    * Les clés sont courtes parce que ce JSON est stocké tel quel sur le
    * téléphone, une fois par bloc et par grimpeur.
    *
-   * On garde le **circuit** (« U13 »), jamais la catégorie complète
-   * (« U13 F ») : la remarque de `depuisReponseServeur` sur les données de
-   * mineurs entreposées sur vingt-cinq téléphones de bénévoles reste valable,
-   * et le genre n'apprend rien au test d'appartenance.
+   * ⚠️ `c` porte désormais la **catégorie complète** (« U13 F »), là où la
+   * forme 3 ne gardait que le circuit (« U13 »). Le circuit s'en **déduit**
+   * par `circuitDe()` — la même règle que `Participant.circuit` côté serveur —
+   * donc la quantité de données stockées ne bouge pas ; ce qu'elles
+   * contiennent, si.
+   *
+   * La forme 3 se justifiait par la minimisation : des données de mineurs
+   * vivent sur vingt-cinq téléphones de bénévoles, et le genre n'apprenait
+   * rien au test d'appartenance au circuit. Il apprend maintenant quelque
+   * chose : Adrien a demandé (03/09, spec 033 R10) que la **catégorie**
+   * s'affiche sur la carte du grimpeur, pour que le juge vérifie d'un coup
+   * d'œil qu'il scanne le bon. Elle voyageait déjà sur le réseau — la route
+   * sert `participant.to_dict()` en entier — elle n'était pas conservée.
+   *
+   * Ce commentaire dit la raison ET la date pour que personne ne « corrige »
+   * une régression en revenant à la forme 3.
    */
   constructor({ version = 0, participants = {}, blocs = {} } = {}) {
     this.version = version;
@@ -66,9 +78,21 @@ export class Catalogue {
     return this.parDossard.get(String(dossard ?? "").trim())?.n ?? null;
   }
 
-  /** Le circuit du grimpeur (« U13 »), ou null. */
-  circuitDuGrimpeur(dossard) {
+  /** La catégorie du grimpeur (« U13 F »), ou null.
+   *
+   *  C'est ce que le juge lit à droite de la carte : deux grimpeurs du même
+   *  circuit peuvent porter des dossards voisins, et la catégorie est ce qui
+   *  les distingue sur le papier posé devant lui. */
+  categorie(dossard) {
     return this.parDossard.get(String(dossard ?? "").trim())?.c ?? null;
+  }
+
+  /** Le circuit du grimpeur (« U13 »), ou null.
+   *
+   *  DÉDUIT de la catégorie, jamais rangé à côté : deux champs qui disent la
+   *  même chose finissent par se contredire. */
+  circuitDuGrimpeur(dossard) {
+    return circuitDe(this.categorie(dossard));
   }
 
   /** La couleur de difficulté d'un bloc, ou null — jamais une erreur. */
@@ -149,11 +173,10 @@ export class Catalogue {
    * — c'est ce qui permet de dire « ce bloc n'est pas dans son circuit »
    * **sans réseau**, avant l'envoi.
    *
-   * Ce qu'on continue de jeter : le club, l'identifiant, le numéro d'import,
-   * et surtout la **catégorie complète** (« U13 F »). On n'en garde que le
-   * circuit (« U13 ») : le genre n'apprend rien au test d'appartenance, et
-   * n'entrepose pas une donnée de plus sur les vingt-cinq téléphones de
-   * bénévoles.
+   * Ce qu'on continue de jeter : le club, l'identifiant, le numéro d'import.
+   * La **catégorie**, elle, est gardée depuis la forme 4 — le juge doit la
+   * lire pour vérifier qu'il scanne le bon grimpeur (spec 033, R10) — et le
+   * circuit s'en déduit au lieu d'être rangé à côté.
    *
    * J'avais d'abord écrit ce module en supposant que le serveur envoyait déjà
    * des dictionnaires. Résultat : le catalogue local ne correspondait jamais, et
@@ -176,9 +199,10 @@ export class Catalogue {
       const entree = { n: nom };
       // Facultatif : le classeur produit des lignes sans catégorie (risque R5)
       // et l'import les garde exprès. Le grimpeur reste scannable ; il ne
-      // déclenchera simplement aucun avertissement de circuit.
-      const circuit = circuitDe(p.categorie);
-      if (circuit) entree.c = circuit;
+      // déclenchera simplement aucun avertissement de circuit, et rien ne
+      // s'affichera à droite de sa carte.
+      const categorie = typeof p.categorie === "string" ? p.categorie.trim() : "";
+      if (categorie) entree.c = categorie;
       participants[dossard] = entree;
     }
     const blocs = {};
