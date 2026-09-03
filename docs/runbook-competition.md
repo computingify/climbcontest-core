@@ -103,6 +103,7 @@ avec leur flèche. Personne n'a besoin d'y toucher.
 | `/?mur` | le cas normal : **fond clair**, fait pour un vidéoprojecteur |
 | `/?mur&sombre` | écran LED, ou salle qu'on peut vraiment assombrir |
 | `/?mur&rotation=30` | forcer la durée d'un écran, en secondes |
+| `/?periode=5` | relire les données toutes les 5 s au lieu de 15 |
 | `/` | ce que voient les parents sur leur téléphone : recherche par nom ou dossard |
 
 ⚠️ `/resultats` **n'existe plus** (spec 016) : c'était un doublon de la racine.

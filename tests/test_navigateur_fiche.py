@@ -18,10 +18,8 @@ Le harnais est servi par l'application elle-même, sur une route qui n'existe
 que dans ce processus : le pilote doit être en MÊME ORIGINE que la page pour
 pouvoir la piloter, et on ne veut d'aucun crochet de test dans le code livré.
 """
-import json
 import os
 import shutil
-import socket
 import subprocess
 import tempfile
 import threading
@@ -33,45 +31,24 @@ import pytest
 
 RACINE = Path(__file__).resolve().parent.parent
 
-def _playwright():
-    """Les binaires Playwright installes, quel que soit leur numero de build.
+# La decouverte du navigateur vient du harnais partage. Elle y a ete recopiee
+# depuis ici -- c'est cette version-la qui cherchait les binaires Playwright par
+# motif au lieu d'un numero de build fige. Le module partage est aussi ce qui
+# declenche la CHAUFFE : un fichier qui redecouvrait chromium dans son coin
+# payait les sept secondes du premier lancement sans que personne ne le sache.
+from tests.navigateur import CHROME, port_libre                    # noqa: E402
 
-    ⚠️ Ce chemin a ete fige sur `chromium_headless_shell-1234`. Le jour ou
-    Playwright passe au build suivant, le test ne trouve plus rien et **se saute
-    en silence** : plus personne ne protege le branchement, et rien ne le dit.
-    """
-    racine = Path.home() / "Library/Caches/ms-playwright"
-    return sorted(racine.glob("chromium*/chrome-*/chrome-headless-shell")) + \
-        sorted(racine.glob("chromium*/chrome-*/Chromium"))
-
-
-def trouver_chrome():
-    candidats = [os.environ.get("CLIMBCONTEST_CHROME", "")]
-    candidats += [str(c) for c in _playwright()]
-    candidats += ["/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
-                  "chromium", "chromium-browser", "google-chrome",
-                  "google-chrome-stable"]
-    for chemin in candidats:
-        if not chemin:
-            continue
-        if os.path.isfile(chemin) and os.access(chemin, os.X_OK):
-            return chemin
-        trouve = shutil.which(chemin)
-        if trouve:
-            return trouve
-    return None
-
-
-CHROME = trouver_chrome()
 pytestmark = pytest.mark.skipif(
     CHROME is None, reason="aucun navigateur : ce test se saute, il n'echoue pas")
 
 
-def port_libre() -> int:
-    with socket.socket() as s:
-        s.bind(("127.0.0.1", 0))
-        return s.getsockname()[1]
-
+# La page relit ses donnees toutes les quinze secondes en usage reel. L'etape
+# 7 attend ce battement -- c'est SON SUJET : une fiche ouverte doit se mettre a
+# jour toute seule. Elle l'attendait pour de vrai : quinze secondes de CI, et
+# le premier rouge des qu'un runner charge en mettait seize. `?periode=` regle
+# ce battement, comme `?rotation=` regle deja le defilement de l'ecran de la
+# salle. Le battement reste le sujet du test ; seule sa valeur change.
+REGLAGE = "/?periode=0.3"
 
 # --- Le pilote : ce qu'un doigt ferait, dans l'ordre -------------------------
 #
@@ -175,7 +152,7 @@ function rendre(verdict) {
     //    devenaient inertes, la feuille restait ouverte pour toujours et
     //    `overflow: hidden` figeait le classement derriere. Seul un
     //    rechargement s'en sortait.
-    cadre.src = "/#g=" + CIBLE;
+    cadre.src = REGLAGE + "#g=" + CIBLE;
     await attendre("chargement direct", () => cadre.contentDocument
       && cadre.contentDocument.querySelector(".sf-feuille .sf-case"));
     const doc2 = cadre.contentDocument, vue2 = cadre.contentWindow;
@@ -194,7 +171,7 @@ function rendre(verdict) {
     const avant = doc2.querySelectorAll(".sf-case.grimpe").length;
     await fetch("/__reussite/" + CIBLE);
     await attendre("bloc passe au vert",
-      () => doc2.querySelectorAll(".sf-case.grimpe").length > avant, 40000);
+      () => doc2.querySelectorAll(".sf-case.grimpe").length > avant);
     note("avantReussite", avant);
     note("apresReussite", doc2.querySelectorAll(".sf-case.grimpe").length);
 
@@ -311,8 +288,10 @@ def serveur():
     def harnais():
         return Response(
             "<!doctype html><meta charset=utf-8><title>en cours</title>"
-            f"<iframe id=page src='/' style='width:900px;height:1400px;border:0'></iframe>"
-            f"<script>const CIBLE = {cible[0]};</script>"
+            f"<iframe id=page src='{REGLAGE}' "
+            f"style='width:900px;height:1400px;border:0'></iframe>"
+            f"<script>const CIBLE = {cible[0]}; "
+            f"const REGLAGE = {REGLAGE!r};</script>"
             f"<script>{PILOTE}</script>",
             mimetype="text/html")
 

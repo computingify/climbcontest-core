@@ -119,19 +119,39 @@ class TestScript:
         self._base(tmp_path)
         for _ in range(4):
             self._lancer(tmp_path, garder="2")
-            time.sleep(1.05)          # l'horodatage est a la seconde
         copies = list((tmp_path / "sauvegardes").glob("climbcontest-*.db"))
         assert len(copies) == 2, f"{len(copies)} copies conservees"
 
     def test_ce_sont_les_PLUS_RECENTES_qui_restent(self, tmp_path):
+        """On suit le nom que le script ANNONCE, pas l'ordre alphabetique.
+
+        Les trois lancements tombent dans la meme seconde, et l'ordinal qui les
+        distingue est reattribue des que la rotation libere un nom : « la plus
+        recente » est celle qui vient d'etre ecrite, pas la derniere de la
+        liste triee. C'est aussi ce que fait la rotation elle-meme (`ls -1t`).
+        """
         self._base(tmp_path)
-        noms = []
         for _ in range(3):
-            self._lancer(tmp_path, garder="1")
-            time.sleep(1.05)
-            noms += [f.name for f in (tmp_path / "sauvegardes").glob("climbcontest-*.db")]
-        restante = next((tmp_path / "sauvegardes").glob("climbcontest-*.db")).name
-        assert restante == max(noms), "la plus recente doit survivre"
+            r = self._lancer(tmp_path, garder="1")
+            derniere = Path(r.stdout.split()[1]).name
+        copies = [f.name for f in (tmp_path / "sauvegardes").glob("climbcontest-*.db")]
+        assert copies == [derniere], copies
+
+    def test_deux_sauvegardes_dans_la_meme_seconde_ne_s_ecrasent_pas(self, tmp_path):
+        """Le defaut que les `time.sleep(1.05)` de ce fichier cachaient.
+
+        L'horodatage est a la seconde. Deux appels rapproches produisaient le
+        MEME nom, et le second ecrasait le premier sans un mot -- une
+        sauvegarde avant un import et une apres, c'est une seule sauvegarde.
+        Les tests de rotation dormaient une seconde entre deux lancements pour
+        contourner ca ; ils prouvaient donc que la rotation marche QUAND les
+        noms different, et rien sur le cas ou ils ne differaient pas.
+        """
+        self._base(tmp_path)
+        for _ in range(3):
+            self._lancer(tmp_path, garder="24")   # aucune rotation en jeu
+        copies = list((tmp_path / "sauvegardes").glob("climbcontest-*.db"))
+        assert len(copies) == 3, [c.name for c in copies]
 
     def test_sans_base_le_script_ne_plante_pas(self, tmp_path):
         """Avant le premier demarrage, il n'y a rien a sauvegarder."""
