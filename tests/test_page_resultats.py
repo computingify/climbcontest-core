@@ -1053,11 +1053,27 @@ class TestLesBasculesDeLEnTete:
     def page(self, client, jeu):
         return client.get("/").data.decode()
 
-    @pytest.mark.parametrize("bouton", ["pause", "masquerRecherche"])
-    def test_l_etat_de_bascule_est_pose_des_le_depart(self, page, bouton):
+    # L'attribut doit être là DÈS LE GABARIT, et dire l'état de DÉPART de
+    # chaque bouton — qui n'est pas le même pour les deux depuis la spec 033 :
+    # la rotation part à l'arrêt (« non activé »), la recherche part masquée
+    # (« activé », puisque le bouton la masque).
+    @pytest.mark.parametrize("bouton,attendu", [("pause", "false"),
+                                                ("masquerRecherche", "true")])
+    def test_l_etat_de_bascule_est_pose_des_le_depart(self, page, bouton, attendu):
         balise = re.search(rf'<button[^>]*id="{bouton}"[^>]*>', page,
                            re.S).group(0)
-        assert 'aria-pressed="false"' in balise, balise
+        assert 'aria-pressed="%s"' % attendu in balise, balise
+
+    @pytest.mark.parametrize("bouton", ["pause", "masquerRecherche"])
+    def test_l_etat_de_bascule_dit_LA_MEME_chose_que_l_etiquette(self, page, bouton):
+        """Un attribut et une étiquette qui se contredisent pendant le
+        chargement, c'est pire que pas d'attribut."""
+        balise = re.search(rf'<button[^>]*id="{bouton}"[^>]*>', page,
+                           re.S).group(0)
+        actif = 'aria-pressed="true"' in balise
+        etiquette = re.search(r'aria-label="([^"]*)"', balise).group(1)
+        # « Afficher… » / « Faire défiler… » = le bouton DÉFAIT l'état actif.
+        assert actif == etiquette.startswith(("Afficher", "Faire")), (balise,)
 
     @pytest.mark.parametrize("bouton", ["pause", "masquerRecherche"])
     def test_chaque_bascule_se_nomme(self, page, bouton):
