@@ -81,15 +81,16 @@ SONDE_ROTATION = """
     note("depart", $$("#barre button").length);
 
     // Les classements arrivent -- c'est le passage « En cours ». La page les
-    // relit toute seule ; on n'y touche pas.
-    await attendre("classements", () => $$("#barre button").length >= 2, 40000);
+    // relit toute seule ; on n'y touche pas. Elle les relit au rythme que
+    // l'URL lui donne (`periode`), pas en quinze secondes reelles.
+    await attendre("classements", () => $$("#barre button").length >= 2);
     const groupeA = $$("#barre button[aria-current='true']")[0].dataset.groupe;
     note("groupeA", groupeA);
 
     // Et maintenant, SANS AUCUN CLIC, l'ecran doit passer au suivant.
     await attendre("rotation",
       () => { const b = $$("#barre button[aria-current='true']")[0];
-              return b && b.dataset.groupe !== groupeA; }, 30000);
+              return b && b.dataset.groupe !== groupeA; });
     note("groupeB", $$("#barre button[aria-current='true']")[0].dataset.groupe);
 """
 
@@ -180,7 +181,8 @@ def serveur():
         """Vide d'abord, puis complet : la competition qui passe « En cours ».
 
         On compte les appels plutot que de regarder l'horloge : la page relit
-        toutes les quinze secondes, et c'est CE rythme-la qu'on veut suivre.
+        a son battement, et c'est CE rythme-la qu'on veut suivre -- pas sa
+        valeur en secondes, que l'URL fixe a 0,3 s pour ce test.
         """
         appels["tardif"] += 1
         if appels["tardif"] <= 1:
@@ -258,12 +260,15 @@ class TestLeMurSeMetAJouerToutSeul:
 
     def test_la_rotation_demarre_quand_les_classements_arrivent(self, serveur):
         url, verdict, appels = serveur
-        # `rotation=1` : une seconde par catégorie au lieu de dix. Le paramètre
-        # existe déjà pour régler l'écran de la salle ; on ne l'invente pas
-        # pour le test.
+        # `rotation=1` : une seconde par catégorie au lieu de dix. `periode=0.3` :
+        # la page relit sa source trois fois par seconde au lieu d'une fois
+        # toutes les quinze. Ce test attendait ces quinze secondes pour de vrai.
+        # Les deux paramètres règlent l'écran de la salle ; on n'en invente
+        # aucun pour le test.
         rendu = piloter(
-            f"{url}/__harnais?quoi=rotation&src=/__vue%3Fsource=/__tardif%26mur%26rotation=1",
-            verdict, secondes=90)
+            f"{url}/__harnais?quoi=rotation"
+            f"&src=/__vue%3Fsource=/__tardif%26mur%26rotation=1%26periode=0.3",
+            verdict)
         mesures = _mesures(rendu)
         # Au chargement, le mur n'avait RIEN a montrer : c'est la situation qui
         # faisait renoncer la rotation pour de bon.
@@ -290,7 +295,15 @@ class TestLeReglageArriveALaVolee:
 
     def test_un_classement_rallume_revient_SANS_rechargement(self, serveur):
         url, verdict, appels = serveur
-        rendu = piloter(f"{url}/__harnais?quoi=volee", verdict, secondes=40)
+        # `periode-reglages=0.3` : la route legere repasse trois fois par
+        # seconde au lieu d'une fois toutes les trois. Ce test veut voir DEUX
+        # passages -- a 3 s fixes il attendait six secondes de vraie horloge,
+        # et c'est exactement le test que la CI voit rougir un jour de runner
+        # charge. Le parametre regle l'ecran de la salle, comme `periode` et
+        # `rotation` juste au-dessus ; on n'en invente aucun pour le test.
+        rendu = piloter(
+            f"{url}/__harnais?quoi=volee&src=/__vue%3Fperiode-reglages=0.3",
+            verdict)
         mesures = _mesures(rendu)
         avant = mesures["avant"].split(",")
         apres = mesures["apres"].split(",")

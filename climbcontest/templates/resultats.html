@@ -983,7 +983,18 @@ import { decorer, decrire, monter, peutDessiner, zonesDe }
   var SOURCE_REGLAGES = document.body.dataset.reglages || "/api/public/reglages";
   var ARCHIVE = document.body.dataset.archive || null;
 
-  var PERIODE_MS = 15000;      // rafraîchissement des données
+  // Le battement du rafraîchissement. Réglable par l'URL, exactement comme
+  // `?rotation=` plus bas et pour la même raison : ce qui n'est pas réglable
+  // ne se teste qu'en le regardant passer. Deux tests navigateur attendaient
+  // ces quinze secondes en vrai — trente secondes de CI, et le premier rouge
+  // dès qu'un runner chargé les rendait trente-deux.
+  //
+  // Le plancher n'est pas décoratif : l'adresse est publique, et `?periode=0`
+  // ferait battre la page aussi vite que le navigateur veut bien. 100 ms laisse
+  // largement la place aux 300 ms des tests.
+  var PERIODE_MS = Math.max(
+    100, parseFloat(params.get("periode")) * 1000 || 15000);
+
   // ⚠️ Les RÉGLAGES, eux, sont relus toutes les trois secondes (spec 033, R3).
   //
   // « J'active un interrupteur, par exemple scratch femme, et je regarde si à
@@ -998,7 +1009,13 @@ import { decorer, decrire, monter, peutDessiner, zonesDe }
   // wifi de la salle ne l'est pas. `/api/public/reglages` ne calcule aucun
   // classement et tient dans deux cents octets : elle, on peut la relire
   // souvent.
-  var PERIODE_REGLAGES_MS = 3000;
+  //
+  // Réglable, et pour la MÊME raison que `periode` juste au-dessus : le test
+  // qui tient ce comportement veut voir DEUX passages de la route légère. À
+  // 3 s fixes il attend six secondes de vraie horloge, et redevient le test
+  // que la CI voit rougir un jour de runner chargé. Même plancher.
+  var PERIODE_REGLAGES_MS = Math.max(
+    100, parseFloat(params.get("periode-reglages")) * 1000 || 3000);
 
   // ⚠️ DECLAREE ICI, ET PAS AVEC SES DEUX FONCTIONS quatre-vingts lignes plus
   // bas. `etat` lit le stockage au moment ou il se construit

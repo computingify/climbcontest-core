@@ -56,7 +56,13 @@ VERROU_TTL = timedelta(seconds=60)
 # Combien de temps un worker qui n'a pas le verrou attend que le detenteur ait
 # fini. Passe ce delai, il ne se contente PAS de servir : il verifie l'etat reel
 # du schema et reprend le travail si besoin (voir preparer_schema).
-ATTENTE_MAX = timedelta(seconds=10)
+#
+# Reglable, et c'est un vrai reglage, pas un crochet de test : un verrou
+# ORPHELIN encore frais (moins de 60 s, donc jamais vole) fait attendre ces dix
+# secondes en entier a chaque worker -- c'est la duree du redemarrage apres un
+# plantage, et le test qui la reproduit la payait en CI. Le defaut ne bouge pas.
+ATTENTE_MAX = timedelta(
+    seconds=float(os.environ.get("CLIMBCONTEST_ATTENTE_VERROU_S", "10")))
 
 
 def _identite() -> str:
