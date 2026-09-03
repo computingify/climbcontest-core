@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Spec 040 — le thème au choix</title>
+<style>
+  :root { color-scheme: light; }
+  body { margin: 0; padding: 32px 28px 40px;
+         font: 15px/1.55 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+         background: #F3EEE3; color: #17140F; }
+  h1 { font-size: 1.5rem; margin: 0 0 6px; }
+  .chapo { color: #6C6353; max-width: 62ch; margin: 0 0 28px; }
+  section { margin: 0 0 30px; }
+  h2 { font-size: 1.05rem; margin: 0 0 2px; }
+  section > p { color: #6C6353; margin: 0 0 12px; max-width: 70ch; }
+  .rangee { display: flex; gap: 18px; flex-wrap: wrap; }
+  figure { margin: 0; }
+  img { width: 250px; display: block; border-radius: 16px;
+        border: 1px solid #DDD3C0; box-shadow: 0 6px 20px rgba(27,26,23,.14); }
+  figcaption { font-size: .8rem; color: #77705F; margin-top: 6px; text-align: center; }
+  .preuve { border-top: 1px solid #DDD3C0; padding-top: 22px; }
+  .retenue { display: inline-block; margin: 0 0 18px; padding: 7px 14px;
+             border-radius: 999px; background: #1F7A45; color: #FFF;
+             font-size: .85rem; }
+  h2 em { font-style: normal; color: #1F7A45; }
+</style>
+</head>
+<body>
+<h1>Spec 040 — le thème au choix dans les Réglages</h1>
+<p class="retenue">Variante <b>B</b> retenue par Adrien le 03/09/2026.</p>
+<p class="chapo">L'application juge réelle, 390 × 844, écran Réglages. Trois façons de poser le même réglage. Le téléphone est en clair sur la première rangée, en sombre sur la seconde — dans les deux cas le juge n'a encore rien touché.</p>
+<section><h2>A — Un interrupteur</h2><p>« Thème sombre », la même case que « Garder le grimpeur ». Deux positions : on ne peut plus revenir à « suis le téléphone ».</p><div class="rangee"><figure><img src="captures/clair-A.png" alt="téléphone en clair"><figcaption>téléphone en clair</figcaption></figure><figure><img src="captures/sombre-A.png" alt="téléphone en sombre"><figcaption>téléphone en sombre</figcaption></figure></div></section>
+<section><h2>B — Trois pastilles <em>— retenue</em></h2><p>Système / Clair / Sombre. « Système » garde le défaut de la spec 039, et reste atteignable après coup : c'est ce qu'un interrupteur à deux positions ne sait pas faire.</p><div class="rangee"><figure><img src="captures/clair-B.png" alt="téléphone en clair"><figcaption>téléphone en clair</figcaption></figure><figure><img src="captures/sombre-B.png" alt="téléphone en sombre"><figcaption>téléphone en sombre</figcaption></figure></div></section>
+<section><h2>C — Deux pastilles</h2><p>Clair / Sombre, avec l'icône. Le plus direct, mais pas de retour au réglage du téléphone.</p><div class="rangee"><figure><img src="captures/clair-C.png" alt="téléphone en clair"><figcaption>téléphone en clair</figcaption></figure><figure><img src="captures/sombre-C.png" alt="téléphone en sombre"><figcaption>téléphone en sombre</figcaption></figure></div></section>
+<section class="preuve"><h2>Ce que ça donne quand le juge impose</h2><p>Le mécanisme, capturé sur la variante B : le téléphone dit une chose, le réglage en impose une autre — et c'est le réglage qui gagne.</p><div class="rangee"><figure><img src="captures/force-sombre.png" alt="téléphone en clair, « Sombre » choisi"><figcaption>téléphone en clair, « Sombre » choisi</figcaption></figure><figure><img src="captures/force-clair.png" alt="téléphone en sombre, « Clair » choisi"><figcaption>téléphone en sombre, « Clair » choisi</figcaption></figure></div></section>
+</body>
+</html>
