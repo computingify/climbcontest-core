@@ -239,9 +239,11 @@ export function decorer(racine, etats, visee, comptes) {
     for (const classe of classesDeZone(zone, etats || {}, visee)) {
       n.classList.add(classe);
     }
-    // ⚠️ Le compteur se REMET À ZÉRO à chaque passage, comme les classes. Sans
-    // ça, changer de grimpeur laisserait le chiffre du précédent sur une zone
-    // que le nouveau ne visite pas.
+    // ⚠️ Le compteur se REMET À ZÉRO à chaque passage, comme les classes. Le
+    // dessin PERSISTE tant qu'on regarde le même grimpeur, et c'est ce qui rend
+    // la fiche « en direct » : si un bloc quitte son circuit entre deux
+    // rafraîchissements, le chiffre de sa zone doit disparaître, pas rester
+    // posé sur une zone où il n'a plus rien à faire.
     const compte = (comptes || {})[zone];
     const texte = libelleCompte(compte);
     const chiffre = n.querySelector(".compte-zone");

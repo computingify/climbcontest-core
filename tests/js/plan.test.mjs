@@ -337,10 +337,11 @@ test("une zone SANS bloc du circuit ne porte aucun compteur", () => {
   assert.equal(compteAffiche(racine, "Z").zone.includes("a-compte"), true);
 });
 
-test("un compteur ne survit pas au grimpeur suivant", () => {
+test("un compteur ne survit pas à la décoration suivante", () => {
   // ⚠️ Le DESSIN PERSISTE d'une repeinture à l'autre — c'est ce qui permet la
-  // transition. Sans remise à zéro, le « 1/4 » du grimpeur précédent resterait
-  // posé sur une zone où le suivant n'a rien à faire.
+  // transition, et ce qui rend la fiche « en direct ». Sans remise à zéro, un
+  // bloc qui quitte le circuit entre deux rafraîchissements laisserait son
+  // « 1/4 » posé sur une zone où le grimpeur n'a plus rien à faire.
   const racine = monter(decrire(plan()), faireDocument());
   decorer(racine, { Z: "reste", M: "finie" }, null, COMPTES);
   decorer(racine, { M: "reste" }, null, { M: { total: 3, faits: 0 } });
