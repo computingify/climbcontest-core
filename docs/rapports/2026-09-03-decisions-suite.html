@@ -510,20 +510,29 @@
   ];
 
   function refaire() {
-    var lignes = ["Décisions du 03/09 — la suite", ""];
-    QUESTIONS.forEach(function (q) {
-      var coche = document.querySelector('input[name="' + q[0] + '"]:checked');
-      lignes.push(q[1] + " : " + (coche
-        ? (coche.dataset.libelle || coche.value)
-        : "— pas encore tranché —"));
-    });
-    // E2 ne veut rien dire si le cadre ne se remplit pas : on le dit plutot que
-    // de laisser une reponse qui ne s'appliquera jamais.
+    // ⚠️ On compose une REPONSE PAR QUESTION, puis on rend. La version
+    // precedente ecrasait `lignes[2]` pour poser le « sans objet » de E2 --
+    // sauf que `lignes[2]` est E1, l'en-tete occupant les deux premieres
+    // places. Resultat : la reponse a E1 disparaissait du bloc et E2
+    // apparaissait deux fois. Trouve par Adrien en me collant son recap.
+    //
+    // La lecon : on ne designe pas une ligne par sa POSITION dans un tableau
+    // qu'on vient de construire ; on la designe par sa CLE.
     var e1 = document.querySelector('input[name="e1"]:checked');
-    if (e1 && ["R1", "R1b", "R2"].indexOf(e1.value) === -1) {
-      lignes[2] = "036 · E2 · d'où part la jauge : sans objet (pas de jauge de contour)";
-    }
-    document.getElementById("texteRecap").value = lignes.join("\n");
+    var jauge = e1 && ["R1", "R1b", "R2"].indexOf(e1.value) !== -1;
+
+    var lignes = QUESTIONS.map(function (q) {
+      if (q[0] === "e2" && !jauge) {
+        return q[1] + " : sans objet (pas de jauge de contour)";
+      }
+      var coche = document.querySelector('input[name="' + q[0] + '"]:checked');
+      return q[1] + " : " + (coche
+        ? (coche.dataset.libelle || coche.value)
+        : "— pas encore tranché —");
+    });
+
+    document.getElementById("texteRecap").value =
+      ["Décisions du 03/09 — la suite", ""].concat(lignes).join("\n");
   }
 
   document.addEventListener("change", function (e) {
