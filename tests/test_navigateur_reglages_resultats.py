@@ -112,8 +112,18 @@ SONDE_A_LA_VOLEE = """
     note("recharge", vue().__marqueur !== 33);
 """
 
+# ⚠️ ON ATTEND LA BARRE, PAS LE BOUTON. `#pause` existe des que le gabarit est
+# analyse, mais sa classe est posee par le script, tout en bas de la page. Sur
+# une CI lente, mesurer des que le bouton EXISTE lisait l'etat d'avant le
+# script : le test passait sur un Mac et tombait sur `ubuntu-latest`, en
+# annoncant l'inverse du defaut qu'il surveille.
+#
+# La barre, elle, n'apparait qu'une fois la charge revenue -- donc bien apres
+# que le script ait tourne. C'est le seul point d'observation honnete.
+PRETE = '() => $$("#barre button").length > 1'
+
 SONDE_LECTURE = """
-    await attendre("le bouton", () => !!$("#pause"));
+    await attendre("la page prete", %(prete)s);
     // Hors du mur, la page part a l'arret : c'est le defaut historique.
     note("audepart", $("#pause").classList.contains("arretee"));
 
@@ -125,9 +135,10 @@ SONDE_LECTURE = """
     vue().__avantRechargement = true;
     vue().location.reload();
     await attendre("la page revient",
-      () => vue().__avantRechargement === undefined && !!$("#pause"), 20000);
+      () => vue().__avantRechargement === undefined, 25000);
+    await attendre("la page reprete", %(prete)s, 25000);
     note("apresrechargement", $("#pause").classList.contains("arretee"));
-"""
+""" % {"prete": PRETE}
 
 SONDES = {
     "rotation": SONDE_ROTATION,
