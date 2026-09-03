@@ -563,6 +563,50 @@ def reussites_inenvoyables() -> int:
 #: presque toujours un juge bloque : batterie, wifi, ou application fermee.
 SILENCE_S = 600
 
+#: Le nombre de caracteres d'`appareil_id` qui suffisent a distinguer les
+#: telephones d'une competition. Huit caracteres d'UUID, c'est ce que
+#: l'application affiche deja dans ses reglages et ce que la colonne
+#: « Identifiant » de la console montre : le juge peut donc LIRE le meme code
+#: sur son ecran et le dicter par radio.
+CODE_APPAREIL_CARACTERES = 8
+
+
+def libelle_poste(nom: str | None, appareil_id: str | None) -> str | None:
+    """Comment un poste se nomme dans la console : « Zone A (3f9a1c2b) ».
+
+    ⚠️ **PLUSIEURS TELEPHONES PEUVENT PORTER LE MEME NOM**, et c'est desormais
+    la norme, pas l'accident. Depuis la spec 034, un poste se nomme en scannant
+    le carton pose sur la table : deux juges affectes a la meme zone scannent
+    le MEME carton, et leurs deux telephones s'appellent « Zone A ». Adrien, le
+    03/09 : « il peut y avoir plusieurs telephones par zone [...] ce que je
+    veux, c'est que tu sois capable de les distinguer cote console ».
+
+    Deux lignes « Zone A » cote a cote ne disent pas laquelle est laquelle. Le
+    code court les separe -- et il n'invente RIEN : `appareil_id` est l'UUID
+    que `static/juge/identite.js` pose sur chaque telephone depuis la spec 011,
+    et que la vue « Telephones » affiche deja dans sa colonne « Identifiant ».
+    Ce qui manquait n'etait pas une donnee, c'etait de la LISIBILITE.
+
+    ⚠️ **UNE SEULE FONCTION COMPOSE CE LIBELLE**, et toutes les vues de la
+    console l'appellent -- « Qui envoie quoi », la colonne « Telephone » de la
+    recherche de scans, et ce qui viendra. La forme exacte (parentheses, tiret,
+    code devant ou derriere) est en cours d'arbitrage : elle doit rester une
+    modification d'un seul endroit.
+
+    Rend `None` quand il n'y a pas d'appareil du tout -- une saisie manuelle
+    n'en a pas, et lui en inventer un serait faux. L'appelant sait quoi dire a
+    la place (« saisie de adrien »).
+    """
+    code = str(appareil_id or "").strip()[:CODE_APPAREIL_CARACTERES]
+    propre = str(nom or "").strip()
+    if not code:
+        return propre or None
+    if not propre:
+        # Un telephone qui envoie sans s'etre nomme. Le code seul serait
+        # illisible ; « Sans nom » seul se confondrait avec les autres.
+        return f"Sans nom ({code})"
+    return f"{propre} ({code})"
+
 
 def appareils(comp: Competition, maintenant: datetime | None = None) -> list[dict]:
     """Les telephones vus sur cette competition, du plus recent au plus ancien.
@@ -610,6 +654,9 @@ def appareils(comp: Competition, maintenant: datetime | None = None) -> list[dic
             "derniere_le": derniere.isoformat() if derniere else None,
             "silence_s": round(silence) if silence is not None else None,
             "silencieux": silence is not None and silence >= SILENCE_S,
+            # Le nom SUIVI du code court : deux juges d'une meme zone scannent
+            # le meme carton et portent le meme nom. Voir `libelle_poste`.
+            "libelle": libelle_poste(dernier_nom, identifiant),
         })
 
     resultat.sort(key=lambda a: a["derniere_le"] or "", reverse=True)
@@ -645,6 +692,10 @@ def reussites_tracees(comp: Competition, ref: str | None = None,
         "ref_client": r.ref_client,
         "appareil_id": r.appareil_id,
         "appareil_nom": r.appareil_nom,
+        # Le meme libelle que dans « Qui envoie quoi », compose au meme
+        # endroit : deux vues qui nommeraient un poste differemment obligeraient
+        # a faire la correspondance de tete, au pire moment.
+        "appareil_libelle": libelle_poste(r.appareil_nom, r.appareil_id),
         "grimpeur": r.participant.nom_complet if r.participant else None,
         "dossard": r.dossard_scanne,
         "bloc": r.bloc.tag if r.bloc else None,

@@ -48,8 +48,10 @@ qu'on ne met pas à jour le matin d'une compétition :
   invisible depuis l'écran principal, dans une application qu'on ouvre pour
   scanner : personne ne le faisait, et quand c'était fait, deux téléphones du
   même mur portaient deux noms différents.
-  - Le QR porte **`CCPOSTE:` + le nom de la zone**. Le préfixe n'est pas
-    décoratif : le même viseur voit aussi les dossards (`42`), les blocs
+  - Le QR porte **`CCPOSTE:` + la lettre de la zone**, et c'est
+    **l'application qui compose le libellé** — « Zone A ». Un QR minimal se lit
+    mieux, et le jour où le libellé change, on ne réimprime pas dix-sept
+    affiches. Le préfixe, lui, n'est pas décoratif : le même viseur voit aussi les dossards (`42`), les blocs
     (`ZJ6`) et le lien de l'organisateur. Sans lui, un bloc scanné par erreur
     depuis cet écran renommerait le poste « ZJ6 » **sans que personne le
     voie**, et la console afficherait « ZJ6 » en face de tous les envois de la
@@ -58,12 +60,25 @@ qu'on ne met pas à jour le matin d'une compétition :
     ouvrirait un navigateur, et le juge se retrouverait hors de son
     application, dans une instance sans file d'attente.
   - **Une nouvelle page `/admin/postes`** dans la console (vue Téléphones) :
-    une affiche par zone, **trois par A4**, QR de 70 mm généré localement. Les
-    zones se déduisent du **plan courant**, jamais d'une liste tenue à la main :
-    un mur ajouté dans « Dessiner le plan du mur » sort son QR à l'impression
-    suivante. C'est la seule page d'impression qui marche **sans compétition
-    active** — on imprime ces cartons la veille au soir, avant l'import du
-    classeur.
+    une affiche par zone, **huit par A4** en deux colonnes, QR de 48 mm généré
+    localement — six millimètres au-dessus du plancher mesuré des étiquettes de
+    blocs. Les 17 zones tiennent sur **3 feuilles**. La densité est **une
+    constante nommée** dont descend toute la géométrie : repasser à six est une
+    valeur à changer, pas une refonte du CSS. Les zones se déduisent du **plan
+    courant**, jamais d'une liste tenue à la main : un mur ajouté dans
+    « Dessiner le plan du mur » sort son QR à l'impression suivante. C'est la
+    seule page d'impression qui marche **sans compétition active** — on imprime
+    ces cartons la veille au soir, avant l'import du classeur.
+  - **Le carton ne porte pas de mode d'emploi**, et c'est l'application qui le
+    donne : tant qu'un téléphone n'a pas de poste, son **écran d'accueil**
+    affiche un petit texte et le bouton qui scanne, puis les efface dès que le
+    poste est nommé. Un mode d'emploi imprimé se lit une fois, quand on n'en a
+    pas besoin. Le geste reste ensuite dans les Réglages.
+  - **Deux téléphones peuvent porter le même nom**, et c'est désormais la
+    norme : deux juges sur la même zone scannent le même carton. La console les
+    distingue par le **code court de l'appareil** — « Zone A (3f9a1c2b) » —
+    partout où un poste est nommé. Rien de nouveau n'est stocké : c'est
+    l'identifiant que chaque téléphone porte depuis la spec 011, rendu lisible.
   - Le préfixe est écrit **deux fois**, en Python et en JavaScript. Un test lit
     `poste.js` et le compare à `fiches.PREFIXE_QR_POSTE` : le jour où les deux
     divergent, tous les QR imprimés cesseraient d'être lus sans qu'une ligne ait
