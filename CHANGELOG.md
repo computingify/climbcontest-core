@@ -17,6 +17,64 @@ qu'on ne met pas à jour le matin d'une compétition :
 - **MINEUR** — nouvelle fonctionnalité, compatible.
 - **CORRECTIF** — correction, compatible.
 
+## [Non publié]
+
+### Corrigé
+
+- **Le bouton « Installer » de la console n'a jamais pu fonctionner**, depuis
+  qu'il existe (spec 031, v0.17.0). Il répondait « Le service de déploiement n'a
+  pas pu être démarré » **à tous les coups**. Découvert le 03/09 au premier vrai
+  clic, en installant la 0.18.0.
+
+  L'application lançait
+  `sudo -n systemctl start --no-block climbcontest-deploy.service`. La règle
+  sudoers l'autorisait mot pour mot, l'appel était correct — et il ne pouvait
+  pas aboutir : `climbcontest.service` tourne avec **`NoNewPrivileges=true`**,
+  qui interdit à ses processus de gagner des privilèges par un binaire
+  **setuid**. `sudo` en est un. Le drapeau ne se contourne pas depuis
+  l'intérieur : c'est exactement son rôle.
+
+  ```
+  $ systemd-run --uid=climbcontest -p NoNewPrivileges=yes /usr/bin/sudo -n -l
+  sudo: The "no new privileges" flag is set, which prevents sudo
+        from running as root.
+  ```
+
+  La vérification du 03/09 avait pourtant « rejoué le chemin exact du bouton ».
+  Elle rejouait la même **commande**, depuis un shell de connexion — pas depuis
+  le **contexte** durci du service. C'est tout l'écart, et il valait le bouton.
+
+  À la place, plus aucune élévation de privilège ne traverse l'application :
+  elle **écrit un fichier** (`shared/deploiement-demande`, le seul chemin que
+  `ReadWritePaths` lui laisse), et une nouvelle unité
+  **`climbcontest-deploy.path`** — qui, elle, appartient à root — démarre
+  l'agent en le voyant changer. Le durcissement est conservé **en entier** ;
+  c'est la quatrième règle sudoers, devenue sans objet, qui est retirée.
+
+  `PathChanged` et non `PathExists`, pour deux raisons distinctes : un second
+  clic réécrit le même fichier — `PathExists` ne se déclenche qu'à l'apparition,
+  et le bouton n'aurait marché qu'une fois ; et une demande qui traîne
+  relancerait l'agent **au démarrage de la machine**, c'est-à-dire une
+  installation automatique le matin d'une compétition, exactement ce que la
+  spec 031 a supprimé.
+
+  ⚠️ **Ce que les tests d'alors prouvaient** : ils remplaçaient
+  `subprocess.run` par un leurre. Ils vérifiaient qu'on **appelait** `sudo` —
+  la seule chose qui, en production, ne pouvait pas marcher. Un test qui simule
+  la partie qui casse ne surveille rien. Ils exercent désormais le vrai
+  mécanisme sur un vrai dossier, et
+  `tests/test_deploiement_sans_privileges.py` tient le contrat entre les trois
+  fichiers que personne ne lit ensemble : aucun module de l'application ne
+  lance de processus tant que son unité porte `NoNewPrivileges=true`, le chemin
+  écrit est celui qui est surveillé, et il est sous un `ReadWritePaths`.
+  Vérifié rouge sur le code d'avant.
+
+  🔧 **Geste à faire une fois sur la VM 110** : les unités systemd ne voyagent
+  pas dans une release. Poser et activer le guetteur, en root —
+  `install -m 0644 climbcontest-deploy.path /etc/systemd/system/`,
+  `systemctl daemon-reload`, `systemctl enable --now climbcontest-deploy.path`.
+  Tant que ce n'est pas fait, le bouton dépose sa demande et rien ne l'écoute.
+
 ## [0.18.0] — 2026-09-03
 
 ### Modifié

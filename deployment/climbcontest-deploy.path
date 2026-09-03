@@ -1,0 +1,26 @@
+[Unit]
+Description=Demande d'installation deposee par la console ClimbContest
+Documentation=https://github.com/computingify/climbcontest-core/blob/master/specs/031-deploiement-depuis-la-console/spec.md
+
+[Path]
+# C'est CETTE unite qui remplace l'appel `sudo` de l'application, retire le
+# 2026-09-03. `climbcontest.service` tourne avec NoNewPrivileges=true : aucun
+# de ses processus ne peut s'elever par un binaire setuid, donc `sudo` ne
+# pouvait pas aboutir -- la regle sudoers etait juste, et sans effet.
+#
+# Ici, l'application ECRIT un fichier dans le seul dossier qu'elle a le droit
+# d'ecrire (ReadWritePaths=/opt/climbcontest/shared), et systemd -- qui, lui,
+# est root -- demarre l'agent. Aucune elevation de privilege ne traverse
+# l'application.
+#
+# PathChanged et NON PathExists, pour deux raisons :
+#   1. un second clic reecrit le MEME fichier ; PathExists ne se declenche
+#      qu'a l'apparition et resterait muet, le bouton ne marcherait qu'une fois.
+#   2. PathExists redemarrerait l'agent AU DEMARRAGE de la machine si un
+#      fichier de demande trainait -- une installation automatique le matin
+#      d'une competition, exactement ce que la spec 031 a supprime.
+PathChanged=/opt/climbcontest/shared/deploiement-demande
+Unit=climbcontest-deploy.service
+
+[Install]
+WantedBy=paths.target

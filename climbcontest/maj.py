@@ -17,7 +17,6 @@ retour arrière vérifié.
 import json
 import logging
 import os
-import subprocess
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
@@ -67,6 +66,21 @@ def _base() -> Path | None:
     if racine.parent.name == "releases":
         return racine.parent.parent
     return None
+
+
+#: Le fichier que la console dépose pour demander une installation.
+#
+# ⚠️ Il vit dans `shared/`, et ce n'est pas un rangement : c'est le SEUL endroit
+# que `climbcontest.service` a le droit d'écrire
+# (`ReadWritePaths=/opt/climbcontest/shared`). Tout le reste de `/opt` est en
+# lecture seule sous `ProtectSystem=strict`.
+NOM_DEMANDE = "deploiement-demande"
+
+
+def _demande() -> Path | None:
+    """Où déposer la demande d'installation. `None` hors d'une release."""
+    base = _base()
+    return base / "shared" / NOM_DEMANDE if base else None
 
 
 def _lire(nom: str) -> str | None:
@@ -274,13 +288,31 @@ def _installation_en_cours(version_en_service: str) -> dict | None:
 
 
 def installer(tag: str, par: str | None = None) -> dict:
-    """Démarre `climbcontest-deploy.service` et rend la main immédiatement.
+    """Dépose une demande d'installation, et rend la main immédiatement.
 
-    ⚠️ `--no-block`, et ce n'est pas un détail : l'agent de déploiement
-    **redémarre l'application**, c'est-à-dire le processus qui traite cette
-    requête. Attendre la fin du service, ce serait attendre sa propre mort — la
-    console n'aurait jamais de réponse et afficherait une erreur sur un
-    déploiement parti correctement.
+    ⚠️ **Ce module ne peut PAS démarrer un service, et n'essaiera plus.**
+    Jusqu'au 2026-09-03 il lançait
+    `sudo -n systemctl start --no-block climbcontest-deploy.service`. La règle
+    sudoers était juste, l'appel était juste, et il ne pouvait pas aboutir :
+    `climbcontest.service` tourne avec `NoNewPrivileges=true`, qui interdit à
+    ses processus de gagner des privilèges par un binaire **setuid** — et
+    `sudo` en est un. Le drapeau ne se contourne pas depuis l'intérieur, c'est
+    exactement son rôle. Le bouton répondait donc « Le service de déploiement
+    n'a pas pu être démarré » à tous les coups, depuis la v0.17.0, sans qu'on
+    le sache : personne n'avait encore cliqué pour de vrai.
+
+    À la place : on **écrit un fichier** dans `shared/`, le seul chemin
+    accessible en écriture, et `climbcontest-deploy.path` — une unité systemd
+    qui, elle, appartient à root — démarre l'agent en voyant ce fichier
+    changer. Aucune élévation de privilège, tout le durcissement conservé.
+
+    On ne rend PAS la main plus tard : l'agent de déploiement **redémarre
+    l'application**, c'est-à-dire le processus qui traite cette requête.
+    Attendre, ce serait attendre sa propre mort — la console n'aurait jamais de
+    réponse et afficherait une erreur sur un déploiement parti correctement.
+
+    Rien n'est stocké sur l'issue : elle se lit, dans `VERSION` et
+    `.failed-tag` (voir `_installation_en_cours`).
     """
     blocage = _blocage()
     if blocage:
@@ -298,15 +330,17 @@ def installer(tag: str, par: str | None = None) -> dict:
             {"tag": verification["tag"], "demandee_le": _maintenant()}, par=par)
     logger.info("installation de %s demandee par %s", verification["tag"], par or "?")
 
+    demande = _demande()
+    if demande is None:
+        raise ErreurMaj("Version de développement : rien à installer ici.", code=500)
     try:
-        subprocess.run(
-            ["sudo", "-n", "/bin/systemctl", "start", "--no-block",
-             "climbcontest-deploy.service"],
-            check=True, capture_output=True, timeout=20,
-        )
-    except (subprocess.SubprocessError, OSError) as e:
-        detail = getattr(e, "stderr", b"") or b""
-        logger.error("demarrage de climbcontest-deploy : %s %s", e, detail[:200])
-        raise ErreurMaj("Le service de déploiement n'a pas pu être démarré.", code=500)
+        demande.parent.mkdir(parents=True, exist_ok=True)
+        demande.write_text(
+            json.dumps({"tag": verification["tag"], "par": par or "?",
+                        "demandee_le": _maintenant()}),
+            encoding="utf-8")
+    except OSError as e:
+        logger.error("depot de la demande de deploiement : %s", e)
+        raise ErreurMaj("La demande d'installation n'a pas pu être déposée.", code=500)
 
     return {"tag": verification["tag"], "etat": "en_cours"}
