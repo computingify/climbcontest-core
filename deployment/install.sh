@@ -70,19 +70,21 @@ install -o root -g root -m 0755 "$ICI/climbcontest-sauvegarde" /usr/local/bin/
 echo "== unites systemd =="
 install -m 0644 "$ICI/climbcontest.service"        /etc/systemd/system/
 install -m 0644 "$ICI/climbcontest-deploy.service" /etc/systemd/system/
-install -m 0644 "$ICI/climbcontest-deploy.timer"   /etc/systemd/system/
 install -m 0644 "$ICI/climbcontest-sauvegarde.service" /etc/systemd/system/
 install -m 0644 "$ICI/climbcontest-sauvegarde.timer"   /etc/systemd/system/
 systemctl daemon-reload
 
 # Le service applicatif est active mais PAS demarre : il n'y a pas encore de
-# release. Le timer s'en chargera au premier tick.
+# release. climbcontest-deploy.service est un oneshot SANS minuteur : il est
+# declenche a la demande, depuis la console ou a la main (spec 031). Le tirage
+# automatique toutes les 2 min a ete retire le 2026-09-03 -- il consommait la
+# moitie du quota GitHub anonyme (60 requetes/h par adresse IP publique) et
+# deployait sans que personne ne l'ait demande.
 systemctl enable climbcontest.service >/dev/null
-systemctl enable --now climbcontest-deploy.timer >/dev/null
 systemctl enable --now climbcontest-sauvegarde.timer >/dev/null
 
 echo
 echo "Socle en place."
-echo "  Le timer verifiera la derniere release dans une minute."
+echo "  Premier deploiement :  sudo systemctl start climbcontest-deploy.service"
 echo "  Suivre :  journalctl -t climbcontest-deploy -f"
 echo "  Etat   :  systemctl status climbcontest"
