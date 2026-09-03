@@ -420,6 +420,19 @@
   }
   .teinte.dif i { border-radius: 50%; }
   .teinte.prises i { border-radius: 3px; }
+  /* Le nom de la couleur ne se lit plus a l'ecran : il reste dans `title` et
+     ici, pour les lecteurs d'ecran. `clip-path` plutot que `display:none`,
+     qui l'aurait retire de l'arbre d'accessibilite avec le reste. */
+  .lu-seulement {
+    position: absolute; width: 1px; height: 1px; margin: -1px;
+    padding: 0; border: 0; overflow: hidden; white-space: nowrap;
+    clip-path: inset(50%);
+  }
+  /* Une pastille seule n'a plus besoin d'une colonne de mot : la table rend
+     aux circuits et aux categories ce que les deux colonnes de couleur
+     prenaient. */
+  td.cellule-teinte { width: 1%; text-align: center; }
+  td.cellule-teinte .teinte { gap: 0; }
   .teinte.inconnue i {
     border-style: dashed;
     background: repeating-linear-gradient(45deg, transparent, transparent 3px,
@@ -1296,12 +1309,19 @@
               <i>Tu écris tes propres phrases.</i></span></label>
         </fieldset>
 
-        <h3 class="titre-bloc">La règle — une phrase par cas</h3>
-        <div id="reglesCascade"></div>
-        <!-- Le controle se recalcule a chaque clic : sans `aria-live`, il est
-             muet pour qui ecoute la page. -->
-        <div id="controleCascade" aria-live="polite"></div>
-        <div id="apercuCascade"></div>
+        <!-- ⚠️ Les phrases, le controle et l'apercu sont ENVELOPPES : sans
+             cascade, il n'y a pas de regle a ecrire, et la carte offrait quand
+             meme « + Ajouter une règle » sous un titre qui ne s'appliquait a
+             rien. Demande d'Adrien (02/09). Un seul `hidden` sur le groupe,
+             plutot que trois : ils apparaissent et disparaissent ensemble. -->
+        <div id="blocRegleCascade">
+          <h3 class="titre-bloc">La règle — une phrase par cas</h3>
+          <div id="reglesCascade"></div>
+          <!-- Le controle se recalcule a chaque clic : sans `aria-live`, il est
+               muet pour qui ecoute la page. -->
+          <div id="controleCascade" aria-live="polite"></div>
+          <div id="apercuCascade"></div>
+        </div>
 
         <h3 class="titre-bloc">Où elle s'applique — comme l'interrupteur du
           classeur, catégorie par catégorie</h3>
@@ -2052,21 +2072,39 @@
     "marron": "#8B5E3C", "turquoise": "#2FB3B3", "fluo": "#C8F02A"
   };
 
-  /** Une cellule « pastille + nom ». `famille` vaut « dif » ou « prises ». */
+  /** Une cellule de couleur : LA PASTILLE SEULE. `famille` vaut « dif » ou
+   *  « prises ».
+   *
+   *  ⚠️ Le nom ecrit a cote a disparu (Adrien, 02/09 : « retire le texte pour
+   *  la difficulté et les prises, je ne veux conserver que la pastille de
+   *  couleur »). Deux colonnes de mots repetes soixante fois poussaient
+   *  « Circuits » et « Catégories » hors de l'ecran, alors que c'est ce que la
+   *  vue sert a verifier.
+   *
+   *  Le nom n'est pas PERDU pour autant : il reste dans `title` -- donc au
+   *  survol -- et dans un texte lu par les lecteurs d'ecran. Une pastille
+   *  seule, sans son nom accessible, serait une information reservee a ceux
+   *  qui distinguent les couleurs. */
   function celluleTeinte(nom, famille) {
     var td = document.createElement("td");
-    if (!nom) { td.textContent = "—"; return td; }
+    td.className = "cellule-teinte";
+    if (!nom) {
+      td.textContent = "—";
+      return td;
+    }
     var span = document.createElement("span");
     var hexa = TEINTES[String(nom).trim().toLowerCase()];
     span.className = "teinte " + famille + (hexa ? "" : " inconnue");
+    // textContent/title : ces noms viennent du classeur, saisis a la main.
+    span.title = nom;
     var pastille = document.createElement("i");
     if (hexa) pastille.style.setProperty("--teinte", hexa);
     pastille.setAttribute("aria-hidden", "true");
     span.appendChild(pastille);
-    var texte = document.createElement("span");
-    // textContent : ces noms viennent du classeur, saisis a la main.
-    texte.textContent = nom;
-    span.appendChild(texte);
+    var lu = document.createElement("span");
+    lu.className = "lu-seulement";
+    lu.textContent = nom;
+    span.appendChild(lu);
     td.appendChild(span);
     return td;
   }
@@ -2838,7 +2876,21 @@
   var cascade = {
     regles: [], eteintes: [], categories: [], circuits: [], couleurs: [],
     reference: [], apercu: { circuit: null, pleines: {} },
-    charge: false, modifie: false
+    charge: false, modifie: false,
+    // ⚠️ L'INTENTION, que les regles seules ne portent pas.
+    //
+    // Le bouton coche etait DEDUIT des phrases : vide -> « aucune », egales a
+    // celles du classeur -> « classeur », sinon -> « sur mesure ». Cliquer
+    // « Sur mesure » en venant de « Comme le classeur » ne changeait alors
+    // aucune phrase, la deduction rendait toujours « classeur », et le bouton
+    // se decochait sous le doigt. Il fallait repasser par « Aucune cascade »
+    // pour y arriver -- signale par Adrien le 02/09.
+    //
+    // Partir des phrases du classeur pour les retoucher est le cas NORMAL :
+    // c'est une intention, elle ne se lit pas dans les phrases, elle se
+    // memorise. L'avertissement, lui, reste calcule sur les phrases : il dit
+    // si le classeur saura suivre, pas ce qu'on a coche.
+    surMesure: false
   };
 
   function rangCouleur(nom) { return cascade.couleurs.indexOf(nom); }
@@ -3328,15 +3380,26 @@
 
   function majPresetsCascade() {
     var quoi = !cascade.regles.length ? "aucune"
-             : (memesRegles(cascade.regles, cascade.reference) ? "classeur" : "mesure");
+             : (cascade.surMesure ? "mesure"
+                : (memesRegles(cascade.regles, cascade.reference) ? "classeur"
+                   : "mesure"));
     Array.prototype.forEach.call(
       $("presetsCascade").querySelectorAll("input"), function (r) {
         r.checked = r.value === quoi;
       });
-    // L'avertissement se CALCULE en comparant la regle a celle du classeur, au
-    // lieu de croire un drapeau stocke : un etat ecrit en double finit par
-    // mentir sur ce que les phrases disent vraiment.
-    $("avertCascade").hidden = (quoi !== "mesure");
+    // Sans cascade, il n'y a pas de phrase a ecrire : le titre, les phrases,
+    // le controle et l'apercu s'en vont ensemble (Adrien, 02/09).
+    $("blocRegleCascade").hidden = (quoi === "aucune");
+    // ⚠️ L'avertissement se calcule sur les PHRASES, jamais sur le bouton
+    // coche. Il dit si le CLASSEUR saura suivre la regle -- une question sur
+    // les phrases, pas sur l'intention. Depuis que « Sur mesure » est une
+    // intention memorisee, cocher ce bouton sur les phrases du classeur ne
+    // change rien a ce que le classeur sait faire : le brancher sur `quoi`
+    // ferait crier l'avertissement sur une regle que le classeur reproduit
+    // parfaitement.
+    var ecarte = cascade.regles.length > 0
+              && !memesRegles(cascade.regles, cascade.reference);
+    $("avertCascade").hidden = !ecarte;
     // Tant que la carte n'a pas ete chargee, « Enregistrer » ecrirait une regle
     // VIDE par-dessus celle qui existe. Un GET qui echoue ne doit pas offrir un
     // bouton destructeur.
@@ -3363,6 +3426,12 @@
         return { parmi: r.parmi.slice(), seuil: r.seuil, cibles: r.cibles.slice() };
       });
       cascade.eteintes = (courante.categories_eteintes || []).slice();
+      // Rien n'est en cours d'ecriture : l'intention se relit des phrases
+      // servies par le serveur. Une regle qui ne ressemble a rien de connu
+      // EST sur mesure ; une regle identique a celle du classeur revient sur
+      // « Comme le classeur », ce qui est ce qu'elle est vraiment.
+      cascade.surMesure = cascade.regles.length > 0
+                       && !memesRegles(cascade.regles, cascade.reference);
     }
     cascade.charge = true;
     redessinerCascade();
@@ -3372,14 +3441,19 @@
   Array.prototype.forEach.call(
     document.querySelectorAll("#presetsCascade input"), function (radio) {
       radio.addEventListener("change", function () {
+        // L'intention est posee AVANT les phrases : c'est elle qui decide de
+        // ce que la carte affiche, les phrases ne font que la suivre.
+        cascade.surMesure = (radio.value === "mesure");
         if (radio.value === "aucune") cascade.regles = [];
         else if (radio.value === "classeur") {
           cascade.regles = cascade.reference.map(function (r) {
             return { parmi: r.parmi.slice(), seuil: r.seuil, cibles: r.cibles.slice() };
           });
         } else if (!cascade.regles.length) {
-          // « Sur mesure » sur une liste vide : on ouvre une phrase, sinon le
-          // bouton se decoche tout seul et le clic n'a servi a rien.
+          // « Sur mesure » sur une liste vide : on ouvre une phrase, sinon la
+          // carte s'affiche vide et le clic n'a servi a rien. En venant de
+          // « Comme le classeur », les phrases du classeur sont GARDEES : on
+          // part d'elles pour les retoucher, c'est tout l'interet du bouton.
           cascade.regles = [{ parmi: [], seuil: 1, cibles: [] }];
         }
         cascade.modifie = true;

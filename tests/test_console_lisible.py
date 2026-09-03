@@ -379,3 +379,81 @@ class TestCarteCascade:
         for couleur in ("jaune", "noir", "blanc", "fluo"):
             assert '"%s":' % couleur in page
 
+    def test_sans_cascade_la_carte_ne_montre_pas_de_regle(self, page):
+        """Demande d'Adrien du 02/09 : « je veux que la partie règle ne soit
+        pas affichée si Aucune cascade est sélectionné ».
+
+        La carte offrait « + Ajouter une règle » sous un titre qui ne
+        s'appliquait à rien. Les phrases, le contrôle et l'aperçu s'en vont
+        ensemble : un seul `hidden` sur le groupe, pas trois.
+        """
+        assert 'id="blocRegleCascade"' in page
+        assert '$("blocRegleCascade").hidden = (quoi === "aucune");' in page
+        # Le titre est DEDANS, sinon il resterait seul au-dessus du vide.
+        bloc = page.split('id="blocRegleCascade"')[1].split("</div>\n\n")[0]
+        for ancre in ("La règle", "reglesCascade", "controleCascade",
+                      "apercuCascade"):
+            assert ancre in bloc, ancre
+
+    def test_sur_mesure_est_selectionnable_depuis_comme_le_classeur(self, page):
+        """⚠️ Le second défaut du 02/09 : « si je sélectionne Comme le classeur
+        puis Sur mesure, ce dernier n'est pas sélectionnable, il faut repasser
+        par Aucune cascade ».
+
+        Le bouton coché était DÉDUIT des phrases : vide → « aucune », égales à
+        celles du classeur → « classeur », sinon → « sur mesure ». Cliquer
+        « Sur mesure » en venant de « Comme le classeur » ne changeait aucune
+        phrase, la déduction rendait toujours « classeur », et le bouton se
+        décochait sous le doigt.
+
+        Partir des phrases du classeur pour les retoucher est le cas NORMAL :
+        c'est une intention, elle ne se lit pas dans les phrases. La carte la
+        mémorise donc.
+        """
+        assert "surMesure: false" in page
+        assert 'cascade.surMesure = (radio.value === "mesure");' in page
+        assert "cascade.surMesure ? \"mesure\"" in page
+
+    def test_l_avertissement_reste_calcule_sur_les_phrases(self, page):
+        """⚠️ Et pas sur le bouton coché. Il dit si le CLASSEUR saura suivre la
+        règle — une question sur les phrases, pas sur l'intention. Le brancher
+        sur `surMesure` le ferait crier sur une règle que le classeur sait
+        parfaitement reproduire."""
+        assert '$("avertCascade").hidden = !ecarte;' in page
+        assert ("var ecarte = cascade.regles.length > 0\n"
+                "              && !memesRegles(cascade.regles, cascade.reference);"
+                in page)
+        # Et surtout PAS sur le bouton coche.
+        assert '$("avertCascade").hidden = (quoi !== "mesure");' not in page
+
+
+class TestLaVueCircuitsNeMontreQueLaPastille:
+    """Demande d'Adrien du 02/09 : « sur la page Circuits, retire le texte pour
+    la difficulté et les prises, je ne veux conserver que la pastille de
+    couleur ».
+
+    Deux colonnes de mots répétés soixante fois poussaient « Circuits » et
+    « Catégories » hors de l'écran — c'est-à-dire exactement ce que la vue sert
+    à vérifier (spec 019).
+    """
+
+    def test_la_cellule_ne_pose_plus_le_nom_a_cote_de_la_pastille(self, page):
+        corps = page.split("function celluleTeinte(")[1].split("\n  }")[0]
+        assert "lu-seulement" in corps, (
+            "le nom doit rester lisible par un lecteur d'ecran")
+        assert "texte.textContent = nom;" not in corps, (
+            "le nom est encore ecrit a cote de la pastille")
+
+    def test_le_nom_reste_atteignable_autrement(self, page):
+        """Une pastille seule, sans son nom accessible, serait une information
+        réservée à ceux qui distinguent les couleurs."""
+        corps = page.split("function celluleTeinte(")[1].split("\n  }")[0]
+        assert "span.title = nom;" in corps          # au survol
+        assert "lu.textContent = nom;" in corps      # pour les lecteurs d'ecran
+        assert ".lu-seulement {" in page
+        assert "clip-path: inset(50%)" in page
+
+    def test_les_en_tetes_de_colonne_restent(self, page):
+        """Ce sont eux qui disent ce que les deux pastilles signifient."""
+        assert "<th>Difficulté</th>" in page
+        assert "<th>Prises</th>" in page

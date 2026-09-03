@@ -311,7 +311,11 @@ textarea { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-siz
     <span class="pousse"></span>
     <button id="annuler" title="Annuler (Ctrl+Z)" disabled>Annuler</button>
     <button id="refaire" title="Refaire (Ctrl+Maj+Z)" disabled>Refaire</button>
-    <a class="faux-bouton" href="/admin">← La console</a>
+    {#- ⚠️ `/console`, PAS `/admin`. `/admin` est le prefixe des routes JSON
+        (`/admin/plan`, `/admin/classeur`...) et aucune ne repond a la racine :
+        le lien rendait « Not Found » et l'editeur devenait un cul-de-sac.
+        La page de la console vit a `/console` (`routes/pages.py`). -#}
+    <a class="faux-bouton" href="/console">← La console</a>
     <button id="btn-enregistrer" class="capital">Enregistrer dans ClimbContest</button>
   </header>
 

@@ -993,6 +993,22 @@ class TestReglagesDeLaPage:
         assert 'id="competition"' in page
         assert "etat.competition.nom" in page
 
+    def test_la_barre_AUSSI_respecte_les_classements_masques(self, client, jeu):
+        """⚠️ Le defaut du 02/09 : « je retire des scratchs de l'affichage de
+        la page resultat et je rafraichis, rien ne se passe ».
+
+        `groupesVisibles()` filtrait bien, mais `dessinerBarre()` lisait
+        `etat.classements` -- la charge BRUTE -- des qu'on n'etait pas en mode
+        mur. La pastille du scratch eteint restait donc dans la barre, et son
+        classement a un doigt. Le fichier portait deux commentaires qui se
+        contredisaient : `groupesVisibles` promettait « il s'applique PARTOUT --
+        mur et telephones », la barre expliquait le contraire.
+        """
+        page = client.get("/").data.decode()
+        barre = page.split("function dessinerBarre()")[1].split("\n  }")[0]
+        assert "var groupes = groupesVisibles();" in barre
+        assert "MUR ? groupesVisibles() : etat.classements" not in barre
+
 
 class TestLesBasculesDeLEnTete:
     """Les deux commandes de l'en-tête sont des boutons à BASCULE : masquer la
@@ -1026,3 +1042,63 @@ class TestLesBasculesDeLEnTete:
     def test_le_script_tient_l_attribut_a_jour(self, page):
         """Poser l'état de départ ne sert à rien si le clic ne le suit pas."""
         assert 'el.pause.setAttribute("aria-pressed", String(etat.enPause));' in page
+
+
+class TestLaRotationDesPodiums:
+    """Deux demandes d'Adrien du 02/09, sur la même mécanique.
+
+    « Si je passe la compétition à En cours, je m'attends à ce que la page de
+    résultats se mette en play pour passer d'un podium à l'autre. De plus je
+    n'ai plus le bouton play et pause sur l'écran résultat. »
+
+    La rotation reste réservée à l'écran projeté (`?mur`) — c'est le choix
+    d'Adrien : un parent qui regarde la catégorie de son enfant sur son
+    téléphone ne doit pas la voir partir toute seule. Ce qui change est
+    ailleurs : elle DÉMARRE seule, et le bouton existe des deux côtés.
+    """
+
+    @pytest.fixture()
+    def page(self, client, jeu):
+        return client.get("/").data.decode()
+
+    def test_le_bouton_existe_hors_du_mode_mur(self, page):
+        """Il ne s'affichait qu'en `?mur`. Sur la page normale — celle qu'on
+        branche au vidéoprojecteur sans passer par `?mur`, exactement comme la
+        loupe voisine — rien ne permettait de lancer ni d'arrêter le
+        défilement."""
+        balise = re.search(r'<button[^>]*id="pause"[^>]*>', page, re.S).group(0)
+        assert "hidden" not in balise, balise
+        assert "commande partout" in balise, balise
+        assert ".commande.partout { display: block; }" in page
+
+    def test_la_page_normale_demarre_a_l_arret(self, page):
+        """Le bouton doit être une VRAIE commande, pas un bouton mort : hors du
+        mur il est à l'arrêt, et c'est lui qui lance le défilement."""
+        assert "enPause: !MUR," in page
+
+    def test_le_bouton_dit_son_etat_avant_le_premier_clic(self, page):
+        """Sinon la page normale affiche ⏸ alors que rien ne tourne."""
+        assert "function majBoutonPause()" in page
+        assert re.search(r"majBoutonPause\(\);\s*\n\s*el\.pause\.addEventListener",
+                         page), "majBoutonPause n'est pas appelee au chargement"
+
+    def test_la_rotation_ne_renonce_plus_quand_il_n_y_a_rien_a_montrer(self, page):
+        """⚠️ LE défaut.
+
+        `programmerRotation` était armée UNE FOIS, 1,2 s après le chargement.
+        Un mur allumé avant la compétition n'avait alors aucun classement —
+        `visibles.length` valait 0 — et la fonction sortait SANS reprogrammer
+        quoi que ce soit. Passer la compétition « En cours » ne la réveillait
+        pas : l'écran restait figé jusqu'à un rechargement à la main.
+        """
+        corps = page.split("function programmerRotation()")[1].split("\n  }")[0]
+        assert "if (visibles.length < 2)" in corps
+        assert "setTimeout(programmerRotation, dureeRotation())" in corps, (
+            "la rotation renonce encore quand il n'y a rien a montrer")
+
+    def test_c_est_la_pause_qui_garde_la_rotation_et_non_le_mode(self, page):
+        """Le mode ne pilote plus que la valeur de DÉPART : garder `!MUR` dans
+        la garde rendrait le bouton de la page normale inopérant."""
+        corps = page.split("function programmerRotation()")[1].split("\n  }")[0]
+        assert "if (etat.enPause) return;" in corps
+        assert "!MUR || etat.enPause" not in corps
