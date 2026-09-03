@@ -1,0 +1,284 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Maquette 036 — l'avancement par zone</title>
+<!--
+  Quatre façons de poser le compteur d'avancement sur le plan du mur, sur le
+  VRAI relevé d'Annonay et avec la VRAIE géométrie : les polygones, la place
+  des lettres et leur taille sortent de `fiches.plan_pour(set())`, ils ne sont
+  pas redessinés à la main pour arranger la maquette.
+
+  Le grimpeur simulé a un circuit de 27 blocs répartis sur six zones, choisi
+  pour contenir tous les cas de la spec : une zone intacte (0/2), une entamée
+  (1/4), une terminée (3/3), une zone à un seul bloc (1/1), et une zone à deux
+  chiffres de chaque côté (10/12) — celle qui dit si le compteur rétrécit ou
+  s'il déborde. Onze zones n'ont aucun bloc de son circuit : elles ne doivent
+  porter AUCUN compteur.
+
+  Les jetons de couleur sont recopiés de `climbcontest/templates/resultats.html`.
+-->
+<style>
+  :root {
+    --fond: #F1F4F8; --carte: #FFFFFF; --carte2: #E9EDF3; --trait: #D8DEE7;
+    --encre: #0E1420; --encre2: #5A6472; --encre3: #7B8494; --ok: #1E7A45;
+    --titre: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  }
+  body.sombre {
+    --fond: #0B0F17; --carte: #161B24; --carte2: #1E2430; --trait: #2A313D;
+    --encre: #F0F3F8; --encre2: #97A2B2; --encre3: #798398; --ok: #57D58D;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; padding: 22px 20px 60px; background: var(--fond);
+         color: var(--encre); font-family: var(--titre); line-height: 1.5; }
+  h1 { font-size: 1.3rem; margin: 0 0 4px; }
+  h2 { font-size: .95rem; margin: 0 0 2px; }
+  p.chapo { margin: 0 0 20px; color: var(--encre2); font-size: .85rem;
+            max-width: 70ch; }
+  .barre { display: flex; gap: 10px; align-items: center; margin-bottom: 18px; }
+  .barre button { font: inherit; font-size: .8rem; padding: 7px 13px;
+                  border-radius: 8px; border: 1px solid var(--trait);
+                  background: var(--carte); color: var(--encre); cursor: pointer; }
+  .rangee { display: flex; flex-wrap: wrap; gap: 18px; align-items: flex-start; }
+  .essai { background: var(--carte); border: 1px solid var(--trait);
+           border-radius: 14px; padding: 12px; width: 340px; }
+  .essai.etroit { width: 390px; }
+  .essai.etroit .carte { width: 366px; }
+  .essai h2 small { display: block; font-weight: 400; font-size: .74rem;
+                    color: var(--encre2); }
+  .carte { margin-top: 10px; background: var(--fond); border: 1px solid var(--trait);
+           border-radius: 12px; padding: 12px 10px; }
+  .verdict { margin: 10px 0 0; font-size: .78rem; color: var(--encre2); }
+  .verdict b { color: var(--encre); }
+
+  /* --- Le plan, tel qu'il est dans la page de résultats ------------------- */
+  .plan { display: block; width: 100%; height: auto;
+          --pf-dalle: #D2E0E7; --pf-vertical: #A6C4D3; --pf-incline: #F0D5A0;
+          --pf-devers: #EEBC7E; --pf-surplomb: #E7A074; --pf-toit: #E28379;
+          --pl-contour: #FFFFFF; --pl-trame: rgba(20,28,36,.17);
+          --pl-lettre: #16232E; --pl-halo: rgba(255,255,255,.92);
+          --pl-anneau: #B5791B; --pl-lueur: #E0A94A; --pl-efface: .5; }
+  body.sombre .plan {
+          --pf-dalle: #2E3F4C; --pf-vertical: #3D6076; --pf-incline: #9A7238;
+          --pf-devers: #B57430; --pf-surplomb: #BE5B33; --pf-toit: #BC443F;
+          --pl-contour: #12131A; --pl-trame: rgba(255,255,255,.13);
+          --pl-lettre: #F5F0E7; --pl-halo: rgba(9,10,14,.85);
+          --pl-anneau: #FFD489; --pl-lueur: #FFC463; --pl-efface: .42; }
+  .plan .mur { stroke: var(--pl-contour); stroke-width: .9; stroke-linejoin: round; }
+  .plan g[data-profil="dalle"] .mur    { fill: var(--pf-dalle); }
+  .plan g[data-profil="vertical"] .mur { fill: var(--pf-vertical); }
+  .plan g[data-profil="incline"] .mur  { fill: var(--pf-incline); }
+  .plan g[data-profil="devers"] .mur   { fill: var(--pf-devers); }
+  .plan g[data-profil="surplomb"] .mur { fill: var(--pf-surplomb); }
+  .plan g[data-profil="toit"] .mur     { fill: var(--pf-toit); }
+  .plan .lettre { font-family: var(--titre); font-weight: 800;
+                  fill: var(--pl-lettre); text-anchor: middle;
+                  dominant-baseline: central; paint-order: stroke fill;
+                  stroke: var(--pl-halo); }
+  .plan .repere-plan { font-family: var(--titre); font-style: italic;
+                       font-size: 4.6px; text-anchor: middle; fill: var(--encre2); }
+  .plan g[data-zone] { opacity: var(--pl-efface); }
+  .plan g[data-zone].z-reste, .plan g[data-zone].z-finie { opacity: 1; }
+  .plan .cadre-zone { fill: none; stroke: none; }
+  .plan .cadre-zone.z-finie { stroke: var(--ok); stroke-width: 1.6; }
+  .plan .cadre-zone.visee { stroke: var(--pl-anneau); stroke-width: 2.2; }
+  .plan g[data-zone].visee { filter: drop-shadow(0 0 2.5px var(--pl-lueur)); }
+
+  /* --- A : le chiffre sous la lettre ------------------------------------- */
+  .a .compte-zone, .a2 .compte-zone {
+                    font-family: var(--titre); font-weight: 800;
+                    font-variant-numeric: tabular-nums; text-anchor: middle;
+                    dominant-baseline: central; fill: var(--pl-lettre);
+                    paint-order: stroke fill; stroke: var(--pl-halo); }
+  .a .compte-zone.compte-finie, .a2 .compte-zone.compte-finie { fill: var(--ok); }
+  /* A2 : la zone qui porte un compteur rend un cran de sa lettre au chiffre.
+     `em` se résout sur la taille de police de l'élément — celle que le serveur
+     a posée en attribut — donc l'échelle suit la zone sans rien mesurer. */
+  .a2 g[data-zone].a-compte .lettre { transform: translateY(-.14em) scale(.78);
+                                      transform-box: fill-box;
+                                      transform-origin: center; }
+
+  /* --- B : la pastille sous la lettre ------------------------------------ */
+  .b .socle-compte { fill: var(--pl-halo); stroke: var(--pl-lettre);
+                     stroke-width: .35; }
+  .b .socle-compte.compte-finie { stroke: var(--ok); }
+  .b .compte-zone { font-family: var(--titre); font-weight: 800;
+                    font-variant-numeric: tabular-nums; text-anchor: middle;
+                    dominant-baseline: central; fill: var(--pl-lettre); }
+  .b .compte-zone.compte-finie { fill: var(--ok); }
+
+  /* --- C : l'anneau de progression --------------------------------------- */
+  .c .piste { fill: none; stroke: var(--pl-halo); stroke-width: 1.5; }
+  .c .arc { fill: none; stroke: var(--pl-lettre); stroke-width: 1.5;
+            stroke-linecap: round; }
+  .c .arc.compte-finie { stroke: var(--ok); }
+  .c .compte-zone { font-family: var(--titre); font-weight: 800;
+                    font-variant-numeric: tabular-nums; text-anchor: middle;
+                    dominant-baseline: central; fill: var(--pl-lettre);
+                    paint-order: stroke fill; stroke: var(--pl-halo);
+                    stroke-width: .8; }
+  .c .compte-zone.compte-finie { fill: var(--ok); }
+</style>
+</head>
+<body>
+
+<h1>036 — l'avancement par zone, quatre façons de le poser</h1>
+<p class="chapo">
+  Le vrai relevé d'Annonay, la vraie géométrie, un circuit de 27 blocs sur six
+  zones. La zone <b>A</b> est visée (on vient d'y toucher un bloc), la zone
+  <b>B</b> est terminée, la zone <b>Z</b> porte « 10/12 » : c'est elle qui dit
+  si le compteur rétrécit ou s'il déborde de son pan. Onze zones n'ont aucun
+  bloc de son circuit et ne portent, elles, <b>aucun compteur</b> — l'absence
+  est l'information.
+</p>
+
+<div class="barre">
+  <button id="theme" type="button">Thème sombre</button>
+  <span style="font-size:.78rem;color:var(--encre2)">
+    Les deux premières colonnes font 340 px de large (téléphone), la troisième
+    en fait 390.</span>
+</div>
+
+<div class="rangee" id="rangee"></div>
+
+<script>
+const PLAN = {"cadrage":"-1.0 -1.0 122.0 152.0","murs":[{"zone":"X","profil":"vertical","d":"60,0 80,0 80,15 60,15","etiquette":[70.0,7.5],"taille":9.0},{"zone":"Y","profil":"vertical","d":"80,0 100,0 100,15 80,15","etiquette":[90.0,7.5],"taille":9.0},{"zone":"D","profil":"toit","d":"5,15 20,15 20,45 5,45","etiquette":[12.5,30.0],"taille":9.0},{"zone":"Z","profil":"vertical","d":"100,15 115,15 115,30 100,30","etiquette":[107.5,22.5],"taille":9.0},{"zone":"C","profil":"incline","d":"20,45 35,45 35,60 20,60","etiquette":[27.5,52.5],"taille":9.0},{"zone":"B","profil":"devers","d":"35,45 50,45 50,60 35,60","etiquette":[42.5,52.5],"taille":9.0},{"zone":"A","profil":"vertical","d":"50,45 70,45 70,60 50,60","etiquette":[60.0,52.5],"taille":9.0},{"zone":"L","profil":"toit","d":"0,75 15,75 15,100 0,100","etiquette":[7.5,87.5],"taille":9.0},{"zone":"M","profil":"dalle","d":"0,100 15,100 15,115 0,115","etiquette":[7.5,107.5],"taille":9.0},{"zone":"K","profil":"surplomb","d":"15,75 30,75 30,90 15,90","etiquette":[22.5,82.5],"taille":9.0},{"zone":"J","profil":"vertical","d":"30,75 45,75 45,90 30,90","etiquette":[37.5,82.5],"taille":9.0},{"zone":"I","profil":"devers","d":"45,75 60,75 60,90 45,90","etiquette":[52.5,82.5],"taille":9.0},{"zone":"H","profil":"incline","d":"60,75 75,75 75,90 60,90","etiquette":[67.5,82.5],"taille":9.0},{"zone":"G","profil":"vertical","d":"75,75 90,75 90,90 75,90","etiquette":[82.5,82.5],"taille":9.0},{"zone":"F","profil":"dalle","d":"90,75 105,75 105,90 90,90","etiquette":[97.5,82.5],"taille":9.0},{"zone":"N","profil":"dalle","d":"0,115 15,115 15,130 0,130","etiquette":[7.5,122.5],"taille":9.0},{"zone":"E","profil":"vertical","d":"105,90 120,90 120,105 105,105","etiquette":[112.5,97.5],"taille":9.0}],"reperes":[{"texte":"Escalier","x":97,"y":52},{"texte":"Haut","x":61,"y":111},{"texte":"Bas","x":60,"y":30}]};
+
+// Le circuit du grimpeur simulé : { zone: [faits, total] }.
+const COMPTES = { A: [1, 4], B: [3, 3], J: [0, 2], M: [2, 5], Z: [10, 12], H: [1, 1] };
+const VISEE = "A";
+
+const NS = "http://www.w3.org/2000/svg";
+function n(tag, attrs, texte) {
+  const e = document.createElementNS(NS, tag);
+  for (const [c, v] of Object.entries(attrs || {})) e.setAttribute(c, String(v));
+  if (texte !== undefined) e.textContent = texte;
+  return e;
+}
+function etat(zone) {
+  const c = COMPTES[zone];
+  if (!c) return "z-rien";
+  return c[0] === c[1] ? "z-finie" : "z-reste";
+}
+function libelle(zone) {
+  const c = COMPTES[zone];
+  return c ? c[0] + "/" + c[1] : "";
+}
+/** La largeur d'un chiffre tabulaire, en fraction de sa taille — même famille
+ *  de constante que `LARGEUR_CAPITALE` côté Python. Elle borne la largeur du
+ *  libellé à une fois `taille`, quel que soit le nombre de chiffres. */
+const LARGEUR_CHIFFRE = 0.58;
+function tailleDuCompte(taille, texte, echelle) {
+  return taille * Math.min(echelle, 1 / (LARGEUR_CHIFFRE * Math.max(1, texte.length)));
+}
+
+function dessiner(variante) {
+  const svg = n("svg", { class: "plan " + variante, viewBox: PLAN.cadrage,
+                         role: "img", "aria-label": "Plan du mur" });
+  for (const mur of PLAN.murs) {
+    const [x, y] = mur.etiquette, t = mur.taille;
+    const g = n("g", { "data-zone": mur.zone, "data-profil": mur.profil });
+    g.classList.add(etat(mur.zone));
+    if (mur.zone === VISEE) g.classList.add("visee");
+    g.appendChild(n("polygon", { class: "mur", points: mur.d }));
+    g.appendChild(n("text", { class: "lettre", x, y, "font-size": t,
+                              "stroke-width": (t * 0.24).toFixed(2) }, mur.zone));
+
+    const texte = libelle(mur.zone);
+    const fini = COMPTES[mur.zone] && COMPTES[mur.zone][0] === COMPTES[mur.zone][1];
+    if (texte) g.classList.add("a-compte");
+    if (texte) {
+      if (variante === "a" || variante === "a2") {
+        const grand = variante === "a2";
+        const s = tailleDuCompte(t, texte, grand ? 0.52 : 0.46);
+        g.appendChild(n("text", {
+          class: "compte-zone" + (fini ? " compte-finie" : ""),
+          x, y: y + t * (grand ? 0.50 : 0.59), "font-size": s.toFixed(2),
+          "stroke-width": (s * 0.24).toFixed(2) }, texte));
+      } else if (variante === "b") {
+        const s = tailleDuCompte(t, texte, 0.38);
+        const l = t * 1.02, h = s * 1.75, cy = y + t * 0.56;
+        g.appendChild(n("rect", {
+          class: "socle-compte" + (fini ? " compte-finie" : ""),
+          x: x - l / 2, y: cy - h / 2, width: l, height: h, rx: h / 2 }));
+        g.appendChild(n("text", {
+          class: "compte-zone" + (fini ? " compte-finie" : ""),
+          x, y: cy, "font-size": s.toFixed(2) }, texte));
+      } else {
+        const c = COMPTES[mur.zone];
+        const r = t * 0.74, p = 2 * Math.PI * r;
+        g.appendChild(n("circle", { class: "piste", cx: x, cy: y, r }));
+        g.appendChild(n("circle", {
+          class: "arc" + (fini ? " compte-finie" : ""), cx: x, cy: y, r,
+          "stroke-dasharray": (p * c[0] / c[1]).toFixed(2) + " " + p.toFixed(2),
+          transform: "rotate(-90 " + x + " " + y + ")" }));
+        const s = tailleDuCompte(t, texte, 0.36);
+        g.appendChild(n("text", {
+          class: "compte-zone" + (fini ? " compte-finie" : ""),
+          x, y: y + t * 0.52, "font-size": s.toFixed(2),
+          "stroke-width": (s * 0.30).toFixed(2) }, texte));
+      }
+    }
+    svg.appendChild(g);
+  }
+  const cadres = n("g", {});
+  for (const mur of PLAN.murs) {
+    const c = n("polygon", { class: "cadre-zone", points: mur.d });
+    c.classList.add(etat(mur.zone));
+    if (mur.zone === VISEE) c.classList.add("visee");
+    cadres.appendChild(c);
+  }
+  svg.appendChild(cadres);
+  for (const r of PLAN.reperes) {
+    svg.appendChild(n("text", { class: "repere-plan", x: r.x, y: r.y }, r.texte));
+  }
+  return svg;
+}
+
+const ESSAIS = [
+  ["a", "A — le chiffre sous la lettre ✓ RETENU",
+   "Un texte, un halo, rien d'autre, dans la place que le serveur a déjà réservée à la lettre : « descente » 0,59 × taille, corps 0,46 × taille.",
+   "Un nœud de plus, et rien d'autre ne bouge. Le plan reste le MÊME dessin pour tout le monde : seul le chiffre change d'un grimpeur à l'autre."],
+  ["a2", "A2 — la lettre en rend un cran au chiffre",
+   "Le même dessin, mais une zone qui porte un compteur écrit sa lettre à 78 % : le chiffre gagne 13 % de corps.",
+   "Écarté. Treize pour cent de corps se paient cher : la lettre d'un pan changerait de taille SELON LE CIRCUIT DU GRIMPEUR — deux téléphones côte à côte ne montreraient plus la même salle — et il faudrait poser une transformation sur la lettre, que la fiche PAPIER dessine aussi."],
+  ["b", "B — la pastille sous la lettre",
+   "Le même chiffre, posé sur un socle arrondi qui le détache du remplissage du profil.",
+   "Écarté. Le socle a une largeur à LUI, que rien ne borne : il mord la lettre au-dessus et sort du pan en dessous, ici même, sur le relevé réel. Il faudrait la boîte du pan pour le dimensionner — donc recopier côté page une géométrie qui vit côté serveur."],
+  ["c", "C — l'anneau de progression",
+   "Un anneau autour de la lettre dit la proportion, le chiffre la donne exactement.",
+   "Écarté. Joli à l'unité, illisible à dix-sept : l'anneau se confond avec le contour vert de « zone terminée » et avec l'anneau ocre de la zone visée — trois cercles qui disent trois choses différentes."],
+];
+
+const rangee = document.getElementById("rangee");
+for (const [variante, titre, sous, verdict] of ESSAIS) {
+  const bloc = document.createElement("div");
+  bloc.className = "essai" + (variante === "c" ? " etroit" : "");
+  bloc.innerHTML = "<h2>" + titre + "<small>" + sous + "</small></h2>";
+  const carte = document.createElement("div");
+  carte.className = "carte";
+  carte.appendChild(dessiner(variante));
+  bloc.appendChild(carte);
+  const v = document.createElement("p");
+  v.className = "verdict";
+  v.innerHTML = "<b>Verdict.</b> " + verdict;
+  bloc.appendChild(v);
+  rangee.appendChild(bloc);
+}
+
+// `?sombre` dans l'adresse ouvre directement en sombre : c'est ce qui permet
+// de capturer les deux thèmes sans clic.
+if (location.search.indexOf("sombre") >= 0) document.body.classList.add("sombre");
+
+const bouton = document.getElementById("theme");
+bouton.textContent = document.body.classList.contains("sombre")
+  ? "Thème clair" : "Thème sombre";
+bouton.addEventListener("click", function () {
+  document.body.classList.toggle("sombre");
+  bouton.textContent = document.body.classList.contains("sombre")
+    ? "Thème clair" : "Thème sombre";
+});
+</script>
+</body>
+</html>

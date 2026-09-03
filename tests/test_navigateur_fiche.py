@@ -18,10 +18,8 @@ Le harnais est servi par l'application elle-même, sur une route qui n'existe
 que dans ce processus : le pilote doit être en MÊME ORIGINE que la page pour
 pouvoir la piloter, et on ne veut d'aucun crochet de test dans le code livré.
 """
-import json
 import os
 import shutil
-import socket
 import subprocess
 import tempfile
 import threading
@@ -33,45 +31,24 @@ import pytest
 
 RACINE = Path(__file__).resolve().parent.parent
 
-def _playwright():
-    """Les binaires Playwright installes, quel que soit leur numero de build.
+# La decouverte du navigateur vient du harnais partage. Elle y a ete recopiee
+# depuis ici -- c'est cette version-la qui cherchait les binaires Playwright par
+# motif au lieu d'un numero de build fige. Le module partage est aussi ce qui
+# declenche la CHAUFFE : un fichier qui redecouvrait chromium dans son coin
+# payait les sept secondes du premier lancement sans que personne ne le sache.
+from tests.navigateur import CHROME, port_libre                    # noqa: E402
 
-    ⚠️ Ce chemin a ete fige sur `chromium_headless_shell-1234`. Le jour ou
-    Playwright passe au build suivant, le test ne trouve plus rien et **se saute
-    en silence** : plus personne ne protege le branchement, et rien ne le dit.
-    """
-    racine = Path.home() / "Library/Caches/ms-playwright"
-    return sorted(racine.glob("chromium*/chrome-*/chrome-headless-shell")) + \
-        sorted(racine.glob("chromium*/chrome-*/Chromium"))
-
-
-def trouver_chrome():
-    candidats = [os.environ.get("CLIMBCONTEST_CHROME", "")]
-    candidats += [str(c) for c in _playwright()]
-    candidats += ["/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
-                  "chromium", "chromium-browser", "google-chrome",
-                  "google-chrome-stable"]
-    for chemin in candidats:
-        if not chemin:
-            continue
-        if os.path.isfile(chemin) and os.access(chemin, os.X_OK):
-            return chemin
-        trouve = shutil.which(chemin)
-        if trouve:
-            return trouve
-    return None
-
-
-CHROME = trouver_chrome()
 pytestmark = pytest.mark.skipif(
     CHROME is None, reason="aucun navigateur : ce test se saute, il n'echoue pas")
 
 
-def port_libre() -> int:
-    with socket.socket() as s:
-        s.bind(("127.0.0.1", 0))
-        return s.getsockname()[1]
-
+# La page relit ses donnees toutes les quinze secondes en usage reel. L'etape
+# 7 attend ce battement -- c'est SON SUJET : une fiche ouverte doit se mettre a
+# jour toute seule. Elle l'attendait pour de vrai : quinze secondes de CI, et
+# le premier rouge des qu'un runner charge en mettait seize. `?periode=` regle
+# ce battement, comme `?rotation=` regle deja le defilement de l'ecran de la
+# salle. Le battement reste le sujet du test ; seule sa valeur change.
+REGLAGE = "/?periode=0.3"
 
 # --- Le pilote : ce qu'un doigt ferait, dans l'ordre -------------------------
 #
@@ -145,6 +122,34 @@ function rendre(verdict) {
     note("finies", $$(".sf-feuille .cadre-zone.z-finie").length);
     note("effacees", $$(".sf-feuille g[data-zone].z-rien").length);
 
+    // 3 bis. La legende des profils — spec 033, R11.
+    //
+    // ⚠️ ON MESURE LA COULEUR CALCULEE, pas la presence de la pastille. Les
+    //     six teintes etaient declarees sur `.plan` ; la legende en est un
+    //     FRERE, pas un descendant, et une variable CSS ne descend que dans
+    //     son sous-arbre. Les pastilles sortaient BLANCHES — un test de
+    //     balisage aurait ete vert.
+    const profils = $$(".sf-legende .pf");
+    note("profils", profils.length);
+    note("profilPeint", profils.length
+      ? vue.getComputedStyle(profils[0]).backgroundColor : "(aucune)");
+    note("reperes", $$(".sf-legende .repere").length);
+    // 3 bis. L'avancement par zone (spec 036) : chaque zone du circuit porte
+    //        « faits/total », et les autres ne portent RIEN.
+    const compteDe = (racine, z) => {
+      const g = [...racine.querySelectorAll(".sf-feuille g[data-zone]")]
+        .find((n) => n.getAttribute("data-zone") === z);
+      const c = g && g.querySelector(".compte-zone");
+      if (!c) return "(absent)";
+      return c.textContent || "(vide)";
+    };
+    note("compteZ", compteDe(doc, "Z"));
+    note("compteA", compteDe(doc, "A"));
+    note("compteM", compteDe(doc, "M"));
+    note("compteD", compteDe(doc, "D"));
+    note("compteurs", $$(".sf-feuille .compte-zone")
+      .filter((n) => n.textContent).length);
+
     // 4. Changer de zone REMPLACE l'entree : un seul retour ramene a la fiche.
     const autre = $$(".sf-feuille g[data-zone]")
       .find((n) => n.getAttribute("data-zone") !== bloc.querySelector(".z").textContent);
@@ -175,7 +180,7 @@ function rendre(verdict) {
     //    devenaient inertes, la feuille restait ouverte pour toujours et
     //    `overflow: hidden` figeait le classement derriere. Seul un
     //    rechargement s'en sortait.
-    cadre.src = "/#g=" + CIBLE;
+    cadre.src = REGLAGE + "#g=" + CIBLE;
     await attendre("chargement direct", () => cadre.contentDocument
       && cadre.contentDocument.querySelector(".sf-feuille .sf-case"));
     const doc2 = cadre.contentDocument, vue2 = cadre.contentWindow;
@@ -194,9 +199,20 @@ function rendre(verdict) {
     const avant = doc2.querySelectorAll(".sf-case.grimpe").length;
     await fetch("/__reussite/" + CIBLE);
     await attendre("bloc passe au vert",
-      () => doc2.querySelectorAll(".sf-case.grimpe").length > avant, 40000);
+      () => doc2.querySelectorAll(".sf-case.grimpe").length > avant);
     note("avantReussite", avant);
     note("apresReussite", doc2.querySelectorAll(".sf-case.grimpe").length);
+
+    // 8. Et le COMPTEUR DU PLAN suit la meme reussite. Le mur n'est pas
+    //    remonte entre-temps -- il est monte une fois par grimpeur -- donc si
+    //    le chiffre bougeait avec le dessin et non avec la decoration, il
+    //    resterait a « 1/2 » sous une zone qui vient d'etre terminee.
+    const caseA = [...doc2.querySelectorAll("button.sf-case")]
+      .find((n) => n.querySelector(".z").textContent === "A");
+    caseA.click();
+    await attendre("mur du direct", () => doc2.querySelector(".sf-pile.au-mur")
+      && doc2.querySelector(".sf-feuille svg.plan"));
+    note("compteApres", compteDe(doc2, "A"));
 
     await rendre("OK " + etapes.join(" "));
   } catch (e) {
@@ -311,8 +327,10 @@ def serveur():
     def harnais():
         return Response(
             "<!doctype html><meta charset=utf-8><title>en cours</title>"
-            f"<iframe id=page src='/' style='width:900px;height:1400px;border:0'></iframe>"
-            f"<script>const CIBLE = {cible[0]};</script>"
+            f"<iframe id=page src='{REGLAGE}' "
+            f"style='width:900px;height:1400px;border:0'></iframe>"
+            f"<script>const CIBLE = {cible[0]}; "
+            f"const REGLAGE = {REGLAGE!r};</script>"
             f"<script>{PILOTE}</script>",
             mimetype="text/html")
 
@@ -416,6 +434,15 @@ class TestDansUnVraiNavigateur:
         # Les zones ou il n'a rien a faire s'effacent : ici, toutes sauf trois.
         assert int(mesures["effacees"]) == int(mesures["zones"]) - 3
 
+        # L'avancement par zone : « faits/total » des blocs de SON circuit.
+        assert mesures["compteZ"] == "2/2"      # terminee
+        assert mesures["compteA"] == "1/2"      # entamee
+        assert mesures["compteM"] == "0/1"      # intacte : le zero se dit
+        # Une zone sans bloc de son circuit ne porte AUCUN chiffre. Un « 0/0 »
+        # l'enverrait chercher du travail la ou il n'y en a pas.
+        assert mesures["compteD"] == "(vide)"
+        assert mesures["compteurs"] == "3"
+
         # Le clic atteint VRAIMENT la case : c'est ce qu'une regle
         # `pointer-events` mal placee casse, sans rien casser d'autre.
         assert mesures["pointage"] == "atteint"
@@ -438,3 +465,24 @@ class TestDansUnVraiNavigateur:
 
         # La fiche ouverte suit les reussites qui arrivent.
         assert int(mesures["apresReussite"]) == int(mesures["avantReussite"]) + 1
+
+        # La legende dit les profils du plan courant — spec 033, R11.
+        # « On a perdu la legende des couleurs qui donnent l'inclinaison du mur
+        # et tout ce bazar-la. J'aimerais que tu me le remettes. » (Adrien)
+        from climbcontest.fiches import PROFILS
+        utilises = {m["profil"] for m in PLAN["murs"] if m["zone"]}
+        attendus = len([p for p in PROFILS if p["cle"] in utilises])
+        assert int(mesures["profils"]) == attendus, (
+            "la legende doit nommer les profils que le plan utilise, "
+            "et seulement eux")
+        # « zone terminee » plus un repere par profil.
+        assert int(mesures["reperes"]) == attendus + 1
+
+        # ⚠️ LA COULEUR, pas la pastille. Les teintes vivaient sur `.plan` :
+        # la legende, qui en est un frere, sortait toute blanche.
+        peinte = mesures["profilPeint"]
+        assert peinte not in ("rgba(0,_0,_0,_0)", "transparent", "(aucune)"), peinte
+        assert peinte != "rgb(255,_255,_255)", peinte
+        # Et le compteur du plan avec elle : la zone A passe de « 1/2 » a
+        # « 2/2 » sans que le mur soit remonte.
+        assert mesures["compteApres"] == "2/2"

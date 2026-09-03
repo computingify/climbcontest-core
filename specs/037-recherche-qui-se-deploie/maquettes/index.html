@@ -1,0 +1,639 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>La recherche qui se déploie — quatre façons</title>
+<style>
+  /* ⚠️ AUCUNE DÉPENDANCE. Cette maquette s'ouvre en double-cliquant un
+     fichier, éventuellement sans réseau — même contrainte que la page qu'elle
+     imite.
+
+     ⚠️ LES VALEURS DE L'EN-TÊTE SONT COPIÉES DE `resultats.html`, pas
+     réinventées : mêmes couleurs, mêmes tailles, mêmes points de rupture, même
+     `2.4em` de bouton. Une maquette qui embellit ce qu'elle imite fait choisir
+     sur autre chose que ce qui sera livré. */
+
+  /* --- La palette de la page de résultats, telle quelle ------------------- */
+  .tel {
+    --fond: #F3F5F8; --carte: #FFFFFF; --carte2: #E9EDF3; --trait: #D3DAE4;
+    --encre: #0E1116; --encre2: #55606F; --encre3: #8A94A3;
+    --ok: #1F7A46; --groupe: #C69214;
+  }
+  .tel.sombre {
+    --fond: #0B0E13; --carte: #161A21; --carte2: #1E232C; --trait: #2A303A;
+    --encre: #F2F4F7; --encre2: #98A2B3; --encre3: #6B7686;
+    --ok: #4ADE80; --groupe: #F5C453;
+  }
+
+  /* --- Le document, aux couleurs de la console ----------------------------- */
+  :root {
+    color-scheme: light dark;
+    --d-fond: #FBFAF8; --d-surface: #FFFFFF; --d-surface2: #F4F1EB;
+    --d-trait: #DDD7CB; --d-encre: #1B1A17; --d-encre2: #5C574C;
+    --d-encre3: #8A8375; --d-accent: #B5761C; --d-sur-accent: #FFFFFF;
+    --d-ok: #2E7D4F;
+    --titre: system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --d-fond: #14130F; --d-surface: #1D1B16; --d-surface2: #26241D;
+      --d-trait: #3A3628; --d-encre: #F2EFE8; --d-encre2: #B0AA9B;
+      --d-encre3: #7C766A; --d-accent: #E0A94A; --d-sur-accent: #1B1A17;
+      --d-ok: #6FC08A;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--d-fond); color: var(--d-encre);
+    font-family: var(--titre); line-height: 1.55; font-size: 15px;
+    -webkit-font-smoothing: antialiased;
+  }
+  main { max-width: 1180px; margin: 0 auto; padding: 26px 20px 70px; }
+  h1 { font-size: 1.6rem; margin: 6px 0 8px; letter-spacing: -0.01em; }
+  p.chapeau { color: var(--d-encre2); max-width: 70ch; margin: 0 0 14px; }
+  p.chapeau b { color: var(--d-encre); }
+
+  .reglages {
+    display: flex; gap: 10px; flex-wrap: wrap; align-items: center;
+    background: var(--d-surface); border: 1px solid var(--d-trait);
+    border-radius: 12px; padding: 12px 15px; margin: 18px 0 26px;
+    position: sticky; top: 0; z-index: 10;
+  }
+  .reglages b { font-size: 0.82rem; text-transform: uppercase;
+                letter-spacing: 0.07em; color: var(--d-encre3); }
+  button.bascule {
+    cursor: pointer; font: inherit; font-size: 0.86rem; font-weight: 600;
+    background: var(--d-surface2); color: var(--d-encre);
+    border: 1px solid var(--d-trait); border-radius: 999px; padding: 6px 14px;
+  }
+  button.bascule[aria-pressed="true"] {
+    background: var(--d-accent); color: var(--d-sur-accent);
+    border-color: var(--d-accent);
+  }
+
+  /* --- La grille des variantes -------------------------------------------- */
+  .grille { display: grid; gap: 22px;
+            grid-template-columns: repeat(auto-fit, minmax(310px, 1fr)); }
+  .variante {
+    background: var(--d-surface); border: 1px solid var(--d-trait);
+    border-radius: 14px; padding: 18px;
+  }
+  .variante h2 { font-size: 1.02rem; margin: 0 0 3px;
+                 display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
+  .variante .quoi { color: var(--d-encre2); font-size: 0.88rem; margin: 0 0 14px; }
+  .verdict { font-size: 0.85rem; color: var(--d-encre2); margin: 14px 0 0;
+             border-left: 3px solid var(--d-trait); padding-left: 11px; }
+  .verdict b { color: var(--d-encre); }
+  .cle {
+    font: 700 0.7rem/1 ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+    background: var(--d-surface2); color: var(--d-encre2);
+    border-radius: 5px; padding: 4px 7px;
+  }
+  .choix { margin-top: 14px; }
+  label.prendre {
+    display: inline-flex; align-items: center; gap: 8px; cursor: pointer;
+    font-size: 0.88rem; font-weight: 600; border: 1px solid var(--d-trait);
+    border-radius: 999px; padding: 6px 14px; background: var(--d-surface2);
+  }
+  label.prendre:has(input:checked) {
+    border-color: var(--d-ok); color: var(--d-ok);
+    background: color-mix(in srgb, var(--d-ok) 12%, transparent);
+  }
+  label.prendre input {
+    appearance: none; -webkit-appearance: none; width: 14px; height: 14px;
+    border-radius: 50%; border: 2px solid var(--d-encre3); margin: 0;
+    display: grid; place-content: center;
+  }
+  label.prendre input::before { content: ""; width: 7px; height: 7px;
+    border-radius: 50%; background: var(--d-ok); transform: scale(0); }
+  label.prendre input:checked { border-color: var(--d-ok); }
+  label.prendre input:checked::before { transform: scale(1); }
+
+  /* ======================================================================
+     LE TÉLÉPHONE — la page de résultats, à sa vraie largeur.
+     390 px : un iPhone récent. C'est SOUS le point de rupture de 680 px, donc
+     l'en-tête se replie et les deux boutons tombent sur leur propre rangée.
+     C'est ce cas-là qu'Adrien regarde.
+     ====================================================================== */
+  .tel {
+    width: 100%; max-width: 340px; margin: 0 auto;
+    border: 10px solid #12151A; border-radius: 30px; overflow: hidden;
+    background: var(--fond); color: var(--encre);
+    font-size: 14px; user-select: none;
+  }
+  .tel .entete {
+    display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px;
+    padding: 12px 16px 10px; border-bottom: 1px solid var(--trait);
+  }
+  .tel .logo {
+    width: 30px; height: 30px; flex: none; border-radius: 7px;
+    background: linear-gradient(150deg, #C69214, #8A5A0F);
+  }
+  .tel .titre {
+    display: flex; align-items: center; gap: 9px; min-width: 0;
+    font-size: 1.5rem; font-weight: 900; letter-spacing: -0.03em;
+    color: var(--groupe); line-height: 1;
+  }
+  .tel .titre .pastille { width: 9px; height: 1em; border-radius: 4px;
+                          background: var(--groupe); flex: none; }
+  .tel .compte { color: var(--encre2); font-weight: 600; font-size: 0.8rem;
+                 white-space: nowrap; }
+  .tel .droite { width: 100%; }
+  .tel .droite .nom { font-weight: 800; font-size: 0.9rem; }
+  .tel .droite .meta { color: var(--encre2); font-size: 0.72rem; margin-top: 2px; }
+
+  /* La rangée des commandes. Sur téléphone elle est à elle seule : c'est là
+     que le champ a de la place pour se déployer. */
+  .tel .commandes {
+    width: 100%; display: flex; align-items: center; gap: 10px;
+    position: relative; min-height: 40px;
+  }
+  .tel .cmd {
+    flex: none; cursor: pointer; font: inherit; line-height: 1;
+    background: var(--carte); color: var(--encre2);
+    border: 1px solid var(--trait); border-radius: 999px;
+    width: 2.4em; height: 2.4em; font-size: 1.1rem;
+    display: grid; place-items: center; padding: 0;
+  }
+  .tel .cmd svg { display: block; width: 1em; height: 1em; }
+  .tel .cmd[aria-pressed="true"] { border-color: var(--groupe); color: var(--groupe); }
+
+  .tel .barre {
+    display: flex; gap: 8px; overflow-x: auto; scrollbar-width: none;
+    padding: 10px 16px; border-bottom: 1px solid var(--trait);
+  }
+  .tel .barre::-webkit-scrollbar { display: none; }
+  .tel .barre button {
+    flex: 0 0 auto; background: var(--carte); color: var(--encre2);
+    border: 1px solid var(--trait); border-radius: 999px;
+    padding: 6px 13px; font: inherit; font-size: 0.8rem; font-weight: 600;
+    border-left: 4px solid var(--groupe); cursor: default;
+  }
+  .tel .barre button.actif { color: var(--encre);
+    box-shadow: inset 0 0 0 1px var(--groupe); border-color: var(--groupe); }
+
+  .tel .liste { padding: 10px 16px 16px; }
+  .tel .ligne {
+    display: grid; grid-template-columns: 22px 1fr auto; gap: 10px;
+    align-items: center; padding: 8px 0; border-bottom: 1px solid var(--trait);
+  }
+  .tel .ligne:last-child { border-bottom: 0; }
+  .tel .ligne .rang { color: var(--encre2); font-weight: 700; text-align: right;
+                      font-size: 0.85rem; }
+  .tel .ligne .qui b { display: block; font-size: 0.88rem; }
+  .tel .ligne .qui span { display: block; color: var(--encre2); font-size: 0.72rem; }
+  .tel .ligne .score { font-weight: 800; font-variant-numeric: tabular-nums; }
+
+  /* --- Le champ de recherche, commun aux variantes ------------------------ */
+  .tel input.champ {
+    font: inherit; font-size: 0.85rem; color: var(--encre);
+    background: var(--carte); border: 1px solid var(--trait);
+    border-radius: 999px; padding: 0 14px; height: 2.4em;
+    min-width: 0; outline: none;
+  }
+  .tel input.champ::placeholder { color: var(--encre3); }
+  .tel input.champ:focus { border-color: var(--groupe); }
+
+  /* ======================================================================
+     V1 — LA LOUPE S'ÉTIRE SUR PLACE.
+     Le bouton lui-même devient le champ : il s'allonge, l'icône reste dedans
+     et sert de préfixe. Un seul élément, donc rien à synchroniser.
+     ====================================================================== */
+  .v1 .fusion {
+    display: flex; align-items: center; gap: 0;
+    background: var(--carte); border: 1px solid var(--trait);
+    border-radius: 999px; height: 2.4em; overflow: hidden;
+    width: 2.4em; transition: width 320ms cubic-bezier(.32,.72,.28,1);
+  }
+  .v1.ouvert .fusion { width: 100%; }
+  .v1 .fusion .icone {
+    flex: none; width: 2.4em; height: 2.4em; display: grid; place-items: center;
+    cursor: pointer; color: var(--encre2); font-size: 1.1rem;
+  }
+  /* ⚠️ L'icone n'est pas dans un `.cmd` : sans cette regle, le SVG prend sa
+     taille intrinseque et deborde du bouton. Constate a l'ecran. */
+  .v1 .fusion .icone svg { display: block; width: 1em; height: 1em; }
+  .v1.ouvert .fusion .icone { color: var(--groupe); }
+  .v1 .fusion input {
+    flex: 1; min-width: 0; border: 0; background: none; outline: none;
+    font: inherit; font-size: 0.85rem; color: var(--encre);
+    padding: 0 12px 0 0; opacity: 0;
+    transition: opacity 160ms ease 140ms;
+  }
+  .v1.ouvert .fusion input { opacity: 1; }
+  .v1 .fermer { opacity: 0; pointer-events: none; transition: opacity 140ms ease; }
+  .v1.ouvert .fermer { opacity: 1; pointer-events: auto; }
+
+  /* ======================================================================
+     V2 — LE CHAMP POUSSE DEPUIS LA LOUPE, LE PLAY RESTE.
+     Le champ s'ouvre entre les deux boutons. Le play ne bouge jamais : la
+     rotation reste atteignable pendant qu'on cherche.
+     ====================================================================== */
+  .v2 .pousse {
+    flex: 1; min-width: 0; width: 0; opacity: 0;
+    transform: scaleX(.85); transform-origin: left center;
+    transition: opacity 180ms ease, transform 300ms cubic-bezier(.32,.72,.28,1);
+  }
+  .v2.ouvert .pousse { opacity: 1; transform: scaleX(1); }
+  .v2 .pousse input { width: 100%; }
+
+  /* ======================================================================
+     V3 — LE CHAMP RECOUVRE LA RANGÉE.
+     Il glisse par-dessus les deux boutons et prend toute la largeur. Le plus
+     de place pour taper, au prix des commandes qui disparaissent.
+     ====================================================================== */
+  .v3 .couvre {
+    position: absolute; inset: 0; display: flex; align-items: center; gap: 8px;
+    background: var(--fond);
+    clip-path: inset(0 0 0 calc(100% - 2.4em) round 999px);
+    opacity: 0; transition: clip-path 340ms cubic-bezier(.32,.72,.28,1),
+                            opacity 120ms ease;
+    pointer-events: none;
+  }
+  .v3.ouvert .couvre { clip-path: inset(0 0 0 0 round 999px); opacity: 1;
+                       pointer-events: auto; }
+  .v3 .couvre input { flex: 1; }
+  .v3 .sous { display: flex; align-items: center; gap: 10px;
+              transition: opacity 160ms ease; }
+  .v3.ouvert .sous { opacity: 0; }
+
+  /* ======================================================================
+     V4 — LE CHAMP DESCEND SOUS LA RANGÉE.
+     Il ne se déploie pas horizontalement : il se déplie vers le bas, sur sa
+     propre ligne. C'est ce que fait la page AUJOURD'HUI, en moins brutal.
+     Gardé comme témoin : il faut pouvoir comparer à ce qu'on remplace.
+     ====================================================================== */
+  .v4 .tiroir {
+    width: 100%; display: grid; grid-template-rows: 0fr;
+    transition: grid-template-rows 300ms cubic-bezier(.32,.72,.28,1);
+  }
+  .v4.ouvert .tiroir { grid-template-rows: 1fr; }
+  .v4 .tiroir > div { overflow: hidden; }
+  .v4 .tiroir input { width: 100%; margin-top: 8px; }
+
+  .note {
+    border-left: 3px solid var(--d-accent); background: var(--d-surface2);
+    padding: 11px 15px; border-radius: 0 8px 8px 0; font-size: 0.88rem;
+    color: var(--d-encre2); margin: 26px 0 0;
+  }
+  .note b { color: var(--d-encre); }
+
+  @media (prefers-reduced-motion: reduce) {
+    .tel * { transition: none !important; }
+  }
+</style>
+</head>
+<body>
+<main>
+
+<h1>La recherche qui se déploie — quatre façons</h1>
+<p class="chapeau">« Au clic sur le bouton recherche, c'est le bouton qui
+   s'anime et qui déploie horizontalement une zone de texte. » Voici quatre
+   façons de le faire. <b>Touche les loupes</b> : une animation se juge en la
+   déclenchant, pas sur une capture.</p>
+<p class="chapeau">Les quatre téléphones font <b>340 px</b> — sous le point de
+   rupture de 680 px de la vraie page, donc l'en-tête se replie et les deux
+   commandes tombent sur leur propre rangée. C'est exactement ce cas-là que tu
+   regardes sur ton téléphone, et c'est ce qui donne au champ la place de se
+   déployer.</p>
+
+<div class="reglages">
+  <b>Réglages</b>
+  <button class="bascule" id="bTheme" type="button" aria-pressed="false">Thème sombre</button>
+  <button class="bascule" id="bOrdre" type="button" aria-pressed="true">La loupe à droite</button>
+  <button class="bascule" id="bLent" type="button" aria-pressed="false">Au ralenti (×4)</button>
+</div>
+
+<div class="grille" id="grille">
+
+  <!-- ============================ V1 ============================ -->
+  <div class="variante">
+    <h2><span class="cle">V1</span> La loupe s'étire sur place</h2>
+    <p class="quoi">Le bouton <b>devient</b> le champ. L'icône reste dedans et
+       sert de préfixe, comme dans un champ de recherche natif.</p>
+
+    <div class="tel">
+      <div class="entete">
+        <div class="logo"></div>
+        <div class="titre"><span class="pastille"></span>Scratch</div>
+        <span class="compte">12 grimpeurs</span>
+        <div class="droite">
+          <div class="nom">Contest de novembre</div>
+          <div class="meta">11h24 · calculé à l'instant · 174 blocs validés</div>
+        </div>
+        <div class="commandes v1" data-v="1">
+          <button class="cmd play" type="button" aria-label="Faire défiler"></button>
+          <div class="fusion">
+            <span class="icone" data-ouvre="1"></span>
+            <input class="saisie" type="search" placeholder="Chercher un nom ou un dossard…" aria-label="Chercher">
+          </div>
+          <button class="cmd fermer" type="button" data-ferme="1" aria-label="Fermer"></button>
+        </div>
+      </div>
+      <div class="barre"></div>
+      <div class="liste"></div>
+    </div>
+
+    <p class="verdict"><b>Ce que ça coûte :</b> le champ reste étroit tant que
+      le play est là. <b>Ce que ça gagne :</b> un seul élément — le bouton EST
+      le champ, donc rien ne peut se désynchroniser, et la loupe garde sa place
+      sous le pouce.</p>
+    <div class="choix"><label class="prendre">
+      <input type="radio" name="variante" value="V1"> Je prends celle-ci</label></div>
+  </div>
+
+  <!-- ============================ V2 ============================ -->
+  <div class="variante">
+    <h2><span class="cle">V2</span> Le champ pousse, le play reste</h2>
+    <p class="quoi">Le champ s'ouvre <b>entre</b> les deux boutons. La rotation
+       reste atteignable pendant qu'on cherche.</p>
+
+    <div class="tel">
+      <div class="entete">
+        <div class="logo"></div>
+        <div class="titre"><span class="pastille"></span>Scratch</div>
+        <span class="compte">12 grimpeurs</span>
+        <div class="droite">
+          <div class="nom">Contest de novembre</div>
+          <div class="meta">11h24 · calculé à l'instant · 174 blocs validés</div>
+        </div>
+        <div class="commandes v2" data-v="2">
+          <button class="cmd play" type="button" aria-label="Faire défiler"></button>
+          <div class="pousse">
+            <input class="champ saisie" type="search" placeholder="Chercher…" aria-label="Chercher">
+          </div>
+          <button class="cmd loupe" type="button" data-bascule="2" aria-label="Chercher"></button>
+        </div>
+      </div>
+      <div class="barre"></div>
+      <div class="liste"></div>
+    </div>
+
+    <p class="verdict"><b>Ce que ça coûte :</b> deux éléments à tenir d'accord,
+      et un champ un peu court. <b>Ce que ça gagne :</b> les commandes ne
+      disparaissent jamais — on peut chercher et relancer la rotation sans
+      refermer.</p>
+    <div class="choix"><label class="prendre">
+      <input type="radio" name="variante" value="V2"> Je prends celle-ci</label></div>
+  </div>
+
+  <!-- ============================ V3 ============================ -->
+  <div class="variante">
+    <h2><span class="cle">V3</span> Le champ recouvre la rangée</h2>
+    <p class="quoi">Il s'ouvre depuis la loupe et <b>prend toute la largeur</b>,
+       par-dessus les commandes.</p>
+
+    <div class="tel">
+      <div class="entete">
+        <div class="logo"></div>
+        <div class="titre"><span class="pastille"></span>Scratch</div>
+        <span class="compte">12 grimpeurs</span>
+        <div class="droite">
+          <div class="nom">Contest de novembre</div>
+          <div class="meta">11h24 · calculé à l'instant · 174 blocs validés</div>
+        </div>
+        <div class="commandes v3" data-v="3">
+          <div class="sous">
+            <button class="cmd play" type="button" aria-label="Faire défiler"></button>
+            <button class="cmd loupe" type="button" data-bascule="3" aria-label="Chercher"></button>
+          </div>
+          <div class="couvre">
+            <input class="champ saisie" type="search" placeholder="Chercher un nom ou un dossard…" aria-label="Chercher">
+            <button class="cmd" type="button" data-ferme="3" aria-label="Fermer"></button>
+          </div>
+        </div>
+      </div>
+      <div class="barre"></div>
+      <div class="liste"></div>
+    </div>
+
+    <p class="verdict"><b>Ce que ça coûte :</b> le play disparaît pendant la
+      recherche — il faut refermer pour le retrouver. <b>Ce que ça gagne :</b>
+      le champ le plus large des quatre, et le geste le plus franc.</p>
+    <div class="choix"><label class="prendre">
+      <input type="radio" name="variante" value="V3"> Je prends celle-ci</label></div>
+  </div>
+
+  <!-- ============================ V4 ============================ -->
+  <div class="variante">
+    <h2><span class="cle">V4</span> Le champ se déplie dessous <small style="font-weight:400;color:var(--d-encre3)">(témoin)</small></h2>
+    <p class="quoi">Il ne se déploie pas horizontalement : il se déplie vers le
+       bas. C'est ce que fait la page <b>aujourd'hui</b>, en moins brutal.</p>
+
+    <div class="tel">
+      <div class="entete">
+        <div class="logo"></div>
+        <div class="titre"><span class="pastille"></span>Scratch</div>
+        <span class="compte">12 grimpeurs</span>
+        <div class="droite">
+          <div class="nom">Contest de novembre</div>
+          <div class="meta">11h24 · calculé à l'instant · 174 blocs validés</div>
+        </div>
+        <div class="commandes v4" data-v="4">
+          <button class="cmd play" type="button" aria-label="Faire défiler"></button>
+          <button class="cmd loupe" type="button" data-bascule="4" aria-label="Chercher"></button>
+          <div class="tiroir"><div>
+            <input class="champ saisie" type="search" placeholder="Chercher un nom ou un dossard…" aria-label="Chercher">
+          </div></div>
+        </div>
+      </div>
+      <div class="barre"></div>
+      <div class="liste"></div>
+    </div>
+
+    <p class="verdict"><b>Le témoin.</b> Il n'y a aucun déploiement horizontal —
+      c'est ce qu'on remplace. Gardé pour qu'on compare à quelque chose, pas
+      pour être choisi.</p>
+    <div class="choix"><label class="prendre">
+      <input type="radio" name="variante" value="V4"> Je prends celle-ci</label></div>
+  </div>
+
+</div>
+
+<div class="note"><b>Ce qui est commun aux quatre :</b> la recherche part
+  <b>masquée</b> (ta décision D1) ; la loupe et le play ont été
+  <b>échangés</b> — la loupe termine la rangée, c'est elle qui se déploie ;
+  fermer la recherche <b>vide le champ</b>, sinon on laisserait une liste
+  filtrée sans rien pour l'expliquer ; et le choix ouvert/fermé n'est
+  <b>pas</b> mémorisé — c'est un geste, pas un réglage. Le bouton « La loupe à
+  droite » ci-dessus inverse l'ordre, si tu veux voir l'autre sens.</div>
+
+</main>
+
+<script>
+(function () {
+  "use strict";
+
+  /* Les deux icônes, dessinées : les mêmes que la page livrée — un triangle
+     plein pour la lecture, une loupe au trait de 2,1. On ne met pas de
+     caractère : c'est précisément ce qui a été corrigé le 03/09. */
+  var LOUPE = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" '
+    + 'stroke-width="2.1" stroke-linecap="round" aria-hidden="true">'
+    + '<circle cx="10.5" cy="10.5" r="6.2"/><path d="M15.2 15.2 L20 20"/></svg>';
+  var LECTURE = '<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">'
+    + '<path d="M8.4 5.6 19 12 8.4 18.4Z"/></svg>';
+  var CROIX = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" '
+    + 'stroke-width="2.1" stroke-linecap="round" aria-hidden="true">'
+    + '<path d="M6.5 6.5 17.5 17.5M17.5 6.5 6.5 17.5"/></svg>';
+
+  document.querySelectorAll(".cmd.play").forEach(function (n) { n.innerHTML = LECTURE; });
+  document.querySelectorAll(".cmd.loupe, [data-ouvre]").forEach(function (n) { n.innerHTML = LOUPE; });
+  document.querySelectorAll("[data-ferme]").forEach(function (n) { n.innerHTML = CROIX; });
+
+  /* Un classement crédible : c'est ce qui se filtre quand on tape. Les noms
+     sont fictifs — aucune donnée de mineur dans une maquette. */
+  var GROUPES = ["Scratch", "Scratch F", "U11", "U13 F", "U13 H", "U15"];
+  var LIGNES = [
+    ["Bernard Camille", "U13 F · Annonay Escalade", 3770],
+    ["Roux Anaïs", "U15 H · Les Lézards", 2770],
+    ["Martin Léa", "U11 F · Annonay Escalade", 2270],
+    ["Garnier Zoé", "U13 H · Les Lézards", 1937],
+    ["Faure Manon", "U15 F · Annonay Escalade", 1687]
+  ];
+
+  document.querySelectorAll(".tel .barre").forEach(function (barre) {
+    GROUPES.forEach(function (nom, i) {
+      var b = document.createElement("button");
+      b.type = "button";
+      b.textContent = nom;
+      if (i === 0) b.className = "actif";
+      barre.appendChild(b);
+    });
+  });
+
+  document.querySelectorAll(".tel .liste").forEach(function (liste) {
+    peupler(liste, "");
+  });
+
+  function peupler(liste, filtre) {
+    liste.innerHTML = "";
+    var q = filtre.trim().toLowerCase();
+    var vues = LIGNES.filter(function (l) {
+      return !q || l[0].toLowerCase().indexOf(q) !== -1;
+    });
+    if (!vues.length) {
+      var vide = document.createElement("div");
+      vide.className = "ligne";
+      vide.style.color = "var(--encre2)";
+      vide.textContent = "Aucun grimpeur ne correspond.";
+      liste.appendChild(vide);
+      return;
+    }
+    vues.forEach(function (l, i) {
+      var ligne = document.createElement("div");
+      ligne.className = "ligne";
+      var rang = document.createElement("div");
+      rang.className = "rang";
+      rang.textContent = String(i + 1);
+      var qui = document.createElement("div");
+      qui.className = "qui";
+      var nom = document.createElement("b");
+      nom.textContent = l[0];                  // textContent, jamais innerHTML
+      var ou = document.createElement("span");
+      ou.textContent = l[1];
+      qui.appendChild(nom); qui.appendChild(ou);
+      var score = document.createElement("div");
+      score.className = "score";
+      score.textContent = String(l[2]);
+      ligne.appendChild(rang); ligne.appendChild(qui); ligne.appendChild(score);
+      liste.appendChild(ligne);
+    });
+  }
+
+  /* --- Ouvrir et fermer ---------------------------------------------------
+     Une seule règle pour les quatre : la classe `ouvert` sur la rangée. Les
+     variantes ne diffèrent que par leur CSS — c'est ce qui rend la
+     comparaison honnête. */
+  function rangee(noeud) { return noeud.closest(".commandes"); }
+
+  function basculer(rang, ouvrir) {
+    rang.classList.toggle("ouvert", ouvrir);
+    var champ = rang.querySelector(".saisie");
+    if (ouvrir) {
+      champ.focus();
+    } else {
+      champ.value = "";
+      peupler(rang.closest(".tel").querySelector(".liste"), "");
+    }
+    var loupe = rang.querySelector(".cmd.loupe");
+    if (loupe) loupe.setAttribute("aria-pressed", String(ouvrir));
+  }
+
+  document.addEventListener("click", function (e) {
+    var ouvre = e.target.closest("[data-ouvre]");
+    if (ouvre) { basculer(rangee(ouvre), true); return; }
+    var ferme = e.target.closest("[data-ferme]");
+    if (ferme) { basculer(rangee(ferme), false); return; }
+    var bascule = e.target.closest("[data-bascule]");
+    if (bascule) {
+      var rang = rangee(bascule);
+      basculer(rang, !rang.classList.contains("ouvert"));
+    }
+  });
+
+  document.addEventListener("input", function (e) {
+    if (!e.target.classList || !e.target.classList.contains("saisie")) return;
+    peupler(e.target.closest(".tel").querySelector(".liste"), e.target.value);
+  });
+
+  // Échap referme : un champ qui se déploie doit toujours avoir une sortie au
+  // clavier.
+  document.addEventListener("keydown", function (e) {
+    if (e.key !== "Escape") return;
+    var rang = e.target.closest && e.target.closest(".commandes.ouvert");
+    if (rang) basculer(rang, false);
+  });
+
+  /* --- Les trois réglages -------------------------------------------------- */
+  function bascule(id, appliquer) {
+    var b = document.getElementById(id);
+    b.addEventListener("click", function () {
+      var actif = b.getAttribute("aria-pressed") !== "true";
+      b.setAttribute("aria-pressed", String(actif));
+      appliquer(actif);
+    });
+  }
+
+  bascule("bTheme", function (sombre) {
+    document.querySelectorAll(".tel").forEach(function (t) {
+      t.classList.toggle("sombre", sombre);
+    });
+  });
+
+  // L'ORDRE des deux commandes. `row-reverse` ne suffit pas : il inverserait
+  // aussi le champ par rapport à sa loupe. On déplace donc le bouton de
+  // lecture, et lui seul.
+  bascule("bOrdre", function (loupeADroite) {
+    document.querySelectorAll(".commandes").forEach(function (rang) {
+      var play = rang.querySelector(".cmd.play");
+      if (!play) return;
+      if (loupeADroite) rang.insertBefore(play, rang.firstElementChild);
+      else rang.appendChild(play);
+    });
+  });
+
+  bascule("bLent", function (lent) {
+    // Un ralenti pour VOIR la courbe : c'est la seule façon de juger une
+    // animation de trois cents millisecondes.
+    document.documentElement.style.setProperty(
+      "--vitesse", lent ? "4" : "1");
+    document.querySelectorAll(".tel").forEach(function (t) {
+      t.style.setProperty("transition-duration", "");
+    });
+    var style = document.getElementById("styleLent");
+    if (!style) {
+      style = document.createElement("style");
+      style.id = "styleLent";
+      document.head.appendChild(style);
+    }
+    style.textContent = lent
+      ? ".tel .fusion, .tel .pousse, .tel .couvre, .tel .tiroir,"
+        + " .tel .fusion input, .tel .sous, .tel .fermer"
+        + " { transition-duration: 1400ms !important; }"
+      : "";
+  });
+})();
+</script>
+</body>
+</html>

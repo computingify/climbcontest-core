@@ -56,17 +56,20 @@ def salle(competition):
 
 class TestLOrdreEtLeRegroupement:
 
-    def test_l_ordre_est_celui_du_plan(self, salle):
+    def test_l_ordre_est_alphabetique_par_zone(self, salle):
+        """⚠️ C'était l'ordre du `Plan` jusqu'à la spec 033 (R8). Le plan
+        d'Annonay commence par X et Y et finit par E : pour coller au mur, on
+        prend les feuilles dans l'ordre, et on veut aller de A à Z."""
         planche = fiches.etiquettes(salle)
         assert [e["tag"] for e in planche] == [
-            "ZJ6", "ZJ9", "DV21", "DB2", "CM4", "CN1"]
+            "CM4", "CN1", "DV21", "DB2", "ZJ6", "ZJ9"]
 
     def test_les_zones_restent_groupees_dans_l_ordre(self, salle):
         """Le saut de page par zone a disparu, mais le regroupement PHYSIQUE
-        demeure : les blocs sortent dans l'ordre du `Plan`, donc zone par zone.
-        C'est ce qui permet de coller une zone d'affilée sans rien trier."""
+        demeure : les blocs sortent zone par zone. C'est ce qui permet de coller
+        une zone d'affilée sans rien trier."""
         assert [e["zone"] for e in fiches.etiquettes(salle)] == [
-            "Z", "Z", "D", "D", "C", "C"]
+            "C", "C", "D", "D", "Z", "Z"]
 
 
 class TestLesFiltres:
@@ -356,33 +359,98 @@ class TestLEtiquetteRemplitSonPapier:
         bloc = page.split("  .pastille {")[1].split("}")[0]
         assert float(re.search(r"width: ([0-9.]+)mm", bloc).group(1)) >= 4.0
 
-    def test_la_taille_du_numero_vient_du_serveur(self, page):
-        """⚠️ Une taille fixe ne pouvait pas convenir aux deux : « J6 » a de la
-        place pour 26 mm, « J32 » n'en a que pour 19,5. La colonne de texte fait
-        42 mm — le CSS ne sait pas compter les caractères, le serveur si."""
-        assert "font-size: var(--taille, 22mm)" in page
-        assert "--taille:" in page
 
-    def test_le_numero_tient_dans_sa_colonne(self):
-        """La propriété qui compte, sur toutes les longueurs plausibles."""
-        for texte in ("J6", "V21", "J32", "M100", "B1234"):
-            taille = fiches.taille_numero_mm(texte)
-            largeur = len(texte) * fiches.CHASSE_NUMERO * taille
-            assert largeur <= fiches.LARGEUR_NUMERO_MM + 0.01, (texte, largeur)
-            assert taille <= fiches.TAILLE_NUMERO_MAXI_MM
+class TestLaTailleDuNumeroEstFixe:
+    """« Le numéro J6 ou J24 change de taille en fonction du nombre de
+    caractères. Moi, je veux que la taille de la police soit fixe. » — Adrien,
+    03/09, après avoir imprimé pour de vrai (spec 033, R7).
 
-    def test_un_numero_court_prend_toute_la_place_permise(self, page):
-        assert fiches.taille_numero_mm("J6") == fiches.TAILLE_NUMERO_MAXI_MM
+    La taille était calculée par étiquette : la plus grande à laquelle CE
+    numéro tenait, soit 26 mm pour « J6 » et 19,5 pour « J24 ». Sur une planche
+    de huit, la page a l'air bancale.
+    """
 
-    def test_deux_numeros_de_meme_longueur_ont_la_meme_taille(self):
-        """Une planche dont les numéros dansent d'une étiquette à l'autre a
-        l'air bancale : la taille est arrondie, pas calculée au micron."""
-        assert fiches.taille_numero_mm("V21") == fiches.taille_numero_mm("J32")
+    @pytest.fixture()
+    def page(self, connecte_orga, salle):
+        return connecte_orga.get("/admin/etiquettes").data.decode()
 
-    def test_un_numero_vide_ne_fait_pas_exploser_l_impression(self):
-        assert fiches.taille_numero_mm("") == fiches.TAILLE_NUMERO_MAXI_MM
-        assert fiches.taille_numero_mm(None) == fiches.TAILLE_NUMERO_MAXI_MM
+    def test_la_feuille_porte_UNE_taille_et_les_etiquettes_aucune(self, page):
+        """La constante est posée une fois sur la feuille. Une étiquette qui
+        porterait encore la sienne ferait revenir le défaut sans qu'on le
+        voie."""
+        assert "--taille-numero: %.1fmm" % fiches.TAILLE_NUMERO_MM in page
+        assert "font-size: var(--taille-numero)" in page
+        assert "--taille:" not in page
 
-    def test_la_planche_porte_la_taille_de_chaque_etiquette(self, salle):
+    def test_deux_numeros_de_longueurs_differentes_sortent_pareil(self, salle):
+        """La propriété demandée, sur la vraie planche : « J6 » et « J24 » ne
+        peuvent plus se distinguer par leur taille, puisqu'aucune étiquette
+        n'en porte."""
         planche = fiches.etiquettes(salle)
-        assert planche and all(e["taille_numero"] > 0 for e in planche)
+        assert planche
+        assert all("taille_numero" not in e for e in planche)
+
+    def test_trois_caracteres_tiennent_dans_la_colonne(self):
+        """Ce qui justifie la valeur. Au-delà de trois caractères le numéro est
+        coupé — ce qui se voit — plutôt que de manger le QR."""
+        largeur = 3 * fiches.CHASSE_NUMERO * fiches.TAILLE_NUMERO_MM
+        assert largeur <= fiches.LARGEUR_NUMERO_MM, largeur
+
+    def test_la_fonction_qui_calculait_la_taille_a_disparu(self):
+        """Une fonction sans appelant donne une fausse impression de
+        couverture : c'est exactement ce que la spec 024 s'était reproché avec
+        `par_zone()`."""
+        assert not hasattr(fiches, "taille_numero_mm")
+        assert not hasattr(fiches, "TAILLE_NUMERO_MAXI_MM")
+
+
+class TestLesEtiquettesSortentDeAaZ:
+    """« Je veux qu'ils soient classés dans l'ordre alphabétique des zones,
+    c'est-à-dire la zone A d'abord et tu finis par la Z. » — Adrien, 03/09
+    (spec 033, R8).
+
+    Elles sortaient dans l'ordre de `Bloc.numero`, c'est-à-dire l'ordre du
+    `Plan` — celui d'Annonay commence par X et Y et finit par E.
+    """
+
+    def test_les_zones_sortent_dans_l_ordre_alphabetique(self, salle):
+        zones = [e["zone"] for e in fiches.etiquettes(salle) if e["zone"]]
+        assert zones == sorted(zones), zones
+
+    def test_l_ordre_du_classeur_est_garde_dans_une_zone(self, app, competition):
+        """Le tri par zone ne doit pas réordonner l'intérieur d'une zone : la
+        difficulté puis le numéro, c'est-à-dire `Bloc.numero`."""
+        from climbcontest.extensions import db
+        from climbcontest.models import Bloc
+        for tag, numero in (("AR9", 7), ("AJ1", 3), ("ZV4", 1)):
+            db.session.add(Bloc(competition_id=competition.id, tag=tag,
+                                numero=numero, zone=tag[0], couleur="Jaune"))
+        db.session.commit()
+        planche = fiches.etiquettes(competition)
+        assert [e["tag"] for e in planche] == ["AJ1", "AR9", "ZV4"]
+
+    def test_un_bloc_sans_zone_sort_en_DERNIER(self, app, competition):
+        """SQLite range les NULL AVANT tout le reste : sans garde, la planche
+        s'ouvrirait sur les blocs qui n'ont aucun mur où aller."""
+        from climbcontest.extensions import db
+        from climbcontest.models import Bloc
+        db.session.add(Bloc(competition_id=competition.id, tag="ORPHELIN",
+                            numero=1, zone=None, couleur="Jaune"))
+        db.session.add(Bloc(competition_id=competition.id, tag="ZJ2",
+                            numero=9, zone="Z", couleur="Jaune"))
+        db.session.commit()
+        assert [e["tag"] for e in fiches.etiquettes(competition)] \
+            == ["ZJ2", "ORPHELIN"]
+
+    def test_une_zone_a_deux_lettres_se_trie_sans_surprise(self, app, competition):
+        """Depuis la spec 029 le nom de zone est saisi dans la console : le tri
+        porte sur la VALEUR, il ne suppose pas une lettre unique."""
+        from climbcontest.extensions import db
+        from climbcontest.models import Bloc
+        for numero, (tag, zone) in enumerate(
+                (("B1", "B"), ("A1", "AA"), ("A2", "A")), 1):
+            db.session.add(Bloc(competition_id=competition.id, tag=tag,
+                                numero=numero, zone=zone, couleur="Jaune"))
+        db.session.commit()
+        assert [e["zone"] for e in fiches.etiquettes(competition)] \
+            == ["A", "AA", "B"]

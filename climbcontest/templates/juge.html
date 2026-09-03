@@ -105,6 +105,21 @@
     /* Pas de fond opaque : il masquerait la lueur du degrade juste sous lui. */
   }
   header .place { flex: 1; }
+  /* L'engrenage est DESSINE (spec 033, R9) : il lui faut donc une taille, comme
+     au voyant. Meme carre de 22, meme trait, meme couleur -- c'est ce qui fait
+     que les deux icones de la barre se ressemblent enfin. */
+  #ouvrirReglages { display: flex; align-items: center; padding: 4px 4px 4px 10px;
+                    color: var(--encre2); }
+  #ouvrirReglages svg { display: block; width: 22px; height: 22px; }
+  #ouvrirReglages:active { color: var(--encre); }
+  /* Le nom du poste. Discret : il se verifie d'un coup d'oeil, il ne se lit
+     pas. Tronque plutot que de pousser le voyant hors de l'ecran -- un juge
+     peut nommer son poste « Mur jaune, cote escalier ». */
+  #nomPoste {
+    font-size: 0.82rem; font-weight: 600; letter-spacing: 0.03em;
+    color: var(--encre2); max-width: 46vw;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
   #voyant { width: 22px; height: 22px; }
   #voyant.ok    { color: var(--fait); }
   #voyant.ko    { color: var(--alerte); }
@@ -203,6 +218,21 @@
     border-radius: 12px; padding: 2px 14px;
   }
   .carte .detail { font-size: 0.9rem; color: var(--encre2); letter-spacing: 0.04em; }
+
+  /* La carte du grimpeur, en deux colonnes (spec 033, R10). Elle seule : la
+     carte du bloc garde sa pile, son tag EST deja la pastille qu'on verifie. */
+  #carteGrimpeur { flex-direction: row; align-items: center; gap: 14px; }
+  #carteGrimpeur .identite { min-width: 0; flex: 1;
+                             display: flex; flex-direction: column; gap: 4px; }
+  /* ⚠️ LA TAILLE DU NOM, c'est ce qui a ete demande — pas « un peu plus gros
+     que le dossard ». `flex: none` et `nowrap` : « U13 F » ne se coupe pas en
+     deux lignes, c'est le nom qui cede de la place, et il a deja son
+     ellipse. */
+  #carteGrimpeur .categorie {
+    flex: none; font-size: 1.85rem; font-weight: 800; letter-spacing: -0.01em;
+    white-space: nowrap; color: var(--encre2); text-align: right;
+  }
+  #carteGrimpeur.fait .categorie { color: var(--encre); }
   #carteBloc.fait .detail { color: color-mix(in srgb, var(--circuit) 90%, transparent); }
 
   /* « Ce bloc n'est pas dans son circuit » — spec 019.
@@ -372,13 +402,17 @@
     <span id="compteurRefus" class="pastille pastilleRefus" hidden></span>
     <span id="compteurAttente" class="pastille pastilleAttente" hidden></span>
   </div>
+  <!-- Le nom du poste, quand le juge en a donne un. Il designe un ENDROIT de
+       la salle (« Mur jaune »), pas une personne : c'est ce que la console
+       affiche a cote des reussites, et le juge doit pouvoir verifier d'un coup
+       d'oeil qu'il envoie sous le bon nom. Vide, l'element ne prend aucune
+       place. -->
+  <span id="nomPoste" hidden></span>
   <span class="place"></span>
   <!-- Le voyant de connexion, meme principe que sur l'Android : une icone de
        connexion sans fil, verte quand ca passe, BARREE et rouge sinon. Barree,
        parce que le vert et le rouge seuls sont indistinguables pour environ 8 %
        des hommes, et il y a des juges hommes. -->
-  <button id="ouvrirReglages" class="retour" aria-label="Réglages"
-          style="font-size:1.25rem">⚙</button>
   <svg id="voyant" class="doute" viewBox="0 0 24 24" fill="none"
        stroke="currentColor" stroke-width="2.1" stroke-linecap="round"
        role="img" aria-label="Connexion en cours">
@@ -388,6 +422,30 @@
     <circle cx="12" cy="19.4" r="1.6" fill="currentColor" stroke="none" />
     <path id="barreVoyant" d="M4.2 4.2 L19.8 19.8" />
   </svg>
+  <!-- ⚠️ EN DERNIER, et DESSINE. C'etait « ⚙ » (U+2699), un caractere a
+       presentation EMOJI : sur iOS et Android il sort en couleur, dans un
+       style qui n'est pas celui du voyant juste a cote — et il etait place
+       AVANT lui, donc ce n'est pas lui qui terminait la barre. « La roue de
+       configuration, son logo ne va pas avec le reste, trouve une roue plus
+       sobre et simple. En plus je veux que ce logo soit celui de tout a
+       droite » (Adrien, 03/09, spec 033 R9).
+
+       Un engrenage a SIX DENTS, au meme trait que le voyant (2,1) et sur le
+       meme carre de 24 : six dents plutot que huit ou douze parce qu'a 22 px
+       sur un telephone, au-dela, les creux se referment et la roue devient un
+       disque flou.
+
+       ⚠️ La JANTE compte. Sans elle -- moyeu plus six rayons detaches -- le
+       dessin se lit comme un SOLEIL, pas comme une roue : constate a
+       l'ecran. Les dents partent donc du cercle exterieur, pas du vide. -->
+  <button id="ouvrirReglages" class="retour" type="button" aria-label="Réglages">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1"
+         stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+      <circle cx="12" cy="12" r="2.7" />
+      <circle cx="12" cy="12" r="6.7" />
+      <path d="M18.70 12.00L21.50 12.00M15.35 17.80L16.75 20.23M8.65 17.80L7.25 20.23M5.30 12.00L2.50 12.00M8.65 6.20L7.25 3.77M15.35 6.20L16.75 3.77" />
+    </svg>
+  </button>
 </header>
 
 <!-- Le filet (spec 014). Affiche UNIQUEMENT si l'application demarre sans
@@ -404,10 +462,22 @@
 </p>
 
 <main id="principal">
+  <!-- ⚠️ La carte du grimpeur est en DEUX COLONNES depuis la spec 033 (R10) :
+       l'identite a gauche, la CATEGORIE a droite, « en plus gros, je veux dire
+       la taille du nom prenom » (Adrien, 03/09). Le juge a devant lui un
+       papier ou la categorie est ecrite ; c'est ce qui lui permet de verifier
+       en un coup d'oeil qu'il scanne le bon grimpeur, la ou deux dossards
+       voisins peuvent porter deux noms proches.
+
+       La colonne de droite ne prend AUCUNE place quand la categorie est
+       inconnue : la carte redevient alors exactement celle d'avant. -->
   <button class="carte" id="carteGrimpeur">
-    <span class="quoi" data-n="1">Grimpeur</span>
-    <span class="valeur attente" id="valeurGrimpeur">À scanner</span>
-    <span class="detail" id="detailGrimpeur"></span>
+    <span class="identite">
+      <span class="quoi" data-n="1">Grimpeur</span>
+      <span class="valeur attente" id="valeurGrimpeur">À scanner</span>
+      <span class="detail" id="detailGrimpeur"></span>
+    </span>
+    <span class="categorie" id="categorieGrimpeur" hidden></span>
   </button>
 
   <button class="carte" id="carteBloc">

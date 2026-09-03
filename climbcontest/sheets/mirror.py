@@ -91,8 +91,25 @@ def _rendre_verrou() -> None:
         db.session.rollback()
 
 
-def reussites_a_envoyer(competition_id: int, limite: int):
-    """Ce qui reste à écrire dans le classeur, le plus ancien d'abord."""
+def _envoyables(competition_id: int):
+    """Ce que le miroir peut RÉELLEMENT écrire. Le filtre, en un seul endroit.
+
+    Trois conditions, et chacune exclut des réussites bien réelles :
+
+    - pas encore synchronisée — l'objet même du miroir ;
+    - de la compétition servie, c'est-à-dire l'**active** : `synchroniser` ne
+      regarde qu'elle, et le classeur relié est le sien ;
+    - dont le grimpeur porte un **dossard** : la matrice `Import` est indexée
+      par dossard, une réussite sans lui n'a aucune colonne où aller.
+
+    ⚠️ Ce filtre est partagé avec le compteur de `/health`
+    (`contest.reussites_en_attente`). Il l'est parce qu'il ne l'était pas :
+    l'indicateur comptait TOUTES les réussites non synchronisées, toutes
+    compétitions confondues. Le 03/09, il affichait 714 en attente alors que le
+    miroir n'avait plus rien à envoyer — 714 qu'il ne pouvait pas envoyer, et
+    qui resteraient affichées à jamais. Deux requêtes à tenir synchrones à la
+    main finissent toujours par diverger ; celle-ci ne peut plus.
+    """
     return (
         db.session.query(Success, Participant.dossard, Bloc.numero)
         .join(Participant, Success.participant_id == Participant.id)
@@ -100,10 +117,17 @@ def reussites_a_envoyer(competition_id: int, limite: int):
         .filter(Success.sheet_synced_at.is_(None))
         .filter(Participant.competition_id == competition_id)
         .filter(Participant.dossard.isnot(None))
-        .order_by(Success.horodatage)
-        .limit(limite)
-        .all()
     )
+
+
+def reussites_a_envoyer(competition_id: int, limite: int):
+    """Ce qui reste à écrire dans le classeur, le plus ancien d'abord."""
+    return _envoyables(competition_id).order_by(Success.horodatage).limit(limite).all()
+
+
+def en_attente(competition_id: int) -> int:
+    """Combien le miroir a encore à écrire. Le même filtre, au compte près."""
+    return _envoyables(competition_id).count()
 
 
 def synchroniser(taille_lot: int = 50, classeur=None) -> dict:

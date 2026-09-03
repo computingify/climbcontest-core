@@ -44,6 +44,43 @@ export function blocsDeZone(groupes, zone) {
 }
 
 /**
+ * Ce que le grimpeur a fait DANS CHAQUE ZONE : `{ M: { total, faits,
+ * grimpes, credites }, ... }`.
+ *
+ * ⚠️ C'EST LA SEULE ADDITION DE CE FICHIER, et c'est voulu.
+ *
+ * Trois choses affichées ailleurs disent le même nombre : l'anneau vert « zone
+ * terminée » sur le plan, le compteur du panneau (« 1 sur 2 ») et le compteur
+ * posé sur la zone (« 1/2 », spec 036). Écrites en trois boucles, elles
+ * finiraient par diverger — et la divergence serait silencieuse : le plan
+ * afficherait « 3/4 » sur une zone cerclée de vert, ce qui ne se lit pas
+ * comme « il y a un bloc crédité » mais comme « la page est cassée ». Elles
+ * dérivent donc toutes d'ici.
+ *
+ * Une zone où le grimpeur n'a AUCUN bloc de son circuit est **absente** de la
+ * table, elle ne vaut pas `{0, 0}` : l'absence est ce qui permet d'effacer les
+ * zones qui ne le concernent pas, et ce qui empêche un « 0/0 » de se poser sur
+ * la moitié du plan.
+ *
+ * `grimpes` et `credites` ne sont affichés nulle part aujourd'hui. Ils ne
+ * coûtent rien à compter et ils sont la seule façon honnête de répondre, plus
+ * tard, à « combien de ces blocs a-t-il vraiment grimpés ».
+ */
+export function comptesDesZones(groupes) {
+  const comptes = {};
+  for (const bloc of tousLesBlocs(groupes)) {
+    if (!bloc.zone) continue;
+    const compte = comptes[bloc.zone]
+      || (comptes[bloc.zone] = { total: 0, faits: 0, grimpes: 0, credites: 0 });
+    compte.total += 1;
+    if (bloc.etat === GRIMPE) compte.grimpes += 1;
+    if (bloc.etat === CREDITE) compte.credites += 1;
+    if (estFait(bloc.etat)) compte.faits += 1;
+  }
+  return comptes;
+}
+
+/**
  * L'état de chaque zone POUR CE GRIMPEUR.
  *
  *   « finie »  — tous ses blocs de cette zone sont faits
@@ -53,27 +90,42 @@ export function blocsDeZone(groupes, zone) {
  * L'absence est une information à part entière : c'est elle qui permet
  * d'effacer les zones qui ne le concernent pas, au lieu de les peindre comme
  * les autres et de lui faire chercher son travail dans dix-sept cases.
+ *
+ * ⚠️ Déduit de `comptesDesZones`, et jamais recompté : c'est ce qui rend
+ * impossible qu'une zone soit cerclée de vert sous un compteur qui dit « 3/4 ».
  */
 export function etatsDesZones(groupes) {
-  const par = new Map();
-  for (const bloc of tousLesBlocs(groupes)) {
-    if (!bloc.zone) continue;
-    const compte = par.get(bloc.zone) || { total: 0, faits: 0 };
-    compte.total += 1;
-    if (estFait(bloc.etat)) compte.faits += 1;
-    par.set(bloc.zone, compte);
-  }
   const etats = {};
-  for (const [zone, compte] of par) {
+  for (const [zone, compte] of Object.entries(comptesDesZones(groupes))) {
     etats[zone] = compte.faits === compte.total ? FINIE : A_FAIRE;
   }
   return etats;
 }
 
-/** Combien de blocs faits sur combien, dans une zone. */
+/** Combien de blocs faits sur combien, dans une zone.
+ *
+ * Une zone sans bloc du circuit rend un compte À ZÉRO plutôt que rien : c'est
+ * ce dont le panneau a besoin pour écrire « aucun bloc de ton circuit dans
+ * cette zone ». Le PLAN, lui, veut l'absence, et la lit dans
+ * `comptesDesZones`. */
 export function compteDeZone(groupes, zone) {
-  const blocs = blocsDeZone(groupes, zone);
-  return { total: blocs.length, faits: blocs.filter((b) => estFait(b.etat)).length };
+  return comptesDesZones(groupes)[zone]
+    || { total: 0, faits: 0, grimpes: 0, credites: 0 };
+}
+
+/**
+ * Le compteur d'une zone, tel qu'il s'écrit sur le plan : « 1/4 ».
+ *
+ * La notation n'est pas inventée ici : la fiche l'écrit déjà en tête de chaque
+ * groupe de couleur. Le plan reprend celle de l'écran qui l'ouvre.
+ *
+ * Rend `""` quand il n'y a rien à dire — pas de compte, ou aucun bloc du
+ * circuit dans cette zone. « 0/4 » se dit (le zéro est une information),
+ * « 0/0 » ne se dit pas (l'absence en est une autre).
+ */
+export function libelleCompte(compte) {
+  if (!compte || !compte.total) return "";
+  return compte.faits + "/" + compte.total;
 }
 
 /**

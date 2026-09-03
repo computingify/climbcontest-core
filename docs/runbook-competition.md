@@ -74,6 +74,13 @@ Puis :
    « Aucun jeton Google… ») — plus besoin d'ouvrir un SSH pour le savoir.
    Supprimer ensuite la réussite de test depuis la console.
 
+   > `reussites_en_attente` ne parle que de la compétition **active** : c'est
+   > ce que le miroir va écrire, donc ce qui doit retomber à zéro. Un
+   > `reussites_inenvoyables` non nul à côté n'est pas une alerte — ce sont des
+   > réussites d'anciennes compétitions, ou de grimpeurs sans dossard, que le
+   > classeur d'aujourd'hui ne recevra jamais. Elles restent en base et dans
+   > l'archive de leur propre compétition.
+
 7. **Un scan de bout en bout** avec un vrai téléphone et un vrai QR code —
    et un iPhone de bénévole via l'onglet **App juge** de la console
    (le QR d'installation s'y trouve).
@@ -103,6 +110,8 @@ avec leur flèche. Personne n'a besoin d'y toucher.
 | `/?mur` | le cas normal : **fond clair**, fait pour un vidéoprojecteur |
 | `/?mur&sombre` | écran LED, ou salle qu'on peut vraiment assombrir |
 | `/?mur&rotation=30` | forcer la durée d'un écran, en secondes |
+| `/?periode=5` | relire les données toutes les 5 s au lieu de 15 |
+| `/?periode-reglages=1` | relire les **réglages** toutes les 1 s au lieu de 3 |
 | `/` | ce que voient les parents sur leur téléphone : recherche par nom ou dossard |
 
 ⚠️ `/resultats` **n'existe plus** (spec 016) : c'était un doublon de la racine.
