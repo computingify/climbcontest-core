@@ -10,6 +10,27 @@ import re
 import pytest
 
 
+class TestHiddenCacheVraiment:
+    """La barre des categories disparait VRAIMENT quand il n'y en a qu'une.
+
+    Une regle d'AUTEUR qui pose `display` bat le `[hidden] { display: none }`
+    de la feuille du NAVIGATEUR. `#barre { display: flex }` gagnait donc contre
+    le `hidden` pose par le script : la barre, videe de ses boutons, restait
+    une bande de 21 px avec son filet sous l'entete. Sur le videoprojecteur de
+    la salle, une bande noire en travers de l'ecran.
+
+    Mesure au navigateur avant correction : `display: flex`, hauteur 21 px.
+    Apres : `display: none`, hauteur 0.
+    """
+
+    def test_la_regle_globale_est_la(self, client):
+        page = client.get("/").get_data(as_text=True)
+        assert re.search(r"\[hidden\]\s*\{\s*display:\s*none\s*!important", page), (
+            "la regle globale `[hidden] { display: none !important }` a "
+            "disparu : `#barre { display: flex }` rendra a nouveau visible une "
+            "barre de categories vide")
+
+
 class TestServie:
 
     def test_la_page_repond_du_html(self, client, jeu):
