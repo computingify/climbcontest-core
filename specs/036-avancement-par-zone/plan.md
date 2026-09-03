@@ -26,6 +26,34 @@
 - [ ] **8. Le diff complet**, relu avec la grille de la phase 5, puis la PR.
       **Pas de merge** : la porte 7 appartient à Adrien.
 
+## La pastille qui se remplit — le second lot, 03/09
+
+Les étapes 1 à 8 ont livré le **compteur**. Le § 2 ter de la spec a ensuite
+demandé qu'un objet **se remplisse** à hauteur de l'avancement — et il a fallu
+deux passes pour savoir lequel :
+
+- [x] **9. La première lecture, écrite puis jetée.** C'était le **cadre** de la
+      zone : épaissi ×2, rogné dans le pan, rempli sur la longueur de son
+      contour, avec la garantie de coin côté serveur que ça demandait. Montré à
+      Adrien sur le rendu réel : « ce n'est pas ce que je voulais ». Retiré en
+      entier. **La leçon est dans la spec** — une phrase qui décrit un objet à
+      l'écran se vérifie en montrant l'objet.
+- [x] **10. Le rendu réel, en HTML, avant de recoder.**
+      `maquettes/pastille.html` : le SVG que `plan.js` monte vraiment, avec les
+      quatre largeurs d'ovale, les trois forces de vert et les deux bouts de
+      remplissage. Adrien a choisi **×1,6, franc, bout droit**.
+- [x] **11. La position, mesurée puis choisie.** Six positions chiffrées sur le
+      vrai dessin, parce que « descends la pastille » ne pouvait rien donner —
+      il ne restait que 0,009 × taille dessous. Adrien a choisi **E,
+      l'équilibre** : les trois airs égaux.
+- [x] **12. Le code.** `plan.js` : `LETTRE_MONTEE`, `partFaite`, la découpe du
+      socle, la couche des compteurs, la largeur du vert posée par `decorer`.
+      `resultats.html` : la couleur du vert, la couche, le rebond sans lueur.
+- [x] **13. Les tests, un en face de chaque décision.** La part, la découpe, la
+      remise à zéro, l'ordre de peinture, les trois airs, et le vert mesuré
+      dans un vrai navigateur.
+- [ ] **14. La relecture d'Adrien, puis la PR.** Porte 7 : elle est à lui.
+
 ## Plan de test
 
 Écrit **avant** l'implémentation, comme le veut `docs/workflow.md`.

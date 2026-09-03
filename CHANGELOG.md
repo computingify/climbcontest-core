@@ -19,6 +19,38 @@ qu'on ne met pas à jour le matin d'une compétition :
 
 ## [0.18.1] — 2026-09-03
 
+### Ajouté
+
+- **La pastille du compteur de zone se remplit de vert** à hauteur de
+  l'avancement, sur le plan du mur de la fiche (spec 036 § 2 ter). « Je veux
+  que le truc avec le nombre de blocs restant se remplisse de vert en fonction
+  de l'avancement. » Une zone à 1 bloc sur 4 porte donc « 1/4 » sur une pastille
+  verte au quart, et une zone terminée une pastille pleine. Le compte est le
+  même que celui du chiffre — les deux dérivent d'une seule fonction, ils ne
+  peuvent pas se contredire — et le vert suit une réussite **en direct**, sans
+  que le mur soit redessiné.
+  - Le vert est un rectangle franc **découpé dans la forme du socle** : il en
+    épouse le bord arrondi à gauche et se coupe net à droite. On lit un
+    **niveau** ; arrondi de son côté, il ferait une petite pastille dans la
+    grande, donc deux objets.
+  - **L'ovale s'élargit à 1,6 fois la lettre** — et uniquement en largeur : sa
+    hauteur et le corps du chiffre ne bougent pas. Un vert qui remplit un rond
+    ne dit pas une proportion. Effet de bord bienvenu : « 12/15 » tient
+    maintenant à sa taille pleine au lieu de rétrécir.
+  - **La lettre de la zone monte**, et la pastille se pose plus haut : les trois
+    espaces du pan — au-dessus de la lettre, entre la lettre et la pastille,
+    sous la pastille — deviennent **égaux**. Ce n'était pas un problème de
+    place mais un chevauchement : le halo de la lettre recouvrait la pastille de
+    près d'une unité de plan. Sous elle, il ne restait que 0,009 × taille — un
+    cinquième de pixel sur un téléphone.
+  - **Le chiffre d'une zone terminée ne vire plus au vert** : sur une pastille
+    pleine, vert sur vert ne se lit pas. C'est le remplissage qui dit
+    « terminée ».
+  - **Le cadre de la zone ne change pas** : il garde son tout-ou-rien et dit
+    « terminée », rien d'autre. Une première version faisait l'inverse — le
+    cadre épaissi qui se remplissait — et elle a été retirée en entier après
+    l'avoir regardée à l'écran.
+
 ### Corrigé
 
 - **Le bouton « Installer » de la console n'a jamais pu fonctionner**, depuis

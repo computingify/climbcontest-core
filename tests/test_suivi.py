@@ -373,7 +373,7 @@ class TestLeCompteurTientDansSonPan:
 
     @staticmethod
     def _ratio(source, nom):
-        trouve = re.search(rf"export const {nom} = ([\d.]+);", source)
+        trouve = re.search(rf"(?:export )?const {nom} = ([\d.]+);", source)
         assert trouve, f"{nom} introuvable dans plan.js — le compteur n'est plus mesurable"
         return float(trouve.group(1))
 
@@ -391,23 +391,45 @@ class TestLeCompteurTientDansSonPan:
         return (Path(__file__).resolve().parent.parent
                 / "climbcontest/static/resultats/plan.js").read_text()
 
-    def test_la_pastille_ne_sort_pas_de_son_pan(self, app):
-        """Le socle tient entre le bas du glyphe de la lettre et le bas du pan.
+    def test_la_lettre_et_sa_pastille_tiennent_dans_le_pan(self, app):
+        """Trois bornes verticales, et elles se serrent toutes les trois.
 
-        Deux bornes, et elles se serrent : sur les pans de 15 unites d'Annonay
-        le budget vertical vaut 0,473 x taille, la pastille en occupe 0,448.
+        ⚠️ CE TEST A CHANGE DE FORME AVEC LA POSITION « E » (03/09). La lettre
+        ne s'ecrit plus sur son centroide : elle MONTE de `LETTRE_MONTEE`, pour
+        faire la place que la pastille n'avait pas en dessous. Trois choses
+        peuvent donc sortir du pan au lieu d'une, et la troisieme est neuve :
+
+          1. le HALO de la lettre, par le haut -- personne ne le surveillait,
+             et c'est desormais lui le plus haut ;
+          2. la pastille, par le bas ;
+          3. la pastille contre le halo : ils se chevauchaient de 0,104 x taille
+             avant ce lot, et c'est exactement ce qu'Adrien a vu (« la c'est
+             trop proche »).
+
+        ⚠️ On mesure le HALO et non le glyphe : le halo est ce qui se voit, et
+        c'est lui qui touchait la pastille.
         """
         source = self._source()
         echelle = self._ratio(source, "COMPTE_ECHELLE")
         descente = self._ratio(source, "COMPTE_DESCENTE")
         hauteur = self._ratio(source, "PASTILLE_HAUTEUR")
+        montee = self._ratio(source, "LETTRE_MONTEE")
+        # `HALO` est l'EPAISSEUR du trait, centre sur le contour du glyphe : il
+        # deborde donc de sa moitie.
+        halo = self.DEMI_HAUTEUR + self._ratio(source, "HALO") / 2
 
         for mur in plan_public()["murs"]:
-            _, _, _, y_bas = self._boite(mur["d"])
+            _, y_haut, _, y_bas = self._boite(mur["d"])
             taille = mur["taille"]
             y = mur["etiquette"][1]
             demi = taille * echelle * hauteur / 2
             centre = y + taille * descente
+            lettre = y - taille * montee
+
+            assert lettre - taille * halo >= y_haut, (
+                f"zone {mur['zone']} : le halo de la lettre monte a "
+                f"{lettre - taille * halo:.2f} pour un pan qui commence a "
+                f"{y_haut:.2f}. Baisse LETTRE_MONTEE dans plan.js.")
 
             assert centre + demi <= y_bas, (
                 f"zone {mur['zone']} : la pastille descend a "
@@ -415,18 +437,23 @@ class TestLeCompteurTientDansSonPan:
                 f"Baisse COMPTE_DESCENTE, COMPTE_ECHELLE ou PASTILLE_HAUTEUR "
                 f"dans plan.js, ou fais calculer la place par le serveur.")
 
-            assert centre - demi >= y + taille * self.DEMI_HAUTEUR, (
-                f"zone {mur['zone']} : la pastille mord la lettre. Augmente "
-                f"COMPTE_DESCENTE, ou baisse COMPTE_ECHELLE ou "
-                f"PASTILLE_HAUTEUR dans plan.js.")
+            assert centre - demi >= lettre + taille * halo, (
+                f"zone {mur['zone']} : la pastille touche le halo de la lettre "
+                f"-- c'est le defaut qu'on vient de corriger. Augmente "
+                f"LETTRE_MONTEE ou COMPTE_DESCENTE dans plan.js.")
 
     def test_la_pastille_ne_sort_pas_sur_les_cotes(self, app):
         """Meme garde en largeur — et c'est celle qui avait cede.
 
         La pastille fait `PASTILLE_LARGEUR x taille` de large, quel que soit
-        son libelle. `taille_lettre` a deja borne `taille` a 0,94 x la largeur
-        du pan, donc tant que `PASTILLE_LARGEUR` vaut 1 la pastille tient ;
-        c'est ce lien-la que ce test verifie sur le releve reel.
+        son libelle. `taille_lettre` a deja borne `taille` par la boite du pan,
+        et c'est ce lien-la que ce test verifie sur le releve reel.
+
+        ⚠️ IL S'EST RESSERRE LE 03/09 : la pastille est passee de 1,0 a 1,6 fois
+        la lettre pour porter la jauge, soit 14,4 unites dans un pan de 15. Il
+        reste 0,3 unite de chaque cote -- la pastille croise donc le cadre
+        « terminee » et lui passe devant, ce qui est assume. Ce qu'elle ne doit
+        jamais faire, c'est sortir du pan : au-dela, elle irait chez la voisine.
         """
         source = self._source()
         largeur = self._ratio(source, "PASTILLE_LARGEUR")

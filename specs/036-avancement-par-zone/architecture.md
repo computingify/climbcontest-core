@@ -20,7 +20,7 @@ Le compteur est donc **décrit vide et rempli par `decorer()`** :
 | --- | --- |
 | `decrire` | ajoute un `<text class="compte-zone">` **sans texte** dans le groupe de chaque zone, à une place et une taille déduites de `mur.etiquette` et `mur.taille` |
 | `monter` | le monte comme le reste, sans rien décider |
-| `decorer` | écrit son `textContent`, pose `a-compte` sur le groupe, `compte-finie` sur le texte |
+| `decorer` | écrit son `textContent`, pose `a-compte` sur **toutes** les formes de la zone, et donne au vert de la pastille sa largeur |
 
 C'est ce qui rend F5 vrai gratuitement : un rafraîchissement de la fiche
 n'appelle que `decorer`, et le chiffre suit.
@@ -74,16 +74,18 @@ la boîte du pan — `fiches.taille_lettre`). Le compteur se raccroche à ces de
 nombres, et à rien d'autre : il n'y a **aucune lecture de géométrie côté page**.
 
 Le compteur est posé sur une **pastille** — la pose B, tranchée par Adrien le
-03/09. Quatre ratios, et une règle qui les gouverne tous : **la pastille se
+03/09. Cinq ratios, et une règle qui les gouverne tous : **la pastille se
 dimensionne sur la LETTRE, jamais sur son texte.**
 
 ```
-cy       = etiquette[1] + taille * 0.60      COMPTE_DESCENTE
+lettre   = etiquette[1] - taille * 0.267     LETTRE_MONTEE  (elle MONTE)
+cy       = etiquette[1] + taille * 0.523     COMPTE_DESCENTE
 x        = etiquette[0]                      (meme axe que la lettre)
-socle    = taille * 1.00  de large           PASTILLE_LARGEUR
+socle    = taille * 1.60  de large           PASTILLE_LARGEUR
            taille * 0.40 * 1.12 de haut      COMPTE_ECHELLE * PASTILLE_HAUTEUR
            rx = la demi-hauteur              (un stade, pas un rectangle)
-fontSize = taille * min(0.40, 1/(0.58 * n))  COMPTE_ECHELLE, n = longueur du libelle
+jauge    = un rect de socle.largeur * part, decoupe DANS le socle
+fontSize = taille * min(0.40, 1.6 * 0.86 / (0.58 * n))     n = longueur du libelle
 ```
 
 **Pourquoi la largeur est le point.** C'est ce qui avait fait écarter la pose B
@@ -93,22 +95,42 @@ que `fiches.taille_lettre` a déjà posée par la boîte du pan
 (`taille ≤ 0,94 × largeur`). **Aucune géométrie n'est relue côté page** — c'était
 l'objection de fond, et elle tombe.
 
-**D'où sortent 0,60, 0,40 et 1,12.** Le budget vertical est ce qui reste **entre
-le bas du glyphe de la lettre** et **le bas du pan**. Avec
-`dominant-baseline: central`, une capitale grasse occupe ±0,36 × son corps ; le
-bas du pan est à `0,833 × taille` (la demi-hauteur d'un pan de 15 unités
-rapportée à une lettre plafonnée à 9). Le budget vaut donc
-`0,833 − 0,36 = 0,473 × taille`, et **pas un centième de plus**. La pastille en
-occupe `1,12 × 0,40 = 0,448`, centrée à 0,60 :
+**D'où sortent 0,267 et 0,523 : les trois airs égaux.** Ce qu'on répartit,
+c'est la hauteur du pan. Avec `dominant-baseline: central`, une capitale grasse
+occupe ±0,36 × son corps, et son **halo** déborde de la moitié de son épaisseur
+(0,24), donc la lettre occupe **±0,48**. Le bas du pan est à `0,833 × taille`
+(la demi-hauteur d'un pan de 15 unités rapportée à une lettre plafonnée à 9).
 
 ```
-haut = 0.60 - 0.224 = 0.376  >=  0.36    elle ne mord pas la lettre
-bas  = 0.60 + 0.224 = 0.824  <=  0.833   elle ne sort pas du pan
+le pan          2 x 0.833  =  1.666
+la lettre       2 x 0.48   =  0.960   (halo compris)
+la pastille                =  0.448   (0.40 x 1.12)
+                              -----
+il reste                      0.258   ->  TROIS AIRS DE 0.086
 ```
 
-Les deux marges valent 0,145 et 0,084 × taille — soit 1,3 et 0,8 dixièmes
-d'unité pour une lettre de 9. C'est mince, et il faut le dire : **ce n'est pas
-une place qu'on peut reprendre pour grossir le chiffre.**
+Les trois airs — au-dessus de la lettre, **entre la lettre et la pastille**,
+sous la pastille — sont donc égaux. C'est la position **E**, choisie par Adrien
+le 03/09 parmi six, sur `maquettes/pastille.html`. Les deux ratios de place en
+découlent :
+
+```
+LETTRE_MONTEE   = 0.833 - 0.086 - 0.48   = 0.267
+COMPTE_DESCENTE = 0.833 - 0.086 - 0.224  = 0.523
+```
+
+**⚠️ Ce qu'on a réglé là est un chevauchement, pas un espacement.** Avant, la
+lettre restait sur son centroïde et la pastille descendait à 0,60 : le glyphe ne
+la touchait pas (0,376 ≥ 0,36) mais **son halo la recouvrait de 0,104 × taille**
+— près d'une unité de plan. « Là c'est trop proche » ne demandait donc pas de la
+place en plus, mais de séparer deux objets qui se touchaient. Et la place n'était
+pas où on l'aurait cherchée : **il ne restait que 0,009 × taille sous la
+pastille** — un cinquième de pixel sur un téléphone — contre **0,353 au-dessus
+de la lettre**. C'est pour ça que c'est la lettre qui monte.
+
+Les trois marges valent maintenant 0,086 × taille chacune, soit **0,77 unité de
+plan** pour une lettre de 9. C'est mince, et il faut le dire : **ce n'est pas une
+place qu'on peut reprendre pour grossir le chiffre.**
 
 **Ce que la pastille coûte, et ce qu'elle rapporte.** Le chiffre passe de 0,46 à
 `0,40 × taille` : **13 % de corps en moins**. En échange il gagne un **fond** au
@@ -126,9 +148,12 @@ page une géométrie qui vit côté serveur — et de la voir diverger le jour o
 pan cesse d'être un rectangle. Sous la lettre, la seule chose qu'on consomme,
 c'est la place que `taille` a **déjà** réservée.
 
-**Le rétrécissement, et ce qui ne rétrécit pas.** `min(0.40, 1/(0.58·n))` borne
-la largeur du libellé à une fois `taille`, quel que soit le nombre de chiffres :
-« 1/4 » sort à sa taille pleine, « 12/15 » rétrécit au lieu de déborder. Le 0,58
+**Le rétrécissement, et ce qui ne rétrécit pas.** La borne est la largeur de la
+**pastille**, dont le libellé n'occupe que 86 % : « 1/4 » sort à sa taille
+pleine, et depuis que le socle fait 1,6 fois la lettre, « 12/15 » aussi — c'est
+le bénéfice direct de l'élargissement, et il était demandé (« repasse sa taille
+à celle d'origine »). Le rétrécissement reste pour les libellés qu'aucun
+élargissement raisonnable ne ferait tenir. Le 0,58
 est la largeur d'un chiffre tabulaire en fraction de sa taille — la même famille
 de constante que `LARGEUR_CAPITALE` côté Python, et prise comme elle sur le pire
 glyphe. ⚠️ **La pastille, elle, se calcule sur le corps NOMINAL** et jamais sur
@@ -162,6 +187,89 @@ dans un pan arbitrairement bas — c'est de faire calculer la place du compteur
 part, pas une ligne à glisser dans celui-ci. En attendant, ce qui protège, c'est
 que le seul plan qui existe fait des pans de 15.
 
+## 3 bis. La pastille qui se remplit
+
+Le compteur dit **combien** ; la pastille dit **quelle part**. Les deux dérivent
+du même `comptesDesZones`, donc ils ne peuvent pas se contredire — c'est la
+même règle que la § 2, appliquée à un troisième affichage.
+
+### Trois couches, et pourquoi le compteur est monté d'un cran
+
+```
+<defs>                une decoupe par pastille (clipPath)
+g[data-zone] x17      le pan : forme, trame, lettre
+g.cadres-zone         le cadre d'etat de chaque zone
+g.compteurs-zone      la pastille, son vert et son chiffre
+```
+
+En SVG l'ordre de peinture est l'ordre du document — il n'y a pas de `z-index`.
+Les cadres passaient déjà **après tous les murs** : un cadre dessiné dans le
+groupe de sa zone se fait rogner sur les arêtes qu'elle partage avec sa voisine,
+et le relevé d'Annonay n'est presque que ça.
+
+**Le compteur, lui, a dû monter.** Il vivait dans le groupe de sa zone, donc
+*sous* les cadres. Tant que la pastille faisait une fois la lettre, elle ne les
+croisait pas ; à **1,6 fois**, elle fait 14,4 unités dans un pan de 15 quand
+l'intérieur du cadre en fait 13,4. Peinte dessous, elle se ferait couper **à ses
+deux extrémités** — justement là où le vert dit où il s'arrête. Elle passe donc
+devant, et c'est le cadre qui porte l'encoche : un décor constant, présent sur
+toutes les zones comptées, plutôt qu'une jauge tronquée.
+
+Le groupe du compteur reprend le `data-zone` **et le centre de rotation** de son
+pan : il reçoit les mêmes classes d'état, et **rebondit avec lui**. Trois
+conséquences à ne pas perdre :
+
+- `decorer` pose `a-compte` sur **toutes** les formes de la zone, et plus
+  seulement sur celle qui porte le chiffre : c'est cette classe qui allume la
+  pastille et son vert **ensemble** ;
+- la couche des compteurs est `pointer-events: none`, et les clics ne sont
+  câblés que sur les enfants directs du SVG (`:scope > g[data-zone]`) — sans ça,
+  dix-sept écouteurs morts se poseraient sur les compteurs ;
+- le redémarrage d'animation de `resultats.html` passe **au pluriel** : la zone
+  visée, c'est maintenant deux nœuds, et redémarrer le premier seul les
+  désynchronise dès la deuxième visite d'une même zone.
+
+### Le vert : un rectangle franc, découpé dans le socle
+
+```
+<rect class="socle-compte"   x y w h rx>          le fond
+<rect class="remplit-compte" x y (w * part) h     la jauge
+      clip-path="url(#plan-socle-Z)" data-plein=w>
+<text class="compte-zone">                        le chiffre
+```
+
+**Pourquoi une découpe et pas un `rx`.** Un rectangle arrondi de son côté ferait
+une petite pastille **dans** la grande : on lirait deux objets. Découpé dans la
+forme du socle, le vert en épouse le bord arrondi à gauche et **se coupe net à
+droite** — c'est un niveau, et ça se lit comme une proportion. Choisi sur pièce
+le 03/09 (`maquettes/pastille.html`, § 4).
+
+**Pourquoi la largeur est posée par `decorer` et pas par `decrire`.** Comme le
+chiffre : la part dépend **du grimpeur**, et le dessin est le même pour tout le
+monde. C'est ce qui rend la jauge « en direct » sans rien reconstruire — une
+réussite qui arrive pendant qu'on regarde le plan ne repasse que par la
+décoration. `data-plein` porte la largeur du socle : c'est la seule chose dont
+`decorer` a besoin pour en peindre une fraction, et **elle ne relit aucune
+géométrie**.
+
+**La remise à zéro n'est pas optionnelle.** Le dessin persiste d'une repeinture
+à l'autre ; sans elle, la pastille d'un grimpeur resterait à moitié pleine sur
+la fiche du suivant. `decorer` réécrit donc la largeur **à chaque passage**, y
+compris à zéro.
+
+### Ce que la couleur coûte
+
+Le vert est **franc** (62 % de `--ok`), et le chiffre est posé dessus. C'est le
+seul arbitrage du lot, et il se voit : plus le vert est fort, moins le chiffre
+se détache. Trois forces ont été rendues côte à côte, sur le vrai plan, et c'est
+celle-là qui a été choisie.
+
+⚠️ **Le chiffre d'une zone terminée ne vire plus au vert.** Il le faisait quand
+la pastille était un fond neutre. Sur une pastille **pleine** de vert, vert sur
+vert ne se lit pas : deux signaux se disputeraient le même pixel. C'est le
+remplissage qui dit « terminée », et le chiffre reste à l'encre — la classe
+`compte-finie` disparaît avec sa règle, plutôt que de rester sans effet.
+
 ## 4. Le style
 
 Tout dans `resultats.html`, sous les règles `.plan` existantes, avec les
@@ -171,7 +279,9 @@ variables déjà posées pour le thème clair et `body.sombre` :
 .plan .socle-compte { fill: var(--pl-halo); stroke: none; pointer-events: none; }
 .plan g[data-zone]:not(.a-compte) .socle-compte { display: none; }
 .plan .compte-zone { ... font-variant-numeric: tabular-nums; }
-.plan .compte-zone.compte-finie { fill: var(--ok); }
+.plan g[data-zone]:not(.a-compte) .remplit-compte { display: none; }
+.plan .remplit-compte { fill: color-mix(in srgb, var(--ok) 62%, transparent); }
+.plan .compteurs-zone { pointer-events: none; }
 ```
 
 - La **pastille** prend `var(--pl-halo)`, la couleur qui servait au halo de la
@@ -201,6 +311,18 @@ modifiée par ce lot, et aucun bloc n'est inséré à côté d'elle.
 | `tests/js/plan.test.mjs` | le nœud décrit, la décoration, la zone sans compteur, le rétrécissement |
 | `tests/test_suivi.py` | la **pastille** tient dans chaque pan du plan servi, et le chiffre tient dans la pastille |
 | `tests/test_navigateur_fiche.py` | les compteurs lus dans un vrai navigateur, et leur mise à jour en direct |
+
+Et pour la pastille qui se remplit (§ 3 bis) :
+
+| Fichier | Ce qui change |
+| --- | --- |
+| `climbcontest/static/resultats/plan.js` | `LETTRE_MONTEE`, `partFaite` ; `PASTILLE_LARGEUR` à 1,6 et `COMPTE_DESCENTE` à 0,523 ; la lettre monte, les découpes dans `<defs>`, la couche `compteurs-zone` et le `remplit-compte` ; `decorer` pose la largeur du vert |
+| `climbcontest/templates/resultats.html` | `.remplit-compte`, la couche des compteurs et son rebond sans lueur, le retrait de `.compte-finie`, le clic câblé sur les seuls pans, le redémarrage d'animation au pluriel |
+| `tests/js/plan.test.mjs` | la part faite, la jauge décrite vide et découpée, l'ordre des couches, la remise à zéro, la lettre montée et les trois airs égaux |
+| `tests/test_suivi.py` | le halo qui ne sort pas par le haut, la pastille qui ne sort ni par le bas ni sur les côtés, et les deux qui ne se touchent pas |
+| `tests/test_navigateur_fiche.py` | le vert mesuré dans un vrai navigateur : sa part, sa découpe, sa boîte, l'ordre de peinture, et le cadre resté au tout-ou-rien |
+| `tests/test_coherence_console_ecran.py` | la sonde qui comptait les `g[data-zone]` compte les **pans** |
+| `specs/036-avancement-par-zone/maquettes/pastille.html` | le rendu réel des deux lectures, les trois réglages et les six positions |
 
 **Aucun fichier Python de `climbcontest/` n'est modifié.** La charge servie
 contient déjà `zone` et `etat` sur chaque bloc.
