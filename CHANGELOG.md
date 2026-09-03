@@ -19,6 +19,20 @@ qu'on ne met pas à jour le matin d'une compétition :
 
 ## [Non publié]
 
+### Corrigé
+
+- **`/health` annonçait un retard de classeur qui n'existait pas.** Le compteur
+  `reussites_en_attente` comptait toutes les réussites non synchronisées,
+  **toutes compétitions confondues**, alors que le miroir ne sert que la
+  compétition active. Le 03/09 il affichait `714` en attente pendant que le
+  miroir n'avait plus rien à écrire : 714 réussites d'ailleurs, inenvoyables par
+  construction, qui seraient restées affichées à jamais. Le coût n'est pas
+  cosmétique — un vrai retard de cinquante aurait affiché `764`, indistinguable
+  de `714` au coup d'œil, et c'est le chiffre qu'on regarde le jour J pour
+  savoir si le classeur suit. Le compteur et le miroir partagent désormais **le
+  même filtre**, et ce qui n'est pas envoyable se compte à part dans
+  `reussites_inenvoyables` — sorti du chiffre, pas caché.
+
 ### Ajouté
 
 - **Un simulateur de juges** (`tools/simulateur_juges.py`). Un panneau local

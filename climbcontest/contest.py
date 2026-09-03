@@ -519,11 +519,37 @@ def reussites_suspectes(comp: Competition | None = None) -> list[dict]:
 
 
 def reussites_en_attente() -> int:
-    """Combien de réussites ne sont pas encore dans le classeur.
+    """Ce que le miroir a encore à écrire dans le classeur.
 
-    Exposé par /health : c'est l'indicateur qui dit si le miroir suit.
+    Exposé par /health : c'est l'indicateur qui dit si le miroir suit, et c'est
+    le chiffre qu'on regarde le jour de la compétition.
+
+    ⚠️ Il comptait TOUTES les réussites non synchronisées, sans distinguer la
+    compétition. Or le miroir ne sert que l'**active**. Le 03/09, `/health`
+    annonçait 714 en attente pendant que le miroir n'avait plus rien à faire :
+    714 réussites d'ailleurs, inenvoyables par construction, affichées à jamais.
+
+    Le coût n'est pas cosmétique. Un vrai retard de cinquante réussites aurait
+    affiché 764 — indistinguable de 714 au coup d'œil. Le garde-fou était
+    aveuglé par son propre bruit, et c'est exactement le jour où il sert qu'il
+    aurait manqué. Ce qui n'est pas envoyable se compte désormais à part, dans
+    `reussites_inenvoyables` : on le sort du chiffre, on ne le cache pas.
     """
-    return Success.query.filter(Success.sheet_synced_at.is_(None)).count()
+    from .sheets.mirror import en_attente
+    comp = Competition.query.filter_by(active=True).first()
+    return en_attente(comp.id) if comp else 0
+
+
+def reussites_inenvoyables() -> int:
+    """Celles que le miroir n'écrira JAMAIS : d'une autre compétition, ou sans dossard.
+
+    Elles ne sont perdues pour personne — elles sont en base, et l'archive de
+    leur compétition les contient. Mais elles n'iront pas dans le classeur relié
+    à la compétition d'aujourd'hui, et le dire vaut mieux que de les mélanger à
+    un retard qui, lui, se rattrape.
+    """
+    total = Success.query.filter(Success.sheet_synced_at.is_(None)).count()
+    return total - reussites_en_attente()
 
 
 # --- Tracabilite : quel telephone a envoye quoi (spec 011) -------------------
