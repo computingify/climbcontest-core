@@ -87,8 +87,17 @@
     --circuit-texte: color-mix(in srgb, var(--circuit) 50%, var(--encre));
     --trait-circuit: color-mix(in srgb, var(--circuit) 62%, var(--trait-fait));
   }
+  /* ⚠️ Le sombre est ecrit DEUX FOIS, et c'est voulu (spec 040) : une fois
+     pour le telephone qui le demande, une fois pour le juge qui le demande.
+     CSS ne sait pas partager un jeu de valeurs entre une requete media et un
+     selecteur d'attribut, et les deux copies ne peuvent pas diverger --
+     `tests/test_theme_au_choix.py` les compare propriete par propriete.
+     L'autre route serait de tout resoudre en JavaScript avant la peinture ;
+     elle rendrait le choix du SYSTEME dependant d'un script, ce que la spec
+     039 ne demandait pas. */
   @media (prefers-color-scheme: dark) {
-    :root {
+    /* Le telephone demande le sombre -- sauf si le juge a impose le clair. */
+    :root:not([data-theme="clair"]) {
       /* --- LE THEME SOMBRE, mot pour mot celui du 02/09 ---------------- */
       --fond: #15161B;
       --fond-haut: #232229;
@@ -109,6 +118,30 @@
       --circuit-texte: var(--circuit);
       --trait-circuit: color-mix(in srgb, var(--circuit) 50%, transparent);
     }
+  }
+  /* La MEME chose, quand c'est le JUGE qui l'a demande dans les
+     Reglages (spec 040). Le corps est la copie exacte de celui
+     ci-dessus : le test refuse la moindre difference. */
+  :root[data-theme="sombre"] {
+      /* --- LE THEME SOMBRE, mot pour mot celui du 02/09 ---------------- */
+      --fond: #15161B;
+      --fond-haut: #232229;
+      --lueur: rgba(224, 169, 74, .11);
+      --carte-faite: #232634; --carte-active: #1C1F29; --carte-attente: #171920;
+      --trait-fait: #333850; --trait-actif: #454B63; --trait-attente: #22252E;
+      --encre: #F4F3F0; --encre2: #7B7B86; --encre3: #43444E;
+      --puce: #1E252F; --puce-encre: #3C4652; --puce-faite: #3A4759;
+      --fait: #34C56A; --alerte: #F0554A; --attention: #E5B44A;
+      /* Les memes voiles qu'avant la spec 039, au point pres :
+         `rgba(229,180,74,.15)` et `rgba(224,112,95,.15)` ecrits en roles. */
+      --attention-voile: color-mix(in srgb, #E5B44A 15%, transparent);
+      --alerte-voile: color-mix(in srgb, #F0554A 15%, transparent);
+      --action: #3E8CF7; --action-texte: #3E8CF7; --sur-action: #F7F9FC;
+      --ombre: 0 6px 24px rgba(0, 0, 0, .45);
+      /* Sur un fond sombre, la teinte du circuit est deja lisible telle
+         quelle : on n'y touche pas. */
+      --circuit-texte: var(--circuit);
+      --trait-circuit: color-mix(in srgb, var(--circuit) 50%, transparent);
   }
   :root {
     /* --- CE QUI NE DEPEND PAS DU THEME -------------------------------- */
@@ -464,6 +497,15 @@
   .vide { color: var(--encre2); text-align: center; margin: 40px 24px;
           line-height: 1.6; }
 
+  /* Le choix du theme (spec 040) : la MEME pastille que le filtre ci-dessus,
+     parce que c'est la meme chose -- un choix parmi peu, tous visibles. */
+  .choix { display: flex; gap: 8px; }
+  .choix button { flex: 1; font: inherit; font-size: 0.95rem; color: var(--encre2);
+                  background: none; border: 1px solid var(--trait-actif);
+                  border-radius: 999px; padding: 11px 6px; cursor: pointer; }
+  .choix button[aria-pressed="true"] { color: var(--sur-action); font-weight: 600;
+                                       background: var(--action); border-color: var(--action); }
+
   #installer { margin: 0 16px 12px; padding: 12px 14px; border-radius: 10px;
                background: var(--carte-active); color: var(--encre2); font-size: 0.88rem;
                line-height: 1.5; }
@@ -478,6 +520,30 @@
   #poste .dis { display: block; color: var(--encre2); font-size: 0.88rem;
                 line-height: 1.5; margin-bottom: 12px; }
 </style>
+<script>
+  /* ⚠️ EN LIGNE, ET AVANT TOUT MODULE (spec 040). Le theme choisi doit etre
+     pose avant la premiere peinture : un module ES est DIFFERE (l'attribut
+     `type=module` implique `defer`), et l'application s'ouvrirait dans le
+     mauvais fond avant de basculer sous les yeux du juge, a chaque lancement.
+     C'est aussi pour ca que le choix est range dans `localStorage`
+     (synchrone) et non dans IndexedDB.
+
+     ⚠️ Le nom de la cle est celui de `theme.js` (`CLE_THEME`), ecrit ici une
+     seconde fois faute de pouvoir importer un module de facon synchrone.
+     `tests/test_theme_au_choix.py` refuse que les deux divergent.
+
+     Rien ici ne remplace la requete media : sans choix range -- le cas de tout
+     telephone qui n'a jamais ouvert les Reglages -- l'attribut reste absent et
+     le defaut de la spec 039 s'applique tel quel. */
+  (function () {
+    try {
+      var choix = localStorage.getItem("climbcontest-theme");
+      if (choix === "clair" || choix === "sombre") {
+        document.documentElement.dataset.theme = choix;
+      }
+    } catch (e) { /* mode prive : on suit le telephone */ }
+  })();
+</script>
 </head>
 <body>
 
@@ -642,6 +708,23 @@
       </div>
       <p class="explication">Pratique quand un grimpeur enchaîne plusieurs blocs :
          seul le bloc est remis à zéro après un envoi.</p>
+    </div>
+  </div>
+
+  <!-- Spec 040. La MEME pastille que le filtre de « Mes scans » : un choix
+       parmi peu, tous visibles, aucun menu a ouvrir. « Systeme » est la
+       position de depart -- c'est le defaut de la spec 039 -- et elle reste
+       ATTEIGNABLE : un juge qui a force le clair le matin peut rendre la main
+       au telephone le soir, ce qu'un interrupteur a deux positions ne sait pas
+       faire. -->
+  <div class="section">
+    <h3>Thème</h3>
+    <div class="bloc">
+      <div class="choix" id="choixTheme" role="group" aria-label="Thème">
+        <button type="button" data-choix="auto" aria-pressed="true">Système</button>
+        <button type="button" data-choix="clair" aria-pressed="false">Clair</button>
+        <button type="button" data-choix="sombre" aria-pressed="false">Sombre</button>
+      </div>
     </div>
   </div>
 

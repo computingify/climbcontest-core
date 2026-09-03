@@ -19,6 +19,25 @@ qu'on ne met pas à jour le matin d'une compétition :
 
 ## [Non publié]
 
+### Ajouté
+
+- **L'application juge choisit son thème** (spec 040). Trois pastilles dans les
+  Réglages — *Système*, *Clair*, *Sombre*. « Système » reste la position de
+  départ : rien ne change pour un juge qui n'y touche pas. Le choix est appliqué
+  avant que l'écran ne se peigne, donc sans clignotement au lancement, et il
+  survit à la fermeture de l'application.
+
+### Corrigé
+
+- Le circuit **« Noir »** suivait le thème du téléphone et non celui qui est
+  réellement affiché : un juge qui imposait le sombre sur un téléphone en clair
+  aurait vu un aplat presque noir sur un fond presque noir, sans savoir s'il
+  avait scanné (spec 040).
+
+⚠️ La coquille hors-ligne de la PWA passe en `v7` : sur un téléphone déjà
+installé, le réglage n'apparaît qu'après avoir **fermé et rouvert**
+l'application.
+
 ## [0.19.0] — 2026-09-03
 
 ### Ajouté

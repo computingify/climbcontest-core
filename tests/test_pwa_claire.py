@@ -70,14 +70,26 @@ def style(page):
 def blocs(style):
     """`(clair, sombre, partage)` — le texte de chacun des trois blocs.
 
-    `clair` est ce qui precede la requete media, `partage` ce qui la suit :
-    c'est l'ORDRE qui fait le defaut, et le test le lit dans cet ordre-la.
+    `clair` est ce qui precede la requete media, `partage` ce qui suit le
+    sombre : c'est l'ORDRE qui fait le defaut, et le test le lit dans cet
+    ordre-la.
+
+    ⚠️ Depuis la spec 040, le sombre est ecrit DEUX fois -- une fois sous la
+    requete media (le telephone le demande), une fois sous
+    `:root[data-theme="sombre"]` (le juge l'a demande dans les Reglages). Le
+    second bloc n'est pas rendu ici : ce fichier verifie le DEFAUT, et le
+    defaut ne connait pas l'attribut. Ce qui garantit que les deux copies ne
+    divergent pas est dans `test_theme_au_choix.py`, qui les compare propriete
+    par propriete. `partage` commence donc apres le SECOND bloc, sans quoi
+    toutes les couleurs sombres y seraient comptees deux fois.
     """
     depart_sombre = style.index("@media (prefers-color-scheme: dark)")
     ouverture, fermeture = _span_accolades(style, depart_sombre)
+    depart_impose = style.index('  :root[data-theme="sombre"] {', fermeture)
+    _, fin_impose = _span_accolades(style, depart_impose)
     return (style[:depart_sombre],
             style[ouverture:fermeture],
-            style[fermeture:])
+            style[fin_impose:])
 
 
 def _proprietes(texte: str) -> dict[str, str]:
@@ -95,7 +107,12 @@ class TestLeClairEstLeDefaut:
             "redeviendrait un cas particulier, et l'ordre le rendrait meme "
             "inatteignable en sombre")
 
-    def test_le_fond_sombre_n_existe_que_dans_la_requete_media(self, blocs):
+    def test_le_fond_sombre_n_est_jamais_pose_par_defaut(self, blocs):
+        """⚠️ Depuis la spec 040 le fond sombre existe a un SECOND endroit --
+        `:root[data-theme="sombre"]`, l'attribut que pose le reglage. Ce qui
+        compte n'a pas bouge : il ne doit se trouver ni avant la requete media,
+        ni apres, c'est-a-dire nulle part ou il s'appliquerait sans que
+        personne l'ait demande."""
         clair, sombre, partage = blocs
         assert FOND_SOMBRE in sombre
         assert FOND_SOMBRE not in clair, (

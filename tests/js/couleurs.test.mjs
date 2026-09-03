@@ -43,6 +43,37 @@ test("hors navigateur, le thème est CLAIR — le défaut de l'application", () 
   assert.equal(couleurDeCircuit("Noir"), NOIR.clair);
 });
 
+test("le thème IMPOSÉ par le juge bat celui du téléphone — spec 040", () => {
+  // ⚠️ Le défaut que ce test ferme, et il est grave : un juge qui force le
+  // sombre sur un téléphone en clair aurait vu un aplat `#22201B` sur un fond
+  // `#15161B`. Il n'aurait pas su s'il avait scanné — c'est-à-dire l'inverse
+  // de ce à quoi sert la couleur du circuit.
+  const avant = { document: globalThis.document, matchMedia: globalThis.matchMedia };
+  const poser = (impose, telephoneSombre) => {
+    globalThis.document = { documentElement: { dataset: impose ? { theme: impose } : {} } };
+    globalThis.matchMedia = () => ({ matches: telephoneSombre });
+  };
+  try {
+    poser("sombre", false);            // le juge impose le sombre, le téléphone est clair
+    assert.equal(enSombre(), true);
+    assert.equal(couleurDeCircuit("Noir"), NOIR.sombre);
+
+    poser("clair", true);              // et l'inverse, qui est tout aussi vrai
+    assert.equal(enSombre(), false);
+    assert.equal(couleurDeCircuit("Noir"), NOIR.clair);
+
+    poser(null, true);                 // rien d'imposé : le téléphone décide
+    assert.equal(enSombre(), true);
+
+    // Les cinq autres circuits ne dépendent d'aucun thème, et ça ne change pas.
+    poser("sombre", false);
+    assert.equal(couleurDeCircuit("Jaune"), CIRCUITS.jaune);
+  } finally {
+    globalThis.document = avant.document;
+    globalThis.matchMedia = avant.matchMedia;
+  }
+});
+
 test("les cinq autres circuits ne dépendent PAS du thème", () => {
   // La parité avec l'Android tient sur ce qui porte de l'information : cinq
   // teintes identiques au point près, dans les deux thèmes. « Noir » est la
