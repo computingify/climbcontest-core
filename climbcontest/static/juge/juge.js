@@ -21,6 +21,7 @@ import { ETATS, Historique, refCourte } from "./historique.js";
 import { identiteCourante, renommer } from "./identite.js";
 import { MAGASINS, MagasinIdb, reglages } from "./idb.js";
 import { doitEnvoyer } from "./politique.js";
+import { expliquerLeQrRefuse, nomDePoste } from "./poste.js";
 import { bailNeuf, identifiantDOnglet, peutPrendre } from "./verrou.js";
 import { expliquerLErreurCamera, lireUnQr } from "./scan.js";
 
@@ -278,6 +279,60 @@ async function relier() {
   }
   try { localStorage.setItem(CLE_RANGEMENT, jeton); } catch { /* mode prive */ }
   location.replace(code);
+}
+
+// --- Le QR de poste, pose sur la table du juge (spec 034) -------------------
+
+/**
+ * Le juge scanne le carton pose sur sa table, et son telephone prend le nom
+ * de la zone.
+ *
+ * Le nom du poste existe depuis la spec 011 et se tapait a la main : un
+ * reglage optionnel, invisible depuis l'ecran principal, dans une application
+ * qu'on ouvre pour scanner. Personne ne le faisait, et quand c'etait fait,
+ * c'etait « Zone C », « zone c » ou « mur de Julien » selon le benevole.
+ *
+ * ⚠️ AUCUN RENOMMAGE SILENCIEUX. `nomDePoste` rend `null` des que le QR n'est
+ * pas un QR de poste -- un bloc, un dossard, le lien de l'organisateur -- et
+ * on le DIT, avec le message qui correspond. Sans le prefixe et sans ce
+ * refus, un bloc scanne ici renommerait le poste « ZJ6 », et la console
+ * afficherait « ZJ6 » en face de tous les envois de la journee.
+ */
+async function scannerMonPoste() {
+  annulation = new AbortController();
+  $("consigne").textContent = "Vise le QR posé sur ta table";
+  $("viseur").hidden = false;
+
+  let code = null;
+  try {
+    code = await lireUnQr($("flux"), annulation.signal);
+  } catch (e) {
+    dire(expliquerLErreurCamera(e), "erreur");
+    return;
+  } finally {
+    $("viseur").hidden = true;
+  }
+  if (!code) return;                       // annulé par le juge
+
+  const nom = nomDePoste(code);
+  if (!nom) {
+    dire(expliquerLeQrRefuse(code), "erreur");
+    return;
+  }
+
+  try {
+    identite = await renommer(reglages, nom);
+  } catch {
+    // Stockage indisponible (mode privé, quota) : on le dit plutôt que de
+    // laisser croire que le poste est nommé.
+    dire("Le nom n’a pas pu être enregistré sur ce téléphone.", "erreur");
+    return;
+  }
+  // Le rafraîchissement d'écran EXISTANT : c'est lui qui repose la valeur du
+  // champ depuis `identite`. Deux endroits qui savent d'où vient cette valeur
+  // finiraient par diverger.
+  await ouvrirLesReglages();
+  dire(`Ce téléphone s’appelle maintenant « ${nom} ».`, "ok");
 }
 
 // --- Scanner ----------------------------------------------------------------
@@ -751,6 +806,7 @@ async function demarrer() {
   $("nomTelephone").addEventListener("input", async (e) => {
     identite = await renommer(reglages, e.target.value);
   });
+  $("btnScannerPoste").addEventListener("click", scannerMonPoste);
   $("garderGrimpeur").addEventListener("change", async (e) => {
     etat.garderGrimpeur = e.target.checked;
     await reglages.ecrire("garder-grimpeur", etat.garderGrimpeur);
