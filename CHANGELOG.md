@@ -17,7 +17,11 @@ qu'on ne met pas à jour le matin d'une compétition :
 - **MINEUR** — nouvelle fonctionnalité, compatible.
 - **CORRECTIF** — correction, compatible.
 
-## [Non publié]
+## [0.17.0] — 2026-09-03
+
+MINEUR : le serveur se met à jour depuis la console. Le reste est du correctif,
+dont **trois occurrences d'un même défaut de cascade** — un `hidden` battu par
+une règle de mise en page — trouvées l'une après l'autre.
 
 ### Modifié
 
@@ -48,6 +52,49 @@ qu'on ne met pas à jour le matin d'une compétition :
   déploiement n'a pas pu être démarré ».
 
 ### Corrigé
+
+- **Trois endroits où « masqué » ne masquait pas** (#86, #89). Une règle
+  d'auteur qui pose un `display` bat le `[hidden] { display: none }` de la
+  feuille du navigateur, quelle que soit sa spécificité. Trois fois le même
+  défaut, trouvés l'un après l'autre :
+
+  - **la console s'affichait sous le formulaire de connexion.** Déconnecté, sur
+    tout écran de 1080 px ou plus, le tiroir, les formulaires et le bouton
+    d'effacement des données étaient là, sous le formulaire, et cliquables.
+    Aucune donnée ne fuyait — les 44 routes `/admin` répondaient déjà 401 — mais
+    la page invitait à cinquante clics qui ne pouvaient que rater ;
+  - **l'écran de réglages du juge offrait un bouton « Renvoyer » inerte**, à
+    côté de « 0 refusées », toute la journée, sur tous les téléphones. Le
+    toucher répondait « aucune réussite refusée » ;
+  - **la barre de catégories du mur dessinait une bande** en travers de
+    l'écran projeté quand il n'y avait qu'une catégorie : 21 px et sa bordure,
+    mesurés dans un navigateur.
+
+  Les rustines locales qui traitaient le problème un élément à la fois — sept
+  au total — sont remplacées par la règle globale `[hidden] { display: none
+  !important }`, désormais dans les quatre pages. La console porte en plus
+  `inert` : même si un style la rendait visible, rien n'y serait cliquable.
+  Aucun test ne pouvait voir ça — le gabarit disait la vérité, `hidden` était
+  bien posé. Seul le `display` calculé le raconte, donc les tests de
+  non-régression pilotent un vrai navigateur.
+
+- **Les neuf points de la revue du 02/09** (#87). Les plus coûteux étaient à
+  l'impression : **une planche de 20 feuilles sortait en 40 pages**, et 7 en 14,
+  parce que la feuille occupait la surface utile exacte à 6 mm de marge — zéro
+  marge d'erreur, et une vraie imprimante coupait chaque feuille en deux. Le
+  défaut apparaît dès 8 mm de zone imprimable. Les aplats de couleur, eux, ne
+  s'imprimaient pas faute de `print-color-adjust: exact` : les pastilles
+  sortaient en ronds vides. Et **les 120 fiches débordaient toutes** sur le plan
+  du mur, de 5,75 mm — `1fr` vaut `minmax(auto, 1fr)`, neuf colonnes de « M52 »
+  faisaient 70 mm dans une colonne de 60.
+
+  Le reste : « Aucune cascade » masque la partie règle, « Sur mesure » redevient
+  sélectionnable depuis « Comme le classeur » (le bouton coché était *déduit*
+  des phrases et se décochait sous le doigt), les colonnes Difficulté et Prises
+  ne gardent que la pastille, la barre de catégories respecte les classements
+  masqués, la rotation du mur ne renonce plus quand il n'y a rien à montrer, et
+  « ← La console » de l'éditeur de plan ne mène plus à `/admin`, qui n'existe
+  pas. Un test en face de chaque point, tous rouges sur le code d'avant.
 
 - **Un mur redessiné entre deux compétitions ne peut plus rester invisible sur
   le téléphone d'un juge** (spec 029). Le plan voyage dans le catalogue
