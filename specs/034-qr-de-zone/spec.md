@@ -225,8 +225,8 @@ la vue **Téléphones** de la console, les tests.
 | --- | --- |
 | Plan vide (aucun mur, ou aucun mur nommé) | Page qui le dit, lien vers « Dessiner le plan du mur », 200 |
 | `?zone=Q` absente du plan | Page vide qui **nomme la zone demandée**, 200 — pas une 404 |
-| Zone au nom long (30 caractères) | Le QR reste lisible ; le nom rétrécit pour tenir sur une ligne |
-| Zone au nom contenant un espace ou un accent | Encodé tel quel dans le QR, relu tel quel |
+| Zone au nom long | `plan_du_mur.ZONE_MAXI` plafonne à **3 caractères** ce qui se dessine dans la console. Le nom rétrécit quand même pour tenir sur une ligne — le plan d'usine est du code, et rien n'y impose ce plafond |
+| Zone au nom contenant un espace ou un accent | Encodé tel quel dans le QR, relu tel quel (`valider()` met en majuscules ce qui vient de la console) |
 | Deux murs portant la même zone | **Une seule** affiche : les zones sont un ensemble |
 | QR de bloc scanné depuis l'écran de poste | Message clair, **aucun renommage** |
 | QR de poste scanné depuis l'écran « grimpeur » | Comportement inchangé : dossard inconnu (non-régression) |

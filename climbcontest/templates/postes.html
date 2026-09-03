@@ -1,0 +1,160 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<title>QR de poste{% if filtre %} — zone {{ filtre }}{% endif %}</title>
+<style>
+  /* Les affiches de poste, posées sur la table du juge — spec 034.
+
+     Le juge arrive à sa table, ouvre l'application, scanne le carton posé
+     devant lui : son téléphone s'appelle « Zone C ». Il n'a rien tapé.
+
+     ⚠️ Ce que l'affiche doit permettre, dans cet ordre :
+     1. se REPERER en arrivant -- le nom de la zone est donc l'élément le plus
+        gros de la page, lisible d'un mètre en marchant ;
+     2. se scanner d'une seule main, de biais, un téléphone dans l'autre --
+        d'où un QR de 80 mm, presque le double de celui d'une étiquette de
+        bloc collée au mur ;
+     3. dire QUOI FAIRE. Un bénévole qui n'a pas écouté le briefing doit
+        trouver le geste sans demander : la marche à suivre est écrite dessus.
+
+     Tout est en MILLIMETRES, et AUCUNE dependance exterieure : on imprime la
+     veille au soir, parfois sans reseau. Le QR est genere localement par
+     `qr.svg()`. */
+
+  /* ⚠️ DIX MILLIMETRES DE MARGE, ET UNE FEUILLE PLUS PETITE QUE LA PAGE.
+     La leçon payée par la spec 032, reprise telle quelle : une feuille qui
+     occupe la surface utile EXACTE sort en DOUBLE de pages sur une vraie
+     imprimante, dont la zone imprimable est plus petite que la surface
+     théorique. Sept feuilles étaient sorties en quatorze pages.
+     La feuille tient ici dans 188 x 272 sur une page utile de 190 x 277. */
+  @page { size: A4 portrait; margin: 10mm; }
+
+  :root {
+    --affiche-largeur: 188mm;
+    --affiche-hauteur: 136mm;   /* 2 x 136 = 272, pour 277 utiles */
+    --feuille-largeur: 188mm;
+    --feuille-hauteur: 272mm;
+    --qr: 80mm;
+  }
+
+  * { box-sizing: border-box; }
+  /* ⚠️ LES APLATS DE COULEUR S'IMPRIMENT. Sans cette declaration, un
+     navigateur ne pose aucun fond a l'impression tant que « Graphismes
+     d'arriere-plan » n'est pas coche -- ce que personne ne coche. Le bandeau
+     du mode d'emploi sortirait en blanc sur blanc. */
+  * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+
+  body {
+    margin: 0; background: #fff; color: #111;
+    font-family: system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+  }
+
+  .entete { padding: 6mm 0 4mm; border-bottom: 0.4mm solid #000; margin-bottom: 5mm; }
+  .entete h1 { margin: 0; font-size: 5mm; font-weight: 700; }
+  .entete p { margin: 1mm 0 0; font-size: 3.4mm; color: #444; }
+
+  /* ⚠️ La pagination est faite en PYTHON (`fiches.en_feuilles`) et le saut de
+     page porte sur la FEUILLE, jamais sur un élément de grille : une grille
+     fragmentée « au mieux » coupait des étiquettes en deux (spec 032).
+     `break-inside: avoid` est la deuxième ligne de défense. */
+  .feuille { width: var(--feuille-largeur); height: var(--feuille-hauteur);
+             overflow: clip;
+             break-inside: avoid; page-break-inside: avoid;
+             display: grid;
+             grid-template-columns: var(--affiche-largeur);
+             align-content: start; }
+  .feuille + .feuille { break-before: page; page-break-before: always; }
+
+  .affiche {
+    height: var(--affiche-hauteur); padding: 8mm 10mm;
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center; gap: 4mm;
+    overflow: hidden;
+    break-inside: avoid; page-break-inside: avoid;
+    /* Le trait de coupe. En pointillé : on découpe dessus. */
+    border-bottom: 0.3mm dashed #aaa;
+  }
+
+  .qr svg { display: block; width: var(--qr); height: var(--qr); }
+
+  /* LE plus gros élément : c'est ce qu'on lit en arrivant, à un mètre, pour
+     savoir qu'on est à la bonne table.
+     ⚠️ La taille vient du SERVEUR (`--taille`), pas d'une constante : « C »
+     a de la place pour 34 mm, « Mur jaune » n'en a pas, et une taille fixe
+     ferait déborder l'un ou ratatiner l'autre. Même mécanique que
+     `--taille` sur les étiquettes de blocs. */
+  .zone { text-align: center; line-height: 1; }
+  .zone .mot { font-size: 6mm; font-weight: 700; letter-spacing: 0.3em;
+               text-transform: uppercase; color: #666; }
+  .zone .nom { font-size: var(--taille, 34mm); font-weight: 800;
+               letter-spacing: -0.02em; white-space: nowrap; margin-top: 2mm; }
+
+  .mode-emploi { background: #F2EFE8; border-radius: 2mm; padding: 3mm 5mm;
+                 font-size: 4mm; color: #333; text-align: center;
+                 max-width: 150mm; line-height: 1.45; }
+  .mode-emploi b { font-weight: 700; }
+
+  .vide { padding: 20mm 0; text-align: center; color: #666; font-size: 4mm;
+          line-height: 1.6; }
+  .vide a { color: #8A5A0F; }
+
+  @media print {
+    .entete { display: none; }   /* l'encre est pour les affiches */
+  }
+  @media screen {
+    body { background: #ECEAE5; padding: 6mm; }
+    .entete, .feuille, .vide { background: #fff; width: max-content; margin-inline: auto; }
+    .feuille { box-shadow: 0 1mm 3mm rgba(0, 0, 0, 0.12); margin-bottom: 6mm; }
+    .entete { padding-inline: 6mm; width: auto; max-width: 198mm; }
+    .vide { width: auto; max-width: 198mm; padding: 20mm; border-radius: 3mm; }
+  }
+</style>
+</head>
+<body>
+
+<div class="entete">
+  <h1>QR de poste{% if filtre %} — zone {{ filtre }}{% endif %}</h1>
+  <p>{{ total }} à imprimer, <strong>deux par page</strong>, une par zone du
+     plan, à couper sur les pointillés. Vérifie l'échelle d'impression :
+     <strong>100 %</strong>, sans « ajuster à la page », sinon les QR sortiront
+     trop petits pour être lus.</p>
+</div>
+
+{% if not feuilles %}
+  <div class="vide">
+    {% if filtre %}
+      La zone <strong>{{ filtre }}</strong> n'est pas dessinée dans le plan
+      actuel.<br>
+      Vérifie son nom dans <a href="/admin/plan"><strong>Dessiner le plan du
+      mur</strong></a>, ou imprime toutes les zones.
+    {% else %}
+      Le plan de la salle ne comporte <strong>aucune zone nommée</strong>.<br>
+      Les QR de poste se déduisent du plan : dessine-le d'abord dans
+      <a href="/admin/plan"><strong>Circuits → Dessiner le plan du mur</strong></a>,
+      en donnant un nom de zone à chaque mur.
+    {% endif %}
+  </div>
+{% else %}
+  {% for feuille in feuilles %}
+  <div class="feuille">
+    {% for p in feuille %}
+    <div class="affiche" style="--taille:{{ p.taille_nom }}mm">
+      <div class="qr">{{ p.qr|safe }}</div>
+      <div class="zone">
+        <div class="mot">Zone</div>
+        <div class="nom">{{ p.zone }}</div>
+      </div>
+      <div class="mode-emploi">
+        Sur ton téléphone : <b>⚙ Réglages</b> →
+        <b>Scanner le QR de mon poste</b>.<br>
+        Ce téléphone s'appellera « {{ p.zone }} » dans la console.
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+  {% endfor %}
+{% endif %}
+
+</body>
+</html>
