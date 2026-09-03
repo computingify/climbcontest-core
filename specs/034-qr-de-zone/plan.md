@@ -18,6 +18,14 @@
 - [x] **E6 — Vérification à l'écran** : serveur de démo, Playwright, captures de
       la console et de la planche.
 - [x] **E7 — Revue du diff complet**, changelog, PR.
+- [x] **E9 — Rebase sur `master`** une fois `fix/revue-du-03-09` (spec 033) et
+      la spec 036 mergées. Trois conflits, dont **deux qui comptent** :
+      `taille_numero_mm` a été supprimée par la spec 033 — la réintroduire
+      l'aurait fait revivre en silence, et un test de `test_etiquettes.py`
+      vérifie justement qu'elle n'existe plus ; et `ligneReussite`, refactorisée
+      par la spec 033, nommait encore le poste par `appareil_nom`. Le troisième,
+      la fusion **sans conflit** de `afficherLeNomDuPoste()`, est raconté dans
+      le périmètre de la spec.
 - [x] **E8 — Les retouches du 03/09**, après relecture d'Adrien. Cinq
       décisions, cinq tests en face :
       la planche passe à **huit par A4** en deux colonnes, avec la géométrie
@@ -105,10 +113,11 @@
 | `juge.html` | l'écran d'accueil | `#poste` / `#btnPoste` hors des écrans, avec son petit texte |
 | `juge.html` | le bloc d'accueil | `hidden` par défaut |
 | `juge.js` | une seule décision | `$("poste").hidden` écrit **une** fois, `proposerDeNommerLePoste` appelée trois |
+| `juge.js` | **la couture** | `scannerMonPoste` appelle `afficherLeNomDuPoste()` — sinon l'en-tête reste vide après un scan |
 | `juge.html` | le `<header>` | ne contient **pas** `btnScannerPoste` — un test qui survit au merge |
 | `sw.js` | la coquille | contient `poste.js`, et le cache a changé de nom |
 | `admin.html` | la carte | `#btnPostes` et `#pZone` dans `#vueTelephones` |
-| `admin.html` | le libellé | `a.libelle` et `r.appareil_libelle`, plus jamais `r.appareil_nom \|\|` |
+| `admin.html` | le libellé | `a.libelle` et `r.appareil_libelle` **deux fois chacun**, plus jamais `r.appareil_nom` |
 
 ### `tests/test_postes.py` et `tests/test_tracabilite.py` — le libellé d'un poste
 

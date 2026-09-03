@@ -353,8 +353,15 @@ d'un poste dans la console** (`contest.libelle_poste`), les tests.
   `#nomPoste`. Deux branches qui réécrivent le même `<header>` fusionneraient
   sans conflit et en silence — le motif est déjà arrivé une fois sur ce dépôt
   (spec 032, deux fonctions du même nom). Cette spec **ne touche pas au bloc
-  `<header>`**, et se contente d'appeler `identite.renommer()` : le nom
-  s'affichera tout seul quand les deux branches seront ensemble ;
+  `<header>`**, et se contente d'appeler `identite.renommer()`.
+
+  > ⚠️ **Et le piège a bien failli se refermer.** `fix/revue-du-03-09` est
+  > mergée ; au rebase, les deux branches ont fusionné **sans un seul conflit**
+  > sur ce point — et pour cause, elles ne se touchent pas. Sauf que
+  > `afficherLeNomDuPoste()` n'est appelée qu'au démarrage et à la frappe dans
+  > le champ du nom : le **scan** ne la déclenchait pas. Un juge qui scanne son
+  > carton aurait vu le bloc de l'accueil disparaître et l'en-tête rester vide
+  > jusqu'au prochain démarrage. Corrigé, et **A17** le tient ;
 - **un QR de poste par téléphone** (un identifiant plutôt qu'une zone). Ça
   reviendrait à attribuer les téléphones depuis la console, ce qui suppose de
   savoir combien il y en a — on ne le sait pas, ce sont ceux des bénévoles ;
@@ -401,7 +408,13 @@ d'un poste dans la console** (`contest.libelle_poste`), les tests.
   **différents** dans la console, et le libellé est composé par **une seule
   fonction** serveur (`contest.libelle_poste`).
 - [x] **A16** — Toutes les vues de la console qui nomment un poste affichent le
-  **même** libellé.
+  **même** libellé — « Qui envoie quoi », la colonne « Téléphone » des
+  dernières réussites, la recherche par référence, et le menu de filtrage par
+  téléphone.
+- [x] **A17** — Un scan de poste réussi **rafraîchit `#nomPoste`** dans
+  l'en-tête. C'est la couture avec `fix/revue-du-03-09` : les deux branches ne
+  se touchent pas, donc elles ont fusionné sans conflit, et le scan est le seul
+  chemin qui renomme le téléphone hors du champ de saisie.
 
 ## 5. Cas limites
 
