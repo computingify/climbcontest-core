@@ -309,7 +309,7 @@ async function relier() {
  * refus, un bloc scanne ici renommerait le poste « ZJ6 », et la console
  * afficherait « ZJ6 » en face de tous les envois de la journee.
  */
-async function scannerMonPoste() {
+async function scannerMonPoste({ depuisLAccueil = false } = {}) {
   annulation = new AbortController();
   $("consigne").textContent = "Vise le QR posé sur ta table";
   $("viseur").hidden = false;
@@ -339,11 +339,41 @@ async function scannerMonPoste() {
     dire("Le nom n’a pas pu être enregistré sur ce téléphone.", "erreur");
     return;
   }
+  // ⚠️ LES DEUX, et c'est la couture entre deux branches. `#nomPoste` dans
+  // l'en-tête vient de `fix/revue-du-03-09`, le bloc de l'accueil de la spec
+  // 034 : elles ont été écrites en parallèle, sans se toucher, et le scan est
+  // le seul chemin qui renomme le téléphone sans passer par le champ de saisie.
+  // L'oublier laisserait l'en-tête vide jusqu'au prochain démarrage — un poste
+  // nommé qui ne le dit pas.
+  afficherLeNomDuPoste();
+  // Le bloc de l'écran d'accueil n'a plus lieu d'être : le poste est nommé.
+  proposerDeNommerLePoste();
   // Le rafraîchissement d'écran EXISTANT : c'est lui qui repose la valeur du
   // champ depuis `identite`. Deux endroits qui savent d'où vient cette valeur
   // finiraient par diverger.
-  await ouvrirLesReglages();
+  //
+  // ⚠️ Sauf depuis l'ACCUEIL : ouvrir les réglages y déposerait le juge sur un
+  // écran qu'il n'a pas demandé, juste avant son premier scan. Le champ sera
+  // relu à la prochaine ouverture des réglages, par le même chemin.
+  if (!depuisLAccueil) await ouvrirLesReglages();
   dire(`Ce téléphone s’appelle maintenant « ${nom} ».`, "ok");
+}
+
+/**
+ * Le bloc « scanne le QR de ton poste » de l'écran d'accueil, montré ou caché.
+ *
+ * ⚠️ UNE SEULE fonction décide de cette visibilité. Elle est appelée au
+ * démarrage, après un scan de poste réussi, et à chaque frappe dans le champ
+ * du nom : trois endroits qui poseraient `hidden` eux-mêmes finiraient par
+ * laisser le bloc affiché sur un téléphone déjà nommé.
+ *
+ * ⚠️ Il DISPARAÎT dès que le poste est nommé. Le juge scanne son carton une
+ * fois le matin ; un bandeau qui resterait toute la journée au-dessus des
+ * cartes de scan volerait de la place à ce qu'on touche cent fois. Le geste
+ * reste dans les Réglages, où il était déjà.
+ */
+function proposerDeNommerLePoste() {
+  $("poste").hidden = Boolean(identite && identite.nom);
 }
 
 // --- Scanner ----------------------------------------------------------------
@@ -818,6 +848,11 @@ async function demarrer() {
          "attention");
   }
 
+  // ⚠️ APRES la lecture de l'identite, jamais avant : `identite` est encore
+  // indefinie tant que le `try` ci-dessus n'a pas rendu la main, et le bloc
+  // resterait cache sur un telephone sans nom.
+  proposerDeNommerLePoste();
+
   $("carteGrimpeur").addEventListener("click", () => scanner("grimpeur"));
   $("carteBloc").addEventListener("click", () => scanner("bloc"));
   $("envoyer").addEventListener("click", envoyer);
@@ -837,8 +872,12 @@ async function demarrer() {
   $("nomTelephone").addEventListener("input", async (e) => {
     identite = await renommer(reglages, e.target.value);
     afficherLeNomDuPoste();
+    // Le champ vidé à la main redonne le geste sur l'écran d'accueil.
+    proposerDeNommerLePoste();
   });
-  $("btnScannerPoste").addEventListener("click", scannerMonPoste);
+  $("btnScannerPoste").addEventListener("click", () => scannerMonPoste());
+  $("btnPoste").addEventListener("click",
+                                 () => scannerMonPoste({ depuisLAccueil: true }));
   $("garderGrimpeur").addEventListener("change", async (e) => {
     etat.garderGrimpeur = e.target.checked;
     await reglages.ecrire("garder-grimpeur", etat.garderGrimpeur);

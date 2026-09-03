@@ -1195,7 +1195,8 @@
            c'est ce nom qui apparaît ci-dessous, en face de chaque envoi.
            <strong>Les zones viennent du plan</strong> : un mur ajouté dans
            « Dessiner le plan du mur » sort son QR à l'impression suivante.
-           Trois par page.</p>
+           <strong>Huit par page</strong> — le carton ne porte que le QR et le
+           nom de la zone, la marche à suivre est dans l'application.</p>
         <div class="grille" style="max-width:420px">
           <div><label for="pZone">Une zone (vide = toutes)</label><select id="pZone"></select></div>
         </div>
@@ -1206,9 +1207,12 @@
         <h2>Qui envoie quoi</h2>
         <p class="aide">Un téléphone <strong>muet depuis plus de dix
            minutes</strong> ressort en rouge : c'est presque toujours un juge
-           bloqué — batterie, wifi, ou application fermée. Le nom est celui que
-           le juge a donné à son téléphone ; il désigne un poste, pas une
-           personne.</p>
+           bloqué — batterie, wifi, ou application fermée. Le nom est celui du
+           <strong>carton scanné</strong> à la table ; il désigne un poste, pas
+           une personne. <strong>Deux téléphones peuvent porter le même
+           nom</strong> — deux juges sur la même zone scannent le même carton :
+           le code entre parenthèses est celui du téléphone, et c'est lui qui
+           les distingue. Le juge le lit dans ses réglages.</p>
         <button class="secondaire" id="btnRafraichirAppareils" style="margin-top:0">Rafraîchir</button>
         <div class="scroll"><table>
           <thead><tr><th>Téléphone</th><th>Réussites</th><th>Dernier envoi</th><th>Identifiant</th></tr></thead>
@@ -2348,9 +2352,10 @@
       (d.appareils || []).forEach(function (a) {
         var o = document.createElement("option");
         o.value = a.id;
-        // Un poste sans nom reste identifiable : c'est ce que la colonne
-        // « Identifiant » de la vue Telephones affiche.
-        o.textContent = a.nom || ("Sans nom · " + (a.id || "").slice(0, 8));
+        // ⚠️ Le LIBELLE : il porte deja le code court, et sans lui deux juges
+        // d'une meme zone donneraient DEUX entrees « Zone A » dans ce menu --
+        // impossible de savoir laquelle on filtre. Compose cote serveur.
+        o.textContent = a.libelle || "Sans nom";
         menu.appendChild(o);
       });
       // Le telephone choisi a pu disparaitre (base effacee) : on ne laisse pas
@@ -2395,7 +2400,10 @@
      heure(r.horodatage),
      // Une saisie a la main n'a pas de telephone, et le dire vaut mieux qu'un
      // tiret : c'est la reponse a « pourquoi ce scan n'est sur aucun poste ? »
-     r.appareil_nom || (r.saisie_par ? "saisie de " + r.saisie_par : "—")
+     // ⚠️ Le LIBELLE, pas le nom brut (spec 034) : deux juges d'une meme zone
+     // scannent le meme carton et leurs telephones portent le meme nom. Compose
+     // cote serveur par `contest.libelle_poste`, seul endroit qui en decide.
+     r.appareil_libelle || (r.saisie_par ? "saisie de " + r.saisie_par : "—")
     ].forEach(function (texte) {
       var td = document.createElement("td");
       td.textContent = texte;             // textContent : ces noms sont saisis
@@ -2668,7 +2676,12 @@
     if (a.silencieux) tr.className = "muet";
 
     var nom = document.createElement("td");
-    nom.textContent = a.nom || "Sans nom";
+    // ⚠️ Le LIBELLE, pas le nom brut : depuis la spec 034 un poste se nomme en
+    // scannant le carton pose sur la table, et deux juges d'une meme zone
+    // scannent le MEME carton -- leurs telephones s'appellent tous les deux
+    // « Zone A ». Le code court les separe. Il est compose cote serveur, par
+    // `contest.libelle_poste`, et c'est le seul endroit qui en decide.
+    nom.textContent = a.libelle || "Sans nom";
     if (!a.nom) nom.className = "sans";
     tr.appendChild(nom);
 
@@ -2730,7 +2743,9 @@
         [r.grimpeur || "Dossard " + r.dossard,
          r.bloc || "—",
          heure(r.horodatage),
-         r.appareil_nom || (r.saisie_par ? "saisie de " + r.saisie_par : "—")
+         // Le meme libelle que dans « Qui envoie quoi » (spec 034) : nom du
+         // poste et code court du telephone, composes cote serveur.
+         r.appareil_libelle || (r.saisie_par ? "saisie de " + r.saisie_par : "—")
         ].forEach(function (t) {
           var td = document.createElement("td");
           td.textContent = t;

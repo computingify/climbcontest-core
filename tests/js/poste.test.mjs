@@ -11,24 +11,38 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 
-import { PREFIXE_POSTE, expliquerLeQrRefuse, nomDePoste, texteDuQrDePoste } from
+import { MOT_ZONE, PREFIXE_POSTE, expliquerLeQrRefuse, libelleDuPoste,
+         nomDePoste, texteDuQrDePoste } from
   "../../climbcontest/static/juge/poste.js";
 import { LONGUEUR_NOM } from "../../climbcontest/static/juge/identite.js";
 
 // --- Ce qui est accepte -------------------------------------------------------
 
-test("un QR de poste rend le nom de la zone", () => {
-  assert.equal(nomDePoste("CCPOSTE:Zone C"), "Zone C");
+test("le QR ne porte que la lettre, l'application compose « Zone A »", () => {
+  // ⚠️ La retouche du 03/09. Adrien : « dans le nom qu'on envoie a la console,
+  // je veux que ce soit "zone" et la lettre de la zone ». Le QR, lui, ne bouge
+  // pas : il reste minimal, donc plus lisible, et le libelle peut changer sans
+  // reimprimer dix-sept affiches.
+  assert.equal(nomDePoste("CCPOSTE:A"), "Zone A");
+  assert.equal(nomDePoste("CCPOSTE:C"), "Zone C");
 });
 
 test("le prefixe se lit sans tenir compte de la casse", () => {
   // Un QR refait a la main ne doit pas devenir un QR mort.
-  assert.equal(nomDePoste("ccposte:Zone C"), "Zone C");
-  assert.equal(nomDePoste("CcPoStE:Zone C"), "Zone C");
+  assert.equal(nomDePoste("ccposte:C"), "Zone C");
+  assert.equal(nomDePoste("CcPoStE:C"), "Zone C");
 });
 
 test("le nom est nettoye comme la saisie au clavier", () => {
-  assert.equal(nomDePoste("CCPOSTE:  Mur jaune  "), "Mur jaune");
+  assert.equal(nomDePoste("CCPOSTE:  Mur jaune  "), "Zone Mur jaune");
+});
+
+test("une zone qui se nomme deja « Zone … » n'est pas prefixee deux fois", () => {
+  // Rien dans le plan n'interdit d'appeler un mur « Zone Nord ». « Zone Zone
+  // Nord » aurait l'air casse dans la console -- et sur un carton deja
+  // imprime par une version anterieure, qui portait le nom complet.
+  assert.equal(nomDePoste("CCPOSTE:Zone C"), "Zone C");
+  assert.equal(nomDePoste("CCPOSTE:zone nord"), "zone nord");
 });
 
 test("un nom trop long est coupe a la meme longueur que le champ", () => {
@@ -37,12 +51,27 @@ test("un nom trop long est coupe a la meme longueur que le champ", () => {
 });
 
 test("les accents et les apostrophes passent tels quels", () => {
-  assert.equal(nomDePoste("CCPOSTE:Zone a l’ombre"), "Zone a l’ombre");
-  assert.equal(nomDePoste("CCPOSTE:Dévers"), "Dévers");
+  assert.equal(nomDePoste("CCPOSTE:a l’ombre"), "Zone a l’ombre");
+  assert.equal(nomDePoste("CCPOSTE:Dévers"), "Zone Dévers");
 });
 
 test("un QR entoure d'espaces reste lisible", () => {
-  assert.equal(nomDePoste("  CCPOSTE:Zone C  "), "Zone C");
+  assert.equal(nomDePoste("  CCPOSTE:C  "), "Zone C");
+});
+
+test("le mot compose est celui de la constante", () => {
+  // ⚠️ Il est ecrit DEUX fois : ici et dans `fiches.MOT_ZONE`, qui l'imprime
+  // en petit au-dessus de la lettre sur le carton. Un test Python compare les
+  // deux (`tests/test_postes.py::TestLePrefixePartage`).
+  assert.equal(MOT_ZONE, "Zone");
+  assert.equal(libelleDuPoste("A"), `${MOT_ZONE} A`);
+});
+
+test("une zone vide ne compose aucun libelle", () => {
+  // ⚠️ Sinon « Zone » tout court remplacerait un nom deja regle.
+  assert.equal(libelleDuPoste(""), null);
+  assert.equal(libelleDuPoste("   "), null);
+  assert.equal(libelleDuPoste(null), null);
 });
 
 // --- Ce qui est refuse --------------------------------------------------------
@@ -75,7 +104,7 @@ test("rien du tout n'est pas un QR de poste", () => {
 });
 
 test("le prefixe doit etre en TETE, pas quelque part dedans", () => {
-  assert.equal(nomDePoste("PASCCPOSTE:Zone C"), null);
+  assert.equal(nomDePoste("PASCCPOSTE:C"), null);
   assert.equal(nomDePoste("Zone C CCPOSTE:x"), null);
 });
 
@@ -86,9 +115,9 @@ test("le texte a encoder porte le prefixe en majuscules", () => {
   assert.equal(PREFIXE_POSTE, "CCPOSTE:");
 });
 
-test("ce qu'on ecrit est ce qu'on relit", () => {
-  for (const zone of ["C", "Zone C", "Mur jaune", "Dévers", "Z-12", "Toit n°2"]) {
-    assert.equal(nomDePoste(texteDuQrDePoste(zone)), zone,
+test("ce qu'on ecrit est ce qu'on relit, compose", () => {
+  for (const zone of ["C", "AB", "Dévers", "Z-12", "Toit n°2"]) {
+    assert.equal(nomDePoste(texteDuQrDePoste(zone)), `${MOT_ZONE} ${zone}`,
                  `aller-retour casse pour « ${zone} »`);
   }
 });
