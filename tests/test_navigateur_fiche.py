@@ -145,6 +145,19 @@ function rendre(verdict) {
     note("finies", $$(".sf-feuille .cadre-zone.z-finie").length);
     note("effacees", $$(".sf-feuille g[data-zone].z-rien").length);
 
+    // 3 bis. La legende des profils — spec 033, R11.
+    //
+    // ⚠️ ON MESURE LA COULEUR CALCULEE, pas la presence de la pastille. Les
+    //     six teintes etaient declarees sur `.plan` ; la legende en est un
+    //     FRERE, pas un descendant, et une variable CSS ne descend que dans
+    //     son sous-arbre. Les pastilles sortaient BLANCHES — un test de
+    //     balisage aurait ete vert.
+    const profils = $$(".sf-legende .pf");
+    note("profils", profils.length);
+    note("profilPeint", profils.length
+      ? vue.getComputedStyle(profils[0]).backgroundColor : "(aucune)");
+    note("reperes", $$(".sf-legende .repere").length);
+
     // 4. Changer de zone REMPLACE l'entree : un seul retour ramene a la fiche.
     const autre = $$(".sf-feuille g[data-zone]")
       .find((n) => n.getAttribute("data-zone") !== bloc.querySelector(".z").textContent);
@@ -438,3 +451,21 @@ class TestDansUnVraiNavigateur:
 
         # La fiche ouverte suit les reussites qui arrivent.
         assert int(mesures["apresReussite"]) == int(mesures["avantReussite"]) + 1
+
+        # La legende dit les profils du plan courant — spec 033, R11.
+        # « On a perdu la legende des couleurs qui donnent l'inclinaison du mur
+        # et tout ce bazar-la. J'aimerais que tu me le remettes. » (Adrien)
+        from climbcontest.fiches import PROFILS
+        utilises = {m["profil"] for m in PLAN["murs"] if m["zone"]}
+        attendus = len([p for p in PROFILS if p["cle"] in utilises])
+        assert int(mesures["profils"]) == attendus, (
+            "la legende doit nommer les profils que le plan utilise, "
+            "et seulement eux")
+        # « zone terminee » plus un repere par profil.
+        assert int(mesures["reperes"]) == attendus + 1
+
+        # ⚠️ LA COULEUR, pas la pastille. Les teintes vivaient sur `.plan` :
+        # la legende, qui en est un frere, sortait toute blanche.
+        peinte = mesures["profilPeint"]
+        assert peinte not in ("rgba(0,_0,_0,_0)", "transparent", "(aucune)"), peinte
+        assert peinte != "rgb(255,_255,_255)", peinte

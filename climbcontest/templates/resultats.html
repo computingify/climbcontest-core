@@ -995,6 +995,16 @@ import { decorer, decrire, monter, peutDessiner, zonesDe }
   // classement et tient dans deux cents octets : elle, on peut la relire
   // souvent.
   var PERIODE_REGLAGES_MS = 3000;
+
+  // ⚠️ DECLAREE ICI, ET PAS AVEC SES DEUX FONCTIONS quatre-vingts lignes plus
+  // bas. `etat` lit le stockage au moment ou il se construit
+  // (`enPause: lireEnPause()`), donc AVANT que l'affectation du `var` d'origine
+  // n'ait eu lieu : la cle valait `undefined`, `getItem(undefined)` lisait la
+  // cle « undefined », et l'ecran repartait toujours sur le defaut. Le
+  // `var` etait bien hisse -- sa VALEUR, non.
+  //
+  // Trouve par le test du rechargement, pas a la relecture.
+  var CLE_AFFICHAGE = "climbcontest.affichage";
   var PERIME_MS = 60000;       // au-delà, l'âge passe en rouge
   // La rotation suit la TAILLE du plateau : le temps de lecture doit suivre ce
   // qu'il y a à lire. Une catégorie de 8 ne mérite pas les 30 s d'une de 26.
@@ -1119,7 +1129,8 @@ import { decorer, decrire, monter, peutDessiner, zonesDe }
   //    play » (Adrien, 03/09, spec 033 R4). Sans rien de mémorisé, le défaut
   //    historique s'applique : en lecture sur le mur, à l'arrêt ailleurs.
 
-  var CLE_AFFICHAGE = "climbcontest.affichage";
+  // `CLE_AFFICHAGE` est declaree tout en haut, avec les autres constantes :
+  // `etat` la lit avant d'arriver ici. Voir le commentaire la-bas.
 
   /** Ce que cet écran a retenu. Un objet vide quand il n'a rien retenu, ou
    *  quand le stockage est indisponible — navigation privée, stockage plein,
