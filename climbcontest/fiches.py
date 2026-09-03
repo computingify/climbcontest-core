@@ -581,8 +581,9 @@ def taille_numero_mm(texte: str) -> float:
 
 # --- Et la taille du nom de zone d'une affiche de poste (spec 034) -----------
 #
-# Meme mecanique, meme raison : « C » a de la place pour 34 mm, « Mur jaune »
-# n'en a pas, et une taille fixe ferait deborder l'un ou ratatiner l'autre.
+# Meme mecanique, meme raison : « C » a de la place pour 30 mm, un nom de trois
+# lettres un peu moins, et une taille fixe ferait deborder l'un ou ratatiner
+# l'autre.
 # La colonne de texte fait 188 mm (l'affiche) moins 10 (le rembourrage) moins
 # 70 (le QR) moins 6 (la gouttiere) = 102 mm ; on en garde 100 pour l'arrondi.
 LARGEUR_NOM_POSTE_MM = 100.0
@@ -760,10 +761,14 @@ def postes(zone: str | None = None, plan: dict | None = None) -> list[dict]:
         # page doit pouvoir la nommer et dire qu'elle n'existe pas.
         zones = [z for z in zones if z == zone]
 
-    return [{
-        "zone": z,
-        "texte": texte_qr_poste(z),
-        # La taille du nom suit sa LONGUEUR : voir `taille_nom_poste_mm`.
-        "taille_nom": taille_nom_poste_mm(z),
-        "qr": qr.svg(texte_qr_poste(z), cote_mm=COTE_QR_POSTE_MM),
-    } for z in zones]
+    planche = []
+    for z in zones:
+        texte = texte_qr_poste(z)
+        planche.append({
+            "zone": z,
+            "texte": texte,
+            # La taille du nom suit sa LONGUEUR : voir `taille_nom_poste_mm`.
+            "taille_nom": taille_nom_poste_mm(z),
+            "qr": qr.svg(texte, cote_mm=COTE_QR_POSTE_MM),
+        })
+    return planche
