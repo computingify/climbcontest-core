@@ -9,6 +9,7 @@ D'où le premier test, qui relit les constantes DANS `politique.js` au lieu de
 les recopier : une valeur changée d'un côté et pas de l'autre casse la suite.
 """
 import re
+import time
 from pathlib import Path
 
 import pytest
@@ -336,3 +337,87 @@ def test_une_sonde_degradee_donne_quand_meme_la_version():
 
 def test_une_sonde_illisible_ne_leve_pas():
     assert moteur.Api("http://exemple").sante() == {}
+
+
+# ── Le cycle démarrer / arrêter ────────────────────────────────────────────
+
+def _lancer(simulation, **reglages):
+    """Démarre pour de vrai, mais à une cadence qui ne produit aucun scan.
+
+    Les fils tournent — c'est le sujet du test — et `cadence=0.1` met le
+    prochain scan à dix minutes : ce qui part est ce que le test a mis en file,
+    et rien d'autre.
+    """
+    reglages.setdefault("juges", 1)
+    reglages.setdefault("cadence", 0.1)
+    assert simulation.demarrer(moteur.Reglages(**reglages))["ok"]
+    return simulation.juges[0]
+
+
+def _attendre_l_arret(simulation, secondes=5.0):
+    limite = time.monotonic() + secondes
+    while simulation.vidage and time.monotonic() < limite:
+        time.sleep(0.05)
+    assert not simulation.vidage, "le vidage ne s'est jamais terminé"
+
+
+def test_les_compteurs_repartent_de_zero_a_chaque_lancement(simulation):
+    """Sinon les tuiles cumulent deux runs pendant que le tableau n'en montre qu'un.
+
+    L'écart de sept constaté le 03/09 a coûté une enquête sur une perte de
+    données qui n'existait pas.
+    """
+    simulation.api = ApiMuette()
+    simulation.enregistrees, simulation.deja_connues, simulation.refusees = 12, 3, 4
+    simulation.requetes = 9
+    simulation.codes["200"] = 9
+    try:
+        _lancer(simulation)
+        assert (simulation.enregistrees, simulation.deja_connues,
+                simulation.refusees, simulation.requetes) == (0, 0, 0, 0)
+        assert not simulation.codes
+    finally:
+        simulation.arret.set()
+
+
+def test_les_passages_deja_valides_restent_connus_apres_un_relancement(simulation):
+    """`paires` ne se vide PAS : le serveur, lui, s'en souvient toujours."""
+    simulation.api = ApiMuette()
+    simulation.paires.add((1, "ZJ1"))
+    try:
+        _lancer(simulation)
+        assert (1, "ZJ1") in simulation.paires
+    finally:
+        simulation.arret.set()
+
+
+def test_l_arret_laisse_partir_ce_qui_reste_en_file(simulation):
+    """Un vrai téléphone garde sa file ; le simulateur la jetait."""
+    simulation.api = ApiMuette()
+    juge = _lancer(simulation)
+    for _ in range(3):
+        juge.file.append(simulation.tirer_une_reussite(juge))
+
+    simulation.arreter()
+    _attendre_l_arret(simulation)
+
+    assert juge.file == []
+    assert simulation.enregistrees == 3
+
+
+def test_l_arret_finit_meme_si_le_serveur_ne_repond_plus(simulation, monkeypatch):
+    """Le bouton « Arrêter » doit arrêter, serveur éteint ou pas.
+
+    Et ce qui n'est pas parti reste en file : on ne l'invente pas enregistré.
+    """
+    monkeypatch.setattr(moteur.Simulation, "ATTENTE_VIDAGE", 0.4)
+    simulation.api = ApiMuette(ok=False)
+    juge = _lancer(simulation)
+    juge.file.append(simulation.tirer_une_reussite(juge))
+
+    simulation.arreter()
+    _attendre_l_arret(simulation)
+
+    assert len(juge.file) == 1
+    assert simulation.enregistrees == 0
+    assert "jamais parties" in simulation.lignes[-1]["texte"]
