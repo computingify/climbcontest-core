@@ -157,6 +157,17 @@ function redessiner() {
   $("valeurGrimpeur").classList.toggle("attente", !grimpeurFait);
   $("detailGrimpeur").textContent = grimpeurFait && etat.grimpeur ? `n°${etat.dossard}` : "";
 
+  // La CATEGORIE, a droite et a la taille du nom (spec 033, R10). Le juge a
+  // devant lui un papier ou elle est ecrite : c'est son controle.
+  //
+  // Elle vient du catalogue LOCAL, comme le nom : un scan ne doit pas attendre
+  // le reseau. Inconnue -- participant sans categorie, catalogue d'une version
+  // anterieure -- la colonne disparait et la carte redevient celle d'avant.
+  const categorie = grimpeurFait ? catalogue.categorie(etat.dossard) : null;
+  const caseCategorie = $("categorieGrimpeur");
+  caseCategorie.textContent = categorie || "";
+  caseCategorie.hidden = !categorie;
+
   $("carteBloc").classList.toggle("fait", blocFait);
   $("valeurBloc").textContent = etat.bloc || "À scanner";
   $("valeurBloc").classList.toggle("attente", !blocFait);
@@ -507,6 +518,25 @@ function montrer(id) {
     (etat.enAttente === 0 && etat.refusees === 0);
 }
 
+/**
+ * Le nom du poste, en haut de l'écran principal.
+ *
+ * Il désigne un ENDROIT de la salle (« Mur jaune »), jamais une personne :
+ * c'est la même règle que dans `identite.js`, et c'est ce nom que la console
+ * affiche à côté des réussites. Le juge doit pouvoir vérifier d'un coup d'œil
+ * qu'il envoie sous le bon — d'où sa place en tête (spec 033).
+ *
+ * Pas de nom : l'élément est masqué et ne prend aucune place. Un poste sans nom
+ * reste parfaitement utilisable.
+ */
+function afficherLeNomDuPoste() {
+  const noeud = $("nomPoste");
+  if (!noeud) return;
+  const nom = identite.nom || "";
+  noeud.textContent = nom;              // textContent : le nom est saisi a la main
+  noeud.hidden = !nom;
+}
+
 async function ouvrirLesReglages() {
   $("nomTelephone").value = identite.nom || "";
   $("identifiantTelephone").textContent =
@@ -721,6 +751,7 @@ async function demarrer() {
   try {
     catalogue = Catalogue.depuisJson(await reglages.lire(CLE_CATALOGUE));
     identite = await identiteCourante(reglages);
+    afficherLeNomDuPoste();
     etat.garderGrimpeur = (await reglages.lire("garder-grimpeur")) === true;
     // Au démarrage, une fois : ce qui a plus de trente jours s'en va. Ne touche
     // jamais à la file, donc ne peut pas perdre une réussite.
@@ -750,6 +781,7 @@ async function demarrer() {
   });
   $("nomTelephone").addEventListener("input", async (e) => {
     identite = await renommer(reglages, e.target.value);
+    afficherLeNomDuPoste();
   });
   $("garderGrimpeur").addEventListener("change", async (e) => {
     etat.garderGrimpeur = e.target.checked;

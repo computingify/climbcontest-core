@@ -19,20 +19,6 @@ qu'on ne met pas à jour le matin d'une compétition :
 
 ## [Non publié]
 
-### Corrigé
-
-- **`/health` annonçait un retard de classeur qui n'existait pas.** Le compteur
-  `reussites_en_attente` comptait toutes les réussites non synchronisées,
-  **toutes compétitions confondues**, alors que le miroir ne sert que la
-  compétition active. Le 03/09 il affichait `714` en attente pendant que le
-  miroir n'avait plus rien à écrire : 714 réussites d'ailleurs, inenvoyables par
-  construction, qui seraient restées affichées à jamais. Le coût n'est pas
-  cosmétique — un vrai retard de cinquante aurait affiché `764`, indistinguable
-  de `714` au coup d'œil, et c'est le chiffre qu'on regarde le jour J pour
-  savoir si le classeur suit. Le compteur et le miroir partagent désormais **le
-  même filtre**, et ce qui n'est pas envoyable se compte à part dans
-  `reussites_inenvoyables` — sorti du chiffre, pas caché.
-
 ### Ajouté
 
 - **Un simulateur de juges** (`tools/simulateur_juges.py`). Un panneau local
@@ -46,6 +32,20 @@ qu'on ne met pas à jour le matin d'une compétition :
   (`~/.config/climbcontest/`, `0600`), et la barre du haut affiche la version du
   serveur en face. Voir
   [docs/tester-avec-l-emulateur.md](docs/tester-avec-l-emulateur.md).
+- **Les réglages d'affichage arrivent en trois secondes** sur la page de
+  résultats, sans rechargement : éteindre ou rallumer un classement dans la
+  console se voit tout de suite sur l'écran d'à côté. Une route publique
+  **légère** (`GET /api/public/reglages`, ~200 octets, aucun calcul de
+  classement) est relue toutes les 3 s, là où la charge complète reste à 15 s —
+  l'accélérer aurait multiplié par cinq le trafic du wifi de la salle
+  (spec 033, R3).
+- **La liste des dernières réussites** dans la console, vue « Réussites » :
+  grimpeur, bloc, heure, téléphone et référence, filtrable **par téléphone**,
+  rafraîchie toute seule tant qu'on la regarde. La route existait depuis la
+  spec 011 sans que rien ne l'appelle pour ce cas (spec 033, R12).
+- **La légende des profils de mur** revient sur le plan de la fiche du
+  grimpeur : dalle, vertical, incliné, dévers, surplomb, toit — du moins au
+  plus déversant, et seulement ceux que le plan utilise (spec 033, R11).
 
 ### Modifié
 
@@ -106,9 +106,40 @@ qu'on ne met pas à jour le matin d'une compétition :
   **avertissement** qui nomme ses attentes de plus de 500 ms — ou dit qu'il n'y
   en a aucune, et que le temps est passé avant le pilote. C'est ce qui manquait
   pour diagnostiquer : un test qui passe ne montre rien de ce qu'il a fait.
+- **La page de résultats démarre sans le champ de recherche**, et le bouton
+  `⌕` de l'en-tête l'ouvre. Le choix est retenu pour l'appareil. Renversement
+  du défaut de la spec 020 (spec 033, R6).
+- **Les étiquettes de blocs** sortent zone par zone **dans l'ordre
+  alphabétique** — A d'abord, Z en dernier —, les blocs sans zone à la fin. Et
+  le **numéro a désormais une taille fixe** (19 mm) : il était dimensionné
+  étiquette par étiquette, ce qui donnait « J6 » à 26 mm et « J24 » à 19,5 sur
+  la même planche (spec 033, R7 et R8).
+- **L'application juge** : l'engrenage des réglages est un dessin au trait, au
+  même trait que le voyant de connexion, et **le dernier élément** de la barre
+  du haut ; c'était un caractère emoji, posé avant le voyant. La carte du
+  grimpeur passe en deux colonnes et affiche **sa catégorie à droite**, à la
+  taille de son nom — le contrôle du juge avant de valider. Le catalogue rangé
+  sur le téléphone passe en **forme 4** (il garde la catégorie complète, le
+  circuit s'en déduit) : les téléphones le retéléchargent tout seuls
+  (spec 033, R9 et R10).
+- **La cascade de couleurs** : « Aucune cascade » cache aussi l'interrupteur
+  par catégorie, et le bouton coché se voit — pastille dessinée à l'accent,
+  carte teintée — là où le point natif était presque invisible en thème sombre
+  (spec 033, R1 et R2).
 
 ### Corrigé
 
+- **`/health` annonçait un retard de classeur qui n'existait pas.** Le compteur
+  `reussites_en_attente` comptait toutes les réussites non synchronisées,
+  **toutes compétitions confondues**, alors que le miroir ne sert que la
+  compétition active. Le 03/09 il affichait `714` en attente pendant que le
+  miroir n'avait plus rien à écrire : 714 réussites d'ailleurs, inenvoyables par
+  construction, qui seraient restées affichées à jamais. Le coût n'est pas
+  cosmétique — un vrai retard de cinquante aurait affiché `764`, indistinguable
+  de `714` au coup d'œil, et c'est le chiffre qu'on regarde le jour J pour
+  savoir si le classeur suit. Le compteur et le miroir partagent désormais **le
+  même filtre**, et ce qui n'est pas envoyable se compte à part dans
+  `reussites_inenvoyables` — sorti du chiffre, pas caché.
 - **Deux sauvegardes dans la même seconde n'en faisaient qu'une.** Le nom de la
   copie vient d'un horodatage **à la seconde** ; deux appels rapprochés
   portaient donc le même nom, et le second écrasait le premier sans un mot. Le
@@ -121,6 +152,15 @@ qu'on ne met pas à jour le matin d'une compétition :
   1,05 s entre deux lancements, « parce que l'horodatage est à la seconde » :
   ils prouvaient que la rotation marche quand les noms diffèrent, et rien du
   tout sur le cas où ils ne différaient pas.
+- **Le bouton lecture/pause de la page de résultats repartait à l'arrêt à
+  chaque rechargement.** L'état est retenu pour l'écran, comme le choix de la
+  recherche. Et les deux glyphes venaient de deux familles — l'un géométrique,
+  l'autre emoji : ce sont maintenant deux icônes dessinées dans la même boîte
+  (spec 033, R4 et R5).
+- Au passage, le bouton affichait **« pause » alors que la rotation était à
+  l'arrêt** : `svg.hidden = false` ne fait rien, `hidden` appartient à
+  `HTMLElement`. C'est le défaut corrigé en 0.15.0, revenu par la porte du SVG ;
+  le choix d'icône passe désormais par une classe CSS.
 
 ## [0.17.0] — 2026-09-03
 

@@ -58,7 +58,7 @@ test("un catalogue rangé sans couleur reste utilisable", () => {
   // Un bloc dont le classeur ne donne pas la difficulté : il doit rester
   // scannable, l'écran garde simplement sa teinte neutre.
   const c = Catalogue.depuisJson({
-    format: 3, version: 2,
+    format: 4, version: 2,
     participants: { 1: { n: "Dupont Lea" } }, blocs: { ZJ1: { t: "ZJ1" } },
   });
   assert.equal(c.bloc("ZJ1"), "ZJ1");

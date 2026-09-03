@@ -104,6 +104,46 @@ def _est_classe(comp, participant) -> bool:
                for ligne in classement.lignes)
 
 
+@bp.get("/reglages")
+def reglages():
+    """Ce que la page de resultats doit savoir TOUT DE SUITE, et rien d'autre.
+
+    ⚠️ Une route de plus, et pas un rythme plus rapide sur `/classement`.
+
+    « J'active un interrupteur, par exemple scratch femme, et je regarde si a
+    cote mon scratch femme apparait dans ma page resultat. Du coup, non »
+    (Adrien, 03/09, spec 033 R3). Le reglage arrivait bien -- mais au rythme de
+    la relecture generale, quinze secondes, ce qui se lit comme « rien ne se
+    passe » quand on vient d'appuyer sur « Enregistrer ».
+
+    Baisser ce rythme etait exclu : `/classement` porte tous les classements et
+    toutes leurs lignes, plusieurs dizaines de kilo-octets, relus par une
+    soixantaine de telephones. Le CALCUL est deja plafonne (cache de
+    `classements()`, plus 5 s de cache Caddy), la BANDE PASSANTE ne l'est pas.
+
+    Cette reponse-ci ne calcule aucun classement : une ligne de base et un
+    `json.loads` de sa colonne `options`, soit ~200 octets. Elle est donc
+    relisible toutes les trois secondes sans rien couter au wifi de la salle.
+
+    Elle ne REMPLACE rien : `groupes_masques` reste dans la charge de
+    `/classement`, parce que c'est cette charge que `cycle.archiver` fige et
+    qu'une archive amputee serait irreparable.
+    """
+    try:
+        comp = competition_active()
+    except ErreurMetier as e:
+        return jsonify({"success": False, "message": e.message}), e.code
+
+    from ..cycle import groupes_masques
+
+    return jsonify({
+        "competition": {
+            "id": comp.id, "nom": comp.nom, "statut": comp.statut,
+            "groupes_masques": groupes_masques(comp),
+        },
+    }), 200
+
+
 @bp.get("/groupes")
 def groupes():
     """La liste des classements disponibles, pour construire un menu."""

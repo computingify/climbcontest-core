@@ -95,6 +95,59 @@ SONDE_ROTATION = """
 """
 
 
+# --- Spec 033 -----------------------------------------------------------------
+
+SONDE_A_LA_VOLEE = """
+    await attendre("la barre", () => $$("#barre button").length > 1);
+    const nommer = () => $$("#barre button").map((b) => b.dataset.groupe);
+    note("avant", nommer().join(","));
+    // Un marqueur POSE DANS LA PAGE : un rechargement l'emporterait. C'est ce
+    // qui prouve que la barre a change toute seule.
+    vue().__marqueur = 33;
+
+    // AUCUN rechargement, aucun clic. La route legere rallume les classements
+    // au deuxieme appel : la barre doit les reprendre toute seule.
+    await attendre("le scratch revient",
+      () => nommer().indexOf("Scratch") !== -1, 12000);
+    note("apres", nommer().join(","));
+    note("recharge", vue().__marqueur !== 33);
+"""
+
+# ⚠️ ON ATTEND LA BARRE, PAS LE BOUTON. `#pause` existe des que le gabarit est
+# analyse, mais sa classe est posee par le script, tout en bas de la page. Sur
+# une CI lente, mesurer des que le bouton EXISTE lisait l'etat d'avant le
+# script : le test passait sur un Mac et tombait sur `ubuntu-latest`, en
+# annoncant l'inverse du defaut qu'il surveille.
+#
+# La barre, elle, n'apparait qu'une fois la charge revenue -- donc bien apres
+# que le script ait tourne. C'est le seul point d'observation honnete.
+PRETE = '() => $$("#barre button").length > 1'
+
+SONDE_LECTURE = """
+    await attendre("la page prete", %(prete)s);
+    // Hors du mur, la page part a l'arret : c'est le defaut historique.
+    note("audepart", $("#pause").classList.contains("arretee"));
+
+    $("#pause").click();
+    note("apresclic", $("#pause").classList.contains("arretee"));
+
+    // ⚠️ On recharge POUR DE VRAI. Le defaut etait la : « quand je recharge la
+    // page resultat, le bouton play se desactive ».
+    vue().__avantRechargement = true;
+    vue().location.reload();
+    await attendre("la page revient",
+      () => vue().__avantRechargement === undefined, 25000);
+    await attendre("la page reprete", %(prete)s, 25000);
+    note("apresrechargement", $("#pause").classList.contains("arretee"));
+""" % {"prete": PRETE}
+
+SONDES = {
+    "rotation": SONDE_ROTATION,
+    "volee": SONDE_A_LA_VOLEE,
+    "lecture": SONDE_LECTURE,
+}
+
+
 @pytest.fixture()
 def serveur():
     """L'application, un vrai serveur, et des sources qui n'existent qu'ici."""
@@ -117,7 +170,7 @@ def serveur():
     with app.app_context():
         db.create_all()
     verdict = {"texte": None}
-    appels = {"tardif": 0}
+    appels = {"tardif": 0, "reglages": 0}
 
     @app.get("/__charge")
     def charge():
@@ -140,7 +193,21 @@ def serveur():
     def vue():
         from climbcontest.suivi import plan_public
         return render_template("resultats.html", plan=plan_public(),
-                               source=request.args.get("source", "/__charge"))
+                               source=request.args.get("source", "/__charge"),
+                               reglages=request.args.get("reglages", "/__reglages"))
+
+    @app.get("/__reglages")
+    def reglages_legers():
+        """La route LEGERE (spec 033, R3) : masquee d'abord, puis rallumee.
+
+        On compte les appels plutot que de regarder l'horloge -- c'est le
+        RYTHME de la page qu'on veut suivre, pas celui de la machine.
+        """
+        appels["reglages"] += 1
+        return jsonify({"competition": {
+            "id": 1, "nom": "Test", "statut": "en_cours",
+            "groupes_masques": MASQUES if appels["reglages"] <= 1 else [],
+        }})
 
     @app.post("/__verdict")
     def poser():
@@ -150,8 +217,7 @@ def serveur():
     @app.get("/__harnais")
     def harnais():
         src = request.args.get("src", "/__vue")
-        sonde = SONDE_ROTATION if request.args.get("quoi") == "rotation" \
-            else SONDE_MASQUE
+        sonde = SONDES.get(request.args.get("quoi"), SONDE_MASQUE)
         return Response(page_harnais(src, sonde), mimetype="text/html")
 
     url, arreter = servir(app)
@@ -212,3 +278,64 @@ class TestLeMurSeMetAJouerToutSeul:
         # La page a bien RELU la source : sans ça, on aurait testé une page qui
         # avait tout dès le départ.
         assert appels["tardif"] >= 2, appels
+
+
+class TestLeReglageArriveALaVolee:
+    """« J'active un interrupteur, par exemple scratch femme, et je regarde si à
+    côté mon scratch femme apparaît dans ma page résultat. Du coup, non, il
+    n'apparaît pas. Je suis obligé de faire F5. » — Adrien, 03/09 (spec 033, R3).
+
+    ⚠️ Ce n'était pas un bug : le réglage arrivait, au rythme de la relecture
+    générale — quinze secondes. Ce test tient le NOUVEAU comportement : une
+    route légère relue toutes les trois secondes, appliquée sans rechargement.
+
+    La charge complète, elle, ne repasse qu'au bout de quinze secondes : si la
+    barre change avant, c'est bien la route légère qui l'a fait.
+    """
+
+    def test_un_classement_rallume_revient_SANS_rechargement(self, serveur):
+        url, verdict, appels = serveur
+        # `periode-reglages=0.3` : la route legere repasse trois fois par
+        # seconde au lieu d'une fois toutes les trois. Ce test veut voir DEUX
+        # passages -- a 3 s fixes il attendait six secondes de vraie horloge,
+        # et c'est exactement le test que la CI voit rougir un jour de runner
+        # charge. Le parametre regle l'ecran de la salle, comme `periode` et
+        # `rotation` juste au-dessus ; on n'en invente aucun pour le test.
+        rendu = piloter(
+            f"{url}/__harnais?quoi=volee&src=/__vue%3Fperiode-reglages=0.3",
+            verdict)
+        mesures = _mesures(rendu)
+        avant = mesures["avant"].split(",")
+        apres = mesures["apres"].split(",")
+        # Au depart, les deux classements masques sont absents...
+        for eteint in MASQUES:
+            assert eteint.replace(" ", "_") not in avant, (eteint, avant)
+        # ...et ils reviennent, sans que la page ait ete rechargee.
+        assert "Scratch" in apres, apres
+        assert len(apres) > len(avant), (avant, apres)
+        assert mesures["recharge"] == "false"
+        # La route legere a bien ete interrogee plusieurs fois : c'est ELLE qui
+        # a fait revenir le classement, pas la charge complete (15 s).
+        assert appels["reglages"] >= 2, appels
+
+
+class TestLaLectureSurvitAuRechargement:
+    """« Quand je recharge la page résultat, le bouton play se désactive. Moi,
+    je veux qu'on reste en play si on est en play. » — Adrien, 03/09
+    (spec 033, R4).
+
+    `enPause` se déduisait de la seule adresse, au chargement : la page normale
+    repartait donc toujours à l'arrêt. Sur l'ordinateur branché au
+    vidéoprojecteur — celui qui n'est pas en `?mur` —, chaque rechargement
+    arrêtait le défilement.
+    """
+
+    def test_mise_en_lecture_puis_F5_elle_reste_en_lecture(self, serveur):
+        url, verdict, _ = serveur
+        rendu = piloter(f"{url}/__harnais?quoi=lecture", verdict, secondes=60)
+        mesures = _mesures(rendu)
+        assert mesures["audepart"] == "true", "la page normale doit partir a l'arret"
+        assert mesures["apresclic"] == "false", "le clic doit lancer le defilement"
+        assert mesures["apresrechargement"] == "false", (
+            "la page est repartie a l'arret apres rechargement : c'est le "
+            "defaut du 03/09")
