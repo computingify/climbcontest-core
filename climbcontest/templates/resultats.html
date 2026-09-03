@@ -2792,7 +2792,7 @@ import { decorer, decrire, monter, peutDessiner, zonesDe }
       + (siens.length > 1 ? " blocs" : " bloc");
     var c = compteDeZone(d.groupes || [], zone);
     var compte = div("sf-compte", t, "span");
-    compte.textContent = c.faits === c.total ? "terminee" : c.faits + " sur " + c.total;
+    compte.textContent = c.faits === c.total ? "terminée" : c.faits + " sur " + c.total;
     if (c.faits === c.total) compte.classList.add("finie");
     var cases = div("sf-cases", bas);
     siens.forEach(function (b) { cases.appendChild(caseDeBloc(b)); });
