@@ -9,7 +9,8 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 
 import {
-  FORMATS_RENDUS, decorer, decrire, monter, peutDessiner, zonesDe,
+  COMPTE_DESCENTE, COMPTE_ECHELLE, FORMATS_RENDUS, decorer, decrire, monter,
+  peutDessiner, tailleDuCompte, zonesDe,
 } from "../../climbcontest/static/resultats/plan.js";
 
 /** Le plan tel que `suivi.plan_public()` le rend. */
@@ -127,7 +128,8 @@ test("chaque zone est un groupe qui porte sa lettre", () => {
   for (const g of groupes) {
     assert.equal(g.tag, "g");
     assert.ok(g.attrs.style.includes("transform-origin"));
-    assert.deepEqual(g.enfants.map((e) => e.attrs.class), ["mur", "trame", "lettre"]);
+    assert.deepEqual(g.enfants.map((e) => e.attrs.class),
+                     ["mur", "trame", "lettre", "compte-zone"]);
   }
 });
 
@@ -186,6 +188,20 @@ function faireDocument() {
         })(this);
         return trouves;
       },
+      /** Juste assez pour « .une-classe » : c'est tout ce que `decorer`
+       *  demande, et un faux DOM qui en ferait plus mentirait sur ce dont le
+       *  code a besoin. */
+      querySelector(sel) {
+        assert.ok(sel.startsWith("."), "le faux DOM ne sait chercher qu'une classe");
+        const classe = sel.slice(1);
+        let trouve = null;
+        (function descendre(n) {
+          if (trouve) return;
+          if ((n.attributs.class || "").split(" ").includes(classe)) { trouve = n; return; }
+          n.enfants.forEach(descendre);
+        })(this);
+        return trouve;
+      },
     };
     n.classList = {
       add: (...c) => c.forEach((x) => n.classes.add(x)),
@@ -203,8 +219,9 @@ test("le montage traduit la description sans rien décider", () => {
   const zones = racine.querySelectorAll("[data-zone]");
   // Deux groupes plus deux cadres.
   assert.equal(zones.length, 4);
-  const lettres = zones[0].enfants.filter((e) => e.tag === "text");
-  assert.deepEqual(lettres.map((l) => l.textContent), ["Z"]);
+  const textes = zones[0].enfants.filter((e) => e.tag === "text");
+  // La lettre, puis le compteur — monté VIDE : c'est `decorer` qui l'écrit.
+  assert.deepEqual(textes.map((l) => l.textContent), ["Z", ""]);
 });
 
 test("monter ce qui n'est pas décrit ne rend rien", () => {
@@ -246,4 +263,131 @@ test("décorer efface l'état précédent avant de poser le nouveau", () => {
 
 test("décorer sans racine ne casse rien", () => {
   assert.equal(decorer(null, {}, "M"), false);
+});
+
+// --- L'avancement par zone — spec 036 --------------------------------------
+//
+// Ce que ces tests protègent : le chiffre posé sur une zone dit « blocs
+// validés sur blocs de ton circuit dans cette zone ». Deux erreurs y seraient
+// muettes et coûteuses — un compteur qui reste affiché sur la zone d'un autre
+// grimpeur, et un « 0/0 » posé sur les onze zones où le grimpeur n'a rien à
+// faire, qui l'enverrait chercher du travail là où il n'y en a pas.
+
+/** Les comptes tels que `comptesDesZones` les rend. */
+const COMPTES = {
+  Z: { total: 4, faits: 1, grimpes: 1, credites: 0 },
+  M: { total: 2, faits: 2, grimpes: 1, credites: 1 },
+};
+
+/** Le compteur d'une zone, dans un plan monté. */
+function compteAffiche(racine, zone) {
+  for (const n of racine.querySelectorAll("[data-zone]")) {
+    if (n.getAttribute("data-zone") !== zone) continue;
+    const chiffre = n.querySelector(".compte-zone");
+    if (chiffre) return { texte: chiffre.textContent, classes: [...chiffre.classes],
+                          zone: [...n.classes] };
+  }
+  return null;
+}
+
+test("chaque zone décrit son compteur, VIDE", () => {
+  // Vide, parce que le dessin est le même pour tout le monde : le plan est
+  // monté une fois par grimpeur, et c'est la décoration qui écrit le chiffre.
+  const dessin = decrire(plan());
+  const groupe = dessin.enfants.find((e) => e.attrs && e.attrs["data-zone"] === "Z");
+  const compte = groupe.enfants.find((e) => e.attrs.class === "compte-zone");
+  assert.equal(compte.texte, "");
+  assert.equal(compte.attrs.x, 107.5);                       // l'axe de la lettre
+  assert.equal(compte.attrs.y, 22.5 + 9 * COMPTE_DESCENTE);  // dessous
+  assert.equal(Number(compte.attrs["data-corps"]), 9);       // le corps de la lettre
+});
+
+test("un mur sans taille décrit quand même un compteur lisible", () => {
+  // Même repli que la lettre : 6. Un compteur de taille nulle serait invisible
+  // sans que rien ne le dise.
+  const maigre = plan({ murs: [{ zone: "Z", d: "0,0 1,0 1,1" }] });
+  const groupe = decrire(maigre).enfants
+    .find((e) => e.attrs && e.attrs["data-zone"] === "Z");
+  const compte = groupe.enfants.find((e) => e.attrs.class === "compte-zone");
+  assert.ok(Number(compte.attrs["font-size"]) > 0);
+});
+
+test("décorer écrit le compteur de chaque zone du circuit", () => {
+  const racine = monter(decrire(plan()), faireDocument());
+  decorer(racine, { Z: "reste", M: "finie" }, null, COMPTES);
+  assert.equal(compteAffiche(racine, "Z").texte, "1/4");
+  assert.equal(compteAffiche(racine, "M").texte, "2/2");
+});
+
+test("une zone terminée porte son compteur dans le vert", () => {
+  const racine = monter(decrire(plan()), faireDocument());
+  decorer(racine, { Z: "reste", M: "finie" }, null, COMPTES);
+  assert.equal(compteAffiche(racine, "M").classes.includes("compte-finie"), true);
+  assert.equal(compteAffiche(racine, "Z").classes.includes("compte-finie"), false);
+});
+
+test("une zone SANS bloc du circuit ne porte aucun compteur", () => {
+  // Pas de « 0/0 » : l'absence est l'information. Un chiffre sur une zone
+  // effacée enverrait chercher du travail là où il n'y en a pas.
+  const racine = monter(decrire(plan()), faireDocument());
+  decorer(racine, { Z: "reste" }, null, { Z: COMPTES.Z });
+  const m = compteAffiche(racine, "M");
+  assert.equal(m.texte, "");
+  assert.equal(m.zone.includes("a-compte"), false);
+  assert.equal(compteAffiche(racine, "Z").zone.includes("a-compte"), true);
+});
+
+test("un compteur ne survit pas à la décoration suivante", () => {
+  // ⚠️ Le DESSIN PERSISTE d'une repeinture à l'autre — c'est ce qui permet la
+  // transition, et ce qui rend la fiche « en direct ». Sans remise à zéro, un
+  // bloc qui quitte le circuit entre deux rafraîchissements laisserait son
+  // « 1/4 » posé sur une zone où le grimpeur n'a plus rien à faire.
+  const racine = monter(decrire(plan()), faireDocument());
+  decorer(racine, { Z: "reste", M: "finie" }, null, COMPTES);
+  decorer(racine, { M: "reste" }, null, { M: { total: 3, faits: 0 } });
+  assert.equal(compteAffiche(racine, "Z").texte, "");
+  assert.equal(compteAffiche(racine, "Z").zone.includes("a-compte"), false);
+  assert.equal(compteAffiche(racine, "M").texte, "0/3");
+  assert.equal(compteAffiche(racine, "M").classes.includes("compte-finie"), false);
+});
+
+test("décorer sans comptes laisse le mur exactement comme avant", () => {
+  // Le quatrième argument est optionnel : un appelant qui ne le passe pas doit
+  // obtenir le mur de la spec 026, pas une exception.
+  const racine = monter(decrire(plan()), faireDocument());
+  assert.equal(decorer(racine, { Z: "finie" }, "Z"), true);
+  assert.equal(compteAffiche(racine, "Z").texte, "");
+});
+
+test("un compte pour une zone que le plan ne porte pas est ignoré", () => {
+  const racine = monter(decrire(plan()), faireDocument());
+  decorer(racine, { QQQ: "reste" }, null, { QQQ: { total: 2, faits: 1 } });
+  assert.equal(compteAffiche(racine, "Z").texte, "");
+});
+
+test("le corps du compteur rétrécit avec la longueur du libellé", () => {
+  // « 1/4 » sort à sa taille pleine, « 12/15 » rétrécit au lieu de déborder du
+  // pan. La borne est la LARGEUR : le libellé ne dépasse jamais une fois la
+  // taille de la lettre.
+  assert.equal(tailleDuCompte(9, "1/4"), 9 * COMPTE_ECHELLE);
+  assert.ok(tailleDuCompte(9, "12/15") < tailleDuCompte(9, "1/4"));
+  assert.ok(tailleDuCompte(9, "12/15") * 0.58 * 5 <= 9 + 1e-9);
+  assert.ok(tailleDuCompte(9, "100/120") * 0.58 * 7 <= 9 + 1e-9);
+});
+
+test("un compteur sans taille ni libellé reste un nombre positif", () => {
+  for (const taille of [0, -3, null, undefined, "gros"]) {
+    assert.ok(tailleDuCompte(taille, "1/4") > 0, "pour " + taille);
+  }
+  assert.ok(tailleDuCompte(9, "") > 0);
+  assert.ok(tailleDuCompte(9, null) > 0);
+});
+
+test("le compteur est écrit APRÈS la lettre", () => {
+  // En SVG l'ordre de peinture est l'ordre du document : le halo du compteur
+  // doit passer sur la lettre, jamais l'inverse.
+  const groupe = decrire(plan()).enfants
+    .find((e) => e.attrs && e.attrs["data-zone"] === "Z");
+  const classes = groupe.enfants.map((e) => e.attrs.class);
+  assert.ok(classes.indexOf("compte-zone") > classes.indexOf("lettre"));
 });

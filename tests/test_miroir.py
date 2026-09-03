@@ -12,7 +12,7 @@ from sqlalchemy import text
 
 from climbcontest.contest import enregistrer_reussite
 from climbcontest.extensions import db
-from climbcontest.models import Success
+from climbcontest.models import EN_COURS, Success
 from climbcontest.sheets.client import ErreurClasseur
 from climbcontest.sheets.mirror import synchroniser
 
@@ -364,3 +364,87 @@ class TestLeJournalNeSeRepetePas:
         assert "ca repart" in source, \
             "sans ce message, on ne saurait pas si le miroir est reparti ou mort"
         assert "derniere_plainte = None" in source
+
+
+class TestLeCompteurDeSante:
+    """`/health` doit annoncer ce que le miroir va faire, et rien d'autre.
+
+    Le 03/09/2026, il affichait **714 réussites en attente** alors que le miroir
+    n'avait plus rien à envoyer : il comptait toutes les réussites non
+    synchronisées, toutes compétitions confondues, là où `synchroniser` ne sert
+    que l'active. Ces 714 étaient inenvoyables par construction et seraient
+    restées affichées à jamais.
+
+    Ce n'est pas cosmétique : un vrai retard de cinquante aurait affiché 764,
+    indistinguable de 714 au coup d'œil. C'est le chiffre qu'on regarde le jour
+    de la compétition pour savoir si le classeur suit.
+    """
+
+    def _autre_competition_avec_une_reussite(self, jeu):
+        """Une compétition INACTIVE, sa réussite jamais synchronisée."""
+        from climbcontest.models import Bloc, Competition, Participant
+        from datetime import date
+
+        autre = Competition(nom="Novembre 2025", date=date(2025, 11, 16),
+                            statut=EN_COURS, active=False)
+        db.session.add(autre)
+        db.session.flush()
+        p = Participant(competition_id=autre.id, nom="Ancien", prenom="Jo",
+                        categorie="U13 H", dossard=7)
+        b = Bloc(competition_id=autre.id, tag="ZJ1", numero=1, zone="Z")
+        db.session.add_all([p, b])
+        db.session.flush()
+        db.session.add(Success(participant_id=p.id, bloc_id=b.id,
+                               horodatage=datetime.now()))
+        db.session.commit()
+        return autre
+
+    def test_compte_ce_que_le_miroir_a_a_ecrire(self, client, trois_reussites):
+        assert client.get("/health").get_json()["reussites_en_attente"] == 3
+
+    def test_une_autre_competition_ne_gonfle_pas_le_compteur(self, client, jeu):
+        """Le cœur du défaut : le miroir ne servira jamais cette réussite-là."""
+        self._autre_competition_avec_une_reussite(jeu)
+
+        corps = client.get("/health").get_json()
+        assert corps["reussites_en_attente"] == 0, \
+            "une reussite d'une autre competition n'est pas un retard du miroir"
+        assert corps["reussites_inenvoyables"] == 1, \
+            "elle ne doit pas disparaitre pour autant"
+
+    def test_un_retard_reel_reste_lisible_malgre_le_residu(self, client, trois_reussites):
+        """Le vrai sujet : distinguer 3 de retard de ce qui n'ira jamais."""
+        self._autre_competition_avec_une_reussite(trois_reussites)
+
+        corps = client.get("/health").get_json()
+        assert corps["reussites_en_attente"] == 3
+        assert corps["reussites_inenvoyables"] == 1
+
+    def test_une_reussite_sans_dossard_n_est_pas_un_retard(self, client, jeu):
+        """La matrice `Import` est indexée par dossard : sans lui, pas de colonne."""
+        absent = jeu["participants"][2]
+        assert absent.dossard is None
+        db.session.add(Success(participant_id=absent.id, bloc_id=jeu["blocs"][0].id,
+                               horodatage=datetime.now()))
+        db.session.commit()
+
+        corps = client.get("/health").get_json()
+        assert corps["reussites_en_attente"] == 0
+        assert corps["reussites_inenvoyables"] == 1
+
+    def test_le_compteur_et_le_miroir_ne_peuvent_pas_diverger(self, app, trois_reussites):
+        """Ils partagent le même filtre — c'est ce qui les tient ensemble.
+
+        Deux requêtes à maintenir à la main finissent toujours par diverger, et
+        c'est précisément ce qui s'est produit.
+        """
+        from climbcontest.contest import reussites_en_attente
+        from climbcontest.sheets.mirror import reussites_a_envoyer
+
+        self._autre_competition_avec_une_reussite(trois_reussites)
+        comp = trois_reussites["competition"]
+        assert reussites_en_attente() == len(reussites_a_envoyer(comp.id, 1000))
+
+    def test_le_compteur_retombe_a_zero_apres_synchronisation(self, client, trois_reussites):
+        synchroniser(classeur=ClasseurFictif())
+        assert client.get("/health").get_json()["reussites_en_attente"] == 0

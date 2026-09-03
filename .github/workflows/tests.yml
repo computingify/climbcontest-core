@@ -28,8 +28,14 @@ jobs:
       # Inclut les tests E2E, qui lancent un vrai gunicorn a quatre workers sur
       # une base neuve : c'est la seule facon de reproduire le demarrage a froid
       # du jour de la competition.
+      #
+      # `--durations` n'est pas decoratif : les rouges intermittents de ce job
+      # venaient tous de tests qui ATTENDAIENT une horloge, et la seule chose
+      # qui manquait pour les voir etait de les afficher. Le plafond par test,
+      # lui, est dans tests/conftest.py -- il fait echouer la suite en nommant
+      # le coupable.
       - name: Tests
-        run: pytest -q
+        run: pytest -q --durations=10
 
       # La logique de la PWA juge (spec 007) est en JavaScript, et testee sur
       # Node : ce qui decide -- le jeton, le contrat HTTP -- doit se tester sans

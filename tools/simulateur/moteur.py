@@ -137,6 +137,22 @@ class Api:
         return {"etat": "echec", "code": code, "latence": latence,
                 "message": message or _message_reseau(code)}
 
+    def sante(self) -> dict:
+        """`/health` : la version du serveur, et s'il se porte bien.
+
+        Publique et sans clé — c'est la sonde que l'agent de déploiement
+        interroge. On la lit quand même avec l'en-tête : ça ne coûte rien et ça
+        marche si un jour elle passe derrière le filtre.
+
+        ⚠️ Une sonde `degraded` répond **503**, pas 200 : la version y est
+        quand même, et c'est précisément le cas où on veut la voir.
+        """
+        code, corps, _ = self._appel("/health", None, "GET")
+        if not isinstance(corps, dict):
+            return {}
+        return {"version": corps.get("version"), "statut": corps.get("status"),
+                "code": code}
+
     def envoyer_lot(self, reussites, appareil=None):
         """POST /api/v3/successes — un verdict par élément, ou rien du tout.
 
@@ -632,10 +648,13 @@ class Simulation:
         self.api: Api | None = None
         self.catalogue: Catalogue | None = None
         self.serveur = ""
+        self.version_serveur = None
+        self.sante_serveur = None
         self.juges: list[Juge] = []
         self.fils: list[threading.Thread] = []
         self.arret = threading.Event()
         self.en_pause = False
+        self.vidage = False
         self.debut = None
         self.fin_prevue = None
 
@@ -670,8 +689,11 @@ class Simulation:
         motif = catalogue.utilisable()
         if motif:
             return {"ok": False, "message": motif}
+        sonde = api.sante()
         with self.verrou:
             self.api, self.catalogue, self.serveur = api, catalogue, serveur
+            self.version_serveur = sonde.get("version")
+            self.sante_serveur = sonde.get("statut")
             # Relire le catalogue, c'est repartir de zéro : après un effacement
             # des données depuis la console, les couples qu'on croyait pris
             # sont redevenus libres.
@@ -680,6 +702,10 @@ class Simulation:
         self.journal("oki", "catalogue",
                      f"« {catalogue.nom} » — {len(catalogue.participants)} dossards, "
                      f"{len(catalogue.blocs)} blocs, version {catalogue.version}")
+        self.journal("oki", "serveur",
+                     f"{serveur} — version {self.version_serveur or 'inconnue'}"
+                     + (f" ⚠ {self.sante_serveur}"
+                        if self.sante_serveur not in (None, "ok") else ""))
         return {"ok": True, **self.cible()}
 
     def cible(self) -> dict:
@@ -688,6 +714,8 @@ class Simulation:
         c = self.catalogue
         return {"connecte": True, "serveur": self.serveur, "competition": c.nom,
                 "statut": c.statut, "version": c.version,
+                "version_serveur": self.version_serveur,
+                "sante_serveur": self.sante_serveur,
                 "participants": len(c.participants), "blocs": len(c.blocs),
                 "zones": sorted(c.zones)}
 
@@ -702,11 +730,24 @@ class Simulation:
         self.arret = threading.Event()
         self.reglages = reglages
         self.en_pause = False
+        self.vidage = False
         self.debut = time.monotonic()
         self.fin_prevue = (self.debut + reglages.duree_min * 60
                            if reglages.duree_min > 0 else None)
         self.epuise_signale = False
         self.juges = []
+        # ⚠️ Les compteurs aussi, et pas seulement les juges. Sans ça, un second
+        # lancement dans le même processus repartait avec les totaux du premier,
+        # pendant que le tableau des juges, lui, repartait de zéro : les tuiles
+        # et le tableau ne parlaient plus de la même chose, et un écart de sept
+        # a coûté une enquête sur une perte de données qui n'existait pas.
+        # `paires`, en revanche, RESTE : le serveur, lui, se souvient toujours
+        # des passages déjà validés.
+        self.enregistrees = self.deja_connues = self.refusees = 0
+        self.requetes = 0
+        self.codes.clear()
+        self.latences.clear()
+        self.scans.clear()
         self._poster_les_juges(reglages.juges)
 
         self.fils = [threading.Thread(target=self._boucle_scan, daemon=True),
@@ -757,14 +798,57 @@ class Simulation:
         self.en_pause = valeur
         self.journal("h", "simulateur", "en pause" if valeur else "reprise")
 
+    #: Combien de temps on laisse les files se vider à l'arrêt.
+    ATTENTE_VIDAGE = 20.0
+
     def arreter(self):
+        """Arrête les scans, PUIS laisse partir ce qui reste en file.
+
+        ⚠️ Sans ce vidage, arrêter la simulation jetait les réussites encore en
+        file — onze lors du test du 03/09. C'était une infidélité, et de la pire
+        espèce : un vrai téléphone garde sa file dans IndexedDB et la repart à
+        la reprise. Un simulateur qui perd des réussites là où le vrai client
+        n'en perd pas fait douter du vrai client.
+
+        Le vidage se fait **en tâche de fond** : bloquer ici gèlerait le bouton
+        « Arrêter » pendant vingt secondes, et un bouton qui ne répond pas est
+        un bouton sur lequel on appuie trois fois.
+
+        Un second appui pendant le vidage arrête pour de bon — c'est la sortie
+        de secours quand le serveur ne répond plus.
+        """
         if not self.debut:
             return
+        if self.vidage:
+            return self._couper_court()
+
+        # Les juges cessent de scanner ; l'expédition, elle, continue.
+        for juge in self.juges:
+            juge.actif = False
+            juge.forcer = True
+        self.en_pause = True
+        self.vidage = True
+        self.journal("h", "simulateur", "arrêt demandé — les files se vident")
+        threading.Thread(target=self._finir, daemon=True).start()
+
+    def _finir(self) -> None:
+        limite = time.monotonic() + self.ATTENTE_VIDAGE
+        while time.monotonic() < limite and not self.arret.is_set():
+            if not sum(len(j.file) for j in self.juges):
+                break
+            time.sleep(0.2)
+        self._couper_court()
+
+    def _couper_court(self) -> None:
+        reste = sum(len(j.file) for j in self.juges)
         self.arret.set()
+        self.debut = None
+        self.vidage = False
         self.journal("oki", "simulateur",
                      f"arrêté — {self.enregistrees} enregistrées, "
-                     f"{self.deja_connues} déjà connues, {self.refusees} refusées")
-        self.debut = None
+                     f"{self.deja_connues} déjà connues, {self.refusees} refusées"
+                     + (f" — ⚠ {reste} jamais parties, le serveur n'a pas statué"
+                        if reste else ""))
 
     def action(self, quoi: str) -> dict:
         if quoi == "flush":
@@ -966,7 +1050,8 @@ class Simulation:
         return {
             "cible": self.cible(),
             "en_cours": bool(self.debut) and not self.arret.is_set(),
-            "en_pause": self.en_pause,
+            "en_pause": self.en_pause and not self.vidage,
+            "vidage": self.vidage,
             "depuis": (time.monotonic() - self.debut) if self.debut else 0,
             "restant": max(0, self.fin_prevue - time.monotonic()) if self.fin_prevue else None,
             "compteurs": {

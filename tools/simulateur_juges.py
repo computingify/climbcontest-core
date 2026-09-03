@@ -10,7 +10,10 @@ bénévoles et cent grimpeurs.
 
 Le panneau s'ouvre sur http://127.0.0.1:8765. Y coller le **lien juge** que
 donne la console (onglet « App juge ») suffit : l'adresse et la clé en sont
-tirées toutes seules.
+tirées toutes seules — **une seule fois**. Elles sont ensuite retenues, avec les
+derniers réglages, dans `~/.config/climbcontest/simulateur-juges.json`
+(`0600`, hors du dépôt : voir `tools/simulateur/memoire.py`). Supprimer ce
+fichier suffit à tout oublier.
 
     python3 tools/simulateur_juges.py --url https://climbcontest.adn-dev.fr --cle …
     python3 tools/simulateur_juges.py --port 9000 --pas-ouvrir

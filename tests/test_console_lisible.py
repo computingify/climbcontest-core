@@ -388,12 +388,63 @@ class TestCarteCascade:
         ensemble : un seul `hidden` sur le groupe, pas trois.
         """
         assert 'id="blocRegleCascade"' in page
-        assert '$("blocRegleCascade").hidden = (quoi === "aucune");' in page
+        assert '$("blocRegleCascade").hidden = sansCascade;' in page
         # Le titre est DEDANS, sinon il resterait seul au-dessus du vide.
         bloc = page.split('id="blocRegleCascade"')[1].split("</div>\n\n")[0]
         for ancre in ("La règle", "reglesCascade", "controleCascade",
                       "apercuCascade"):
             assert ancre in bloc, ancre
+
+    def test_sans_cascade_la_carte_ne_montre_pas_NON_PLUS_la_portee(self, page):
+        """« Si on sélectionne aucune cascade, je ne veux même pas voir la
+        partie où on sélectionne sur quelle catégorie ça s'applique. » — Adrien,
+        03/09 (spec 033, R1).
+
+        Le regroupement de la spec 032 s'était arrêté une carte trop tôt :
+        l'interrupteur par catégorie restait affiché sous un titre qui promet
+        d'appliquer une règle qui n'existe pas.
+        """
+        assert 'id="blocPorteeCascade"' in page
+        bloc = page.split('id="blocPorteeCascade"')[1].split("</section>")[0]
+        for ancre in ("Où elle s'applique", "rapideCascade", "porteeCascade"):
+            assert ancre in bloc, ancre
+
+    def test_les_deux_groupes_obeissent_a_UNE_seule_condition(self, page):
+        """Deux conditions écrites séparément finissent par diverger : c'est le
+        défaut même que ce lot corrige, une carte plus bas."""
+        assert 'var sansCascade = (quoi === "aucune");' in page
+        assert '$("blocRegleCascade").hidden = sansCascade;' in page
+        assert '$("blocPorteeCascade").hidden = sansCascade;' in page
+
+    def test_le_bouton_coche_se_voit(self, page):
+        """« Lorsqu'elle est sélectionnée, le petit rond n'est pas visible. Il
+        faut que ce soit plus clair pour l'utilisateur. » — Adrien, 03/09
+        (spec 033, R2).
+
+        Les boutons étaient des radios NATIFS, sans `accent-color` : point bleu
+        système en clair, et en sombre un point dont le clair est presque celui
+        des cercles vides. La pastille est désormais dessinée, et la carte
+        cochée prend un fond teinté — deux signaux, dont un qui ne dépend pas
+        de la teinte.
+        """
+        assert 'fieldset.choix input[type="radio"] {' in page
+        assert "appearance: none" in page
+        # L'anneau ET le point, tous deux a l'accent de la console.
+        bloc = page.split('fieldset.choix input[type="radio"]:checked {')[1] \
+                   .split("}")[0]
+        assert "border-color: var(--accent)" in bloc, bloc
+        assert 'fieldset.choix input[type="radio"]:checked::before { transform: scale(1); }' in page
+        # Et la carte entiere, pour que le choix se lise sans viser la pastille.
+        assert re.search(
+            r"fieldset\.choix label:has\(input:checked\) \{[^}]*background:",
+            page), "la carte cochee ne prend aucun fond"
+
+    def test_le_choix_reste_lisible_sans_couleur(self, page):
+        """Un signal de plus que la teinte : la bordure interne. Environ 8 %
+        des hommes distinguent mal certaines couleurs, et il y a des
+        organisateurs hommes."""
+        bloc = page.split("fieldset.choix label:has(input:checked) {")[1].split("}")[0]
+        assert "box-shadow: inset" in bloc, bloc
 
     def test_sur_mesure_est_selectionnable_depuis_comme_le_classeur(self, page):
         """⚠️ Le second défaut du 02/09 : « si je sélectionne Comme le classeur
@@ -457,3 +508,65 @@ class TestLaVueCircuitsNeMontreQueLaPastille:
         """Ce sont eux qui disent ce que les deux pastilles signifient."""
         assert "<th>Difficulté</th>" in page
         assert "<th>Prises</th>" in page
+
+
+class TestLaVueReussitesMontreCeQuiVientDArriver:
+    """« Je viens de faire un scan manuel avec mon téléphone et je suis revenu
+    sur la partie réussite. Je m'attendais à avoir une entrée ou un tableau avec
+    la liste des réussites qui ont été scannées par ce téléphone. » — Adrien,
+    03/09 (spec 033, R12).
+
+    La vue savait SAISIR et RETROUVER — deux gestes qui supposent qu'on sait
+    déjà ce qu'on cherche. La route `/admin/reussites-tracees` gère pourtant le
+    cas « aucune référence » depuis la spec 011, sans aucun appelant.
+    """
+
+    def test_la_carte_est_dans_la_vue(self, page):
+        assert "Les dernières réussites" in page
+        for identifiant in ("corpsDernieres", "filtreAppareil",
+                            "btnRafraichirReussites"):
+            assert 'id="%s"' % identifiant in page, identifiant
+
+    def test_elle_arrive_AVANT_la_saisie_a_la_main(self, page):
+        """C'est ce qu'on vient voir en revenant d'un scan ; la saisie est le
+        geste de rattrapage, pas la question."""
+        assert page.index("Les dernières réussites") \
+            < page.index("Saisir une réussite à la main")
+
+    def test_elle_interroge_la_route_qui_existe_deja(self, page):
+        """On ajoute l'écran, pas le serveur."""
+        assert '"/admin/reussites-tracees?limite=' in page
+        assert '"&appareil=" + encodeURIComponent(appareil)' in page
+
+    def test_le_filtre_propose_tous_les_telephones(self, page):
+        assert "Tous les téléphones" in page
+
+    def test_le_minuteur_ne_tourne_que_sur_cette_vue(self, page):
+        """Une console laissée ouverte sur « Réglages » ne doit pas interroger
+        la base toutes les dix secondes pour un tableau que personne ne
+        regarde."""
+        assert "quitte: fermerReussites" in page
+        assert "if (cle !== nom && VUES[cle].quitte) VUES[cle].quitte();" in page
+        assert "clearInterval(minuteurDernieres)" in page
+
+    def test_une_liste_vide_le_dit_en_toutes_lettres(self, page):
+        """« Aucun résultat » et un tableau vide ne se ressemblent pas quand on
+        cherche une réponse dans le feu de l'action."""
+        assert "Aucune réussite pour l'instant." in page
+        assert "Ce téléphone n'a encore rien envoyé." in page
+
+    def test_une_panne_ne_crie_pas_toutes_les_dix_secondes(self, page):
+        """La carte se recharge seule : un message d'erreur par cycle rendrait
+        la console inutilisable pendant une coupure."""
+        assert "Liste indisponible : " in page
+
+    def test_le_hors_circuit_est_signale(self, page):
+        """Le même signalement que dans la recherche par référence : « il dit
+        qu'il a validé, pourquoi son score ne bouge pas ? »"""
+        assert "if (r.hors_circuit) {" in page
+
+    def test_le_tableau_ne_pousse_pas_le_reste_hors_de_l_ecran(self, page):
+        """Cinquante lignes reléguaient la saisie manuelle deux écrans plus
+        bas — et c'est le geste qu'on vient faire quand un scan a raté."""
+        assert 'class="scroll plafonne"' in page
+        assert ".scroll.plafonne { max-height:" in page

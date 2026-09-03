@@ -21,14 +21,183 @@ qu'on ne met pas à jour le matin d'une compétition :
 
 ### Ajouté
 
+- **L'avancement par zone, sur le plan du mur** de la fiche du grimpeur
+  (spec 036). Une zone où il a des blocs de son circuit porte « 1/4 » : blocs
+  validés sur blocs de son circuit qui s'y trouvent. Le mur ne disait que « il
+  t'en reste » — cinq zones allumées à l'identique se comparaient en cinq
+  gestes, en touchant chacune pour lire le compteur du panneau. Une zone sans
+  bloc de son circuit ne porte **rien** : l'absence est l'information, « 0/4 »
+  se dit, « 0/0 » non. Un bloc **crédité** par la cascade compte comme fait,
+  comme partout ailleurs sur cet écran.
+- **Le QR de poste, posé sur la table du juge** (spec 034). Le juge arrive à sa
+  table, ouvre l'application, scanne le carton posé devant lui : son téléphone
+  s'appelle « Zone C » dans la console. Il n'a rien tapé. Le nom du poste
+  existait depuis la spec 011 et se **tapait à la main** — un réglage optionnel,
+  invisible depuis l'écran principal, dans une application qu'on ouvre pour
+  scanner : personne ne le faisait, et quand c'était fait, deux téléphones du
+  même mur portaient deux noms différents.
+  - Le QR porte **`CCPOSTE:` + le nom de la zone**. Le préfixe n'est pas
+    décoratif : le même viseur voit aussi les dossards (`42`), les blocs
+    (`ZJ6`) et le lien de l'organisateur. Sans lui, un bloc scanné par erreur
+    depuis cet écran renommerait le poste « ZJ6 » **sans que personne le
+    voie**, et la console afficherait « ZJ6 » en face de tous les envois de la
+    journée. Chaque refus porte **son** message, jamais « QR invalide ».
+  - Du **texte brut**, pas une URL : une URL scannée par l'appareil photo natif
+    ouvrirait un navigateur, et le juge se retrouverait hors de son
+    application, dans une instance sans file d'attente.
+  - **Une nouvelle page `/admin/postes`** dans la console (vue Téléphones) :
+    une affiche par zone, **trois par A4**, QR de 70 mm généré localement. Les
+    zones se déduisent du **plan courant**, jamais d'une liste tenue à la main :
+    un mur ajouté dans « Dessiner le plan du mur » sort son QR à l'impression
+    suivante. C'est la seule page d'impression qui marche **sans compétition
+    active** — on imprime ces cartons la veille au soir, avant l'import du
+    classeur.
+  - Le préfixe est écrit **deux fois**, en Python et en JavaScript. Un test lit
+    `poste.js` et le compare à `fiches.PREFIXE_QR_POSTE` : le jour où les deux
+    divergent, tous les QR imprimés cesseraient d'être lus sans qu'une ligne ait
+    l'air fausse. Un décodeur indépendant (OpenCV) relit par ailleurs ce qu'on
+    produit.
+
 - **Un simulateur de juges** (`tools/simulateur_juges.py`). Un panneau local
   ouvre une compétition entière depuis le Mac : nombre de juges, cadence,
   répartition dans le temps, aléas du terrain, démarrage et arrêt en un clic.
   Ce qui part sur le réseau est ce qu'envoie un téléphone — mêmes routes, même
   politique d'envoi, recopiée de `static/juge/politique.js` — et le protocole
   bascule entre les lots `v3` et les trois appels `v2` de l'application gelée.
-  Bibliothèque standard uniquement : aucune installation. Voir
+  Bibliothèque standard uniquement : aucune installation. L'adresse, la clé et
+  les derniers réglages sont retenus d'une session à l'autre, **hors du dépôt**
+  (`~/.config/climbcontest/`, `0600`), et la barre du haut affiche la version du
+  serveur en face. Voir
   [docs/tester-avec-l-emulateur.md](docs/tester-avec-l-emulateur.md).
+- **Les réglages d'affichage arrivent en trois secondes** sur la page de
+  résultats, sans rechargement : éteindre ou rallumer un classement dans la
+  console se voit tout de suite sur l'écran d'à côté. Une route publique
+  **légère** (`GET /api/public/reglages`, ~200 octets, aucun calcul de
+  classement) est relue toutes les 3 s, là où la charge complète reste à 15 s —
+  l'accélérer aurait multiplié par cinq le trafic du wifi de la salle
+  (spec 033, R3).
+- **La liste des dernières réussites** dans la console, vue « Réussites » :
+  grimpeur, bloc, heure, téléphone et référence, filtrable **par téléphone**,
+  rafraîchie toute seule tant qu'on la regarde. La route existait depuis la
+  spec 011 sans que rien ne l'appelle pour ce cas (spec 033, R12).
+- **La légende des profils de mur** revient sur le plan de la fiche du
+  grimpeur : dalle, vertical, incliné, dévers, surplomb, toit — du moins au
+  plus déversant, et seulement ceux que le plan utilise (spec 033, R11).
+
+### Modifié
+
+- **Plus aucun test de CI n'attend une horloge.** Le job `tests` virait au rouge
+  par intermittence, toujours pour la même raison : deux tests navigateur
+  attendaient **pour de vrai** le battement de 15 s de la page de résultats, et
+  un runner chargé en mettait seize. Cinq tests coûtaient 66 s à eux seuls.
+
+  | test | avant | après |
+  | --- | --- | --- |
+  | `TestUneZoneQueLePlanNeConnaitPlus` | 29,3 s\* | 1,0 s |
+  | `TestLeMurSeMetAJouerToutSeul` | 16,5 s | 2,5 s |
+  | `test_reprend_un_autre_port_si_le_sien_est_pris` | 15,9 s | 7,5 s |
+  | `test_le_parcours_complet` (fiche) | 15,3 s | 0,9 s |
+  | `TestVerrouOrphelinAuRedemarrage` | 10,7 s | 1,6 s |
+  | rotation des sauvegardes (2 tests) | 7,8 s | 0,2 s |
+
+  \* celui-là ne coûtait **rien** sur le Mac : il attendait le même battement,
+  mais le premier chargement gagnait toujours la course en local et la perdait
+  sur un runner chargé. C'est lui qui a expiré à 120 s le 02/09. Le budget par
+  test l'a nommé au premier passage de CI ; sans lui il serait encore invisible.
+
+  Aucun test n'a été supprimé ni affaibli : chacun a été vérifié en cassant ce
+  qu'il surveille. Trois réglages apparaissent, **tous à défaut inchangé** :
+
+  - **`?periode=`** sur la page de résultats — le battement du rafraîchissement,
+    à côté du `?rotation=` qui existait déjà et pour la même raison. Ce qui
+    n'est pas réglable ne se teste qu'en le regardant passer.
+  - **`CLIMBCONTEST_ATTENTE_VERROU_S`** — combien de temps un worker attend
+    derrière le verrou de schéma (10 s). Un verrou **orphelin** encore frais
+    n'est jamais volé : chaque worker attend ce délai en entier avant de
+    forcer, et c'est aussi la durée d'un redémarrage après plantage.
+  - la sonde `/health` du banc d'essai E2E passe **court** (2 s au lieu de 15).
+    Un port squatté par une socket qui écoute sans jamais répondre laisse la
+    connexion s'établir, puis se tait : la sonde attendait ses 15 s pleines.
+
+  Et trois défauts du harnais navigateur lui-même, tous invisibles sur le Mac
+  et tous payés sur le runner :
+
+  - il attendait « que le document contienne **plus de vingt éléments** », un
+    pari sur la vitesse de l'analyseur. `admin.html` fait 1600 lignes,
+    `#connexion` est à la 850ᵉ et `#console` à la 889ᵉ : dès que le runner
+    ralentissait, la sonde qui attendait le premier lisait `null` sur le second
+    et rendait un échec qui n'accusait personne. Il attend désormais un document
+    **fini**, sur une adresse qui n'est plus `about:blank`.
+  - son serveur servait **une requête à la fois** (`wsgiref`). Un navigateur en
+    ouvre six en parallèle, et une page qui relit ses données pendant ce
+    temps-là passe devant les fichiers qu'elle attend encore. Il est fileté.
+  - le **premier** lancement de chromium coûte **7,2 s** sur un runner, les
+    suivants 0,33 s (mesuré le 03/09 ; Google Chrome fait 5,3 puis 0,25). Ce
+    n'est pas un défaut, c'est un disque froid — mais la facture allait au
+    premier test navigateur venu, celui de la couture des zones par ordre
+    alphabétique, qui affichait 15 s en CI contre 0,7 s ici et passait pour un
+    test qui attend. Le navigateur se **chauffe** maintenant en fond dès la fin
+    de la collecte, pendant les quinze cents tests qui n'en ont pas besoin.
+
+  Enfin, un test navigateur qui met plus de 5 s à rendre son verdict lève un
+  **avertissement** qui nomme ses attentes de plus de 500 ms — ou dit qu'il n'y
+  en a aucune, et que le temps est passé avant le pilote. C'est ce qui manquait
+  pour diagnostiquer : un test qui passe ne montre rien de ce qu'il a fait.
+- **La page de résultats démarre sans le champ de recherche**, et le bouton
+  `⌕` de l'en-tête l'ouvre. Le choix est retenu pour l'appareil. Renversement
+  du défaut de la spec 020 (spec 033, R6).
+- **Les étiquettes de blocs** sortent zone par zone **dans l'ordre
+  alphabétique** — A d'abord, Z en dernier —, les blocs sans zone à la fin. Et
+  le **numéro a désormais une taille fixe** (19 mm) : il était dimensionné
+  étiquette par étiquette, ce qui donnait « J6 » à 26 mm et « J24 » à 19,5 sur
+  la même planche (spec 033, R7 et R8).
+- **L'application juge** : l'engrenage des réglages est un dessin au trait, au
+  même trait que le voyant de connexion, et **le dernier élément** de la barre
+  du haut ; c'était un caractère emoji, posé avant le voyant. La carte du
+  grimpeur passe en deux colonnes et affiche **sa catégorie à droite**, à la
+  taille de son nom — le contrôle du juge avant de valider. Le catalogue rangé
+  sur le téléphone passe en **forme 4** (il garde la catégorie complète, le
+  circuit s'en déduit) : les téléphones le retéléchargent tout seuls
+  (spec 033, R9 et R10).
+- **La cascade de couleurs** : « Aucune cascade » cache aussi l'interrupteur
+  par catégorie, et le bouton coché se voit — pastille dessinée à l'accent,
+  carte teintée — là où le point natif était presque invisible en thème sombre
+  (spec 033, R1 et R2).
+
+### Corrigé
+
+- **`/health` annonçait un retard de classeur qui n'existait pas.** Le compteur
+  `reussites_en_attente` comptait toutes les réussites non synchronisées,
+  **toutes compétitions confondues**, alors que le miroir ne sert que la
+  compétition active. Le 03/09 il affichait `714` en attente pendant que le
+  miroir n'avait plus rien à écrire : 714 réussites d'ailleurs, inenvoyables par
+  construction, qui seraient restées affichées à jamais. Le coût n'est pas
+  cosmétique — un vrai retard de cinquante aurait affiché `764`, indistinguable
+  de `714` au coup d'œil, et c'est le chiffre qu'on regarde le jour J pour
+  savoir si le classeur suit. Le compteur et le miroir partagent désormais **le
+  même filtre**, et ce qui n'est pas envoyable se compte à part dans
+  `reussites_inenvoyables` — sorti du chiffre, pas caché.
+- **Deux sauvegardes dans la même seconde n'en faisaient qu'une.** Le nom de la
+  copie vient d'un horodatage **à la seconde** ; deux appels rapprochés
+  portaient donc le même nom, et le second écrasait le premier sans un mot. Le
+  minuteur tourne toutes les dix minutes, alors ça ne se voyait pas — mais une
+  sauvegarde à la main juste avant un import et une juste après, c'est
+  exactement le geste qu'on veut pouvoir faire. Un ordinal tranche l'égalité,
+  et seulement quand il y en a une : le nom habituel ne change pas.
+
+  Le défaut était **caché par ses propres tests**. Ceux de la rotation dormaient
+  1,05 s entre deux lancements, « parce que l'horodatage est à la seconde » :
+  ils prouvaient que la rotation marche quand les noms diffèrent, et rien du
+  tout sur le cas où ils ne différaient pas.
+- **Le bouton lecture/pause de la page de résultats repartait à l'arrêt à
+  chaque rechargement.** L'état est retenu pour l'écran, comme le choix de la
+  recherche. Et les deux glyphes venaient de deux familles — l'un géométrique,
+  l'autre emoji : ce sont maintenant deux icônes dessinées dans la même boîte
+  (spec 033, R4 et R5).
+- Au passage, le bouton affichait **« pause » alors que la rotation était à
+  l'arrêt** : `svg.hidden = false` ne fait rien, `hidden` appartient à
+  `HTMLElement`. C'est le défaut corrigé en 0.15.0, revenu par la porte du SVG ;
+  le choix d'icône passe désormais par une classe CSS.
 
 ## [0.17.0] — 2026-09-03
 

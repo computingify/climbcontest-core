@@ -9,6 +9,7 @@ D'où le premier test, qui relit les constantes DANS `politique.js` au lieu de
 les recopier : une valeur changée d'un côté et pas de l'autre casse la suite.
 """
 import re
+import time
 from pathlib import Path
 
 import pytest
@@ -243,3 +244,180 @@ def test_l_appareil_identifie_un_poste(simulation):
 ])
 def test_demeler(serveur, cle, attendu):
     assert moteur._demeler(serveur, cle) == attendu
+
+
+# ── Ce qui est retenu d'une session à l'autre ──────────────────────────────
+
+@pytest.fixture()
+def memoire_isolee(tmp_path, monkeypatch):
+    """La mémoire dans un dossier jetable : jamais celle de la machine."""
+    from tools.simulateur import memoire
+    monkeypatch.setattr(memoire, "DOSSIER", tmp_path / "config")
+    monkeypatch.setattr(memoire, "CHEMIN", tmp_path / "config" / "sim.json")
+    return memoire
+
+
+def test_rien_de_retenu_au_depart(memoire_isolee):
+    assert memoire_isolee.lire() == {}
+
+
+def test_ce_qui_est_ecrit_se_relit(memoire_isolee):
+    memoire_isolee.ecrire(serveur="https://exemple.fr", cle="secrete")
+    assert memoire_isolee.lire() == {"serveur": "https://exemple.fr", "cle": "secrete"}
+
+
+def test_ecrire_ne_touche_pas_aux_autres_champs(memoire_isolee):
+    memoire_isolee.ecrire(serveur="https://exemple.fr", cle="secrete")
+    memoire_isolee.ecrire(reglages={"juges": 7})
+    retenu = memoire_isolee.lire()
+    assert retenu["cle"] == "secrete"
+    assert retenu["reglages"] == {"juges": 7}
+
+
+def test_un_champ_absent_n_efface_rien(memoire_isolee):
+    memoire_isolee.ecrire(cle="secrete")
+    memoire_isolee.ecrire(cle=None, serveur="https://exemple.fr")
+    assert memoire_isolee.lire()["cle"] == "secrete"
+
+
+def test_le_fichier_n_est_lisible_que_par_son_proprietaire(memoire_isolee):
+    """Il contient une clé d'API : sur un Mac partagé, ça compte."""
+    memoire_isolee.ecrire(cle="secrete")
+    assert oct(memoire_isolee.CHEMIN.stat().st_mode)[-3:] == "600"
+    assert oct(memoire_isolee.DOSSIER.stat().st_mode)[-3:] == "700"
+
+
+def test_un_fichier_abime_coute_une_ressaisie_pas_un_plantage(memoire_isolee):
+    memoire_isolee.DOSSIER.mkdir(parents=True)
+    memoire_isolee.CHEMIN.write_text("{ ceci n'est pas du JSON")
+    assert memoire_isolee.lire() == {}
+
+
+def test_la_memoire_vit_hors_du_depot():
+    """La seule garantie qui tienne : git ne peut pas atteindre le fichier.
+
+    Une ligne de `.gitignore` se supprime, se contourne par `git add -f`, et les
+    deux dépôts sont PUBLICS. Hors du dépôt, il n'y a plus de geste à ne pas
+    faire.
+    """
+    from tools.simulateur import memoire as vraie
+    assert RACINE not in vraie.CHEMIN.parents
+    assert vraie.CHEMIN.is_relative_to(Path.home())
+
+
+def test_oublier_supprime_tout(memoire_isolee):
+    memoire_isolee.ecrire(cle="secrete")
+    memoire_isolee.oublier()
+    assert not memoire_isolee.CHEMIN.exists()
+    memoire_isolee.oublier()          # deux fois de suite ne lève pas
+
+
+# ── La version du serveur ──────────────────────────────────────────────────
+
+class ApiSonde(moteur.Api):
+    def __init__(self, reponse, code=200):
+        super().__init__("http://exemple", "cle")
+        self._reponse, self._code = reponse, code
+
+    def _appel(self, chemin, corps=None, methode="POST", entetes_sup=None):
+        return self._code, self._reponse, 0.01
+
+
+def test_la_version_du_serveur_est_lue_sur_la_sonde():
+    api = ApiSonde({"status": "ok", "version": "0.17.0"})
+    assert api.sante() == {"version": "0.17.0", "statut": "ok", "code": 200}
+
+
+def test_une_sonde_degradee_donne_quand_meme_la_version():
+    """503 est justement le cas où on veut voir la version."""
+    api = ApiSonde({"status": "degraded", "version": "0.17.0"}, code=503)
+    assert api.sante()["version"] == "0.17.0"
+    assert api.sante()["statut"] == "degraded"
+
+
+def test_une_sonde_illisible_ne_leve_pas():
+    assert moteur.Api("http://exemple").sante() == {}
+
+
+# ── Le cycle démarrer / arrêter ────────────────────────────────────────────
+
+def _lancer(simulation, **reglages):
+    """Démarre pour de vrai, mais à une cadence qui ne produit aucun scan.
+
+    Les fils tournent — c'est le sujet du test — et `cadence=0.1` met le
+    prochain scan à dix minutes : ce qui part est ce que le test a mis en file,
+    et rien d'autre.
+    """
+    reglages.setdefault("juges", 1)
+    reglages.setdefault("cadence", 0.1)
+    assert simulation.demarrer(moteur.Reglages(**reglages))["ok"]
+    return simulation.juges[0]
+
+
+def _attendre_l_arret(simulation, secondes=5.0):
+    limite = time.monotonic() + secondes
+    while simulation.vidage and time.monotonic() < limite:
+        time.sleep(0.05)
+    assert not simulation.vidage, "le vidage ne s'est jamais terminé"
+
+
+def test_les_compteurs_repartent_de_zero_a_chaque_lancement(simulation):
+    """Sinon les tuiles cumulent deux runs pendant que le tableau n'en montre qu'un.
+
+    L'écart de sept constaté le 03/09 a coûté une enquête sur une perte de
+    données qui n'existait pas.
+    """
+    simulation.api = ApiMuette()
+    simulation.enregistrees, simulation.deja_connues, simulation.refusees = 12, 3, 4
+    simulation.requetes = 9
+    simulation.codes["200"] = 9
+    try:
+        _lancer(simulation)
+        assert (simulation.enregistrees, simulation.deja_connues,
+                simulation.refusees, simulation.requetes) == (0, 0, 0, 0)
+        assert not simulation.codes
+    finally:
+        simulation.arret.set()
+
+
+def test_les_passages_deja_valides_restent_connus_apres_un_relancement(simulation):
+    """`paires` ne se vide PAS : le serveur, lui, s'en souvient toujours."""
+    simulation.api = ApiMuette()
+    simulation.paires.add((1, "ZJ1"))
+    try:
+        _lancer(simulation)
+        assert (1, "ZJ1") in simulation.paires
+    finally:
+        simulation.arret.set()
+
+
+def test_l_arret_laisse_partir_ce_qui_reste_en_file(simulation):
+    """Un vrai téléphone garde sa file ; le simulateur la jetait."""
+    simulation.api = ApiMuette()
+    juge = _lancer(simulation)
+    for _ in range(3):
+        juge.file.append(simulation.tirer_une_reussite(juge))
+
+    simulation.arreter()
+    _attendre_l_arret(simulation)
+
+    assert juge.file == []
+    assert simulation.enregistrees == 3
+
+
+def test_l_arret_finit_meme_si_le_serveur_ne_repond_plus(simulation, monkeypatch):
+    """Le bouton « Arrêter » doit arrêter, serveur éteint ou pas.
+
+    Et ce qui n'est pas parti reste en file : on ne l'invente pas enregistré.
+    """
+    monkeypatch.setattr(moteur.Simulation, "ATTENTE_VIDAGE", 0.4)
+    simulation.api = ApiMuette(ok=False)
+    juge = _lancer(simulation)
+    juge.file.append(simulation.tirer_une_reussite(juge))
+
+    simulation.arreter()
+    _attendre_l_arret(simulation)
+
+    assert len(juge.file) == 1
+    assert simulation.enregistrees == 0
+    assert "jamais parties" in simulation.lignes[-1]["texte"]

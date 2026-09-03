@@ -62,11 +62,16 @@ CLE_E2E = "cle-e2e"
 
 
 def appeler(base: str, chemin: str, corps: dict | None = None,
-            methode: str = "POST", cle: str | None = CLE_E2E):
+            methode: str = "POST", cle: str | None = CLE_E2E,
+            delai: float = 15):
     """Un appel HTTP, comme le ferait l'application. Renvoie (code, json).
 
     `cle=None` omet l'en-tete : c'est ce que fait le gel `V3.1.4`, et c'est ce
     qu'il faut pour verifier qu'une route est bien fermee.
+
+    `delai` : quinze secondes conviennent a un serveur qui REPOND -- un lot de
+    cent reussites sous quatre workers prend son temps. La sonde de demarrage,
+    elle, doit passer court : voir `_demarrer_une_fois`.
     """
     donnees = json.dumps(corps).encode() if corps is not None else None
     entetes = {"Content-Type": "application/json"}
@@ -76,7 +81,7 @@ def appeler(base: str, chemin: str, corps: dict | None = None,
         f"{base}{chemin}", data=donnees, method=methode, headers=entetes,
     )
     try:
-        with urllib.request.urlopen(requete, timeout=15) as r:
+        with urllib.request.urlopen(requete, timeout=delai) as r:
             texte = r.read().decode()
             return r.status, (json.loads(texte) if texte else None)
     except urllib.error.HTTPError as e:
@@ -155,7 +160,16 @@ class ServeurReel:
                     raise PortDejaPris(self.port)
                 raise RuntimeError(f"gunicorn n'a pas demarre :\n{journal[-800:]}")
             try:
-                code, _ = appeler(self.base, "/health", methode="GET")
+                # ⚠️ `delai` COURT, et c'est tout le sujet de ce test-ci.
+                #
+                # Un `/health` de serveur vivant repond en millisecondes ; les
+                # quinze secondes par defaut ne servent qu'aux gros lots. Mais
+                # un port SQUATTE par une socket qui ecoute sans jamais
+                # repondre laisse la connexion s'ETABLIR, puis se tait : la
+                # sonde attendait alors ses quinze secondes pleines, et
+                # `test_reprend_un_autre_port_si_le_sien_est_pris` coutait
+                # seize secondes de CI pour cinq secondes de gunicorn.
+                code, _ = appeler(self.base, "/health", methode="GET", delai=2)
                 if code == self.sante_attendue:
                     return
             except Exception:
@@ -679,7 +693,13 @@ class TestVerrouOrphelinAuRedemarrage:
     def test_le_serveur_prepare_le_schema_au_lieu_de_servir_une_base_vide(self, tmp_path):
         self._poser_verrou_frais(tmp_path)
 
-        with ServeurReel(tmp_path, workers=4) as s:
+        # L'attente du verrou est ramenee a une seconde. Ce n'est pas elle que
+        # ce test verifie : le verrou est ORPHELIN, personne ne le rendra
+        # jamais, et les quatre workers attendent donc de toute facon jusqu'au
+        # bout AVANT de forcer. Ce qui est verifie, c'est qu'ils forcent -- et
+        # ils le font a l'identique en une seconde qu'en dix.
+        with ServeurReel(tmp_path, workers=4,
+                         env_sup={"CLIMBCONTEST_ATTENTE_VERROU_S": "1"}) as s:
             code, sante = appeler(s.base, "/health", methode="GET")
             assert code == 200, f"/health devait remonter, obtenu {code} : {sante}"
             assert sante["status"] == "ok"

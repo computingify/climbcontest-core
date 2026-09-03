@@ -31,13 +31,33 @@ test("le circuit se dérive de la catégorie, comme côté serveur", () => {
   assert.equal(CATALOGUE.circuitDuGrimpeur(2), "U17");
 });
 
-test("la catégorie complète n'est PAS entreposée sur le téléphone", () => {
-  // Le genre n'apprend rien au test, et c'est une donnée de mineur de moins
-  // sur vingt-cinq téléphones de bénévoles.
+test("la catégorie complète est entreposée depuis la forme 4", () => {
+  // ⚠️ Ce test disait l'INVERSE jusqu'à la spec 033 (R10) : seul le circuit
+  // était gardé, par minimisation — des données de mineurs vivent sur
+  // vingt-cinq téléphones de bénévoles, et le genre n'apprenait rien au test
+  // d'appartenance.
+  //
+  // Il apprend maintenant quelque chose : Adrien a demandé que la catégorie
+  // s'affiche sur la carte du grimpeur, pour que le juge vérifie d'un coup
+  // d'œil qu'il scanne le bon. Elle voyageait déjà sur le réseau ; elle est
+  // désormais conservée. Le circuit, lui, n'est PLUS rangé : il se déduit.
   const range = JSON.stringify(CATALOGUE.versJson());
-  assert.equal(range.includes("U11 F"), false);
-  assert.equal(range.includes("U17 H"), false);
-  assert.equal(range.includes("U11"), true);
+  assert.equal(range.includes("U11 F"), true);
+  assert.equal(range.includes("U17 H"), true);
+  // Une seule clé pour les deux : la quantité stockée ne croît pas.
+  assert.equal(JSON.parse(range).participants["1"].c, "U11 F");
+});
+
+test("la catégorie est lisible, et absente quand le classeur ne la donne pas", () => {
+  assert.equal(CATALOGUE.categorie(1), "U11 F");
+  assert.equal(CATALOGUE.categorie(3), null);   // ligne sans catégorie (R5)
+  assert.equal(CATALOGUE.categorie(99), null);  // dossard inconnu
+});
+
+test("la catégorie survit à l'aller-retour par le stockage", () => {
+  const relu = Catalogue.depuisJson(CATALOGUE.versJson());
+  assert.equal(relu.categorie(1), "U11 F");
+  assert.equal(relu.circuitDuGrimpeur(1), "U11");
 });
 
 test("un bloc du circuit du grimpeur : rien à signaler", () => {
@@ -109,9 +129,24 @@ test("le circuit survit à l'aller-retour par le stockage", () => {
   assert.equal(relu.grimpeur(1), "Dupont Lea");
 });
 
-test("le format est bien la troisième forme", () => {
-  assert.equal(FORMAT, 3);
-  assert.equal(CATALOGUE.versJson().format, 3);
+test("le format est bien la quatrième forme", () => {
+  assert.equal(FORMAT, 4);
+  assert.equal(CATALOGUE.versJson().format, 4);
+});
+
+test("un catalogue de la forme 3 force un rechargement", () => {
+  // ⚠️ C'est TOUT l'intérêt du marqueur. Un téléphone peut recevoir le
+  // nouveau code en gardant un catalogue rangé par l'ancien — et le serveur
+  // répondant 304 tant que la version ne bouge pas, il ne serait jamais
+  // remplacé. Ici le `c` d'un participant voudrait dire « circuit » alors que
+  // le code y lit une catégorie : le juge verrait « U11 » là où on annonce
+  // une catégorie, sans que rien ne le signale.
+  const vieux = Catalogue.depuisJson({
+    format: 3, version: 12,
+    participants: { 1: { n: "Dupont Lea", c: "U11" } },
+    blocs: { ZJ6: { t: "ZJ6", k: "Jaune", c: ["U11"] } },
+  });
+  assert.equal(vieux.estVide, true);
 });
 
 test("les circuits du bloc sont lisibles pour l'affichage", () => {

@@ -7,16 +7,22 @@ matin de la compétition.
 
 ⚠️ **Il n'écoute que sur la boucle locale.** Le panneau porte la clé d'API de la
 compétition : l'exposer sur le réseau du gymnase reviendrait à la distribuer.
-La clé n'est d'ailleurs jamais écrite sur le disque ni renvoyée par `/api/etat`
-— elle vit en mémoire, le temps de la session.
+La clé n'est jamais RENVOYÉE au navigateur — `/api/etat` ne la contient pas, et
+le champ du panneau reste vide même quand le simulateur la connaît.
+
+Elle est en revanche **retenue d'une session à l'autre**, hors du dépôt et en
+`0600` : voir `memoire.py`, qui explique pourquoi ce n'est pas dans le dépôt
+avec une ligne de `.gitignore`.
 """
 
 import json
 import threading
 import webbrowser
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from dataclasses import asdict
 from pathlib import Path
 
+from . import memoire
 from .moteur import Reglages, Simulation
 
 PANNEAU = Path(__file__).with_name("panneau.html")
@@ -47,10 +53,18 @@ class Poignee(BaseHTTPRequestHandler):
         sim = self.simulation
 
         if self.path == "/api/connecter":
-            return self._json(sim.connecter(corps.get("serveur", ""),
-                                            corps.get("cle", "")))
+            resultat = sim.connecter(corps.get("serveur", ""), corps.get("cle", ""))
+            if resultat.get("ok"):
+                memoire.ecrire(serveur=sim.serveur, cle=sim.api.cle)
+            return self._json(resultat)
         if self.path == "/api/demarrer":
-            return self._json(sim.demarrer(Reglages.depuis(corps)))
+            reglages = Reglages.depuis(corps)
+            resultat = sim.demarrer(reglages)
+            if resultat.get("ok"):
+                # Les réglages aussi : retrouver ses curseurs au lancement
+                # suivant fait partie du « ne pas ressaisir ».
+                memoire.ecrire(reglages=asdict(reglages))
+            return self._json(resultat)
         if self.path == "/api/reglages":
             sim.appliquer(Reglages.depuis(corps))
             return self._json({"ok": True})
@@ -100,17 +114,38 @@ class Poignee(BaseHTTPRequestHandler):
 def lancer(port: int = 8765, ouvrir: bool = True,
            serveur: str = "", cle: str = "") -> None:
     simulation = Simulation()
+    retenu = memoire.lire()
+
+    # La ligne de commande passe AVANT ce qui a été retenu : c'est le seul
+    # moyen de viser ponctuellement un autre serveur sans perdre le sien.
+    serveur = serveur or retenu.get("serveur", "")
+    cle = cle or retenu.get("cle", "")
+    if isinstance(retenu.get("reglages"), dict):
+        simulation.reglages = Reglages.depuis(retenu["reglages"])
+
     if serveur:
         # Connexion d'amorçage : le panneau s'ouvre déjà rempli. Un échec ici
         # n'est pas bloquant — le bouton « Connecter » reste là.
         resultat = simulation.connecter(serveur, cle)
-        if not resultat.get("ok"):
-            print(f"  ⚠ {resultat.get('message')}")
+        if resultat.get("ok"):
+            # ⚠️ Enregistrer ICI aussi, et pas seulement dans la route : viser un
+            # serveur par `--url` est précisément la façon dont on le déclare la
+            # première fois. Sans cette ligne, il fallait repasser par le
+            # bouton « Connecter » pour que quoi que ce soit soit retenu.
+            memoire.ecrire(serveur=simulation.serveur, cle=simulation.api.cle)
+            cible = simulation.cible()
+            print(f"\n  {cible['serveur']} — version {cible['version_serveur'] or '?'}"
+                  f"\n  « {cible['competition']} » : {cible['participants']} dossards, "
+                  f"{cible['blocs']} blocs")
+        else:
+            print(f"\n  ⚠ {resultat.get('message')}")
 
     Poignee.simulation = simulation
     httpd = ThreadingHTTPServer(("127.0.0.1", port), Poignee)
     adresse = f"http://127.0.0.1:{port}"
-    print(f"\n  Panneau : {adresse}\n  Ctrl-C pour arrêter.\n")
+    print(f"\n  Panneau  : {adresse}")
+    print(f"  Retenu   : {memoire.CHEMIN}  (contient la clé — supprimer pour oublier)")
+    print("  Ctrl-C pour arrêter.\n")
     if ouvrir:
         threading.Timer(0.5, lambda: webbrowser.open(adresse)).start()
     try:

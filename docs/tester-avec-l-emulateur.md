@@ -116,6 +116,13 @@ Le panneau s'ouvre sur <http://127.0.0.1:8765>. Y coller le **lien juge** de la
 console (onglet « App juge ») suffit : l'adresse et la clé en sont tirées. Puis
 le nombre de juges, la cadence, et « Démarrer ».
 
+L'adresse, la clé et les derniers réglages sont **retenus** dans
+`~/.config/climbcontest/simulateur-juges.json` — hors du dépôt, en `0600`, parce
+que ce fichier contient un secret et que les deux dépôts sont publics. Rien à
+ressaisir à la deuxième ouverture ; supprimer le fichier suffit à tout oublier.
+La barre du haut affiche la **version du serveur** en face, et le dit en rouge
+si la sonde le déclare dégradé.
+
 Ce qui part sur le réseau est **exactement** ce qu'envoie un téléphone : mêmes
 routes, même politique d'envoi (lot de 5 ou délai de 10 s, retrait doublé après
 un échec), recopiée de `static/juge/politique.js`. Le sélecteur de protocole
