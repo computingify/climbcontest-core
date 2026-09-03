@@ -79,6 +79,23 @@ qu'on ne met pas à jour le matin d'une compétition :
 
 ### Modifié
 
+- **L'application juge s'ouvre en clair** (spec 039). Son fond était sombre **en
+  dur** : rien ne regardait `prefers-color-scheme`, et un bénévole qui ouvrait
+  l'application en plein jour, dans une salle à baie vitrée, lisait un écran
+  noir sans l'avoir demandé — luminosité poussée à fond, donc batterie. Le clair
+  devient le **défaut** ; le sombre reste, **inchangé au point près**, sous la
+  requête media. **Aucun réglage dans l'application** : le système décide, comme
+  sur la console depuis la spec 021.
+  ⚠️ Le circuit **« Noir »** prend désormais l'encre du thème — presque noir sur
+  le papier, craie sur l'ardoise. La craie n'était pas un choix de couleur,
+  c'était une rustine du fond sombre, et elle ne se voit pas davantage sur du
+  papier sable. Les cinq autres circuits ne bougent pas.
+  ⚠️ La coquille hors-ligne passe en **v6** : elle porte le gabarit, donc tout le
+  CSS. Un téléphone déjà installé prend la nouvelle version **au lancement
+  suivant** — fermer et rouvrir l'application, jamais en pleine compétition.
+  ⚠️ L'**app juge Android reste sombre** : les deux clients ne se ressemblent
+  plus tant qu'une spec ne l'a pas fait suivre.
+
 - **La recherche de la page de résultats se déploie** au lieu d'apparaître. Un
   appui sur la loupe — qui **termine** désormais la rangée, la lecture passant
   devant — ouvre le champ **par-dessus** les commandes, sur toute la largeur.

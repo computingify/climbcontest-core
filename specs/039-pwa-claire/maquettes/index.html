@@ -1,0 +1,334 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Spec 039 — la PWA juge s'ouvre en clair</title>
+<!--
+  APERÇU. Cette page ne montre pas une maquette : elle montre l'application
+  RÉELLE, servie par Flask, capturée dans un cadre de 390 × 844 — la taille de
+  l'écran d'un téléphone de juge. Les deux colonnes sont le MÊME gabarit : la
+  gauche telle qu'elle s'ouvre par défaut, la droite telle qu'elle s'ouvre sur
+  un téléphone réglé en sombre.
+
+  Les noms de grimpeurs sont INVENTÉS. Le dépôt est public et les classeurs
+  contiennent des noms de mineurs : aucune donnée réelle n'entre ici.
+
+  La planche s'ouvre en `file://`, sans serveur ni réseau : les captures sont
+  à côté, dans `captures/`.
+-->
+<style>
+  /* Le cadre autour des captures : même sable, même ocre que les planches des
+     specs 031 et 035, clair ou sombre selon le système. */
+  :root {
+    --p-fond: #E7E1D6; --p-surface: #F7F4EE; --p-encre: #231F19;
+    --p-encre2: #6E675A; --p-trait: #CFC7B8;
+    --p-accent: #8A5A0F; --p-accent-vif: #B5761C;
+    --p-ombre: 0 18px 44px rgba(27, 26, 23, .16);
+    --p-police: system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+    color-scheme: light dark;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --p-fond: #0E0D0A; --p-surface: #1A1813; --p-encre: #EDE9E0;
+      --p-encre2: #9A9385; --p-trait: #2E2B22;
+      --p-accent: #E8BC70; --p-accent-vif: #E0A94A;
+      --p-ombre: 0 18px 50px rgba(0, 0, 0, .6);
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; padding: 34px 18px 80px;
+    background: var(--p-fond); color: var(--p-encre);
+    font-family: var(--p-police); font-size: 15px; line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+  }
+  .page { max-width: 1120px; margin: 0 auto; }
+  .chapeau { max-width: 74ch; margin: 0 auto 34px; }
+  .eyebrow {
+    font-size: .72rem; text-transform: uppercase; letter-spacing: .12em;
+    font-weight: 700; color: var(--p-accent);
+  }
+  h1 { margin: 6px 0 12px; font-size: clamp(1.5rem, 1.1rem + 1.6vw, 2.1rem);
+       line-height: 1.15; letter-spacing: -.02em; }
+  h2 { margin: 46px 0 4px; font-size: 1.16rem; letter-spacing: -.01em; }
+  h2 .n { color: var(--p-accent); font-variant-numeric: tabular-nums; }
+  p { margin: 0 0 10px; }
+  .chapeau p, .dis { color: var(--p-encre2); }
+  .dis { margin: 0 0 16px; max-width: 78ch; }
+  b { color: var(--p-encre); }
+  code { font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+         font-size: .88em; background: var(--p-surface);
+         border: 1px solid var(--p-trait); border-radius: 5px; padding: 1px 5px; }
+
+  /* Deux téléphones côte à côte, et sur un écran étroit l'un sous l'autre. */
+  .duo { display: grid; gap: 22px; grid-template-columns: repeat(2, minmax(0, 1fr));
+         max-width: 860px; }
+  @media (max-width: 700px) { .duo { grid-template-columns: 1fr; } }
+  figure { margin: 0; }
+  figcaption { font-size: .8rem; font-weight: 700; text-transform: uppercase;
+               letter-spacing: .1em; color: var(--p-encre2); margin: 0 0 8px; }
+  figure.defaut figcaption { color: var(--p-accent); }
+  .telephone {
+    border-radius: 30px; overflow: hidden; border: 1px solid var(--p-trait);
+    box-shadow: var(--p-ombre); background: var(--p-surface);
+  }
+  .telephone img { display: block; width: 100%; height: auto; }
+
+  table { border-collapse: collapse; width: 100%; max-width: 860px;
+          font-size: .92rem; margin: 8px 0 0; }
+  th, td { text-align: left; padding: 7px 10px; border-bottom: 1px solid var(--p-trait);
+           vertical-align: top; }
+  th { font-size: .74rem; text-transform: uppercase; letter-spacing: .09em;
+       color: var(--p-encre2); }
+  td.role { font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+            font-size: .84rem; white-space: nowrap; }
+  .pastille { display: inline-flex; align-items: center; gap: 7px; white-space: nowrap; }
+  .pastille i { width: 13px; height: 13px; border-radius: 4px; flex: none;
+                border: 1px solid rgba(128, 128, 128, .5); }
+  .encadre {
+    border-left: 4px solid var(--p-accent-vif); background: var(--p-surface);
+    border-radius: 0 10px 10px 0; padding: 14px 16px; margin: 14px 0 0;
+    max-width: 860px;
+  }
+  .encadre p:last-child { margin-bottom: 0; }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <div class="chapeau">
+    <div class="eyebrow">Spec 039 · aperçu · 3 septembre 2026</div>
+    <h1>La PWA juge s'ouvre en clair</h1>
+    <p>Ce ne sont pas des maquettes : c'est <b>l'application réelle</b>, servie
+       par Flask, capturée dans un cadre de 390 × 844 — l'écran d'un téléphone de
+       juge. La colonne de gauche est ce que voit <b>tout le monde</b> ; celle de
+       droite ce que voit un téléphone <b>réglé en sombre</b>, et elle n'a pas
+       bougé d'un octet depuis le 02/09.</p>
+    <p>Le sombre n'est plus imposé, il est <b>demandé</b>. Aucun réglage dans
+       l'application : le système décide, comme sur la console depuis la
+       spec 021.</p>
+  </div>
+
+  <h2><span class="n">1.</span> À l'ouverture, rien de scanné</h2>
+  <p class="dis">L'étape 1 est active : carte <b>blanche</b>, liseré d'encre, la
+     puce « 1 » pleine. L'étape 2 attend, en creux. Le bouton désactivé se lit
+     comme un emplacement vide, pas comme une carte à remplir.</p>
+  <div class="duo">
+    <figure class="defaut">
+      <figcaption>Par défaut · clair</figcaption>
+      <div class="telephone"><img src="captures/clair-repos.png"
+        alt="L'écran juge en clair, rien de scanné" width="390" height="844"></div>
+    </figure>
+    <figure>
+      <figcaption>Téléphone en sombre</figcaption>
+      <div class="telephone"><img src="captures/sombre-repos.png"
+        alt="Le même écran en sombre" width="390" height="844"></div>
+    </figure>
+  </div>
+
+  <h2><span class="n">2.</span> Le grimpeur scanné</h2>
+  <p class="dis">La carte 1 se remplit, la carte 2 devient l'étape active. La
+     catégorie garde sa colonne de droite à la taille du nom (spec 033).</p>
+  <div class="duo">
+    <figure class="defaut">
+      <figcaption>Par défaut · clair</figcaption>
+      <div class="telephone"><img src="captures/clair-grimpeur.png"
+        alt="Le grimpeur scanné, en clair" width="390" height="844"></div>
+    </figure>
+    <figure>
+      <figcaption>Téléphone en sombre</figcaption>
+      <div class="telephone"><img src="captures/sombre-grimpeur.png"
+        alt="Le grimpeur scanné, en sombre" width="390" height="844"></div>
+    </figure>
+  </div>
+
+  <h2><span class="n">3.</span> Le bloc scanné : la couleur du circuit prend l'écran</h2>
+  <p class="dis">C'est la contrainte qui commande tout le reste : la teinte du
+     circuit <b>porte de l'information</b>. L'aplat garde donc la couleur exacte
+     du circuit — le même jaune que sur l'Android, au point près. Ce qui change
+     en clair, c'est la teinte <b>ÉCRITE</b> (le libellé « BLOC », le détail
+     « U13 · U15 — Jaune ») : un jaune pur sur du papier mesure 1,9:1, on ne le
+     lit pas. Elle est tirée vers l'encre à moitié — 5,1:1 pour le jaune — et la hue reste reconnaissable.</p>
+  <div class="duo">
+    <figure class="defaut">
+      <figcaption>Par défaut · clair</figcaption>
+      <div class="telephone"><img src="captures/clair-jaune.png"
+        alt="Circuit jaune, en clair" width="390" height="844"></div>
+    </figure>
+    <figure>
+      <figcaption>Téléphone en sombre</figcaption>
+      <div class="telephone"><img src="captures/sombre-jaune.png"
+        alt="Circuit jaune, en sombre" width="390" height="844"></div>
+    </figure>
+  </div>
+
+  <h2><span class="n">4.</span> Le circuit « Noir » — le cas limite</h2>
+  <p class="dis">Il était rendu en <b>craie</b>, et ce n'était pas un choix de
+     couleur : un aplat noir sur un fond presque noir ne se voit pas. Mais la
+     craie était une rustine du fond sombre — sur du papier sable, elle ne se
+     voit pas davantage. « Noir » prend donc <b>l'encre du thème</b> : presque
+     noir sur le papier, craie sur l'ardoise. Dans les deux cas c'est la couleur
+     la plus contrastée de l'écran, ce que « Noir » veut dire dans une salle.
+     C'est la question laissée ouverte par la spec 035, et elle est tranchée
+     ici.</p>
+  <div class="duo">
+    <figure class="defaut">
+      <figcaption>Par défaut · clair</figcaption>
+      <div class="telephone"><img src="captures/clair-noir.png"
+        alt="Circuit noir, en clair : un aplat presque noir" width="390" height="844"></div>
+    </figure>
+    <figure>
+      <figcaption>Téléphone en sombre</figcaption>
+      <div class="telephone"><img src="captures/sombre-noir.png"
+        alt="Circuit noir, en sombre : la craie" width="390" height="844"></div>
+    </figure>
+  </div>
+
+  <h2><span class="n">5.</span> Le bloc hors du circuit du grimpeur</h2>
+  <p class="dis">On n'empêche jamais l'envoi (spec 019) : le bandeau avertit, le
+     bouton dit ce qu'il fait vraiment. L'aplat jaune du bouton est le
+     <b>même</b> dans les deux thèmes — un jaune franc avec de l'encre sombre se
+     lit sur du papier comme sur de l'ardoise. Le voile du bandeau, lui, est
+     tiré du jaune vif et non de l'ocre du texte : un ocre sombre dilué dans du
+     sable donne un khaki terne.</p>
+  <div class="duo">
+    <figure class="defaut">
+      <figcaption>Par défaut · clair</figcaption>
+      <div class="telephone"><img src="captures/clair-hors.png"
+        alt="L'avertissement hors circuit, en clair" width="390" height="844"></div>
+    </figure>
+    <figure>
+      <figcaption>Téléphone en sombre</figcaption>
+      <div class="telephone"><img src="captures/sombre-hors.png"
+        alt="L'avertissement hors circuit, en sombre" width="390" height="844"></div>
+    </figure>
+  </div>
+
+  <h2><span class="n">6.</span> La file qui attend, dans l'en-tête</h2>
+  <p class="dis">Les deux pastilles gardent leur code : l'ambre pour ce qui
+     repartira tout seul, le rouge pour ce qui demande une action.</p>
+  <div class="duo">
+    <figure class="defaut">
+      <figcaption>Par défaut · clair</figcaption>
+      <div class="telephone"><img src="captures/clair-file.png"
+        alt="Les pastilles de file, en clair" width="390" height="844"></div>
+    </figure>
+    <figure>
+      <figcaption>Téléphone en sombre</figcaption>
+      <div class="telephone"><img src="captures/sombre-file.png"
+        alt="Les pastilles de file, en sombre" width="390" height="844"></div>
+    </figure>
+  </div>
+
+  <h2><span class="n">7.</span> Les réglages</h2>
+  <p class="dis">Les cases à cocher, les champs de saisie et les barres de
+     défilement sont <b>natifs</b> : sans <code>color-scheme: light dark</code>,
+     ils resteraient sombres sur le papier. Le bleu des actions s'assombrit en
+     clair — <code>#3E8CF7</code> sur blanc mesure 3,1:1, sous le seuil du
+     texte.</p>
+  <div class="duo">
+    <figure class="defaut">
+      <figcaption>Par défaut · clair</figcaption>
+      <div class="telephone"><img src="captures/clair-reglages.png"
+        alt="L'écran Réglages, en clair" width="390" height="844"></div>
+    </figure>
+    <figure>
+      <figcaption>Téléphone en sombre</figcaption>
+      <div class="telephone"><img src="captures/sombre-reglages.png"
+        alt="L'écran Réglages, en sombre" width="390" height="844"></div>
+    </figure>
+  </div>
+
+  <h2><span class="n">8.</span> Le viseur reste noir, dans les deux thèmes</h2>
+  <p class="dis">Le seul endroit qui ne suit pas le thème, et ce n'est pas du
+     décor : c'est l'image de la caméra. Un cadre clair autour d'un flux vidéo
+     éblouit dans la pénombre et fait fermer l'iris du capteur — le QR met alors
+     plus longtemps à être reconnu. Même raison que le mur toujours clair de la
+     page de résultats : la couleur suit l'usage, pas le thème.</p>
+  <div class="duo">
+    <figure class="defaut">
+      <figcaption>Par défaut · clair</figcaption>
+      <div class="telephone"><img src="captures/clair-scanner.png"
+        alt="Le viseur, thème clair" width="390" height="844"></div>
+    </figure>
+    <figure>
+      <figcaption>Téléphone en sombre</figcaption>
+      <div class="telephone"><img src="captures/sombre-scanner.png"
+        alt="Le viseur, thème sombre" width="390" height="844"></div>
+    </figure>
+  </div>
+
+  <h2><span class="n">9.</span> Les deux jeux de couleurs, rôle par rôle</h2>
+  <p class="dis">Le style ne connaît que des <b>rôles</b>, jamais une couleur :
+     c'est ce qui permet aux deux jeux de coexister sans qu'une règle ait à
+     savoir lequel est actif. Le papier sable vient de la direction
+     « Plein Jour » des maquettes de la spec 035.</p>
+  <table>
+    <thead><tr><th>Rôle</th><th>Clair (par défaut)</th><th>Sombre (au 02/09)</th><th>Ce qu'il porte</th></tr></thead>
+    <tbody>
+      <tr><td class="role">--fond</td>
+          <td><span class="pastille"><i style="background:#F3EEE3"></i>#F3EEE3</span></td>
+          <td><span class="pastille"><i style="background:#15161B"></i>#15161B</span></td>
+          <td>le papier, avec sa lueur ocre en haut d'écran</td></tr>
+      <tr><td class="role">--carte-active</td>
+          <td><span class="pastille"><i style="background:#FFFFFF"></i>#FFFFFF</span></td>
+          <td><span class="pastille"><i style="background:#1C1F29"></i>#1C1F29</span></td>
+          <td>l'étape où on en est</td></tr>
+      <tr><td class="role">--carte-faite</td>
+          <td><span class="pastille"><i style="background:#FCF9F3"></i>#FCF9F3</span></td>
+          <td><span class="pastille"><i style="background:#232634"></i>#232634</span></td>
+          <td>l'étape remplie, et les blocs des réglages</td></tr>
+      <tr><td class="role">--carte-attente</td>
+          <td><span class="pastille"><i style="background:#EAE3D5"></i>#EAE3D5</span></td>
+          <td><span class="pastille"><i style="background:#171920"></i>#171920</span></td>
+          <td>l'étape pas encore atteignable, le bouton vide</td></tr>
+      <tr><td class="role">--encre</td>
+          <td><span class="pastille"><i style="background:#17140F"></i>#17140F</span></td>
+          <td><span class="pastille"><i style="background:#F4F3F0"></i>#F4F3F0</span></td>
+          <td>16,1:1 sur le fond</td></tr>
+      <tr><td class="role">--encre2</td>
+          <td><span class="pastille"><i style="background:#6C6353"></i>#6C6353</span></td>
+          <td><span class="pastille"><i style="background:#7B7B86"></i>#7B7B86</span></td>
+          <td>les détails, le nom du poste — 5,5:1</td></tr>
+      <tr><td class="role">--action</td>
+          <td><span class="pastille"><i style="background:#1F6FD0"></i>#1F6FD0</span></td>
+          <td><span class="pastille"><i style="background:#3E8CF7"></i>#3E8CF7</span></td>
+          <td>les aplats bleus — 4,9:1 avec du blanc dessus</td></tr>
+      <tr><td class="role">--attention</td>
+          <td><span class="pastille"><i style="background:#7A4F0A"></i>#7A4F0A</span></td>
+          <td><span class="pastille"><i style="background:#E5B44A"></i>#E5B44A</span></td>
+          <td>le texte et le trait de l'avertissement — 5,3:1 sur son voile</td></tr>
+      <tr><td class="role">--attention-fond</td>
+          <td colspan="2"><span class="pastille"><i style="background:#E5B44A"></i>#E5B44A — le MÊME dans les deux thèmes</span></td>
+          <td>l'aplat de « Envoyer quand même »</td></tr>
+      <tr><td class="role">--fait / --alerte</td>
+          <td><span class="pastille"><i style="background:#1F7A45"></i>#1F7A45</span>
+              <span class="pastille"><i style="background:#A6301F"></i>#A6301F</span></td>
+          <td><span class="pastille"><i style="background:#34C56A"></i>#34C56A</span>
+              <span class="pastille"><i style="background:#F0554A"></i>#F0554A</span></td>
+          <td>le voyant de connexion, les refusées</td></tr>
+    </tbody>
+  </table>
+
+  <div class="encadre">
+    <p><b>Ce qui n'est pas dans cette planche, et qui compte.</b></p>
+    <p>L'<b>application installée</b> a un écran de démarrage et une barre qui
+       viennent du <i>manifeste</i>, lequel n'a pas de requête media : ils
+       portent donc le thème par défaut, le clair. Un téléphone réglé en sombre
+       verra un démarrage clair puis une application sombre. L'inverse — un
+       démarrage noir sur les téléphones du plus grand nombre — serait le mauvais
+       compromis.</p>
+    <p>La <b>coquille du service worker</b> passe en <code>v6</code> : elle porte
+       le gabarit, donc tout le CSS. Sans changement de nom, un téléphone déjà
+       installé rouvrirait l'ancienne page sombre et personne ne verrait le
+       changement. Comme d'habitude, la nouvelle version est prise <b>au
+       lancement suivant</b>, pas en pleine compétition.</p>
+    <p>L'<b>app juge Android</b> reste sombre (<code>darkColorScheme</code>). Les
+       deux clients ne se ressembleront plus tant qu'elle n'a pas suivi ; c'est
+       assumé, et c'est une autre spec.</p>
+  </div>
+
+</div>
+</body>
+</html>

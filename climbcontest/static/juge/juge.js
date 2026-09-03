@@ -895,6 +895,19 @@ async function demarrer() {
   await rafraichirLesCompteurs();
   redessiner();
 
+  // Le téléphone qui bascule clair/sombre en cours de journée — le réglage
+  // automatique d'iOS le fait au coucher du soleil, et une compétition finit
+  // le soir. Le CSS suit tout seul ; la teinte du circuit, non : elle est
+  // posée en variable en ligne par `redessiner()`, et le circuit « Noir »
+  // change de valeur avec le thème (craie sur l'ardoise, presque noir sur le
+  // papier). Sans ce redessin, un écran resté ouvert sur un bloc noir gardait
+  // la craie sur le papier clair : invisible.
+  const theme = globalThis.matchMedia
+    && globalThis.matchMedia("(prefers-color-scheme: dark)");
+  if (theme && theme.addEventListener) {
+    theme.addEventListener("change", () => redessiner());
+  }
+
   // Le voyant ne vit qu'au premier plan : en arrière-plan personne ne le
   // regarde, et un voyant figé vaut moins que pas de voyant. Au retour, on
   // repart de « je vérifie » plutôt que d'afficher l'état d'avant la veille.

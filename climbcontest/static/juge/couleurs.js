@@ -1,11 +1,32 @@
 /**
  * Les couleurs de circuit — les MÊMES que l'application Android
- * (ui/theme/Color.kt). Deux clients, une seule identité.
+ * (ui/theme/Color.kt). Deux clients, une seule identité sur ce qui porte de
+ * l'information.
+ *
+ * ⚠️ Une exception depuis la spec 039 : le circuit « Noir ». La PWA s'ouvre en
+ * clair, l'Android est restée sombre, et « Noir » est le seul circuit dont le
+ * rendu dépend du fond. Les cinq autres sont identiques au pixel.
  *
  * ⚠️ La couleur PORTE DE L'INFORMATION : un juge lit la couleur de l'écran
  * pour vérifier qu'il est sur le bon circuit — ce que le tag seul (« ZJ1 »)
  * ne dit pas à quelqu'un qui ne connaît pas la convention de nommage.
  */
+
+
+/**
+ * Le circuit « Noir », qui dépend du THÈME — le seul de la famille.
+ *
+ * Un aplat noir sur un fond presque noir ne se voit pas : le juge ne saurait
+ * pas s'il a scanné. C'est pour ça qu'il était rendu en CRAIE. Mais la craie
+ * était une rustine du fond sombre, et depuis la spec 039 la PWA s'ouvre en
+ * CLAIR : sur du papier sable, un aplat craie ne se voit pas davantage.
+ *
+ * Les cinq autres circuits n'ont pas ce problème — leur teinte est franche et
+ * tient sur les deux fonds. « Noir », lui, prend l'encre du thème : presque
+ * noir sur le papier, craie sur l'ardoise. Dans les deux cas c'est la couleur
+ * la plus contrastée de l'écran, ce que « Noir » veut dire dans une salle.
+ */
+export const NOIR = { clair: "#22201B", sombre: "#E8EBF0" };
 
 export const CIRCUITS = {
   jaune: "#F5B72E",
@@ -14,21 +35,38 @@ export const CIRCUITS = {
   mauve: "#A86CF0",
   violet: "#A86CF0",     // le classeur écrit parfois « violet »
   rouge: "#F0554A",
-  // Le circuit « Noir » est rendu en CRAIE : un aplat noir sur un fond
-  // presque noir ne se verrait pas, et le juge ne saurait pas s'il a scanné.
-  noir: "#E8EBF0",
+  // Le seul qui dépend du thème, et sa valeur claire est le défaut : voir
+  // NOIR juste au-dessus, et `couleurDeCircuit`.
+  noir: NOIR.clair,
 };
+
+/**
+ * Le thème du téléphone, à l'instant où on le demande.
+ *
+ * ⚠️ Hors navigateur — les tests de `tests/js/` tournent sous Node — il n'y a
+ * pas de `matchMedia`, et la réponse est CLAIR : c'est le défaut de
+ * l'application, pas une valeur de repli arbitraire.
+ */
+export function enSombre() {
+  return typeof globalThis.matchMedia === "function"
+    && globalThis.matchMedia("(prefers-color-scheme: dark)").matches;
+}
 
 /**
  * La couleur d'un circuit, telle que le serveur la nomme.
  *
- * Insensible à la casse et aux espaces. Rend `null` pour un nom inconnu :
+ * Insensible à la casse et aux espaces. `sombre` ne sert qu'au circuit
+ * « Noir » (voir NOIR) ; les cinq autres teintes ne dépendent pas du thème.
+ *
+ * Rend `null` pour un nom inconnu :
  * un circuit dont on ne connaît pas la couleur ne doit pas empêcher de
  * valider une réussite — l'écran reste alors sur sa teinte neutre.
  */
-export function couleurDeCircuit(nom) {
+export function couleurDeCircuit(nom, sombre = enSombre()) {
   if (typeof nom !== "string") return null;
-  return CIRCUITS[nom.trim().toLowerCase()] || null;
+  const cle = nom.trim().toLowerCase();
+  if (cle === "noir") return sombre ? NOIR.sombre : NOIR.clair;
+  return CIRCUITS[cle] || null;
 }
 
 /**
