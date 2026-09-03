@@ -1,0 +1,160 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Maquette — la carte « QR de poste » dans la console (spec 034)</title>
+<style>
+  /* MAQUETTE STATIQUE — spec 034. Les jetons de couleur et les classes sont
+     copiés d'`admin.html` pour que ce qu'on voit ici soit ce qu'on aura :
+     .carte, .aide, .grille, button.action, button.secondaire. */
+  :root {
+    color-scheme: light dark;
+    --fond: #FBFAF8; --surface: #FFF; --surface2: #F4F1EB; --surface3: #E9E4DA;
+    --trait: #DDD7CB; --encre: #1B1A17; --encre2: #5C574C; --encre3: #8A8375;
+    --accent: #B5761C; --accent-texte: #8A5A0F; --sur-accent: #FFF;
+    --rayon: 14px;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --fond: #14130F; --surface: #1C1A16; --surface2: #24211B; --surface3: #302C24;
+      --trait: #38332A; --encre: #F2EFE8; --encre2: #B8B1A2; --encre3: #8A8375;
+      --accent: #C98B2C; --accent-texte: #E0A749; --sur-accent: #14130F;
+    }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--fond); color: var(--encre);
+         font-family: system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+         padding: 28px 20px 60px; }
+  .page { max-width: 860px; margin: 0 auto; }
+  .fil { font-size: .78rem; color: var(--encre3); text-transform: uppercase;
+         letter-spacing: .08em; font-weight: 700; margin-bottom: 14px; }
+  .titre-vue { margin: 0 0 20px; }
+  .titre-vue h1 { margin: 0; font-size: 1.55rem; font-weight: 800; letter-spacing: -.025em; }
+  .titre-vue p { margin: 5px 0 0; color: var(--encre2); font-size: .92rem; max-width: 62ch; }
+  .carte { background: var(--surface); border: 1px solid var(--trait);
+           border-radius: var(--rayon); padding: 20px; margin-bottom: 16px; }
+  .carte > h2 { margin: 0 0 4px; font-size: 1.02rem; font-weight: 700; letter-spacing: -.01em; }
+  .carte > h2 + .aide { margin-top: 0; }
+  .aide { color: var(--encre2); font-size: .87rem; line-height: 1.55; margin: 0 0 16px; max-width: 64ch; }
+  .aide:last-child { margin-bottom: 0; }
+  .grille { display: grid; grid-template-columns: repeat(auto-fit, minmax(158px, 1fr)); gap: 12px; }
+  label { display: block; font-size: .78rem; color: var(--encre2); margin-bottom: 5px; font-weight: 500; }
+  select { width: 100%; padding: 10px 12px; font: inherit; background: var(--surface2);
+           color: var(--encre); border: 1px solid var(--trait); border-radius: 9px; }
+  button.action { cursor: pointer; font: inherit; font-weight: 600; margin-top: 14px;
+                  background: var(--accent); color: var(--sur-accent); border: none;
+                  border-radius: 9px; padding: 11px 20px; }
+  .fantome { opacity: .45; }
+  .note { margin-top: 34px; padding: 16px 18px; border-left: 3px solid var(--accent);
+          background: var(--surface2); border-radius: 0 9px 9px 0;
+          font-size: .87rem; line-height: 1.6; color: var(--encre2); }
+  .note b { color: var(--encre); }
+
+  /* --- Le téléphone, à droite : l'écran de réglages de la PWA juge --------- */
+  .cote { display: grid; grid-template-columns: 1fr 300px; gap: 26px; align-items: start; }
+  @media (max-width: 820px) { .cote { grid-template-columns: 1fr; } }
+  .tel { background: #0E1116; color: #EEF1F5; border-radius: 26px; padding: 14px;
+         border: 8px solid #23272E; font-size: .84rem; }
+  .tel .barreEcran { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; }
+  .tel .barreEcran h2 { margin: 0; font-size: 1rem; }
+  .tel .retour { background: none; border: 0; color: #EEF1F5; font-size: 1.2rem; cursor: pointer; }
+  .tel h3 { font-size: .72rem; text-transform: uppercase; letter-spacing: .1em;
+            color: #8E99A8; margin: 16px 0 6px; }
+  .tel .bloc { background: #171B21; border-radius: 12px; padding: 12px; }
+  .tel input[type=text] { width: 100%; box-sizing: border-box; padding: 9px 10px;
+                          background: #0E1116; border: 1px solid #2A313A;
+                          border-radius: 8px; color: #EEF1F5; font: inherit; }
+  .tel .explication { color: #8E99A8; font-size: .74rem; line-height: 1.5; margin: 8px 0 0; }
+  .tel .mono { font-family: ui-monospace, Menlo, monospace; color: #6E7686; }
+  .tel .actionTel { width: 100%; margin-top: 10px; padding: 11px; border: 0;
+                    border-radius: 9px; background: #C98B2C; color: #14130F;
+                    font: inherit; font-weight: 700; cursor: pointer; }
+  .tel .neuf { outline: 2px dashed #C98B2C; outline-offset: 4px; border-radius: 10px; }
+  .legende { font-size: .78rem; color: var(--encre2); margin-top: 10px; text-align: center; }
+</style>
+</head>
+<body>
+<div class="page">
+
+<div class="fil">Console → Les juges → Téléphones</div>
+
+<div class="titre-vue">
+  <h1>Téléphones des juges</h1>
+  <p>Les bénévoles utilisent <strong>leur propre téléphone</strong>. Voici comment
+     ils installent l'application, et comment savoir si chacune envoie toujours.</p>
+</div>
+
+<div class="cote">
+  <div>
+    <div class="carte fantome">
+      <h2>Installer l'application juge</h2>
+      <p class="aide">(carte existante — inchangée)</p>
+    </div>
+
+    <!-- LA CARTE AJOUTÉE PAR LA SPEC 034 -->
+    <div class="carte">
+      <h2>Imprimer les QR de poste</h2>
+      <p class="aide">Un carton par zone, posé sur la table du juge. Le bénévole
+         le scanne depuis l'application, et son téléphone prend le nom de la
+         zone — plus besoin de le taper, ni de l'épeler au téléphone.
+         <strong>Les zones viennent du plan</strong> : un mur ajouté dans
+         « Dessiner le plan du mur » sort son QR à l'impression suivante.
+         Deux par page.</p>
+      <div class="grille" style="max-width:420px">
+        <div>
+          <label for="pZone">Une zone (vide = toutes)</label>
+          <select id="pZone">
+            <option>Toutes les zones</option>
+            <option>A</option><option>B</option><option>C</option>
+            <option>D</option><option>E</option><option>F</option>
+          </select>
+        </div>
+      </div>
+      <button class="action" id="btnPostes">Ouvrir les QR de poste</button>
+    </div>
+
+    <div class="carte fantome">
+      <h2>Qui envoie quoi</h2>
+      <p class="aide">(carte existante — inchangée. C'est ici que le nom du
+         poste apparaît, en face de chaque téléphone.)</p>
+    </div>
+  </div>
+
+  <div>
+    <div class="tel">
+      <div class="barreEcran"><button class="retour">←</button><h2>Réglages</h2></div>
+      <h3>Ce téléphone</h3>
+      <div class="bloc">
+        <label style="color:#8E99A8">Nom de ce téléphone</label>
+        <input type="text" value="Zone C">
+        <p class="explication">Ce nom apparaît dans la console à côté des
+           réussites envoyées depuis ce téléphone. Il désigne un poste, pas une
+           personne.</p>
+        <button class="actionTel neuf">Scanner le QR de mon poste</button>
+        <p class="explication">Le carton posé sur ta table. Il remplit le nom
+           ci-dessus.</p>
+      </div>
+      <h3>Saisie</h3>
+      <div class="bloc"><p class="explication">(inchangé)</p></div>
+    </div>
+    <p class="legende">Le geste ajouté, dans <b>#ecranReglages</b>.<br>
+       L'en-tête de l'application n'est <b>pas</b> touché par cette branche.</p>
+  </div>
+</div>
+
+<div class="note">
+  <b>Ce que la maquette engage.</b> Une carte dans la vue Téléphones, une liste
+  déroulante remplie depuis le plan, un bouton qui ouvre <code>/admin/postes</code>
+  dans un onglet — le même geste que « Ouvrir les étiquettes ». Côté téléphone,
+  un bouton sous le champ du nom, dans les réglages.
+  <br><br>
+  <b>Ce qu'elle ne fait pas.</b> Elle ne touche pas au <code>&lt;header&gt;</code>
+  de <code>juge.html</code> : l'affichage du nom du poste en haut de l'écran
+  arrive par la branche <code>fix/revue-du-03-09</code>, et deux branches qui
+  réécrivent le même bloc fusionneraient sans conflit et en silence.
+</div>
+
+</div>
+</body>
+</html>
