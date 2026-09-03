@@ -21,6 +21,12 @@ qu'on ne met pas à jour le matin d'une compétition :
 
 ### Ajouté
 
+- **L'application juge choisit son thème** (spec 040). Trois pastilles dans les
+  Réglages — *Système*, *Clair*, *Sombre*. « Système » reste la position de
+  départ : rien ne change pour un juge qui n'y touche pas. Le choix est appliqué
+  avant que l'écran ne se peigne, donc sans clignotement au lancement, et il
+  survit à la fermeture de l'application.
+
 - **Les versions se voient, et le catalogue se force** (spec 030). Tout était
   déjà versionné — le tag git dans un fichier `VERSION` lu par `/health`, le
   numéro de catalogue qui décide du `304` — et **rien n'était lisible**. Un
@@ -58,6 +64,17 @@ qu'on ne met pas à jour le matin d'une compétition :
 - **Le module `climbcontest/version.py`.** Le tag git était lu par une fonction
   privée de `routes/sante.py` : trois appelants en avaient besoin, aucun ne
   pouvait l'atteindre sans importer une route.
+
+### Corrigé
+
+- Le circuit **« Noir »** suivait le thème du téléphone et non celui qui est
+  réellement affiché : un juge qui imposait le sombre sur un téléphone en clair
+  aurait vu un aplat presque noir sur un fond presque noir, sans savoir s'il
+  avait scanné (spec 040).
+
+⚠️ La coquille hors-ligne de la PWA passe en `v8` : sur un téléphone déjà
+installé, le réglage n'apparaît qu'après avoir **fermé et rouvert**
+l'application.
 
 ### Modifié
 

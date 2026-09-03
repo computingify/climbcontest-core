@@ -22,6 +22,7 @@ import { identiteCourante, renommer } from "./identite.js";
 import { MAGASINS, MagasinIdb, reglages } from "./idb.js";
 import { doitEnvoyer } from "./politique.js";
 import { expliquerLeQrRefuse, nomDePoste } from "./poste.js";
+import { appliquer, ecrireChoix, lireChoix } from "./theme.js";
 import { bailNeuf, identifiantDOnglet, peutPrendre } from "./verrou.js";
 import { A_JOUR, EN_RETARD, resumeDuCatalogue, verdict } from "./versions.js";
 import { expliquerLErreurCamera, lireUnQr } from "./scan.js";
@@ -685,6 +686,44 @@ async function ouvrirLesReglages() {
   montrer("ecranReglages");
 }
 
+/**
+ * Le choix de thème (spec 040) : Système / Clair / Sombre.
+ *
+ * ⚠️ L'attribut est DÉJÀ posé par le script en ligne du gabarit, avant la
+ * première peinture — c'est lui qui évite le clignotement, et rien ici ne le
+ * refait vraiment : `appliquer` repose exactement la même valeur, lue de la
+ * même clé.
+ *
+ * Ce que ce passage ajoute, en revanche, c'est la **barre du navigateur** :
+ * les deux `<meta name="theme-color">` portent chacune sa requête media et
+ * suivent donc le TÉLÉPHONE, pas le réglage. Sans ce rappel au démarrage, une
+ * application relancée en sombre imposé rouvrirait sous un bandeau couleur
+ * papier.
+ */
+function brancherLeTheme() {
+  const pastilles = [...$("choixTheme").querySelectorAll("[data-choix]")];
+
+  const montrer = (choix) => {
+    for (const pastille of pastilles) {
+      pastille.setAttribute("aria-pressed",
+                            String(pastille.dataset.choix === choix));
+    }
+  };
+
+  montrer(appliquer(lireChoix()));
+  for (const pastille of pastilles) {
+    pastille.addEventListener("click", () => {
+      montrer(appliquer(ecrireChoix(pastille.dataset.choix)));
+      // ⚠️ Le CSS suit tout seul, la teinte du circuit NON : elle est posée en
+      // variable en ligne, et le circuit « Noir » change de valeur avec le
+      // thème. Sans ce redessin, un écran resté ouvert sur un bloc noir garde
+      // la craie sur le papier : invisible. Même raison que l'écoute de
+      // `prefers-color-scheme` au démarrage.
+      redessiner();
+    });
+  }
+}
+
 async function rafraichirLesReglages() {
   const enAttente = await file.nombreEnAttente();
   const refusees = await file.nombreRefusees();
@@ -1104,6 +1143,7 @@ async function demarrer() {
     etat.garderGrimpeur = e.target.checked;
     await reglages.ecrire("garder-grimpeur", etat.garderGrimpeur);
   });
+  brancherLeTheme();
   $("toutEnvoyer").addEventListener("click", async () => {
     // Le bouton ne contourne pas le retrait exponentiel : appuyer en boucle sur
     // un serveur éteint ne servirait à rien.

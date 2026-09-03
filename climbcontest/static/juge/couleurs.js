@@ -41,13 +41,23 @@ export const CIRCUITS = {
 };
 
 /**
- * Le thème du téléphone, à l'instant où on le demande.
+ * Le thème RÉELLEMENT peint, à l'instant où on le demande.
+ *
+ * ⚠️ Depuis la spec 040, ce n'est plus « ce que demande le téléphone » : le
+ * juge peut imposer un thème dans les Réglages, et l'attribut `data-theme` de
+ * `<html>` fait alors loi. Lire `matchMedia` seul rendrait le circuit « Noir »
+ * INVISIBLE dans le cas exact que la spec sert — un juge qui force le sombre
+ * sur un téléphone en clair aurait un aplat presque noir sur un fond presque
+ * noir, et ne saurait pas s'il a scanné.
  *
  * ⚠️ Hors navigateur — les tests de `tests/js/` tournent sous Node — il n'y a
- * pas de `matchMedia`, et la réponse est CLAIR : c'est le défaut de
+ * ni `document` ni `matchMedia`, et la réponse est CLAIR : c'est le défaut de
  * l'application, pas une valeur de repli arbitraire.
  */
 export function enSombre() {
+  const impose = globalThis.document?.documentElement?.dataset?.theme;
+  if (impose === "sombre") return true;
+  if (impose === "clair") return false;
   return typeof globalThis.matchMedia === "function"
     && globalThis.matchMedia("(prefers-color-scheme: dark)").matches;
 }

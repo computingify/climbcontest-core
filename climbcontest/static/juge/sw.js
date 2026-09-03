@@ -39,7 +39,20 @@
 // changement. `couleurs.js` change aussi (le circuit « Noir » depend du
 // theme), et une coquille qui melangerait l'ancien CSS et le nouveau module
 // afficherait de la craie sur du papier.
-const CACHE = "climbcontest-juge-v6";
+// v7 le 03/09 (spec 040) -- le juge peut imposer le theme depuis les
+// Reglages. La coquille porte le gabarit (donc le script en ligne qui pose le
+// theme avant la peinture) ET le nouveau module `theme.js` : sans changement
+// de nom, un telephone deja installe rouvrirait une page sans le reglage, et
+// le module manquerait a la coquille hors ligne.
+// v8 le 03/09 (spec 030) -- la coquille gagne `versions.js`, et le gabarit
+// `/juge` porte les deux nouvelles sections des Reglages. ⚠️ Ce numero est le
+// SEUL endroit ou la fusion pouvait se tromper sans bruit : la liste
+// `COQUILLE` fusionne ligne a ligne -- `theme.js` et `versions.js` s'y
+// retrouvent tous les deux sans conflit -- mais le NOM du cache est une seule
+// ligne, et git garde celle d'un des deux cotes. Reste a v7, et un telephone
+// deja installe garde une coquille sans `versions.js` : les boutons des
+// nouvelles sections plantent au premier appui, hors ligne.
+const CACHE = "climbcontest-juge-v8";
 
 /**
  * Ce qu'on garde pour pouvoir démarrer sans réseau.
@@ -75,6 +88,7 @@ const COQUILLE = [
   "/static/juge/historique.js",
   "/static/juge/identite.js",
   "/static/juge/poste.js",
+  "/static/juge/theme.js",
   "/static/juge/icone-192.png",
   // ⚠️ `icone-512.png` n'y est PAS, volontairement : le manifeste ne la lit
   // qu'a l'installation, en ligne. La mettre dans la coquille ferait
