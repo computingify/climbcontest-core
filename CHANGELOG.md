@@ -17,7 +17,7 @@ qu'on ne met pas à jour le matin d'une compétition :
 - **MINEUR** — nouvelle fonctionnalité, compatible.
 - **CORRECTIF** — correction, compatible.
 
-## [Non publié]
+## [0.18.0] — 2026-09-03
 
 ### Modifié
 
@@ -229,6 +229,29 @@ qu'on ne met pas à jour le matin d'une compétition :
   l'arrêt** : `svg.hidden = false` ne fait rien, `hidden` appartient à
   `HTMLElement`. C'est le défaut corrigé en 0.15.0, revenu par la porte du SVG ;
   le choix d'icône passe désormais par une classe CSS.
+
+- **Le simulateur de juges jetait ce qui restait en file**, et **cumulait ses
+  compteurs** d'un lancement à l'autre. Les deux défauts ont été trouvés en
+  *analysant* un test grandeur nature (25 juges, ~1 350 scans) : l'instrument
+  faussait la mesure qu'il existe pour produire. « Arrêter » coupe désormais les
+  scans **puis laisse les expéditeurs finir** — onze réussites étaient perdues à
+  l'arrêt du run du 03/09, là où un vrai téléphone garde sa file dans IndexedDB
+  et la repart à la reprise ; un simulateur qui perd des réussites que le vrai
+  client ne perd pas fait douter du vrai client. Le vidage se fait **en tâche de
+  fond** (bloquer gèlerait le bouton vingt secondes, et un bouton qui ne répond
+  pas est un bouton sur lequel on appuie trois fois), un second appui coupe
+  court quand le serveur ne répond plus, et ce que le serveur n'a pas tranché
+  **reste en file** et est annoncé comme tel : rien n'est inventé enregistré.
+  Les compteurs, eux, repartent de zéro à chaque lancement — un écart de sept
+  entre les tuiles et le tableau des juges avait coûté une enquête sur une perte
+  de données qui n'existait pas. `paires` fait exception, et volontairement : le
+  serveur, lui, se souvient toujours des passages déjà validés.
+- **« terminee » s'écrivait sans accent** sous le plan du mur de la fiche du
+  grimpeur, quand toutes les cases d'une zone sont cochées. Vu à l'écran, pas à
+  la relecture : le mot est court et l'œil le complète. La règle du dépôt
+  distingue deux choses et la coquille est passée entre les deux — les littéraux
+  **Python** restent en ASCII (messages d'erreur, journaux, JSON), mais tout ce
+  qui **s'affiche** est du français accentué, gabarits et JavaScript compris.
 
 ## [0.17.0] — 2026-09-03
 
@@ -2017,6 +2040,8 @@ livrer — spec 001, itération 3.
 - Les données et les secrets vivent dans `shared/`, hors des releases : un
   déploiement ou un retour arrière ne peut pas les toucher.
 
+[0.18.0]: https://github.com/computingify/climbcontest-core/releases/tag/v0.18.0
+[0.17.0]: https://github.com/computingify/climbcontest-core/releases/tag/v0.17.0
 [0.16.0]: https://github.com/computingify/climbcontest-core/releases/tag/v0.16.0
 [0.15.0]: https://github.com/computingify/climbcontest-core/releases/tag/v0.15.0
 [0.14.0]: https://github.com/computingify/climbcontest-core/releases/tag/v0.14.0
