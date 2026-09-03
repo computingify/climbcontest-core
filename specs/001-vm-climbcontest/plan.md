@@ -1,5 +1,11 @@
 # Plan d'implémentation : 001 — VM ClimbContest
 
+> **Ce fichier est le journal de l'implémentation** des 28-29/08 : il dit ce qui
+> a été fait, dans l'ordre où ça l'a été. Six de ses lignes ont été **défaites le
+> 03/09/2026** avec l'abandon du régime intermittent ; elles portent la mention
+> **⤫ défait le 03/09**. Le raisonnement, lui, a été retiré de la spec — voir
+> [spec.md § Historique](spec.md#historique--ce-que-cette-spec-ne-dit-plus).
+
 ## Approche
 
 Cinq itérations, chacune vérifiable seule et réversible seule. On ne passe à la
@@ -18,12 +24,12 @@ ouvre un terminal ou indique l'écran, **Adrien saisit lui-même**.
 ## IT1 — La machine nue
 
 - [x] 1. ~~Vérifier que `192.168.0.32` est hors plage DHCP~~ — **validé** : DHCP de `.40` à `.200`
-- [x] 2. Créer la VM 110 `climbcontest` : Debian 13, cloud-init, 4 vCPU / 4 Go / 24 Go, `onboot: 0`, tags `climbcontest` + `intermittent`
+- [x] 2. Créer la VM 110 `climbcontest` : Debian 13, cloud-init, 4 vCPU / 4 Go / 24 Go, `onboot: 0`, tags `climbcontest` + `intermittent` — **⤫ défait le 03/09** : `onboot: 1`, tag `intermittent` retiré
 - [x] 3. Installer `qemu-guest-agent` **dans** la VM, vérifier `qm agent 110 ping`
 - [x] 4. Installer `node_exporter`, vérifier `:9100`
 - [x] 5. Poser `110.fw`, vérifier `grep '^|'` vide et tester chaque règle
 - [x] 6. Versionner `110.conf` et `110.fw` dans `homelab`
-- [~] 7. **Vérification** : `onboot: 0` posé et relu dans la config. Le test par redémarrage réel de `pve01` est **reporté au prochain redémarrage planifié** — couper la domotique (230 V), les cinq sites publics et la supervision pour cocher une case n'est pas raisonnable
+- [x] 7. **Vérification** : le redémarrage réel de `pve01` a eu lieu le 03/09 à 05 h 04, à l'occasion d'une mise à jour du noyau. Il a vérifié `onboot: 0` en le rendant intolérable — la VM est restée éteinte, seule du parc, sans que rien ne le signale. C'est ce qui a déclenché l'abandon du régime intermittent
 
 ## IT2 — Les contrôles adaptés
 
@@ -31,12 +37,12 @@ ouvre un terminal ou indique l'écran, **Adrien saisit lui-même**.
 déclencher des alertes.
 
 - [x] 8. Collecteur `adn-guest-state` sur `pve01` + timer, écrivant `pve_guest_running`
-- [x] 9. Ajouter la cible `.32` dans `prometheus.yml` avec `intermittent: 'oui'`
-- [x] 10. Filtrer `MachineInjoignable` sur `intermittent!="oui"`
-- [x] 11. Créer l'alerte `ClimbcontestInjoignableEnService`
+- [x] 9. Ajouter la cible `.32` dans `prometheus.yml` avec `intermittent: 'oui'` — **⤫ défait le 03/09** : étiquette retirée
+- [x] 10. Filtrer `MachineInjoignable` sur `intermittent!="oui"` — **⤫ défait le 03/09** : le filtre ne retire plus personne
+- [x] 11. Créer l'alerte `ClimbcontestInjoignableEnService` — **⤫ défait le 03/09** : supprimée, la règle générique la couvre
 - [x] 12. `promtool check config` + `check rules`, recharger Prometheus
-- [x] 13. Vérifier que la 110 **n'est pas** dans `ADN_GUESTS`
-- [~] 14. **Vérification** : expression vérifiée vide VM éteinte. La confirmation « aucun mail sur 24 h » demande d'attendre une nuit complète
+- [x] 13. Vérifier que la 110 **n'est pas** dans `ADN_GUESTS` — **⤫ défait le 03/09** : elle y est, en tête
+- [x] 14. **Vérification** : aucune alerte parasite constatée
 - [x] 15. **Vérification** : les trois états testés — allumée+répond → silence, allumée+muette → alerte, éteinte → silence
 
 ## IT3 — La chaîne de livraison, à vide
@@ -99,12 +105,12 @@ vérifié inchangé.
 
 ## IT5 — Exploitation et sauvegarde
 
-- [x] 38. `homelab/scripts/climbcontest` : `start` / `stop` / `status` avec sonde
+- [x] 38. `homelab/scripts/climbcontest` : `start` / `stop` / `status` avec sonde. Depuis le 03/09, `competition` prend l'instantané et `cloture` le retire — plus aucune bascule d'`onboot`
 - [x] 39. Sonde `probes/110.sh`
-- [x] 40. Procédure en quatre temps — préparer / jour J (avec bascule `onboot`) / corriger en cours / clôturer — jouée **une fois** de bout en bout
-- [x] 41. Exclure la 110 du job `backup-nightly` — fait en IT2, le job était en `all 1`
-- [x] 42. Vérifier que `adn-watchdog` ne réclame pas sa sauvegarde
-- [ ] 43. ~~Copie de base toutes les 10 min~~ — **abandonné le 28/08** (jugé inutile). Remplacé par : instantané `avant-compet` + archive de fin de journée, décrits dans la procédure
+- [x] 40. Procédure en quatre temps — préparer / jour J (avec bascule `onboot`) / corriger en cours / clôturer — jouée **une fois** de bout en bout. **⤫ La bascule `onboot` a disparu le 03/09**
+- [x] 41. Exclure la 110 du job `backup-nightly` — fait en IT2, le job était en `all 1`. **⤫ défait le 03/09** : elle y est entrée en même temps qu'elle entrait dans `ADN_GUESTS`
+- [x] 42. Vérifier que `adn-watchdog` ne réclame pas sa sauvegarde — **⤫ sans objet depuis le 03/09** : il la réclame, et il la trouve
+- [x] 43. ~~Copie de base toutes les 10 min~~ — abandonnée le 28/08, puis **reprise le 29/08** (Q7) : le miroir vers le classeur, sur lequel reposait l'abandon, était cassé en silence. La base est recopiée toutes les dix minutes dans `shared/sauvegardes/`, les 24 dernières conservées
 - [x] 44. `README.md` du dossier `vm110-climbcontest` dans `homelab`
 - [x] 45. Mettre à jour le parc dans `homelab/README.md` et les notes de migration
 
@@ -116,7 +122,7 @@ vérifié inchangé.
 
 | Domaine | Scénario | Attendu |
 | --- | --- | --- |
-| **Cycle de vie** | `pve01` redémarre | VM 110 reste éteinte |
+| **Cycle de vie** | `pve01` redémarre | VM 110 revient seule (`onboot: 1`) |
 | | `qm start 110` | service opérationnel en < 90 s |
 | | `qm shutdown 110` | arrêt propre, 4 Go rendus à l'hôte |
 | **Livraison** | release valide publiée | installée seule en < 3 min |
@@ -126,7 +132,7 @@ vérifié inchangé.
 | | tag sans section CHANGELOG | workflow en échec **avant** construction |
 | | 4 releases successives | 3 conservées, la plus ancienne purgée |
 | | `climbcontest-rollback` | retour à la release précédente en < 10 s |
-| | déploiement immédiat déclenché à la main | n'attend pas le tick de 2 min |
+| | déploiement déclenché depuis la console ou par `systemctl start climbcontest-deploy.service` | installe la release publiée (plus aucun tick : minuteur retiré le 03/09, spec 031) |
 | **Exposition** | `GET /health` depuis le LAN | 200, certificat valide |
 | | `GET /health` depuis Internet | **404** |
 | | chaque nom `*.maison.adn-dev.fr` | redirige vers le bon chemin public |
@@ -137,12 +143,9 @@ vérifié inchangé.
 | **Charge** | 25 juges + 80 spectateurs × 10 min, **une seule IP source** | 0 erreur, médiane < 200 ms, 0 décision CrowdSec |
 | | 300 rafraîchissements/min sur la page publique | CPU < 30 %, calculs plafonnés par le cache |
 | | 10 validations simultanées, même grimpeur | aucune erreur 5xx |
-| **Contrôles** | VM éteinte 24 h | aucun mail, aucune alerte |
-| | VM allumée, gunicorn arrêté | `ClimbcontestInjoignableEnService` en < 10 min |
-| | fenêtre 05 h 00 | VM **non rallumée**, séquence des 8 autres **non annulée** |
-| | chien de garde 08 h 00 | ne signale pas la 110 |
-| **Cycle compétition** | bascule `onboot` à 1, redémarrage de `pve01` | la VM revient seule |
-| | bascule `onboot` à 0 après clôture | la VM ne revient plus |
+| **Contrôles** | gunicorn arrêté | `MachineInjoignable` en < 10 min, comme pour tout invité |
+| | fenêtre 05 h 00 | la 110 est mise à jour **en tête** de séquence, sans annuler celle des neuf autres |
+| | chien de garde 08 h 00 | réclame sa sauvegarde PBS du jour, et la trouve |
 | **Sauvegarde** | instantané `avant-compet` puis retour arrière | base rendue à son état de départ |
 | | `vzdump` manuel de fin de compétition | restauration testée dans un VMID jetable |
 

@@ -88,6 +88,27 @@
     }
   }
   * { box-sizing: border-box; }
+
+  /* ⚠️ `hidden` DOIT cacher. Cette regle n'est pas une precaution de style :
+     c'est le controle d'acces visuel de la console.
+
+     N'importe quelle regle d'auteur qui pose `display` bat le
+     `[hidden] { display: none }` de la feuille du NAVIGATEUR -- l'origine
+     auteur l'emporte sur l'origine agent-utilisateur, quelle que soit la
+     specificite. `#console` en faisait les frais : la mise en grille des
+     grands ecrans -- la requete media plus bas -- le rendait visible MALGRE
+     son attribut `hidden`. Deconnecte, sur un ecran de 1080 px ou plus, on
+     voyait le formulaire de connexion en haut et la console entiere en
+     dessous, cliquable -- tiroir, formulaires, boutons d'effacement compris.
+     Le serveur refusait bien chaque appel (401), mais la page invitait a les
+     faire. Sur un telephone, aucune regle ne posait `display` : le defaut ne
+     se voyait pas.
+
+     Quatre rustines locales (`.vue[hidden]`, `#message[hidden]`...) traitaient
+     deja le meme defaut, une par element, et il en manquait donc toujours une.
+     La regle globale ferme la classe entiere -- c'est ce que `plan.html` fait
+     deja. */
+  [hidden] { display: none !important; }
   html, body { height: 100%; }
   body {
     margin: 0; background: var(--fond); color: var(--encre);
@@ -156,6 +177,63 @@
     border-radius: 999px; padding: 5px 12px; white-space: nowrap;
   }
   @media (max-width: 640px) { .jeton.optionnel { display: none; } }
+  /* La pastille de mise a jour (spec 031). Forme reprise de celle de Sowel --
+     pilule, 0.75rem semi-gras, icone de 14 px -- pour que les deux consoles de
+     la maison signalent la meme chose de la meme facon. La TEINTE, elle, est
+     l'ocre d'ici : Sowel colore ses mises a jour en rouge, ce qui dirait
+     « panne » sur un ecran ou rien n'est casse. */
+  .pastille {
+    display: inline-flex; align-items: center; gap: 6px;
+    border-radius: 999px; padding: 5px 11px; cursor: pointer;
+    font: inherit; font-size: 0.75rem; font-weight: 600; white-space: nowrap;
+    color: var(--accent-texte);
+    background: color-mix(in srgb, var(--accent) 12%, transparent);
+    border: 1px solid color-mix(in srgb, var(--accent) 32%, transparent);
+  }
+  .pastille:hover { background: color-mix(in srgb, var(--accent) 20%, transparent); }
+  .pastille svg { width: 14px; height: 14px; flex: none; }
+
+  /* La carte « Version du serveur » (spec 031). Noms suffixes en -maj : `.etat`
+     est deja pris par les <dl> des fenetres de confirmation. */
+  .etat-maj {
+    display: flex; flex-wrap: wrap; gap: 10px 26px;
+    padding: 12px 14px; margin: 0 0 14px;
+    background: var(--surface2); border: 1px solid var(--trait); border-radius: 10px;
+  }
+  .etat-maj > div { display: flex; flex-direction: column; gap: 1px; }
+  .etat-maj .k {
+    font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.06em;
+    color: var(--encre3); font-weight: 600;
+  }
+  .etat-maj .v {
+    font-family: var(--chiffre); font-size: 0.93rem; font-weight: 600;
+    font-variant-numeric: tabular-nums;
+  }
+  .etat-maj .v.txt { font-family: var(--titre); font-weight: 500; }
+
+  /* ⚠️ La pastille de couleur ne porte JAMAIS seule : le mot est ecrit a cote.
+     Meme regle que le voyant de connexion de l'app juge -- le rouge et le vert
+     seuls sont indistinguables pour environ 8 % des hommes. */
+  .verdict-maj {
+    display: flex; align-items: center; gap: 8px;
+    margin: 0 0 14px; font-size: 0.88rem; font-weight: 600;
+  }
+  .verdict-maj::before {
+    content: ""; width: 9px; height: 9px; border-radius: 50%; flex: none;
+    background: currentColor;
+  }
+  .verdict-maj.est-ok { color: var(--ok); }
+  .verdict-maj.est-neuf { color: var(--accent-texte); }
+  .verdict-maj.est-alerte { color: var(--alerte); }
+  .verdict-maj.est-attention { color: var(--attention); }
+
+  .changelog-maj {
+    background: var(--surface2); border: 1px solid var(--trait); border-radius: 10px;
+    padding: 14px 16px; margin: 0 0 14px; max-height: 260px; overflow: auto;
+    font-size: 0.85rem; line-height: 1.55; color: var(--encre2);
+    white-space: pre-wrap; overflow-wrap: anywhere;
+  }
+  .boutons-maj { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
 
   /* Le tiroir. En dessous de 1080 px, il RECOUVRE : la console n'est pas un
      tableau de bord qu'on regarde en continu -- on l'ouvre, on fait UNE chose,
@@ -259,7 +337,6 @@
 
   /* --- Le contenu -------------------------------------------------------- */
   main { padding: 24px 18px 80px; max-width: 940px; margin: 0 auto; }
-  .vue[hidden] { display: none; }
   .titre-vue { margin: 0 0 20px; }
   .titre-vue h1 {
     margin: 0; font-size: 1.55rem; font-weight: 800; letter-spacing: -0.025em;
@@ -323,9 +400,56 @@
     background: var(--surface2); cursor: pointer; font-size: 0.88rem;
     color: var(--encre); text-transform: none; letter-spacing: normal;
   }
-  fieldset.choix label:has(input:checked) { border-color: var(--accent); }
-  fieldset.choix label.danger:has(input:checked) { border-color: var(--alerte); }
-  fieldset.choix input { margin: 3px 0 0; flex: none; }
+  /* ⚠️ LE CHOIX DOIT SE VOIR. « On a des petites pastilles pour sélectionner
+     […] en revanche, lorsqu'elle est sélectionnée, le petit rond n'est pas
+     visible » (Adrien, 03/09, spec 033 R2).
+
+     Les boutons étaient des `input[type=radio]` NATIFS, sans `accent-color`.
+     En clair, le point coché est un disque bleu système : visible, mais
+     étranger à l'ocre de la console. En SOMBRE — `color-scheme: light dark` —
+     le cercle et son point ont presque le même clair : à cinquante centimètres
+     d'écran, les trois pastilles se ressemblent, et le seul autre indice est
+     une bordure discrète.
+
+     La pastille est donc DESSINÉE : anneau à l'accent quand elle est cochée,
+     point plein au centre, et la carte entière prend un fond teinté. Trois
+     signaux qui disent la même chose, dont deux ne dépendent pas de la
+     couleur — c'est ce qui la rend lisible pour qui distingue mal les
+     teintes. */
+  fieldset.choix label:has(input:checked) {
+    border-color: var(--accent); background: color-mix(in srgb, var(--accent) 10%, transparent);
+    box-shadow: inset 0 0 0 1px var(--accent);
+  }
+  fieldset.choix label.danger:has(input:checked) {
+    border-color: var(--alerte); background: transparent;
+    box-shadow: inset 0 0 0 1px var(--alerte);
+  }
+  fieldset.choix input[type="radio"] {
+    appearance: none; -webkit-appearance: none;
+    margin: 2px 0 0; flex: none; width: 17px; height: 17px; border-radius: 50%;
+    border: 2px solid var(--encre3); background: var(--surface);
+    display: grid; place-content: center; cursor: pointer;
+  }
+  /* Le point : un `::before` mis a l'echelle, pour qu'il ne prenne AUCUNE
+     place tant qu'il n'est pas coche -- sans quoi la pastille se decale d'un
+     demi-pixel au clic. */
+  fieldset.choix input[type="radio"]::before {
+    content: ""; width: 9px; height: 9px; border-radius: 50%;
+    background: var(--accent); transform: scale(0);
+  }
+  fieldset.choix input[type="radio"]:checked {
+    border-color: var(--accent); background: var(--surface);
+  }
+  fieldset.choix input[type="radio"]:checked::before { transform: scale(1); }
+  fieldset.choix label.danger input[type="radio"]:checked { border-color: var(--alerte); }
+  fieldset.choix label.danger input[type="radio"]:checked::before { background: var(--alerte); }
+  fieldset.choix input[type="radio"]:focus-visible {
+    outline: 2px solid var(--accent); outline-offset: 2px;
+  }
+  /* ⚠️ La regle generique a disparu : elle valait `margin: 3px 0 0` et
+     passait APRES le bloc ci-dessus, donc elle ecrasait la marge de la
+     pastille dessinee. Les trois `fieldset.choix` de la console ne contiennent
+     que des boutons radio ; il n'y a plus rien a habiller ici. */
   fieldset.choix b { display: block; font-weight: 600; }
   fieldset.choix i { font-style: normal; color: var(--encre2); font-size: 0.84rem; }
   button.action {
@@ -343,11 +467,6 @@
   /* Le lien vers le classeur porte l'allure d'un bouton : c'est une ACTION,
      au meme titre que « Tester » ou « Importer ». */
   a.secondaire { display: inline-block; text-decoration: none; }
-  /* ⚠️ `display: inline-block` bat le `[hidden] { display: none }` du
-     navigateur -- question de specificite, pas d'ordre. Sans cette ligne,
-     « Ouvrir le classeur » restait affiche alors qu'AUCUN classeur n'est relie,
-     et proposait d'ouvrir un lien vide. Vu a l'ecran en reorganisant les vues. */
-  a.secondaire[hidden] { display: none; }
   button.secondaire:hover, a.secondaire:hover { background: var(--surface3); }
   button.discret {
     cursor: pointer; font: inherit; font-size: 0.82rem;
@@ -367,7 +486,6 @@
     border-left: 4px solid var(--trait); background: var(--surface2);
     box-shadow: var(--ombre);
   }
-  #message[hidden] { display: none; }
   #message.ok { border-left-color: var(--ok); }
   #message.erreur { border-left-color: var(--alerte); }
   #message.attention { border-left-color: var(--attention); }
@@ -380,6 +498,15 @@
   td.num { font-family: var(--chiffre); font-variant-numeric: tabular-nums; }
   .sans { color: var(--encre3); font-style: italic; }
   .scroll { overflow-x: auto; }
+  /* ⚠️ Une liste qui se rafraichit toute seule ne doit pas pousser le reste de
+     la page hors de l'ecran : sans plafond, les cinquante dernieres reussites
+     reléguaient « Saisir une reussite a la main » deux ecrans plus bas -- et
+     c'est le geste qu'on vient faire quand un scan a rate. L'en-tete du
+     tableau reste visible pendant qu'on fait defiler. */
+  .scroll.plafonne { max-height: 46vh; overflow-y: auto; }
+  .scroll.plafonne thead th {
+    position: sticky; top: 0; z-index: 1; background: var(--surface);
+  }
 
   /* Appareils (spec 011). Un telephone muet est la SEULE chose urgente de
      cette page : presque toujours un juge bloque -- batterie, wifi,
@@ -421,6 +548,19 @@
   }
   .teinte.dif i { border-radius: 50%; }
   .teinte.prises i { border-radius: 3px; }
+  /* Le nom de la couleur ne se lit plus a l'ecran : il reste dans `title` et
+     ici, pour les lecteurs d'ecran. `clip-path` plutot que `display:none`,
+     qui l'aurait retire de l'arbre d'accessibilite avec le reste. */
+  .lu-seulement {
+    position: absolute; width: 1px; height: 1px; margin: -1px;
+    padding: 0; border: 0; overflow: hidden; white-space: nowrap;
+    clip-path: inset(50%);
+  }
+  /* Une pastille seule n'a plus besoin d'une colonne de mot : la table rend
+     aux circuits et aux categories ce que les deux colonnes de couleur
+     prenaient. */
+  td.cellule-teinte { width: 1%; text-align: center; }
+  td.cellule-teinte .teinte { gap: 0; }
   .teinte.inconnue i {
     border-style: dashed;
     background: repeating-linear-gradient(45deg, transparent, transparent 3px,
@@ -773,7 +913,6 @@
     border-left: 3px solid var(--accent); background: var(--surface2);
     color: var(--encre2);
   }
-  .avert[hidden] { display: none; }
   .avert b { color: var(--encre); }
 </style>
 </head>
@@ -809,7 +948,16 @@
      publique : <a href="/resultats">/resultats</a>.</p>
 </div>
 
-<div id="console" hidden>
+<!-- ⚠️ `hidden` ET `inert`, et les deux comptent.
+
+     `hidden` cache. `inert` DEBRANCHE : plus aucun clic, plus aucun focus au
+     clavier, plus rien pour un lecteur d'ecran, meme si une regle de style
+     venait a nouveau rendre ce bloc visible. C'est la ceinture apres la
+     bretelle, et la bretelle a deja lache une fois -- voir la regle
+     `[hidden]` en tete de la feuille de style. Les deux attributs se posent
+     ici, dans le HTML : la console part FERMEE, avant meme que le script ne
+     demande qui est connecte, et c'est `montrerConsole()` qui les retire. -->
+<div id="console" hidden inert>
 
   <div class="voile" id="voile" hidden></div>
 
@@ -878,6 +1026,17 @@
       <span id="competitionBarre"></span>
     </div>
     <div class="droite">
+      <!-- Visible seulement quand une version est disponible. Elle ne fait que
+           mener aux Reglages : c'est la-bas qu'on lit le changelog et qu'on
+           decide. Une pastille qui installerait d'un clic serait un bouton de
+           mise en production dans une barre de navigation. -->
+      <button type="button" class="pastille" id="pastilleMaj" hidden>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"
+             stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M12 3v12"/><path d="m7 12 5 5 5-5"/><path d="M5 21h14"/>
+        </svg>
+        <span id="pastilleMajTag"></span>
+      </button>
       <span class="jeton optionnel" id="qui"></span>
     </div>
   </div>
@@ -949,6 +1108,38 @@
         <p>Ce qui a été validé, et comment rattraper ce qui ne l'a pas été.</p>
       </div>
 
+      <!-- ⚠️ EN PREMIER, avant la saisie et avant la recherche. « Je viens de
+           faire un scan manuel avec mon téléphone et je suis revenu sur la
+           partie réussite. Je m'attendais à avoir un tableau avec la liste des
+           réussites qui ont été scannées par ce téléphone » (Adrien, 03/09,
+           spec 033 R12).
+
+           La vue savait SAISIR et RETROUVER — deux gestes qui supposent qu'on
+           sait déjà ce qu'on cherche. Elle ne savait pas répondre à « qu'est-ce
+           qui vient d'arriver ? », qui est la question qu'on se pose en
+           revenant d'un scan. La route existait pourtant depuis la spec 011,
+           sans aucun appelant pour ce cas. -->
+      <div class="carte">
+        <h2>Les dernières réussites</h2>
+        <p class="aide">Ce qui vient d'arriver sur le serveur, le plus récent en
+           haut. Se rafraîchit tout seul tant que cette page est ouverte. Un
+           bloc <strong>hors du circuit</strong> du grimpeur est signalé : il est
+           bien enregistré, et il ne compte pas au classement.</p>
+        <div class="grille" style="max-width:420px">
+          <div>
+            <label for="filtreAppareil">Téléphone</label>
+            <select id="filtreAppareil">
+              <option value="">Tous les téléphones</option>
+            </select>
+          </div>
+        </div>
+        <button class="secondaire" id="btnRafraichirReussites" style="margin-top:12px">Rafraîchir</button>
+        <div class="scroll plafonne"><table>
+          <thead><tr><th>Grimpeur</th><th>Bloc</th><th>Heure</th><th>Téléphone</th><th>Référence</th></tr></thead>
+          <tbody id="corpsDernieres"><tr><td colspan="5" class="sans">Chargement…</td></tr></tbody>
+        </table></div>
+      </div>
+
       <div class="carte">
         <h2>Saisir une réussite à la main</h2>
         <p class="aide">Pour rattraper ce qui n'a pas pu être scanné. Elle compte
@@ -1013,6 +1204,26 @@
         <button class="secondaire" id="btnChargerLienJuge" type="button">Afficher le lien et le QR</button>
       </div>
 
+      <!-- Les QR de poste (spec 034). Ils vivent ICI, avec les telephones :
+           c'est le meme geste que « Installer l'application », et c'est la
+           carte du dessous qui affiche le nom qu'ils reglent. -->
+      <div class="carte">
+        <h2>Imprimer les QR de poste</h2>
+        <p class="aide">Un carton par zone, posé sur la table du juge. Le
+           bénévole le scanne depuis l'application — <strong>Réglages →
+           Scanner le QR de mon poste</strong> — et son téléphone prend le nom
+           de la zone. Plus besoin de le taper, ni de l'épeler au téléphone :
+           c'est ce nom qui apparaît ci-dessous, en face de chaque envoi.
+           <strong>Les zones viennent du plan</strong> : un mur ajouté dans
+           « Dessiner le plan du mur » sort son QR à l'impression suivante.
+           <strong>Huit par page</strong> — le carton ne porte que le QR et le
+           nom de la zone, la marche à suivre est dans l'application.</p>
+        <div class="grille" style="max-width:420px">
+          <div><label for="pZone">Une zone (vide = toutes)</label><select id="pZone"></select></div>
+        </div>
+        <button class="action" id="btnPostes">Ouvrir les QR de poste</button>
+      </div>
+
       <!-- Versions en circulation (spec 030) -->
       <div class="carte">
         <h2>Versions en circulation</h2>
@@ -1038,9 +1249,12 @@
         <h2>Qui envoie quoi</h2>
         <p class="aide">Un téléphone <strong>muet depuis plus de dix
            minutes</strong> ressort en rouge : c'est presque toujours un juge
-           bloqué — batterie, wifi, ou application fermée. Le nom est celui que
-           le juge a donné à son téléphone ; il désigne un poste, pas une
-           personne.</p>
+           bloqué — batterie, wifi, ou application fermée. Le nom est celui du
+           <strong>carton scanné</strong> à la table ; il désigne un poste, pas
+           une personne. <strong>Deux téléphones peuvent porter le même
+           nom</strong> — deux juges sur la même zone scannent le même carton :
+           le code entre parenthèses est celui du téléphone, et c'est lui qui
+           les distingue. Le juge le lit dans ses réglages.</p>
         <button class="secondaire" id="btnRafraichirAppareils" style="margin-top:0">Rafraîchir</button>
         <div class="scroll"><table>
           <thead><tr><th>Téléphone</th><th>Application</th><th>Catalogue</th><th>Réussites</th><th>Dernier envoi</th><th>Identifiant</th></tr></thead>
@@ -1316,22 +1530,41 @@
               <i>Tu écris tes propres phrases.</i></span></label>
         </fieldset>
 
-        <h3 class="titre-bloc">La règle — une phrase par cas</h3>
-        <div id="reglesCascade"></div>
-        <!-- Le controle se recalcule a chaque clic : sans `aria-live`, il est
-             muet pour qui ecoute la page. -->
-        <div id="controleCascade" aria-live="polite"></div>
-        <div id="apercuCascade"></div>
-
-        <h3 class="titre-bloc">Où elle s'applique — comme l'interrupteur du
-          classeur, catégorie par catégorie</h3>
-        <div class="rapide" id="rapideCascade">
-          <button type="button" data-tout="1">Toutes</button>
-          <button type="button" data-tout="0">Aucune</button>
-          <button type="button" data-genre="F">Les filles</button>
-          <button type="button" data-genre="H">Les garçons</button>
+        <!-- ⚠️ Les phrases, le controle et l'apercu sont ENVELOPPES : sans
+             cascade, il n'y a pas de regle a ecrire, et la carte offrait quand
+             meme « + Ajouter une règle » sous un titre qui ne s'appliquait a
+             rien. Demande d'Adrien (02/09). Un seul `hidden` sur le groupe,
+             plutot que trois : ils apparaissent et disparaissent ensemble. -->
+        <div id="blocRegleCascade">
+          <h3 class="titre-bloc">La règle — une phrase par cas</h3>
+          <div id="reglesCascade"></div>
+          <!-- Le controle se recalcule a chaque clic : sans `aria-live`, il est
+               muet pour qui ecoute la page. -->
+          <div id="controleCascade" aria-live="polite"></div>
+          <div id="apercuCascade"></div>
         </div>
-        <div class="grille-cat" id="porteeCascade"></div>
+
+        <!-- ⚠️ Le second groupe, et pour la MEME raison que le premier. La
+             spec 032 avait enveloppe les phrases, le controle et l'apercu ;
+             le regroupement s'etait arrete une carte trop tot. « Si on
+             selectionne aucune cascade, je ne veux meme pas voir la partie ou
+             on selectionne sur quelle categorie ca s'applique » (Adrien,
+             03/09). Un interrupteur qui promet d'appliquer une regle qui
+             n'existe pas ne veut rien dire.
+
+             Les deux groupes sont pilotes par la MEME ligne de
+             `majPresetsCascade` : deux conditions finiraient par diverger. -->
+        <div id="blocPorteeCascade">
+          <h3 class="titre-bloc">Où elle s'applique — comme l'interrupteur du
+            classeur, catégorie par catégorie</h3>
+          <div class="rapide" id="rapideCascade">
+            <button type="button" data-tout="1">Toutes</button>
+            <button type="button" data-tout="0">Aucune</button>
+            <button type="button" data-genre="F">Les filles</button>
+            <button type="button" data-genre="H">Les garçons</button>
+          </div>
+          <div class="grille-cat" id="porteeCascade"></div>
+        </div>
 
         <div class="avert" id="avertCascade" hidden>⚠️<div><b>Le classeur ne saura
           pas suivre cette règle.</b> Ses formules ne connaissent que « deux
@@ -1393,6 +1626,19 @@
         <p>Ton compte, et les accès des autres organisateurs.</p>
       </div>
 
+      <!-- Reservee aux administrateurs, comme « Creer un compte » plus bas :
+           les trois routes /admin/maj repondent 403 aux autres. -->
+      <div class="carte" id="blocMaj" hidden>
+        <h2>Version du serveur</h2>
+        <div class="etat-maj" id="majFaits"></div>
+        <p class="verdict-maj" id="majVerdict"></p>
+        <div class="changelog-maj" id="majChangelog" hidden></div>
+        <div class="boutons-maj">
+          <button class="action" id="btnMajVerifier">Vérifier</button>
+          <button class="action" id="btnMajInstaller" hidden></button>
+        </div>
+      </div>
+
       <div class="carte">
         <h2>Changer mon mot de passe</h2>
         <p class="aide">L'ancien est demandé même connecté : un ordinateur laissé
@@ -1440,6 +1686,24 @@
        Un <dialog> natif : `showModal()` donne le focus piege, Echap et le
        voile gratuitement et correctement. Une bibliotheque ou un faux modal en
        `position: fixed` ferait moins bien, avec plus de code. -->
+  <!-- Une fenetre a part, et volontairement pas `dlgConfirmer` : celle-ci
+       confirme un geste REVERSIBLE. L'agent de deploiement sonde /health et
+       revient en arriere tout seul si la nouvelle version ne repond pas. Le
+       maintien de deux secondes est reserve a ce qui efface. -->
+  <dialog id="dlgMaj">
+    <form method="dialog">
+      <div class="dedans">
+        <h2 id="dlgMajTitre"></h2>
+        <p class="aide" style="margin-bottom:0">Le serveur redémarre — une
+           quinzaine de secondes.</p>
+      </div>
+      <menu>
+        <button value="annuler" class="secondaire">Annuler</button>
+        <button value="ok" class="action">Installer</button>
+      </menu>
+    </form>
+  </dialog>
+
   <dialog id="dlgConfirmer">
     <form method="dialog">
       <div class="dedans">
@@ -1548,6 +1812,8 @@
 
   function montrerConnexion(raison) {
     $("console").hidden = true;
+    // Voir le commentaire de `<div id="console">` : cache ET debranche.
+    $("console").inert = true;
     $("connexion").hidden = false;
     if (raison) {
       var m = $("messageConnexion");
@@ -1562,11 +1828,13 @@
   function montrerConsole() {
     $("connexion").hidden = true;
     $("console").hidden = false;
+    $("console").inert = false;
     $("qui").textContent = etat.moi.identifiant + " · " + etat.moi.roles.join(", ");
     // Le bloc « Comptes » des reglages n'apparait que pour un administrateur.
     // Le serveur refuse de toute facon (403) -- masquer evite d'offrir un
     // formulaire qui ne marche pas, ce n'est pas la protection.
     $("blocComptes").hidden = etat.moi.roles.indexOf("admin") === -1;
+    $("blocMaj").hidden = etat.moi.roles.indexOf("admin") === -1;
     // Meme regle pour le classeur : les quatre routes sont reservees a un
     // administrateur, le serveur repond 403 aux autres. Masquer l'entree evite
     // d'offrir un ecran qui ne repondrait que des refus.
@@ -1580,6 +1848,9 @@
     // de novembre d'une competition de test restee active.
     var comp = etat.moi.competition ? etat.moi.competition.nom : "aucune compétition active";
     $("competitionBarre").textContent = comp;
+    // Avant d'afficher la premiere vue : la pastille du bandeau doit pouvoir
+    // paraitre sans qu'on soit passe par les Reglages.
+    chargerMaj(false);
     montrerVue("participants");
   }
 
@@ -1607,7 +1878,8 @@
   var VUES = {
     participants: { titre: "Participants",         charge: chargerParticipants },
     circuits:     { titre: "Circuits",             charge: chargerCircuits },
-    reussites:    { titre: "Réussites",            charge: null },
+    reussites:    { titre: "Réussites",            charge: ouvrirReussites,
+                    quitte: fermerReussites },
     telephones:   { titre: "Téléphones des juges", charge: chargerAppareils },
     general:      { titre: "Général",              charge: chargerGeneral },
     classeur:     { titre: "Classeur",             charge: chargerClasseur },
@@ -1616,8 +1888,152 @@
   };
 
   function chargerComptesSiAdmin() {
-    if (etat.moi && etat.moi.roles.indexOf("admin") !== -1) chargerComptes();
+    if (etat.moi && etat.moi.roles.indexOf("admin") !== -1) {
+      chargerComptes();
+      chargerMaj(false);
+    }
   }
+
+  // --- Version du serveur (spec 031) ----------------------------------------
+  //
+  // La console est le SEUL appelant de /admin/maj, et c'est cette route qui
+  // declenche la verification quotidienne. Il n'y a pas de minuteur : celui qui
+  // tirait GitHub toutes les deux minutes a ete retire le 2026-09-03, il
+  // consommait la moitie du quota anonyme de la maison.
+
+  var minuteurMaj = null;
+
+  function chargerMaj(forcer) {
+    if (!etat.moi || etat.moi.roles.indexOf("admin") === -1) return;
+    if (forcer) $("btnMajVerifier").disabled = true;
+    appeler(forcer ? "/admin/maj/verifier" : "/admin/maj",
+            forcer ? { methode: "POST" } : {})
+      .then(rendreMaj)
+      .catch(signaler)
+      .then(function () { $("btnMajVerifier").disabled = false; });
+  }
+
+  /** Une colonne de la ligne de faits. Construite en DOM et non en innerHTML :
+      `valeur` peut venir de GitHub (un nom de tag), et on ne fabrique pas ce
+      contenu-la. Meme regle que le changelog juste en dessous. */
+  function faitMaj(parent, cle, valeur, texte) {
+    var bloc = document.createElement("div");
+    var k = document.createElement("span");
+    k.className = "k";
+    k.textContent = cle;
+    var v = document.createElement("span");
+    v.className = texte ? "v txt" : "v";
+    v.textContent = valeur;
+    bloc.appendChild(k);
+    bloc.appendChild(v);
+    parent.appendChild(bloc);
+  }
+
+  /** `pendantLeSuivi` : appele depuis la boucle de suivi, qui gere elle-meme
+      son propre reenclenchement et son decompte. Sans ce drapeau, les deux
+      s'armaient l'un l'autre. */
+  function rendreMaj(d, pendantLeSuivi) {
+    var dispo = d.disponible;
+    var pose = d.installation;
+    var verdict = $("majVerdict");
+    var btn = $("btnMajInstaller");
+
+    var faits = $("majFaits");
+    faits.textContent = "";
+    faitMaj(faits, "En service", d.en_service || "dév.");
+    if (dispo) faitMaj(faits, "Disponible", dispo.tag);
+    if (d.verifie_le) {
+      faitMaj(faits, "Vérifié",
+        depuis(Math.round((Date.now() - new Date(d.verifie_le)) / 1000)), true);
+    }
+
+    // Le changelog est du TEXTE, pose avec textContent : c'est le corps d'une
+    // release GitHub, donc du contenu qu'on ne fabrique pas soi-meme. Le rendre
+    // en HTML serait ouvrir la console a ce que contient un tag.
+    $("majChangelog").hidden = !dispo;
+    $("majChangelog").textContent = dispo ? dispo.changelog : "";
+
+    btn.hidden = !dispo;
+    btn.textContent = dispo ? "Installer " + dispo.tag : "";
+    btn.dataset.tag = dispo ? dispo.tag : "";
+    btn.disabled = !!d.blocage;
+
+    var mot, ton;
+    if (pose && pose.etat === "en_cours") {
+      mot = "Installation de " + pose.tag + " en cours…"; ton = "est-neuf";
+      btn.disabled = true;
+    } else if (pose && pose.etat === "echouee") {
+      mot = "Échec — revenu en " + pose.revenu_en; ton = "est-alerte";
+    } else if (pose && pose.etat === "reussie") {
+      mot = pose.tag + " installée"; ton = "est-ok";
+    } else if (d.erreur) {
+      mot = d.erreur; ton = "est-attention";
+    } else if (d.blocage) {
+      mot = d.blocage; ton = "est-alerte";
+    } else if (dispo) {
+      mot = dispo.tag + " disponible"; ton = "est-neuf";
+    } else {
+      mot = "Version à jour"; ton = "est-ok";
+    }
+    verdict.textContent = mot;
+    verdict.className = "verdict-maj " + ton;
+
+    // La pastille du bandeau ne parait que s'il y a quelque chose a faire :
+    // pendant l'installation, elle disparait -- l'ecran des Reglages dit deja
+    // ou l'on en est, et une pastille qui insiste inviterait a recliquer.
+    var montrer = !!dispo && !(pose && pose.etat === "en_cours");
+    $("pastilleMaj").hidden = !montrer;
+    if (montrer) $("pastilleMajTag").textContent = dispo.tag;
+
+    // Une installation deja en cours au chargement de la page -- console
+    // rouverte, ou onglet recharge -- doit etre suivie comme les autres.
+    if (pose && pose.etat === "en_cours" && !pendantLeSuivi) suivreMaj(45);
+  }
+
+  function suivreMaj(restant) {
+    // ⚠️ Pendant l'installation, l'agent REDEMARRE l'application : les requetes
+    // echouent pendant une quinzaine de secondes. Un echec de fetch n'est donc
+    // pas une erreur a afficher, c'est le symptome attendu. On repasse par
+    // `fetch` et non par `appeler`, dont le traitement des 401 deconnecterait.
+    clearTimeout(minuteurMaj);
+    if (restant <= 0) { minuteurMaj = null; return; }
+    minuteurMaj = setTimeout(function () {
+      minuteurMaj = null;
+      fetch("/admin/maj", { cache: "no-store" })
+        .then(function (r) { return r.ok ? r.json() : null; })
+        .then(function (d) {
+          if (d && d.success) {
+            rendreMaj(d, true);
+            if (d.installation && d.installation.etat === "en_cours") suivreMaj(restant - 1);
+          } else suivreMaj(restant - 1);
+        })
+        .catch(function () { suivreMaj(restant - 1); });
+    }, 4000);
+  }
+
+  $("btnMajVerifier").addEventListener("click", function () { chargerMaj(true); });
+
+  $("pastilleMaj").addEventListener("click", function () { montrerVue("reglages"); });
+
+  $("btnMajInstaller").addEventListener("click", function () {
+    var tag = $("btnMajInstaller").dataset.tag;
+    if (!tag) return;
+    $("dlgMajTitre").textContent = "Installer " + tag + " ?";
+    var dlg = $("dlgMaj");
+    dlg.returnValue = "";
+    dlg.showModal();
+    dlg.addEventListener("close", function suite() {
+      dlg.removeEventListener("close", suite);
+      if (dlg.returnValue !== "ok") return;
+      appeler("/admin/maj/installer", { methode: "POST", corps: { tag: tag } })
+        .then(function () {
+          dire("Installation de " + tag + " lancée.", "ok");
+          suivreMaj(45);
+          chargerMaj(false);
+        })
+        .catch(signaler);
+    });
+  });
 
   // Le SEUL endroit ou le script connait le seuil : la mise en page, elle, est
   // entierement dans la requete media. On l'interroge au moment du clic et on
@@ -1642,6 +2058,10 @@
     Object.keys(VUES).forEach(function (cle) {
       var section = $("vue" + cle.charAt(0).toUpperCase() + cle.slice(1));
       if (section) section.hidden = cle !== nom;
+      // Une vue qu'on quitte range ce qu'elle a arme. Sans ca, la console
+      // laissee ouverte sur « Reglages » continuerait d'interroger la base
+      // toutes les dix secondes pour un tableau que personne ne regarde.
+      if (cle !== nom && VUES[cle].quitte) VUES[cle].quitte();
     });
     Array.prototype.forEach.call(document.querySelectorAll("[data-vue]"), function (b) {
       if (b.dataset.vue === nom) b.setAttribute("aria-current", "page");
@@ -1749,11 +2169,15 @@
       // Pas d'« Autre… » a l'impression : on imprime pour une categorie QUI
       // EXISTE, pas pour une qu'on vient d'inventer.
       remplir($("dCategorie"), d.categories || [], "Toutes les cat\u00e9gories", false);
+      // Les zones du PLAN, pas celles des blocs : un QR de poste existe pour
+      // une zone meme si aucun bloc n'y est encore importe (spec 034).
+      remplir($("pZone"), d.zones || [], "Toutes les zones", false);
     }).catch(function () {
       // Listes indisponibles : « Autre… » reste le chemin, le formulaire marche.
       remplir($("pClub"), [], "\u2014 aucun \u2014", true);
       remplir($("pCategorie"), [], "\u2014 aucune \u2014", true);
       remplir($("dCategorie"), [], "Toutes les cat\u00e9gories", false);
+      remplir($("pZone"), [], "Toutes les zones", false);
     });
   }
 
@@ -1903,6 +2327,13 @@
     window.open("/admin/plan", "_blank");
   });
 
+  $("btnPostes").addEventListener("click", function () {
+    var zone = $("pZone").value.trim();
+    var url = "/admin/postes";
+    if (zone) url += "?zone=" + encodeURIComponent(zone);
+    window.open(url, "_blank");
+  });
+
   $("btnEtiquettes").addEventListener("click", function () {
     var bloc = $("eBloc").value.trim();
     var zone = $("eZone").value.trim();
@@ -1924,6 +2355,122 @@
   // --- Comptes --------------------------------------------------------------
 
   // --- Appareils (spec 011) -------------------------------------------------
+
+  // --- Les dernieres reussites (spec 033, R12) -------------------------------
+  //
+  // La route existe depuis la spec 011 et gere deja le cas « aucune reference
+  // donnee » : les N dernieres, les plus recentes d'abord, filtrables par
+  // appareil. Personne ne l'appelait dans ce cas. On ajoute l'ecran, pas le
+  // serveur.
+  //
+  // ⚠️ Le minuteur est pilote par la VUE (`VUES.reussites.quitte`), jamais
+  // arme au chargement de la console : il ne tourne que pendant qu'on regarde.
+
+  var DERNIERES_MS = 10000;
+  var minuteurDernieres = null;
+
+  function ouvrirReussites() {
+    chargerAppareilsPourFiltre();
+    chargerDernieres();
+    fermerReussites();
+    minuteurDernieres = setInterval(chargerDernieres, DERNIERES_MS);
+  }
+
+  function fermerReussites() {
+    if (minuteurDernieres) { clearInterval(minuteurDernieres); minuteurDernieres = null; }
+  }
+
+  /** Le menu des telephones. On GARDE la selection courante : la liste se
+   *  recharge sous le doigt de celui qui vient de filtrer. */
+  function chargerAppareilsPourFiltre() {
+    appeler("/admin/appareils").then(function (d) {
+      var menu = $("filtreAppareil");
+      var choisi = menu.value;
+      menu.innerHTML = "";
+      var tous = document.createElement("option");
+      tous.value = "";
+      tous.textContent = "Tous les téléphones";
+      menu.appendChild(tous);
+      (d.appareils || []).forEach(function (a) {
+        var o = document.createElement("option");
+        o.value = a.id;
+        // ⚠️ Le LIBELLE : il porte deja le code court, et sans lui deux juges
+        // d'une meme zone donneraient DEUX entrees « Zone A » dans ce menu --
+        // impossible de savoir laquelle on filtre. Compose cote serveur.
+        o.textContent = a.libelle || "Sans nom";
+        menu.appendChild(o);
+      });
+      // Le telephone choisi a pu disparaitre (base effacee) : on ne laisse pas
+      // le menu mentir sur ce qu'il filtre.
+      menu.value = Array.prototype.some.call(menu.options, function (o) {
+        return o.value === choisi;
+      }) ? choisi : "";
+    }).catch(function () { /* le filtre est un confort : son echec ne dit rien */ });
+  }
+
+  function chargerDernieres() {
+    var appareil = $("filtreAppareil").value;
+    var url = "/admin/reussites-tracees?limite=50"
+            + (appareil ? "&appareil=" + encodeURIComponent(appareil) : "");
+    appeler(url).then(function (d) {
+      var corps = $("corpsDernieres");
+      corps.innerHTML = "";
+      if (!d.reussites.length) {
+        corps.appendChild(ligneVide(5, appareil
+          ? "Ce téléphone n'a encore rien envoyé."
+          : "Aucune réussite pour l'instant."));
+        return;
+      }
+      d.reussites.forEach(function (r) {
+        corps.appendChild(ligneReussite(r));
+      });
+    }).catch(function (e) {
+      // ⚠️ On ne CRIE pas : cette carte se recharge toute seule toutes les dix
+      // secondes, et un message d'erreur par cycle rendrait la console
+      // inutilisable pendant une coupure. La ligne dit l'etat, une fois.
+      var corps = $("corpsDernieres");
+      corps.innerHTML = "";
+      corps.appendChild(ligneVide(5, "Liste indisponible : " + (e && e.message
+        ? e.message : "le serveur n'a pas répondu.")));
+    });
+  }
+
+  function ligneReussite(r) {
+    var tr = document.createElement("tr");
+    [r.grimpeur || "Dossard " + r.dossard,
+     r.bloc || "—",
+     heure(r.horodatage),
+     // Une saisie a la main n'a pas de telephone, et le dire vaut mieux qu'un
+     // tiret : c'est la reponse a « pourquoi ce scan n'est sur aucun poste ? »
+     // ⚠️ Le LIBELLE, pas le nom brut (spec 034) : deux juges d'une meme zone
+     // scannent le meme carton et leurs telephones portent le meme nom. Compose
+     // cote serveur par `contest.libelle_poste`, seul endroit qui en decide.
+     r.appareil_libelle || (r.saisie_par ? "saisie de " + r.saisie_par : "—")
+    ].forEach(function (texte) {
+      var td = document.createElement("td");
+      td.textContent = texte;             // textContent : ces noms sont saisis
+      tr.appendChild(td);
+    });
+    var ref = document.createElement("td");
+    ref.className = "ref";
+    ref.textContent = (r.ref_client || "").slice(0, 8);
+    tr.appendChild(ref);
+    if (r.hors_circuit) {
+      // Le meme signalement que dans la recherche par reference, et pour la
+      // meme raison : « il dit qu'il a valide, pourquoi son score ne bouge
+      // pas ? »
+      tr.className = "muet";
+      tr.title = "Ce bloc n'est pas dans le circuit du grimpeur : "
+               + "la réussite est enregistrée, elle ne compte pas au classement.";
+    }
+    return tr;
+  }
+
+  $("btnRafraichirReussites").addEventListener("click", function () {
+    chargerAppareilsPourFiltre();
+    chargerDernieres();
+  });
+  $("filtreAppareil").addEventListener("change", chargerDernieres);
 
   function chargerAppareils() {
     chargerVersions();
@@ -2148,21 +2695,39 @@
     "marron": "#8B5E3C", "turquoise": "#2FB3B3", "fluo": "#C8F02A"
   };
 
-  /** Une cellule « pastille + nom ». `famille` vaut « dif » ou « prises ». */
+  /** Une cellule de couleur : LA PASTILLE SEULE. `famille` vaut « dif » ou
+   *  « prises ».
+   *
+   *  ⚠️ Le nom ecrit a cote a disparu (Adrien, 02/09 : « retire le texte pour
+   *  la difficulté et les prises, je ne veux conserver que la pastille de
+   *  couleur »). Deux colonnes de mots repetes soixante fois poussaient
+   *  « Circuits » et « Catégories » hors de l'ecran, alors que c'est ce que la
+   *  vue sert a verifier.
+   *
+   *  Le nom n'est pas PERDU pour autant : il reste dans `title` -- donc au
+   *  survol -- et dans un texte lu par les lecteurs d'ecran. Une pastille
+   *  seule, sans son nom accessible, serait une information reservee a ceux
+   *  qui distinguent les couleurs. */
   function celluleTeinte(nom, famille) {
     var td = document.createElement("td");
-    if (!nom) { td.textContent = "—"; return td; }
+    td.className = "cellule-teinte";
+    if (!nom) {
+      td.textContent = "—";
+      return td;
+    }
     var span = document.createElement("span");
     var hexa = TEINTES[String(nom).trim().toLowerCase()];
     span.className = "teinte " + famille + (hexa ? "" : " inconnue");
+    // textContent/title : ces noms viennent du classeur, saisis a la main.
+    span.title = nom;
     var pastille = document.createElement("i");
     if (hexa) pastille.style.setProperty("--teinte", hexa);
     pastille.setAttribute("aria-hidden", "true");
     span.appendChild(pastille);
-    var texte = document.createElement("span");
-    // textContent : ces noms viennent du classeur, saisis a la main.
-    texte.textContent = nom;
-    span.appendChild(texte);
+    var lu = document.createElement("span");
+    lu.className = "lu-seulement";
+    lu.textContent = nom;
+    span.appendChild(lu);
     td.appendChild(span);
     return td;
   }
@@ -2232,7 +2797,12 @@
     if (a.silencieux) tr.className = "muet";
 
     var nom = document.createElement("td");
-    nom.textContent = a.nom || "Sans nom";
+    // ⚠️ Le LIBELLE, pas le nom brut : depuis la spec 034 un poste se nomme en
+    // scannant le carton pose sur la table, et deux juges d'une meme zone
+    // scannent le MEME carton -- leurs telephones s'appellent tous les deux
+    // « Zone A ». Le code court les separe. Il est compose cote serveur, par
+    // `contest.libelle_poste`, et c'est le seul endroit qui en decide.
+    nom.textContent = a.libelle || "Sans nom";
     if (!a.nom) nom.className = "sans";
     tr.appendChild(nom);
 
@@ -2345,7 +2915,9 @@
         [r.grimpeur || "Dossard " + r.dossard,
          r.bloc || "—",
          heure(r.horodatage),
-         r.appareil_nom || (r.saisie_par ? "saisie de " + r.saisie_par : "—")
+         // Le meme libelle que dans « Qui envoie quoi » (spec 034) : nom du
+         // poste et code court du telephone, composes cote serveur.
+         r.appareil_libelle || (r.saisie_par ? "saisie de " + r.saisie_par : "—")
         ].forEach(function (t) {
           var td = document.createElement("td");
           td.textContent = t;
@@ -2812,11 +3384,17 @@
     appeler("/admin/competition/affichage", {
       methode: "POST", corps: { groupes_masques: masques },
     }).then(function (d) {
+      // ⚠️ Le message PROMETTAIT « au prochain rafraichissement », ce qui ne
+      // dit pas quand -- et l'attente etait de quinze secondes, assez pour
+      // qu'Adrien conclue « rien ne se passe » (03/09). La page relit
+      // desormais les reglages toutes les trois secondes (spec 033, R3), et
+      // le message dit le delai reel.
       dire(d.groupes_masques.length
         ? d.groupes_masques.length + " classement(s) masqué(s) : "
-          + d.groupes_masques.join(" · ") + ". La page de résultats suivra au "
-          + "prochain rafraîchissement."
-        : "Tous les classements sont affichés.", "ok");
+          + d.groupes_masques.join(" · ") + ". La page de résultats suit "
+          + "dans quelques secondes, sans rechargement."
+        : "Tous les classements sont affichés. La page de résultats suit "
+          + "dans quelques secondes, sans rechargement.", "ok");
     }).catch(signaler).then(function () { bouton.disabled = false; });
   });
 
@@ -2985,7 +3563,21 @@
   var cascade = {
     regles: [], eteintes: [], categories: [], circuits: [], couleurs: [],
     reference: [], apercu: { circuit: null, pleines: {} },
-    charge: false, modifie: false
+    charge: false, modifie: false,
+    // ⚠️ L'INTENTION, que les regles seules ne portent pas.
+    //
+    // Le bouton coche etait DEDUIT des phrases : vide -> « aucune », egales a
+    // celles du classeur -> « classeur », sinon -> « sur mesure ». Cliquer
+    // « Sur mesure » en venant de « Comme le classeur » ne changeait alors
+    // aucune phrase, la deduction rendait toujours « classeur », et le bouton
+    // se decochait sous le doigt. Il fallait repasser par « Aucune cascade »
+    // pour y arriver -- signale par Adrien le 02/09.
+    //
+    // Partir des phrases du classeur pour les retoucher est le cas NORMAL :
+    // c'est une intention, elle ne se lit pas dans les phrases, elle se
+    // memorise. L'avertissement, lui, reste calcule sur les phrases : il dit
+    // si le classeur saura suivre, pas ce qu'on a coche.
+    surMesure: false
   };
 
   function rangCouleur(nom) { return cascade.couleurs.indexOf(nom); }
@@ -3475,15 +4067,30 @@
 
   function majPresetsCascade() {
     var quoi = !cascade.regles.length ? "aucune"
-             : (memesRegles(cascade.regles, cascade.reference) ? "classeur" : "mesure");
+             : (cascade.surMesure ? "mesure"
+                : (memesRegles(cascade.regles, cascade.reference) ? "classeur"
+                   : "mesure"));
     Array.prototype.forEach.call(
       $("presetsCascade").querySelectorAll("input"), function (r) {
         r.checked = r.value === quoi;
       });
-    // L'avertissement se CALCULE en comparant la regle a celle du classeur, au
-    // lieu de croire un drapeau stocke : un etat ecrit en double finit par
-    // mentir sur ce que les phrases disent vraiment.
-    $("avertCascade").hidden = (quoi !== "mesure");
+    // Sans cascade, il n'y a rien a regler : les phrases (titre, controle,
+    // apercu) ET la portee par categorie s'en vont ENSEMBLE. Une seule
+    // condition pour les deux groupes -- deux finiraient par diverger.
+    // Adrien, 02/09 pour les phrases, 03/09 pour la portee.
+    var sansCascade = (quoi === "aucune");
+    $("blocRegleCascade").hidden = sansCascade;
+    $("blocPorteeCascade").hidden = sansCascade;
+    // ⚠️ L'avertissement se calcule sur les PHRASES, jamais sur le bouton
+    // coche. Il dit si le CLASSEUR saura suivre la regle -- une question sur
+    // les phrases, pas sur l'intention. Depuis que « Sur mesure » est une
+    // intention memorisee, cocher ce bouton sur les phrases du classeur ne
+    // change rien a ce que le classeur sait faire : le brancher sur `quoi`
+    // ferait crier l'avertissement sur une regle que le classeur reproduit
+    // parfaitement.
+    var ecarte = cascade.regles.length > 0
+              && !memesRegles(cascade.regles, cascade.reference);
+    $("avertCascade").hidden = !ecarte;
     // Tant que la carte n'a pas ete chargee, « Enregistrer » ecrirait une regle
     // VIDE par-dessus celle qui existe. Un GET qui echoue ne doit pas offrir un
     // bouton destructeur.
@@ -3510,6 +4117,12 @@
         return { parmi: r.parmi.slice(), seuil: r.seuil, cibles: r.cibles.slice() };
       });
       cascade.eteintes = (courante.categories_eteintes || []).slice();
+      // Rien n'est en cours d'ecriture : l'intention se relit des phrases
+      // servies par le serveur. Une regle qui ne ressemble a rien de connu
+      // EST sur mesure ; une regle identique a celle du classeur revient sur
+      // « Comme le classeur », ce qui est ce qu'elle est vraiment.
+      cascade.surMesure = cascade.regles.length > 0
+                       && !memesRegles(cascade.regles, cascade.reference);
     }
     cascade.charge = true;
     redessinerCascade();
@@ -3519,14 +4132,19 @@
   Array.prototype.forEach.call(
     document.querySelectorAll("#presetsCascade input"), function (radio) {
       radio.addEventListener("change", function () {
+        // L'intention est posee AVANT les phrases : c'est elle qui decide de
+        // ce que la carte affiche, les phrases ne font que la suivre.
+        cascade.surMesure = (radio.value === "mesure");
         if (radio.value === "aucune") cascade.regles = [];
         else if (radio.value === "classeur") {
           cascade.regles = cascade.reference.map(function (r) {
             return { parmi: r.parmi.slice(), seuil: r.seuil, cibles: r.cibles.slice() };
           });
         } else if (!cascade.regles.length) {
-          // « Sur mesure » sur une liste vide : on ouvre une phrase, sinon le
-          // bouton se decoche tout seul et le clic n'a servi a rien.
+          // « Sur mesure » sur une liste vide : on ouvre une phrase, sinon la
+          // carte s'affiche vide et le clic n'a servi a rien. En venant de
+          // « Comme le classeur », les phrases du classeur sont GARDEES : on
+          // part d'elles pour les retoucher, c'est tout l'interet du bouton.
           cascade.regles = [{ parmi: [], seuil: 1, cibles: [] }];
         }
         cascade.modifie = true;

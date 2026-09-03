@@ -59,36 +59,476 @@ qu'on ne met pas à jour le matin d'une compétition :
   privée de `routes/sante.py` : trois appelants en avaient besoin, aucun ne
   pouvait l'atteindre sans importer une route.
 
+### Modifié
 
-- **Les coutures entre les specs 025, 026 et 028/029 sont tenues par des
-  tests** (`tests/test_coherence_console_ecran.py`). Elles ont été écrites en
-  parallèle et se sont rencontrées au merge ; trois défauts y vivaient, dont
-  aucun n'était visible depuis une seule branche. Ces dix-huit tests vérifient
-  ce qu'aucune spec ne possède seule : la cascade réglée dans la console et lue
-  par la fiche du parent, le compte de blocs affiché par deux chemins, et le
-  plan du mur servi à l'identique au juge, au parent et au dossard imprimé.
+- **La documentation dit l'état réel** — trois textes décrivaient encore un
+  système qui n'existe plus.
+  - Le **runbook de compétition** faisait allumer puis éteindre la VM, et
+    annonçait qu'« un timer s'en charge seul en 2 minutes ». La VM tourne en
+    permanence depuis le 03/09 et **plus rien ne s'installe tout seul** : une
+    release publiée attend qu'on clique dans la console. Un jour de compétition,
+    ces deux phrases coûtaient cher.
+  - La **spec 001** portait tout l'argumentaire du régime intermittent. Il a été
+    **retiré**, pas seulement signalé caduc : laissé en place, il se relit comme
+    un raisonnement complet et se ré-applique. Ce qu'il en reste tient dans une
+    section « Historique », avec les deux autres décisions défaites depuis
+    (la copie de base toutes les dix minutes, le minuteur de déploiement).
+  - L'**index des specs** marquait « codée, en attente de relecture » vingt
+    specs qui tournent en production depuis des jours. Chaque ligne porte
+    maintenant la version qui l'a livrée.
+  - Ajouté au passage : **le trou du numéro 030** est expliqué là où on le
+    remarque. La spec `030-versions-visibles` existe, codée et testée, mais
+    seulement sur une branche locale jamais poussée.
 
-  Aucune assertion ne fige un score : la cascade rend le dénominateur `1000/n`
-  solidaire entre catégories, et comparer des classements avant et après un
-  réglage échouerait sur un déplacement qui n'est pas un défaut.
+## [0.19.0] — 2026-09-03
 
-- **Un seul harnais de pilotage du navigateur** (`tests/navigateur.py`), qui
-  réunit les trois corrections payées séparément par trois sessions : le
-  verdict qui remonte par `fetch` plutôt que par le titre, `contentDocument`
-  relu à chaque accès parce que le premier rendu est un `about:blank` déjà
-  « complete », et `make_server` + `shutdown()` au lieu d'un `app.run` qui
-  survit au test en gardant son port.
+### Ajouté
+
+- **La pastille du compteur de zone se remplit de vert** à hauteur de
+  l'avancement, sur le plan du mur de la fiche (spec 036 § 2 ter). « Je veux
+  que le truc avec le nombre de blocs restant se remplisse de vert en fonction
+  de l'avancement. » Une zone à 1 bloc sur 4 porte donc « 1/4 » sur une pastille
+  verte au quart, et une zone terminée une pastille pleine. Le compte est le
+  même que celui du chiffre — les deux dérivent d'une seule fonction, ils ne
+  peuvent pas se contredire — et le vert suit une réussite **en direct**, sans
+  que le mur soit redessiné.
+  - Le vert est un rectangle franc **découpé dans la forme du socle** : il en
+    épouse le bord arrondi à gauche et se coupe net à droite. On lit un
+    **niveau** ; arrondi de son côté, il ferait une petite pastille dans la
+    grande, donc deux objets.
+  - **L'ovale s'élargit à 1,6 fois la lettre** — et uniquement en largeur : sa
+    hauteur et le corps du chiffre ne bougent pas. Un vert qui remplit un rond
+    ne dit pas une proportion. Effet de bord bienvenu : « 12/15 » tient
+    maintenant à sa taille pleine au lieu de rétrécir.
+  - **La lettre de la zone monte**, et la pastille se pose plus haut : les trois
+    espaces du pan — au-dessus de la lettre, entre la lettre et la pastille,
+    sous la pastille — deviennent **égaux**. Ce n'était pas un problème de
+    place mais un chevauchement : le halo de la lettre recouvrait la pastille de
+    près d'une unité de plan. Sous elle, il ne restait que 0,009 × taille — un
+    cinquième de pixel sur un téléphone.
+  - **Le chiffre d'une zone terminée ne vire plus au vert** : sur une pastille
+    pleine, vert sur vert ne se lit pas. C'est le remplissage qui dit
+    « terminée ».
+  - **Le cadre de la zone ne change pas** : il garde son tout-ou-rien et dit
+    « terminée », rien d'autre. Une première version faisait l'inverse — le
+    cadre épaissi qui se remplissait — et elle a été retirée en entier après
+    l'avoir regardée à l'écran.
+
+### Modifié
+
+- **L'application juge s'ouvre en clair** (spec 039). Son fond était sombre **en
+  dur** : rien ne regardait `prefers-color-scheme`, et un bénévole qui ouvrait
+  l'application en plein jour, dans une salle à baie vitrée, lisait un écran
+  noir sans l'avoir demandé — luminosité poussée à fond, donc batterie. Le clair
+  devient le **défaut** ; le sombre reste, **inchangé au point près**, sous la
+  requête media. **Aucun réglage dans l'application** : le système décide, comme
+  sur la console depuis la spec 021.
+  ⚠️ Le circuit **« Noir »** prend désormais l'encre du thème — presque noir sur
+  le papier, craie sur l'ardoise. La craie n'était pas un choix de couleur,
+  c'était une rustine du fond sombre, et elle ne se voit pas davantage sur du
+  papier sable. Les cinq autres circuits ne bougent pas.
+  ⚠️ La coquille hors-ligne passe en **v6** : elle porte le gabarit, donc tout le
+  CSS. Un téléphone déjà installé prend la nouvelle version **au lancement
+  suivant** — fermer et rouvrir l'application, jamais en pleine compétition.
+  ⚠️ L'**app juge Android reste sombre** : les deux clients ne se ressemblent
+  plus tant qu'une spec ne l'a pas fait suivre.
+
+## [0.18.1] — 2026-09-03
+### Corrigé
+
+- **Le bouton « Installer » de la console n'a jamais pu fonctionner**, depuis
+  qu'il existe (spec 031, v0.17.0). Il répondait « Le service de déploiement n'a
+  pas pu être démarré » **à tous les coups**. Découvert le 03/09 au premier vrai
+  clic, en installant la 0.18.0.
+
+  L'application lançait
+  `sudo -n systemctl start --no-block climbcontest-deploy.service`. La règle
+  sudoers l'autorisait mot pour mot, l'appel était correct — et il ne pouvait
+  pas aboutir : `climbcontest.service` tourne avec **`NoNewPrivileges=true`**,
+  qui interdit à ses processus de gagner des privilèges par un binaire
+  **setuid**. `sudo` en est un. Le drapeau ne se contourne pas depuis
+  l'intérieur : c'est exactement son rôle.
+
+  ```
+  $ systemd-run --uid=climbcontest -p NoNewPrivileges=yes /usr/bin/sudo -n -l
+  sudo: The "no new privileges" flag is set, which prevents sudo
+        from running as root.
+  ```
+
+  La vérification du 03/09 avait pourtant « rejoué le chemin exact du bouton ».
+  Elle rejouait la même **commande**, depuis un shell de connexion — pas depuis
+  le **contexte** durci du service. C'est tout l'écart, et il valait le bouton.
+
+  À la place, plus aucune élévation de privilège ne traverse l'application :
+  elle **écrit un fichier** (`shared/deploiement-demande`, le seul chemin que
+  `ReadWritePaths` lui laisse), et une nouvelle unité
+  **`climbcontest-deploy.path`** — qui, elle, appartient à root — démarre
+  l'agent en le voyant changer. Le durcissement est conservé **en entier** ;
+  c'est la quatrième règle sudoers, devenue sans objet, qui est retirée.
+
+  `PathChanged` et non `PathExists`, pour deux raisons distinctes : un second
+  clic réécrit le même fichier — `PathExists` ne se déclenche qu'à l'apparition,
+  et le bouton n'aurait marché qu'une fois ; et une demande qui traîne
+  relancerait l'agent **au démarrage de la machine**, c'est-à-dire une
+  installation automatique le matin d'une compétition, exactement ce que la
+  spec 031 a supprimé.
+
+  ⚠️ **Ce que les tests d'alors prouvaient** : ils remplaçaient
+  `subprocess.run` par un leurre. Ils vérifiaient qu'on **appelait** `sudo` —
+  la seule chose qui, en production, ne pouvait pas marcher. Un test qui simule
+  la partie qui casse ne surveille rien. Ils exercent désormais le vrai
+  mécanisme sur un vrai dossier, et
+  `tests/test_deploiement_sans_privileges.py` tient le contrat entre les trois
+  fichiers que personne ne lit ensemble : aucun module de l'application ne
+  lance de processus tant que son unité porte `NoNewPrivileges=true`, le chemin
+  écrit est celui qui est surveillé, et il est sous un `ReadWritePaths`.
+  Vérifié rouge sur le code d'avant.
+
+  🔧 **Geste à faire une fois sur la VM 110** : les unités systemd ne voyagent
+  pas dans une release. Poser et activer le guetteur, en root —
+  `install -m 0644 climbcontest-deploy.path /etc/systemd/system/`,
+  `systemctl daemon-reload`, `systemctl enable --now climbcontest-deploy.path`.
+  Tant que ce n'est pas fait, le bouton dépose sa demande et rien ne l'écoute.
+
+## [0.18.0] — 2026-09-03
+
+### Modifié
+
+- **La recherche de la page de résultats se déploie** au lieu d'apparaître. Un
+  appui sur la loupe — qui **termine** désormais la rangée, la lecture passant
+  devant — ouvre le champ **par-dessus** les commandes, sur toute la largeur.
+  Un second appui, la croix ou **Échap** le referme et le vide. Sur grand écran,
+  le bandeau de droite s'efface le temps de la recherche.
+  ⚠️ Le réglage mémorisé « masquer la recherche » **disparaît** : le champ est
+  replié tant qu'on ne le demande pas, ce qui est « masquée par défaut » sans
+  rien avoir à retenir. Ouvrir la recherche est un geste, pas un réglage
+  (spec 037).
+
+### Ajouté
+
+- **L'avancement par zone, sur le plan du mur** de la fiche du grimpeur
+  (spec 036). Une zone où il a des blocs de son circuit porte « 1/4 » : blocs
+  validés sur blocs de son circuit qui s'y trouvent. Le mur ne disait que « il
+  t'en reste » — cinq zones allumées à l'identique se comparaient en cinq
+  gestes, en touchant chacune pour lire le compteur du panneau. Une zone sans
+  bloc de son circuit ne porte **rien** : l'absence est l'information, « 0/4 »
+  se dit, « 0/0 » non. Un bloc **crédité** par la cascade compte comme fait,
+  comme partout ailleurs sur cet écran. Le chiffre est posé sur une **pastille**
+  — un socle arrondi qui le détache des six aplats de profil du plan, choisi par
+  Adrien parmi quatre poses maquettées. La pastille se dimensionne sur la
+  **lettre** de la zone et jamais sur son texte : c'est ce qui la borne, un
+  libellé long rétrécit dedans au lieu de l'élargir.
+- **Le QR de poste, posé sur la table du juge** (spec 034). Le juge arrive à sa
+  table, ouvre l'application, scanne le carton posé devant lui : son téléphone
+  s'appelle « Zone C » dans la console. Il n'a rien tapé. Le nom du poste
+  existait depuis la spec 011 et se **tapait à la main** — un réglage optionnel,
+  invisible depuis l'écran principal, dans une application qu'on ouvre pour
+  scanner : personne ne le faisait, et quand c'était fait, deux téléphones du
+  même mur portaient deux noms différents.
+  - Le QR porte **`CCPOSTE:` + la lettre de la zone**, et c'est
+    **l'application qui compose le libellé** — « Zone A ». Un QR minimal se lit
+    mieux, et le jour où le libellé change, on ne réimprime pas dix-sept
+    affiches. Le préfixe, lui, n'est pas décoratif : le même viseur voit aussi les dossards (`42`), les blocs
+    (`ZJ6`) et le lien de l'organisateur. Sans lui, un bloc scanné par erreur
+    depuis cet écran renommerait le poste « ZJ6 » **sans que personne le
+    voie**, et la console afficherait « ZJ6 » en face de tous les envois de la
+    journée. Chaque refus porte **son** message, jamais « QR invalide ».
+  - Du **texte brut**, pas une URL : une URL scannée par l'appareil photo natif
+    ouvrirait un navigateur, et le juge se retrouverait hors de son
+    application, dans une instance sans file d'attente.
+  - **Une nouvelle page `/admin/postes`** dans la console (vue Téléphones) :
+    une affiche par zone, **huit par A4** en deux colonnes, QR de 48 mm généré
+    localement — six millimètres au-dessus du plancher mesuré des étiquettes de
+    blocs. Les 17 zones tiennent sur **3 feuilles**. La densité est **une
+    constante nommée** dont descend toute la géométrie : repasser à six est une
+    valeur à changer, pas une refonte du CSS. Les zones se déduisent du **plan
+    courant**, jamais d'une liste tenue à la main : un mur ajouté dans
+    « Dessiner le plan du mur » sort son QR à l'impression suivante. C'est la
+    seule page d'impression qui marche **sans compétition active** — on imprime
+    ces cartons la veille au soir, avant l'import du classeur.
+  - **Le carton ne porte pas de mode d'emploi**, et c'est l'application qui le
+    donne : tant qu'un téléphone n'a pas de poste, son **écran d'accueil**
+    affiche un petit texte et le bouton qui scanne, puis les efface dès que le
+    poste est nommé. Un mode d'emploi imprimé se lit une fois, quand on n'en a
+    pas besoin. Le geste reste ensuite dans les Réglages.
+  - **Deux téléphones peuvent porter le même nom**, et c'est désormais la
+    norme : deux juges sur la même zone scannent le même carton. La console les
+    distingue par le **code court de l'appareil** — « Zone A (3f9a1c2b) » —
+    partout où un poste est nommé. Rien de nouveau n'est stocké : c'est
+    l'identifiant que chaque téléphone porte depuis la spec 011, rendu lisible.
+  - Le préfixe est écrit **deux fois**, en Python et en JavaScript. Un test lit
+    `poste.js` et le compare à `fiches.PREFIXE_QR_POSTE` : le jour où les deux
+    divergent, tous les QR imprimés cesseraient d'être lus sans qu'une ligne ait
+    l'air fausse. Un décodeur indépendant (OpenCV) relit par ailleurs ce qu'on
+    produit.
+
+- **Un simulateur de juges** (`tools/simulateur_juges.py`). Un panneau local
+  ouvre une compétition entière depuis le Mac : nombre de juges, cadence,
+  répartition dans le temps, aléas du terrain, démarrage et arrêt en un clic.
+  Ce qui part sur le réseau est ce qu'envoie un téléphone — mêmes routes, même
+  politique d'envoi, recopiée de `static/juge/politique.js` — et le protocole
+  bascule entre les lots `v3` et les trois appels `v2` de l'application gelée.
+  Bibliothèque standard uniquement : aucune installation. L'adresse, la clé et
+  les derniers réglages sont retenus d'une session à l'autre, **hors du dépôt**
+  (`~/.config/climbcontest/`, `0600`), et la barre du haut affiche la version du
+  serveur en face. Voir
+  [docs/tester-avec-l-emulateur.md](docs/tester-avec-l-emulateur.md).
+- **Les réglages d'affichage arrivent en trois secondes** sur la page de
+  résultats, sans rechargement : éteindre ou rallumer un classement dans la
+  console se voit tout de suite sur l'écran d'à côté. Une route publique
+  **légère** (`GET /api/public/reglages`, ~200 octets, aucun calcul de
+  classement) est relue toutes les 3 s, là où la charge complète reste à 15 s —
+  l'accélérer aurait multiplié par cinq le trafic du wifi de la salle
+  (spec 033, R3).
+- **La liste des dernières réussites** dans la console, vue « Réussites » :
+  grimpeur, bloc, heure, téléphone et référence, filtrable **par téléphone**,
+  rafraîchie toute seule tant qu'on la regarde. La route existait depuis la
+  spec 011 sans que rien ne l'appelle pour ce cas (spec 033, R12).
+- **La légende des profils de mur** revient sur le plan de la fiche du
+  grimpeur : dalle, vertical, incliné, dévers, surplomb, toit — du moins au
+  plus déversant, et seulement ceux que le plan utilise (spec 033, R11).
+
+### Modifié
+
+- **Plus aucun test de CI n'attend une horloge.** Le job `tests` virait au rouge
+  par intermittence, toujours pour la même raison : deux tests navigateur
+  attendaient **pour de vrai** le battement de 15 s de la page de résultats, et
+  un runner chargé en mettait seize. Cinq tests coûtaient 66 s à eux seuls.
+
+  | test | avant | après |
+  | --- | --- | --- |
+  | `TestUneZoneQueLePlanNeConnaitPlus` | 29,3 s\* | 1,0 s |
+  | `TestLeMurSeMetAJouerToutSeul` | 16,5 s | 2,5 s |
+  | `test_reprend_un_autre_port_si_le_sien_est_pris` | 15,9 s | 7,5 s |
+  | `test_le_parcours_complet` (fiche) | 15,3 s | 0,9 s |
+  | `TestVerrouOrphelinAuRedemarrage` | 10,7 s | 1,6 s |
+  | rotation des sauvegardes (2 tests) | 7,8 s | 0,2 s |
+
+  \* celui-là ne coûtait **rien** sur le Mac : il attendait le même battement,
+  mais le premier chargement gagnait toujours la course en local et la perdait
+  sur un runner chargé. C'est lui qui a expiré à 120 s le 02/09. Le budget par
+  test l'a nommé au premier passage de CI ; sans lui il serait encore invisible.
+
+  Aucun test n'a été supprimé ni affaibli : chacun a été vérifié en cassant ce
+  qu'il surveille. Trois réglages apparaissent, **tous à défaut inchangé** :
+
+  - **`?periode=`** sur la page de résultats — le battement du rafraîchissement,
+    à côté du `?rotation=` qui existait déjà et pour la même raison. Ce qui
+    n'est pas réglable ne se teste qu'en le regardant passer.
+  - **`CLIMBCONTEST_ATTENTE_VERROU_S`** — combien de temps un worker attend
+    derrière le verrou de schéma (10 s). Un verrou **orphelin** encore frais
+    n'est jamais volé : chaque worker attend ce délai en entier avant de
+    forcer, et c'est aussi la durée d'un redémarrage après plantage.
+  - la sonde `/health` du banc d'essai E2E passe **court** (2 s au lieu de 15).
+    Un port squatté par une socket qui écoute sans jamais répondre laisse la
+    connexion s'établir, puis se tait : la sonde attendait ses 15 s pleines.
+
+  Et trois défauts du harnais navigateur lui-même, tous invisibles sur le Mac
+  et tous payés sur le runner :
+
+  - il attendait « que le document contienne **plus de vingt éléments** », un
+    pari sur la vitesse de l'analyseur. `admin.html` fait 1600 lignes,
+    `#connexion` est à la 850ᵉ et `#console` à la 889ᵉ : dès que le runner
+    ralentissait, la sonde qui attendait le premier lisait `null` sur le second
+    et rendait un échec qui n'accusait personne. Il attend désormais un document
+    **fini**, sur une adresse qui n'est plus `about:blank`.
+  - son serveur servait **une requête à la fois** (`wsgiref`). Un navigateur en
+    ouvre six en parallèle, et une page qui relit ses données pendant ce
+    temps-là passe devant les fichiers qu'elle attend encore. Il est fileté.
+  - le **premier** lancement de chromium coûte **7,2 s** sur un runner, les
+    suivants 0,33 s (mesuré le 03/09 ; Google Chrome fait 5,3 puis 0,25). Ce
+    n'est pas un défaut, c'est un disque froid — mais la facture allait au
+    premier test navigateur venu, celui de la couture des zones par ordre
+    alphabétique, qui affichait 15 s en CI contre 0,7 s ici et passait pour un
+    test qui attend. Le navigateur se **chauffe** maintenant en fond dès la fin
+    de la collecte, pendant les quinze cents tests qui n'en ont pas besoin.
+
+  Enfin, un test navigateur qui met plus de 5 s à rendre son verdict lève un
+  **avertissement** qui nomme ses attentes de plus de 500 ms — ou dit qu'il n'y
+  en a aucune, et que le temps est passé avant le pilote. C'est ce qui manquait
+  pour diagnostiquer : un test qui passe ne montre rien de ce qu'il a fait.
+- **La page de résultats démarre sans le champ de recherche**, et le bouton
+  `⌕` de l'en-tête l'ouvre. Le choix est retenu pour l'appareil. Renversement
+  du défaut de la spec 020 (spec 033, R6).
+- **Les étiquettes de blocs** sortent zone par zone **dans l'ordre
+  alphabétique** — A d'abord, Z en dernier —, les blocs sans zone à la fin. Et
+  le **numéro a désormais une taille fixe** (19 mm) : il était dimensionné
+  étiquette par étiquette, ce qui donnait « J6 » à 26 mm et « J24 » à 19,5 sur
+  la même planche (spec 033, R7 et R8).
+- **L'application juge** : l'engrenage des réglages est un dessin au trait, au
+  même trait que le voyant de connexion, et **le dernier élément** de la barre
+  du haut ; c'était un caractère emoji, posé avant le voyant. La carte du
+  grimpeur passe en deux colonnes et affiche **sa catégorie à droite**, à la
+  taille de son nom — le contrôle du juge avant de valider. Le catalogue rangé
+  sur le téléphone passe en **forme 4** (il garde la catégorie complète, le
+  circuit s'en déduit) : les téléphones le retéléchargent tout seuls
+  (spec 033, R9 et R10).
+- **La cascade de couleurs** : « Aucune cascade » cache aussi l'interrupteur
+  par catégorie, et le bouton coché se voit — pastille dessinée à l'accent,
+  carte teintée — là où le point natif était presque invisible en thème sombre
+  (spec 033, R1 et R2).
 
 ### Corrigé
 
-- **La ligne « refusées » se cache enfin dans les réglages de l'app juge.**
-  `hidden` ne cache que par la feuille de style de l'agent utilisateur, et
-  `.ligne { display: flex }` est une règle d'**auteur** : elle l'emportait. La
-  ligne « 0 refusées » et son bouton « Renvoyer » restaient donc affichés en
-  permanence, alors que le code les cachait bel et bien. Le fichier traitait
-  déjà le cas pour `#message`, `#viseur`, `#bandeFile` et `.pastille` — seule
-  `.ligne` manquait à l'appel. Défaut antérieur à la spec 030, trouvé en
-  vérifiant les nouveaux écrans au navigateur.
+- **`/health` annonçait un retard de classeur qui n'existait pas.** Le compteur
+  `reussites_en_attente` comptait toutes les réussites non synchronisées,
+  **toutes compétitions confondues**, alors que le miroir ne sert que la
+  compétition active. Le 03/09 il affichait `714` en attente pendant que le
+  miroir n'avait plus rien à écrire : 714 réussites d'ailleurs, inenvoyables par
+  construction, qui seraient restées affichées à jamais. Le coût n'est pas
+  cosmétique — un vrai retard de cinquante aurait affiché `764`, indistinguable
+  de `714` au coup d'œil, et c'est le chiffre qu'on regarde le jour J pour
+  savoir si le classeur suit. Le compteur et le miroir partagent désormais **le
+  même filtre**, et ce qui n'est pas envoyable se compte à part dans
+  `reussites_inenvoyables` — sorti du chiffre, pas caché.
+- **Deux sauvegardes dans la même seconde n'en faisaient qu'une.** Le nom de la
+  copie vient d'un horodatage **à la seconde** ; deux appels rapprochés
+  portaient donc le même nom, et le second écrasait le premier sans un mot. Le
+  minuteur tourne toutes les dix minutes, alors ça ne se voyait pas — mais une
+  sauvegarde à la main juste avant un import et une juste après, c'est
+  exactement le geste qu'on veut pouvoir faire. Un ordinal tranche l'égalité,
+  et seulement quand il y en a une : le nom habituel ne change pas.
+
+  Le défaut était **caché par ses propres tests**. Ceux de la rotation dormaient
+  1,05 s entre deux lancements, « parce que l'horodatage est à la seconde » :
+  ils prouvaient que la rotation marche quand les noms diffèrent, et rien du
+  tout sur le cas où ils ne différaient pas.
+- **Le bouton lecture/pause de la page de résultats repartait à l'arrêt à
+  chaque rechargement.** L'état est retenu pour l'écran, comme le choix de la
+  recherche. Et les deux glyphes venaient de deux familles — l'un géométrique,
+  l'autre emoji : ce sont maintenant deux icônes dessinées dans la même boîte
+  (spec 033, R4 et R5).
+- Au passage, le bouton affichait **« pause » alors que la rotation était à
+  l'arrêt** : `svg.hidden = false` ne fait rien, `hidden` appartient à
+  `HTMLElement`. C'est le défaut corrigé en 0.15.0, revenu par la porte du SVG ;
+  le choix d'icône passe désormais par une classe CSS.
+
+- **Le simulateur de juges jetait ce qui restait en file**, et **cumulait ses
+  compteurs** d'un lancement à l'autre. Les deux défauts ont été trouvés en
+  *analysant* un test grandeur nature (25 juges, ~1 350 scans) : l'instrument
+  faussait la mesure qu'il existe pour produire. « Arrêter » coupe désormais les
+  scans **puis laisse les expéditeurs finir** — onze réussites étaient perdues à
+  l'arrêt du run du 03/09, là où un vrai téléphone garde sa file dans IndexedDB
+  et la repart à la reprise ; un simulateur qui perd des réussites que le vrai
+  client ne perd pas fait douter du vrai client. Le vidage se fait **en tâche de
+  fond** (bloquer gèlerait le bouton vingt secondes, et un bouton qui ne répond
+  pas est un bouton sur lequel on appuie trois fois), un second appui coupe
+  court quand le serveur ne répond plus, et ce que le serveur n'a pas tranché
+  **reste en file** et est annoncé comme tel : rien n'est inventé enregistré.
+  Les compteurs, eux, repartent de zéro à chaque lancement — un écart de sept
+  entre les tuiles et le tableau des juges avait coûté une enquête sur une perte
+  de données qui n'existait pas. `paires` fait exception, et volontairement : le
+  serveur, lui, se souvient toujours des passages déjà validés.
+- **« terminee » s'écrivait sans accent** sous le plan du mur de la fiche du
+  grimpeur, quand toutes les cases d'une zone sont cochées. Vu à l'écran, pas à
+  la relecture : le mot est court et l'œil le complète. La règle du dépôt
+  distingue deux choses et la coquille est passée entre les deux — les littéraux
+  **Python** restent en ASCII (messages d'erreur, journaux, JSON), mais tout ce
+  qui **s'affiche** est du français accentué, gabarits et JavaScript compris.
+
+## [0.17.0] — 2026-09-03
+
+MINEUR : le serveur se met à jour depuis la console. Le reste est du correctif,
+dont **trois occurrences d'un même défaut de cascade** — un `hidden` battu par
+une règle de mise en page — trouvées l'une après l'autre.
+
+### Modifié
+
+- **Le serveur se met à jour depuis la console, et plus tout seul** (spec 031).
+  Le minuteur `climbcontest-deploy.timer` interrogeait GitHub **toutes les deux
+  minutes** : 30 requêtes par heure sur un quota **anonyme de 60 par heure et
+  par adresse IP publique**, partagée par toute la maison. Cinq déploiements
+  avaient échoué le 30/08 pour dépassement, sans que rien ne le signale ailleurs
+  que dans le journal. Et depuis que la VM 110 tourne en permanence, publier un
+  tag mettait en production en moins de deux minutes, sans que personne ne l'ait
+  demandé.
+
+  À la place, une carte **Version du serveur** dans les Réglages, réservée aux
+  administrateurs : elle vérifie **une fois par jour**, affiche le changelog de
+  la release — c'est le corps de la release GitHub, donc déjà la section de ce
+  fichier — et installe en un clic. Une **pastille** paraît dans le bandeau
+  quand une version est disponible, et mène aux Réglages.
+
+  **Une compétition en cours bloque l'installation**, sans contournement dans
+  l'interface : redémarrer coupe vingt-cinq téléphones au milieu des scans. Le
+  geste de secours reste `sudo systemctl start climbcontest-deploy.service`.
+
+  Coût du nouveau rythme : 1 requête sur 60 par heure, contre 30.
+
+  ⚠️ **À poser sur la VM avant que cette version n'y arrive** : la quatrième
+  ligne de `/etc/sudoers.d/climbcontest`, qui autorise l'application à démarrer
+  `climbcontest-deploy.service`. Sans elle, le bouton répond « le service de
+  déploiement n'a pas pu être démarré ».
+
+### Corrigé
+
+- **Trois endroits où « masqué » ne masquait pas** (#86, #89). Une règle
+  d'auteur qui pose un `display` bat le `[hidden] { display: none }` de la
+  feuille du navigateur, quelle que soit sa spécificité. Trois fois le même
+  défaut, trouvés l'un après l'autre :
+
+  - **la console s'affichait sous le formulaire de connexion.** Déconnecté, sur
+    tout écran de 1080 px ou plus, le tiroir, les formulaires et le bouton
+    d'effacement des données étaient là, sous le formulaire, et cliquables.
+    Aucune donnée ne fuyait — les 44 routes `/admin` répondaient déjà 401 — mais
+    la page invitait à cinquante clics qui ne pouvaient que rater ;
+  - **l'écran de réglages du juge offrait un bouton « Renvoyer » inerte**, à
+    côté de « 0 refusées », toute la journée, sur tous les téléphones. Le
+    toucher répondait « aucune réussite refusée » ;
+  - **la barre de catégories du mur dessinait une bande** en travers de
+    l'écran projeté quand il n'y avait qu'une catégorie : 21 px et sa bordure,
+    mesurés dans un navigateur.
+
+  Les rustines locales qui traitaient le problème un élément à la fois — sept
+  au total — sont remplacées par la règle globale `[hidden] { display: none
+  !important }`, désormais dans les quatre pages. La console porte en plus
+  `inert` : même si un style la rendait visible, rien n'y serait cliquable.
+  Aucun test ne pouvait voir ça — le gabarit disait la vérité, `hidden` était
+  bien posé. Seul le `display` calculé le raconte, donc les tests de
+  non-régression pilotent un vrai navigateur.
+
+- **Les neuf points de la revue du 02/09** (#87). Les plus coûteux étaient à
+  l'impression : **une planche de 20 feuilles sortait en 40 pages**, et 7 en 14,
+  parce que la feuille occupait la surface utile exacte à 6 mm de marge — zéro
+  marge d'erreur, et une vraie imprimante coupait chaque feuille en deux. Le
+  défaut apparaît dès 8 mm de zone imprimable. Les aplats de couleur, eux, ne
+  s'imprimaient pas faute de `print-color-adjust: exact` : les pastilles
+  sortaient en ronds vides. Et **les 120 fiches débordaient toutes** sur le plan
+  du mur, de 5,75 mm — `1fr` vaut `minmax(auto, 1fr)`, neuf colonnes de « M52 »
+  faisaient 70 mm dans une colonne de 60.
+
+  Le reste : « Aucune cascade » masque la partie règle, « Sur mesure » redevient
+  sélectionnable depuis « Comme le classeur » (le bouton coché était *déduit*
+  des phrases et se décochait sous le doigt), les colonnes Difficulté et Prises
+  ne gardent que la pastille, la barre de catégories respecte les classements
+  masqués, la rotation du mur ne renonce plus quand il n'y a rien à montrer, et
+  « ← La console » de l'éditeur de plan ne mène plus à `/admin`, qui n'existe
+  pas. Un test en face de chaque point, tous rouges sur le code d'avant.
+
+- **Un mur redessiné entre deux compétitions ne peut plus rester invisible sur
+  le téléphone d'un juge** (spec 029). Le plan voyage dans le catalogue
+  précisément pour être **versionné** — servi à part, un client garderait un
+  mur périmé sans moyen de le savoir. Mais `catalogue_version` appartient à une
+  compétition, alors que le plan est **global** : redessiner sans édition
+  active ne prévenait personne, et à la réouverture le téléphone recevait un
+  **304** en gardant l'ancien mur.
+
+  Le geste concerné n'a rien d'exotique : c'est entre deux compétitions qu'on
+  retouche le mur. Une seconde bouche existait, moins visible — une édition non
+  active portait le nouveau plan sans que son numéro ait bougé, et le trou se
+  rouvrait dès qu'on basculait dessus.
+
+  ⚠️ **Ce ne pouvait pas être un compteur global unique.** Le 304 se décide par
+  **égalité stricte** (correctif du 30/08) : un numéro identifie un couple
+  (édition, état de son catalogue). Un numéro partagé aurait fait répondre
+  « rien de neuf » à un téléphone qui vient de changer d'édition et qui a
+  besoin d'une autre liste de participants. Chaque édition reçoit donc un
+  numéro **neuf et distinct**, tiré de l'horloge commune.
+
+  **Le contrat de `/api/v2/catalog` ne change pas** : l'étiquette reste un
+  entier, `?depuis=N` et `If-None-Match` se comportent comme avant. Les
+  téléphones déjà déployés n'ont rien à apprendre — l'application juge n'est
+  pas mise à jour le matin d'une compétition.
 
 - **La fiche du grimpeur ne s'ouvre plus en rejeu d'archive** (spec 026). La
   spec la mettait hors périmètre — « la route publique ne parle que de la
@@ -108,18 +548,26 @@ qu'on ne met pas à jour le matin d'une compétition :
   en relisant l'une d'elles : le rejeu vient de la 018, la fiche de la 026, et
   la réutilisation d'identifiants de la 018 encore. Aucune ne le voit seule.
 
-### Sécurité
+### Ajouté
 
-- **`/api/v2/catalog` ne peut plus être mise en cache par un intermédiaire.**
-  La route enregistre désormais une annonce à chaque appel : c'est un `GET`
-  avec effet de bord, et ça n'est tenable que parce que la requête atteint
-  réellement l'application. La réponse porte donc **`Cache-Control: no-cache,
-  private`** sur les deux branches, un test le verrouille, la version des
-  téléphones est **aussi** enregistrée depuis la route des lots — un `POST`,
-  qu'aucun cache n'absorbe — et la console **signale en toutes lettres** un
-  téléphone qui envoie des réussites sans plus s'annoncer, la signature exacte
-  d'un cache posé devant cette route. Cette dernière mesure est la seule qui
-  attrape une faute commise **hors du dépôt**, dans la configuration du proxy.
+- **Les coutures entre les specs 025, 026 et 028/029 sont tenues par des
+  tests** (`tests/test_coherence_console_ecran.py`). Elles ont été écrites en
+  parallèle et se sont rencontrées au merge ; trois défauts y vivaient, dont
+  aucun n'était visible depuis une seule branche. Ces dix-huit tests vérifient
+  ce qu'aucune spec ne possède seule : la cascade réglée dans la console et lue
+  par la fiche du parent, le compte de blocs affiché par deux chemins, et le
+  plan du mur servi à l'identique au juge, au parent et au dossard imprimé.
+
+  Aucune assertion ne fige un score : la cascade rend le dénominateur `1000/n`
+  solidaire entre catégories, et comparer des classements avant et après un
+  réglage échouerait sur un déplacement qui n'est pas un défaut.
+
+- **Un seul harnais de pilotage du navigateur** (`tests/navigateur.py`), qui
+  réunit les trois corrections payées séparément par trois sessions : le
+  verdict qui remonte par `fetch` plutôt que par le titre, `contentDocument`
+  relu à chaque accès parce que le premier rendu est un `about:blank` déjà
+  « complete », et `make_server` + `shutdown()` au lieu d'un `app.run` qui
+  survit au test en gardant son port.
 
 ## [0.16.0] — 2026-09-02
 
@@ -605,7 +1053,6 @@ Adrien le 01/09 au soir.
   jamais. Le contrat d'API, lui, **ne bouge pas** — l'application Android
   publiée (`V3.1.4`) parle aux mêmes routes qu'avant.
 
-
 ### Modifié
 
 - **La catégorie apparaît sur les scratchs, et seulement là.** Un scratch —
@@ -631,7 +1078,6 @@ Adrien le 01/09 au soir.
   n'est pas recopié, il se **déduit** des deux constantes dont le calcul de
   densité se sert déjà (389 px de mobilier, plus 140 px pour lire un nom).
 
-
 ### Corrigé
 
 - **Les options de l'édition se lisaient en deux endroits.**
@@ -651,7 +1097,6 @@ Adrien le 01/09 au soir.
   référence d'une réussite posée sur un bloc hors circuit répondait « ce scan est
   bien arrivé », ce qui est vrai et trompeur : il est arrivé, et il ne compte pas.
   Elle le dit maintenant, et renvoie vers la vue « Circuits ».
-
 
 - **Le quatrième circuit n'était jamais importé.** `importer.py` figeait les
   colonnes de circuit de l'onglet `Plan` à **J, L, N** — trois — parce que la
@@ -688,7 +1133,6 @@ Adrien le 01/09 au soir.
   fenêtre, plus dans la carte. Et toute la console fait maintenant **défiler sa
   zone de message dans la vue** : un refus ne peut plus passer inaperçu, quelle
   que soit la vue et la longueur de la page.
-
 
 - **Le classement par club n'affichait qu'une ligne.** `participant_id` vaut
   `0` pour toutes ses lignes — un club n'est pas un participant — et c'est lui
@@ -1765,6 +2209,10 @@ livrer — spec 001, itération 3.
 - Les données et les secrets vivent dans `shared/`, hors des releases : un
   déploiement ou un retour arrière ne peut pas les toucher.
 
+[0.19.0]: https://github.com/computingify/climbcontest-core/releases/tag/v0.19.0
+[0.18.1]: https://github.com/computingify/climbcontest-core/releases/tag/v0.18.1
+[0.18.0]: https://github.com/computingify/climbcontest-core/releases/tag/v0.18.0
+[0.17.0]: https://github.com/computingify/climbcontest-core/releases/tag/v0.17.0
 [0.16.0]: https://github.com/computingify/climbcontest-core/releases/tag/v0.16.0
 [0.15.0]: https://github.com/computingify/climbcontest-core/releases/tag/v0.15.0
 [0.14.0]: https://github.com/computingify/climbcontest-core/releases/tag/v0.14.0

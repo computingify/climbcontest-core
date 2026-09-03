@@ -56,17 +56,20 @@ def salle(competition):
 
 class TestLOrdreEtLeRegroupement:
 
-    def test_l_ordre_est_celui_du_plan(self, salle):
+    def test_l_ordre_est_alphabetique_par_zone(self, salle):
+        """⚠️ C'était l'ordre du `Plan` jusqu'à la spec 033 (R8). Le plan
+        d'Annonay commence par X et Y et finit par E : pour coller au mur, on
+        prend les feuilles dans l'ordre, et on veut aller de A à Z."""
         planche = fiches.etiquettes(salle)
         assert [e["tag"] for e in planche] == [
-            "ZJ6", "ZJ9", "DV21", "DB2", "CM4", "CN1"]
+            "CM4", "CN1", "DV21", "DB2", "ZJ6", "ZJ9"]
 
     def test_les_zones_restent_groupees_dans_l_ordre(self, salle):
         """Le saut de page par zone a disparu, mais le regroupement PHYSIQUE
-        demeure : les blocs sortent dans l'ordre du `Plan`, donc zone par zone.
-        C'est ce qui permet de coller une zone d'affilée sans rien trier."""
+        demeure : les blocs sortent zone par zone. C'est ce qui permet de coller
+        une zone d'affilée sans rien trier."""
         assert [e["zone"] for e in fiches.etiquettes(salle)] == [
-            "Z", "Z", "D", "D", "C", "C"]
+            "C", "C", "D", "D", "Z", "Z"]
 
 
 class TestLesFiltres:
@@ -249,11 +252,40 @@ class TestLaRoute:
         assert page.count('class="feuille"') == 1
 
     def test_huit_par_page_et_la_geometrie_en_variables(self, page):
-        """198/2 en largeur, 285/4 en hauteur. Trois variables, ce qui a permis
-        de rendre trois densites et de choisir en les regardant."""
-        for valeur in ("--etiquette-largeur: 99mm", "--etiquette-hauteur: 71.25mm",
-                       "--qr: 40mm"):
+        """Des variables, ce qui a permis de rendre trois densites et de
+        choisir en les regardant."""
+        for valeur in ("--etiquette-largeur: 94mm", "--etiquette-hauteur: 68mm",
+                       "--feuille-hauteur: 272mm", "--qr: 42mm"):
             assert valeur in page, valeur
+
+    def test_la_feuille_est_plus_PETITE_que_la_page(self, page):
+        """⚠️ LE defaut du PDF du 02/09, et il n'avait aucun test.
+
+        La feuille faisait 198 x 285 mm sur une page utile de 198 x 285 : la
+        surface EXACTE. Sur une vraie imprimante, dont la zone imprimable est
+        plus petite, le moteur coupait chaque feuille en deux et posait la
+        derniere ligne de la rangee du bas -- « U11 · U13 · U15 » -- seule sur
+        la page suivante. Sept feuilles sortaient en quatorze pages.
+
+        Ce test tient l'INVARIANT, pas les nombres.
+        """
+        import re
+
+        def mm(nom):
+            trouve = re.search(nom + r":\s*([0-9.]+)mm", page)
+            assert trouve, nom
+            return float(trouve.group(1))
+
+        marge = mm("@page \{ size: A4 portrait; margin")
+        utile_h, utile_l = 297 - 2 * marge, 210 - 2 * marge
+        assert mm("--feuille-hauteur") <= utile_h - 2, "pas de marge en hauteur"
+        assert mm("--feuille-largeur") <= utile_l - 1, "pas de marge en largeur"
+        assert (mm("--etiquette-hauteur") * 4) <= mm("--feuille-hauteur")
+        assert (mm("--etiquette-largeur") * 2) <= mm("--feuille-largeur")
+
+    def test_la_feuille_elle_meme_est_insecable(self, page):
+        bloc = page.split("  .feuille {")[1].split("}")[0]
+        assert "break-inside: avoid" in bloc
 
     def test_la_disposition_est_horizontale(self, page):
         """QR a gauche, texte a droite. Une etiquette se colle au-dessus du
@@ -271,3 +303,154 @@ class TestLaRoute:
             connecte_orga.get("/admin/etiquettes?zone=D")
         assert "2 etiquette(s)" in caplog.text
         assert "orga" in caplog.text
+
+
+class TestLesCouleursSImpriment:
+    """⚠️ « Les impressions PDF ne sont que en noir et blanc » — Adrien, 02/09.
+
+    Ce n'etait ni son Mac ni la bibliotheque de QR. Un navigateur ne pose AUCUN
+    aplat de couleur a l'impression tant que « Graphismes d'arriere-plan » n'est
+    pas coche dans sa boite de dialogue — ce que personne ne coche. Les
+    pastilles de difficulte, qui sont des `background`, sortaient donc en ronds
+    VIDES. `print-color-adjust: exact` est la seule chose qui le change, et rien
+    dans le depot ne la portait.
+    """
+
+    @pytest.fixture()
+    def page(self, connecte_orga, salle):
+        return connecte_orga.get("/admin/etiquettes").data.decode()
+
+    def test_le_gabarit_force_l_impression_des_aplats(self, page):
+        assert "-webkit-print-color-adjust: exact" in page, (
+            "le prefixe reste necessaire : Safari ne connait que celui-la")
+        assert "print-color-adjust: exact" in page
+
+    def test_les_six_teintes_de_difficulte_sont_bien_la(self, page):
+        """Sans elles, la regle ci-dessus ne colorerait rien."""
+        for teinte in ("#F2C230", "#3FA45B", "#3A7BD5",
+                       "#8E5FBF", "#D0342C", "#222"):
+            assert teinte in page, teinte
+
+
+class TestLEtiquetteRemplitSonPapier:
+    """« Il faut que ces étiquettes soient plus grosses car tu laisses beaucoup
+    trop de blanc autour ; on a presque 2 cm entre le texte et le trait de
+    découpage » — Adrien, 02/09.
+
+    Mesure faite dans le navigateur sur la planche d'origine : 15,8 mm de vide
+    sous le texte, et autant à sa droite. Le papier était le même, la
+    lisibilité à deux mètres non.
+    """
+
+    @pytest.fixture()
+    def page(self, connecte_orga, salle):
+        return connecte_orga.get("/admin/etiquettes").data.decode()
+
+    def test_le_texte_a_grossi_partout(self, page):
+        """Les quatre lignes, pas seulement une : c'est leur somme qui remplit
+        la hauteur."""
+        for regle in (".zone-du-bloc {", ".difficulte {", ".prises {",
+                      ".circuits {"):
+            bloc = page.split(regle)[1].split("}")[0]
+            taille = float(re.search(r"font-size: ([0-9.]+)mm", bloc).group(1))
+            assert taille >= 4.0, (regle, taille)
+
+    def test_la_pastille_suit_le_texte(self, page):
+        bloc = page.split("  .pastille {")[1].split("}")[0]
+        assert float(re.search(r"width: ([0-9.]+)mm", bloc).group(1)) >= 4.0
+
+
+class TestLaTailleDuNumeroEstFixe:
+    """« Le numéro J6 ou J24 change de taille en fonction du nombre de
+    caractères. Moi, je veux que la taille de la police soit fixe. » — Adrien,
+    03/09, après avoir imprimé pour de vrai (spec 033, R7).
+
+    La taille était calculée par étiquette : la plus grande à laquelle CE
+    numéro tenait, soit 26 mm pour « J6 » et 19,5 pour « J24 ». Sur une planche
+    de huit, la page a l'air bancale.
+    """
+
+    @pytest.fixture()
+    def page(self, connecte_orga, salle):
+        return connecte_orga.get("/admin/etiquettes").data.decode()
+
+    def test_la_feuille_porte_UNE_taille_et_les_etiquettes_aucune(self, page):
+        """La constante est posée une fois sur la feuille. Une étiquette qui
+        porterait encore la sienne ferait revenir le défaut sans qu'on le
+        voie."""
+        assert "--taille-numero: %.1fmm" % fiches.TAILLE_NUMERO_MM in page
+        assert "font-size: var(--taille-numero)" in page
+        assert "--taille:" not in page
+
+    def test_deux_numeros_de_longueurs_differentes_sortent_pareil(self, salle):
+        """La propriété demandée, sur la vraie planche : « J6 » et « J24 » ne
+        peuvent plus se distinguer par leur taille, puisqu'aucune étiquette
+        n'en porte."""
+        planche = fiches.etiquettes(salle)
+        assert planche
+        assert all("taille_numero" not in e for e in planche)
+
+    def test_trois_caracteres_tiennent_dans_la_colonne(self):
+        """Ce qui justifie la valeur. Au-delà de trois caractères le numéro est
+        coupé — ce qui se voit — plutôt que de manger le QR."""
+        largeur = 3 * fiches.CHASSE_NUMERO * fiches.TAILLE_NUMERO_MM
+        assert largeur <= fiches.LARGEUR_NUMERO_MM, largeur
+
+    def test_la_fonction_qui_calculait_la_taille_a_disparu(self):
+        """Une fonction sans appelant donne une fausse impression de
+        couverture : c'est exactement ce que la spec 024 s'était reproché avec
+        `par_zone()`."""
+        assert not hasattr(fiches, "taille_numero_mm")
+        assert not hasattr(fiches, "TAILLE_NUMERO_MAXI_MM")
+
+
+class TestLesEtiquettesSortentDeAaZ:
+    """« Je veux qu'ils soient classés dans l'ordre alphabétique des zones,
+    c'est-à-dire la zone A d'abord et tu finis par la Z. » — Adrien, 03/09
+    (spec 033, R8).
+
+    Elles sortaient dans l'ordre de `Bloc.numero`, c'est-à-dire l'ordre du
+    `Plan` — celui d'Annonay commence par X et Y et finit par E.
+    """
+
+    def test_les_zones_sortent_dans_l_ordre_alphabetique(self, salle):
+        zones = [e["zone"] for e in fiches.etiquettes(salle) if e["zone"]]
+        assert zones == sorted(zones), zones
+
+    def test_l_ordre_du_classeur_est_garde_dans_une_zone(self, app, competition):
+        """Le tri par zone ne doit pas réordonner l'intérieur d'une zone : la
+        difficulté puis le numéro, c'est-à-dire `Bloc.numero`."""
+        from climbcontest.extensions import db
+        from climbcontest.models import Bloc
+        for tag, numero in (("AR9", 7), ("AJ1", 3), ("ZV4", 1)):
+            db.session.add(Bloc(competition_id=competition.id, tag=tag,
+                                numero=numero, zone=tag[0], couleur="Jaune"))
+        db.session.commit()
+        planche = fiches.etiquettes(competition)
+        assert [e["tag"] for e in planche] == ["AJ1", "AR9", "ZV4"]
+
+    def test_un_bloc_sans_zone_sort_en_DERNIER(self, app, competition):
+        """SQLite range les NULL AVANT tout le reste : sans garde, la planche
+        s'ouvrirait sur les blocs qui n'ont aucun mur où aller."""
+        from climbcontest.extensions import db
+        from climbcontest.models import Bloc
+        db.session.add(Bloc(competition_id=competition.id, tag="ORPHELIN",
+                            numero=1, zone=None, couleur="Jaune"))
+        db.session.add(Bloc(competition_id=competition.id, tag="ZJ2",
+                            numero=9, zone="Z", couleur="Jaune"))
+        db.session.commit()
+        assert [e["tag"] for e in fiches.etiquettes(competition)] \
+            == ["ZJ2", "ORPHELIN"]
+
+    def test_une_zone_a_deux_lettres_se_trie_sans_surprise(self, app, competition):
+        """Depuis la spec 029 le nom de zone est saisi dans la console : le tri
+        porte sur la VALEUR, il ne suppose pas une lettre unique."""
+        from climbcontest.extensions import db
+        from climbcontest.models import Bloc
+        for numero, (tag, zone) in enumerate(
+                (("B1", "B"), ("A1", "AA"), ("A2", "A")), 1):
+            db.session.add(Bloc(competition_id=competition.id, tag=tag,
+                                numero=numero, zone=zone, couleur="Jaune"))
+        db.session.commit()
+        assert [e["zone"] for e in fiches.etiquettes(competition)] \
+            == ["A", "AA", "B"]

@@ -500,17 +500,53 @@ class TestLeFormatDuPapier:
         return connecte_orga.get("/admin/dossards").data.decode()
 
     def test_la_feuille_est_un_a4_paysage(self, page):
-        assert "@page { size: A4 landscape; margin: 6mm; }" in page
+        assert "@page { size: A4 landscape; margin: 10mm; }" in page
 
     def test_deux_fiches_en_largeur(self, page):
         assert "grid-template-columns: repeat(2, var(--fiche-largeur))" in page
 
-    def test_la_geometrie_tient_dans_trois_variables(self, page):
-        """285 / 2 en largeur, 198 / 3 en hauteur. C'est ce qui a permis
-        d'essayer 2x2 et 2x3 sans rien rebatir, et de choisir sur pieces."""
-        for valeur in ("--fiche-largeur: 142.5mm", "--fiche-hauteur: 66mm",
-                       "--qr: 24mm"):
+    def test_la_geometrie_tient_dans_quelques_variables(self, page):
+        """C'est ce qui a permis d'essayer 2x2 et 2x3 sans rien rebatir, et de
+        choisir sur pieces."""
+        for valeur in ("--fiche-largeur: 138mm", "--fiche-hauteur: 62mm",
+                       "--feuille-hauteur: 186mm", "--qr: 24mm"):
             assert valeur in page, valeur
+
+    def test_la_feuille_est_plus_PETITE_que_la_page(self, page):
+        """⚠️ LE defaut du PDF du 02/09, et il n'avait aucun test.
+
+        La feuille faisait 285 x 198 mm sur une page utile de 285 x 198 : la
+        surface EXACTE, zero marge d'erreur. Aucune imprimante ne rend cette
+        surface-la -- le pilote applique la zone imprimable du papier -- et le
+        moteur coupait donc chaque feuille en deux, posant la derniere ligne de
+        la rangee du bas seule sur la page suivante. Vingt feuilles sortaient
+        en quarante pages.
+
+        Ce test tient l'INVARIANT, pas les nombres : quoi qu'on change, la
+        feuille doit rester strictement plus petite que ce que la page offre,
+        avec de la marge pour l'arrondi des millimetres en pixels.
+        """
+        import re
+
+        def mm(nom):
+            trouve = re.search(nom + r":\s*([0-9.]+)mm", page)
+            assert trouve, nom
+            return float(trouve.group(1))
+
+        marge = mm("@page \{ size: A4 landscape; margin")
+        utile_h, utile_l = 210 - 2 * marge, 297 - 2 * marge
+        assert mm("--feuille-hauteur") <= utile_h - 2, "pas de marge en hauteur"
+        assert mm("--feuille-largeur") <= utile_l - 1, "pas de marge en largeur"
+        # Et la feuille contient bien ce qu'on y range.
+        assert (mm("--fiche-hauteur") * 3) <= mm("--feuille-hauteur")
+        assert (mm("--fiche-largeur") * 2) <= mm("--feuille-largeur")
+
+    def test_la_feuille_elle_meme_est_insecable(self, page):
+        """La deuxieme ligne de defense : si la zone imprimable etait quand
+        meme trop courte, la feuille entiere partirait a la page suivante --
+        on perdrait une page, on ne couperait pas une rangee en deux."""
+        bloc = page.split("  .feuille {")[1].split("}")[0]
+        assert "break-inside: avoid" in bloc
 
     def test_une_fiche_n_est_jamais_coupee(self, page):
         assert "break-inside: avoid" in page
@@ -520,9 +556,23 @@ class TestLeFormatDuPapier:
         savoir du nombre de LIGNES que ca produirait : quand un groupe de
         couleur passait sur deux lignes, la fiche debordait et ses cadres
         chevauchaient. Signale par Adrien le 02/09."""
-        assert "repeat(var(--cols, 7), 1fr)" in page
+        assert "repeat(var(--cols, 7), minmax(0, 1fr))" in page
         assert "repeat(auto-fit" not in page and "repeat(auto-fill" not in page
         assert "--cols:" in page          # pose sur chaque fiche
+
+    def test_la_grille_de_blocs_ne_peut_pas_deborder_de_sa_colonne(self, page):
+        """⚠️ `1fr` vaut `minmax(auto, 1fr)` : une piste ne descend JAMAIS sous
+        la largeur de son texte. Neuf colonnes de « M52 » faisaient soixante-dix
+        millimetres de grille dans une colonne de soixante, et les dernieres
+        cases se peignaient par-dessus le plan du mur -- sur les 120 fiches de
+        la planche, mesure du 02/09. Le format d'origine avait deja le defaut ;
+        il n'avait aucun test parce que rien ne regardait la LARGEUR."""
+        assert "repeat(var(--cols, 7), 1fr)" not in page
+        assert "minmax(0, 1fr)" in page
+        # La taille du numero vient du serveur : sans elle, borner la piste ne
+        # ferait que tronquer le texte au lieu de le peindre a cote.
+        assert "font-size: var(--case, 3mm)" in page
+        assert "--case:" in page
 
     def test_une_fiche_ne_peut_pas_deborder_sur_sa_voisine(self, page):
         bloc = page.split("  .fiche {")[1].split("}")[0]
@@ -642,3 +692,152 @@ class TestLeDecoupageEnFeuilles:
 
     def test_un_seul_element_tient_sur_une_feuille(self):
         assert fiches.en_feuilles([1], 6) == [[1]]
+
+
+class TestLaLargeurDUneFiche:
+    """⚠️ L'AXE QUI N'ÉTAIT PAS CALCULÉ, et le second défaut du 02/09.
+
+    `colonnes_qui_tiennent` ne regardait que la hauteur. La largeur n'était
+    bornée par rien : `repeat(var(--cols), 1fr)` vaut `minmax(auto, 1fr)`, et
+    une piste de grille ne descend jamais sous la largeur de son texte. Neuf
+    colonnes de « M52 » faisaient soixante-dix millimètres de grille dans une
+    colonne de soixante, et les dernières cases se peignaient PAR-DESSUS le
+    plan du mur. Mesure au navigateur : les 120 fiches de la planche
+    débordaient, toutes, de 5,75 mm — avant même le changement de format.
+
+    Ces tests tiennent le CALCUL. Les constantes, elles, restent mesurées dans
+    le navigateur : aucun test ne peut vérifier qu'elles décrivent encore le
+    CSS.
+    """
+
+    def _groupes(self, tailles, longueur=3):
+        return [{"blocs": [{"numero": "X" * longueur} for _ in range(n)]}
+                for n in tailles]
+
+    def test_la_grille_tient_dans_la_colonne_quoi_qu_il_arrive(self):
+        """La propriété qui compte, sur les vrais circuits du 02/09 et sur des
+        cas extrêmes."""
+        cas = [[7, 10, 9, 7, 2, 1],        # U15, 36 blocs
+               [13, 12, 7, 3, 1],          # U13, 36 blocs
+               [22, 12, 2],                # U11, 36 blocs
+               [8] * 6, [43], [1] * 6, [300]]
+        for tailles in cas:
+            for longueur in (1, 2, 3, 4):
+                groupes = self._groupes(tailles, longueur)
+                colonnes, taille = fiches.mise_en_page_blocs(groupes)
+                largeur_case = (
+                    (fiches.LARGEUR_BLOCS_MM
+                     - (colonnes - 1) * fiches.GOUTTIERE_CASE_MM) / colonnes)
+                texte = longueur * fiches.CHASSE_CASE * taille
+                tient = texte <= largeur_case - fiches.HABILLAGE_CASE_MM + 0.01
+                # Sous le plancher on ne descend plus : la case tronque
+                # proprement (`overflow: hidden`) plutot que d'imprimer du 1 mm.
+                # C'est le seul cas ou le texte peut ne pas tenir, et il ne se
+                # produit pas sur les circuits reels -- `numero()` retire la
+                # zone, le plus long du classeur fait trois caracteres.
+                assert tient or taille == fiches.TAILLE_CASE_MINI_MM, (
+                    tailles, longueur, colonnes, taille)
+
+    def test_les_vrais_circuits_du_02_09_tiennent_sans_troncature(self):
+        """Les trois circuits du PDF envoyé par Adrien, avec les vrais numéros
+        du classeur : « J11 », « V21 », « N2 » — trois caractères au plus."""
+        for tailles in ([7, 10, 9, 7, 2, 1], [13, 12, 7, 3, 1], [22, 12, 2]):
+            colonnes, taille = fiches.mise_en_page_blocs(
+                self._groupes(tailles, 3))
+            largeur_case = (
+                (fiches.LARGEUR_BLOCS_MM
+                 - (colonnes - 1) * fiches.GOUTTIERE_CASE_MM) / colonnes)
+            texte = 3 * fiches.CHASSE_CASE * taille
+            assert texte <= largeur_case - fiches.HABILLAGE_CASE_MM + 0.01, (
+                tailles, colonnes, taille)
+
+    def test_une_case_ne_peut_pas_mordre_sur_sa_voisine(self, connecte_orga,
+                                                        competition):
+        """La ceinture, quand le plancher a joué : la case tronque chez elle."""
+        _grimpeur(competition, 1, "U11 F")
+        db.session.commit()
+        page = connecte_orga.get("/admin/dossards").data.decode()
+        bloc = page.split("  .case {")[1].split("}")[0]
+        assert "overflow: hidden" in bloc
+
+    def test_un_numero_plus_long_donne_un_texte_plus_petit(self):
+        """C'est la seule variable qu'on ait : le nombre de colonnes est
+        imposé par la hauteur."""
+        court = fiches.taille_case_mm(9, 2)
+        long = fiches.taille_case_mm(9, 4)
+        assert long < court
+
+    def test_on_ne_descend_jamais_sous_le_plancher(self):
+        """Une fiche pleine vaut mieux qu'un numéro illisible : sous le
+        plancher, on préfère laisser la case tronquer proprement — `.case` a
+        son `overflow: hidden` — plutôt que d'imprimer du 1 mm."""
+        assert fiches.taille_case_mm(12, 12) == fiches.TAILLE_CASE_MINI_MM
+
+    def test_le_couple_choisi_fait_bien_tenir_la_hauteur(self):
+        for tailles in ([7, 10, 9, 7, 2, 1], [13, 12, 7, 3, 1], [22, 12, 2],
+                        [8] * 6, [43]):
+            colonnes, taille = fiches.mise_en_page_blocs(
+                self._groupes(tailles))
+            if colonnes < fiches.COLONNES_MAXI:
+                assert (fiches.hauteur_mm(tailles, colonnes, taille)
+                        <= fiches.HAUTEUR_UTILE_MM), (tailles, colonnes, taille)
+
+    def test_c_est_le_plus_gros_texte_qui_tient(self):
+        """On parcourt les colonnes du plus petit nombre au plus grand : peu de
+        colonnes donne des cases larges et un gros texte. Le premier couple qui
+        tient est donc celui qui garde le texte le plus lisible."""
+        tailles = [7, 10, 9, 7, 2, 1]
+        colonnes, taille = fiches.mise_en_page_blocs(self._groupes(tailles))
+        if colonnes > fiches.COLONNES_MINI:
+            precedent = colonnes - 1
+            assert (fiches.hauteur_mm(tailles, precedent,
+                                      fiches.taille_case_mm(precedent, 3))
+                    > fiches.HAUTEUR_UTILE_MM)
+
+    def test_une_ligne_coute_moins_cher_quand_le_texte_est_plus_petit(self):
+        """La hauteur d'une ligne se DÉDUIT de la taille du texte : sans ça, le
+        calcul refuserait des mises en page qui tiennent en vrai."""
+        assert fiches.hauteur_ligne_mm(2.0) < fiches.hauteur_ligne_mm(3.0)
+
+    def test_les_deux_constantes_historiques_restent_coherentes(self):
+        """Elles sont maintenant DÉDUITES de la formule, à la taille de
+        référence. Mesures d'origine : 7,3 et 8,0."""
+        assert fiches.HAUTEUR_LIGNE_MM == pytest.approx(7.3, abs=0.1)
+        assert fiches.HAUTEUR_LIGNE_SUP_MM == pytest.approx(
+            fiches.HAUTEUR_LIGNE_MM + fiches.GOUTTIERE_CASE_MM)
+
+    def test_la_planche_porte_la_taille_de_chaque_fiche(self, connecte_orga,
+                                                        competition):
+        _grimpeur(competition, 1, "U11 F")
+        db.session.commit()
+        page = connecte_orga.get("/admin/dossards").data.decode()
+        assert "--case:" in page
+
+
+class TestLesCouleursSImpriment:
+    """⚠️ « Les impressions PDF ne sont que en noir et blanc » — Adrien, 02/09.
+
+    Ce n'était ni son Mac ni la bibliothèque de QR. Un navigateur ne pose AUCUN
+    aplat de couleur à l'impression tant que « Graphismes d'arrière-plan »
+    n'est pas coché dans sa boîte de dialogue — ce que personne ne coche. Les
+    pastilles de difficulté, qui sont des `background`, sortaient donc en ronds
+    VIDES.
+    """
+
+    @pytest.fixture()
+    def page(self, connecte_orga, competition):
+        _grimpeur(competition, 1, "U11 F")
+        db.session.commit()
+        return connecte_orga.get("/admin/dossards").data.decode()
+
+    def test_le_gabarit_force_l_impression_des_aplats(self, page):
+        assert "-webkit-print-color-adjust: exact" in page, (
+            "le prefixe reste necessaire : Safari ne connait que celui-la")
+        assert "print-color-adjust: exact" in page
+
+    def test_le_plan_du_mur_reste_SANS_couleur(self, page):
+        """Forcer l'impression des aplats ne doit pas avoir fait entrer une
+        teinte dans le plan : il s'imprime à l'encre noire sur du papier de
+        couleur (spec 028 A9), et son test dédié vit dans
+        `test_coherence_console_ecran.py`. Ici on tient la promesse du gabarit."""
+        assert "AUCUNE COULEUR" in page

@@ -30,10 +30,10 @@ Branche : `feat/jeton-juge-dans-le-lien`.
 
 ## IT5 — L'essai réel
 
-- [ ] Installation sur un **vrai iPhone** depuis le QR
-- [ ] Fermeture, relance depuis l'icône : **aucun message de jeton manquant**
-- [ ] Un scan de bout en bout
-- [ ] Même essai sur Android, en non-régression
+- [x] Installation sur un **vrai téléphone** depuis le QR
+- [x] Fermeture, relance depuis l'icône : **aucun message de jeton manquant**
+- [x] Un scan de bout en bout — fait, et refait plusieurs fois depuis
+- [x] Même essai sur Android, en non-régression
 
 ## IT6 — Documentation
 

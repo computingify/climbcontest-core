@@ -44,8 +44,26 @@ if [ ! -f "$BASE" ]; then
 fi
 
 mkdir -p "$DOSSIER"
+# L'horodatage est a la SECONDE, et le nom en decoulait directement : deux
+# sauvegardes dans la meme seconde portaient le meme nom, et la seconde
+# ecrasait la premiere en silence. Le timer tourne toutes les dix minutes, donc
+# ca ne se voyait pas -- mais une sauvegarde a la main juste avant un import
+# puis une juste apres, c'est exactement le geste qu'on veut pouvoir faire.
+#
+# Un ordinal tranche l'egalite, et seulement quand il y a egalite : le nom
+# habituel ne change pas. La rotation trie par DATE DE FICHIER (`ls -1t`), pas
+# par nom, donc l'ordinal n'a pas a se trier -- il a seulement a ne pas
+# collisionner.
+#
+# Pas de `date +%N` : c'est une extension GNU, absente du `date` de macOS, ou
+# tourne la moitie des tests.
 HORODATAGE=$(date +%Y%m%d-%H%M%S)
 CIBLE="$DOSSIER/climbcontest-$HORODATAGE.db"
+ORDINAL=1
+while [ -e "$CIBLE" ] || [ -e "$CIBLE.partiel" ]; do
+  CIBLE="$DOSSIER/climbcontest-$HORODATAGE-$ORDINAL.db"
+  ORDINAL=$((ORDINAL + 1))
+done
 
 # Ecriture sous un nom provisoire puis renommage : une copie interrompue ne doit
 # pas se retrouver dans la liste avec l'air d'etre valide.

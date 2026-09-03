@@ -22,16 +22,36 @@
 
      Tout est en MILLIMETRES, et AUCUNE dependance exterieure : on imprime la
      veille au soir, parfois sans reseau. Le QR est genere localement. */
-  @page { size: A4 portrait; margin: 6mm; }
+  /* ⚠️ DIX MILLIMETRES DE MARGE, ET UNE FEUILLE PLUS PETITE QUE LA PAGE.
+     Meme correctif que pour les fiches, meme raison (02/09). La feuille
+     occupait 198 x 285 mm, c'est-a-dire la surface utile EXACTE a 6 mm de
+     marge : zero marge d'erreur. Sur une vraie imprimante, dont la zone
+     imprimable est plus petite, le moteur coupait chaque feuille en deux et
+     posait la DERNIERE LIGNE de la rangee du bas -- « U11 · U13 · U15 » --
+     seule sur la page suivante. Sept feuilles sortaient en quatorze pages :
+     c'est le PDF envoye par Adrien.
+     La feuille tient desormais dans 188 x 272 sur une page utile de 190 x 277,
+     posee a 10 mm des bords. */
+  @page { size: A4 portrait; margin: 10mm; }
 
   /* Toute la geometrie tient ici. Deux colonnes, quatre lignes, HUIT par page.
      La disposition est HORIZONTALE -- QR a gauche, texte a droite : une
      etiquette se colle au-dessus du depart d'un bloc, ou la place est large et
-     basse, et empiler verticalement gaspillait la moitie de la hauteur. */
+     basse, et empiler verticalement gaspillait la moitie de la hauteur.
+
+     ⚠️ LE CONTENU REMPLIT L'ETIQUETTE. Il ne le faisait pas : le QR de 40 mm
+     et cinq lignes de 3 mm laissaient seize millimetres de blanc sous le
+     texte et pres de vingt a sa droite -- « on a presque 2 cm entre le texte
+     et le trait de découpage » (Adrien, 02/09). Le papier etait le meme, la
+     lisibilite a deux metres, non. Le QR passe a 44 mm, et chaque ligne de
+     texte grossit d'un tiers. */
   :root {
-    --etiquette-largeur: 99mm;      /* 198 / 2 */
-    --etiquette-hauteur: 71.25mm;   /* 285 / 4 */
-    --qr: 40mm;
+    --etiquette-largeur: 94mm;      /* 2 x 94 = 188, pour 190 utiles */
+    --etiquette-hauteur: 68mm;      /* 4 x 68 = 272, pour 277 utiles */
+    --feuille-largeur: 188mm;
+    --feuille-hauteur: 272mm;
+    --qr: 42mm;
+    --taille-numero: {{ taille_numero }}mm;
   }
 
   * { box-sizing: border-box; }
@@ -39,6 +59,13 @@
     margin: 0; background: #fff; color: #111;
     font-family: system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
   }
+
+  /* ⚠️ LES APLATS DE COULEUR S'IMPRIMENT. Sans cette declaration, un
+     navigateur ne pose aucun fond a l'impression tant que « Graphismes
+     d'arriere-plan » n'est pas coche -- ce que personne ne coche. La pastille
+     de difficulte sortait en rond VIDE : « les impressions PDF ne sont que en
+     noir et blanc » (Adrien, 02/09). */
+  * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
 
   .entete { padding: 6mm 0 4mm; border-bottom: 0.4mm solid #000; margin-bottom: 5mm; }
   .entete h1 { margin: 0; font-size: 5mm; font-weight: 700; }
@@ -57,7 +84,12 @@
   /* ⚠️ Meme raison que pour les fiches : 4 x 71,25 = 285 mm, exactement la
      surface utile d'un A4 portrait. A zero marge, un arrondi doublait le
      nombre de pages. */
-  .feuille { height: 285mm; overflow: hidden;
+  /* `break-inside: avoid` est la deuxieme ligne de defense : si la zone
+     imprimable etait quand meme plus courte, la feuille entiere partirait sur
+     la page suivante au lieu d'y laisser filer sa derniere ligne. */
+  .feuille { width: var(--feuille-largeur); height: var(--feuille-hauteur);
+             overflow: clip;
+             break-inside: avoid; page-break-inside: avoid;
              display: grid;
              grid-template-columns: repeat(2, var(--etiquette-largeur));
              align-content: start; }
@@ -77,22 +109,30 @@
 
   .quoi { flex: 1; min-width: 0; }
   .zone-du-bloc {
-    font-size: 3.2mm; font-weight: 700; letter-spacing: 0.16em;
+    font-size: 4.2mm; font-weight: 700; letter-spacing: 0.16em;
     text-transform: uppercase; color: #666;
   }
   /* LE plus gros element de l'etiquette : c'est ce qu'on lit a deux metres
-     pour savoir si on est devant le bon bloc. */
+     pour savoir si on est devant le bon bloc.
+
+     ⚠️ TAILLE FIXE (spec 033, R7). Elle venait du serveur, etiquette par
+     etiquette, et valait la plus grande taille a laquelle CE numero tenait :
+     26 mm pour « J6 », 19,5 pour « J24 ». Vu sur une planche de huit, ca fait
+     une page bancale -- « je veux que la taille de la police soit fixe »
+     (Adrien, 03/09). La constante vit cote serveur
+     (`fiches.TAILLE_NUMERO_MM`), pour que ce soit LA meme valeur qui
+     dimensionne et qui se teste ; elle est posee une fois sur la feuille. */
   .numero {
-    font-size: 18mm; font-weight: 800; line-height: 1;
-    letter-spacing: -0.03em;
+    font-size: var(--taille-numero); font-weight: 800; line-height: 1;
+    letter-spacing: -0.03em; white-space: nowrap;
   }
   .difficulte {
-    display: flex; align-items: center; gap: 1.5mm;
-    font-size: 3.2mm; color: #444; margin-top: 1mm;
+    display: flex; align-items: center; gap: 2mm;
+    font-size: 4.2mm; color: #444; margin-top: 1.5mm;
   }
   .pastille {
-    width: 3.2mm; height: 3.2mm; border-radius: 50%; flex: none;
-    border: 0.2mm solid #555;
+    width: 4.4mm; height: 4.4mm; border-radius: 50%; flex: none;
+    border: 0.25mm solid #555;
   }
   /* Les six couleurs de difficulte du classeur (`Listes!A41:A46`). En noir et
      blanc elles deviennent des gris -- et l'information reste, parce que la
@@ -108,9 +148,9 @@
   .qr { flex: none; }
   .qr svg { display: block; width: var(--qr); height: var(--qr); }
 
-  .prises { font-size: 3.4mm; margin-top: 1.5mm; }
+  .prises { font-size: 4.4mm; margin-top: 2mm; }
   .prises b { font-weight: 700; }
-  .circuits { font-size: 3.2mm; color: #444; margin-top: 1mm; }
+  .circuits { font-size: 4.2mm; color: #444; margin-top: 1.5mm; }
   /* Un bloc rattache a aucun circuit ne compte pour PERSONNE. C'est l'anomalie
      que la vue Circuits traque (spec 019), et le papier qu'on va coller est le
      dernier moment ou on peut la rattraper. */
@@ -133,8 +173,8 @@
 
 <div class="entete">
   <h1>Étiquettes de blocs — {{ titre }}</h1>
-  <p>{{ total }} à imprimer, <strong>huit par page</strong>, groupées par zone,
-     à couper sur les pointillés. Vérifie l'échelle d'impression :
+  <p>{{ total }} à imprimer, <strong>huit par page</strong>, groupées par zone
+     dans l'ordre alphabétique, à couper sur les pointillés. Vérifie l'échelle d'impression :
      <strong>100 %</strong>, sans « ajuster à la page », sinon les QR sortiront
      trop petits pour être lus.</p>
 </div>

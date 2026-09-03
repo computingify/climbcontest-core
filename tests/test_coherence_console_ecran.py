@@ -506,7 +506,11 @@ from tests.navigateur import (                                     # noqa: E402
 
 SONDE_ZONE = """
     await attendre("mur", () => $(".sf-feuille"));
-    note("zonesDessinees", $$(".sf-feuille g[data-zone]").length);
+    // ⚠️ `svg.plan >` : ON COMPTE LES PANS. Depuis la spec 036, chaque zone a
+    // deux groupes -- son pan, et le compteur, qui vit une couche plus haut
+    // pour passer devant le cadre. Sans le `>`, ce test compterait deux fois
+    // chaque zone et dirait « six » pour un plan qui en porte trois.
+    note("zonesDessinees", $$(".sf-feuille svg.plan > g[data-zone]").length);
     note("visee", $$(".sf-feuille g[data-zone].visee").length);
     const titre = $(".sf-mur-tete b");
     note("titre", titre ? titre.textContent.trim() : "(aucun)");
@@ -559,8 +563,17 @@ class TestUneZoneQueLePlanNeConnaitPlus:
         @app.get("/__harnais")
         def harnais():
             from flask import Response
-            return Response(page_harnais(f"/#g={cible}&z=A", SONDE_ZONE),
-                            mimetype="text/html")
+            # `periode=0.3` : la page de resultats relit ses donnees toutes
+            # les quinze secondes, et la fiche que cette sonde attend ne se
+            # construit qu'une fois le classement arrive. Quand le premier
+            # chargement perd la course -- ce qui n'arrive jamais sur le Mac et
+            # tout le temps sur un runner charge -- il faut attendre le
+            # battement suivant, parfois deux. Ce test coutait 29 s en CI pour
+            # une seconde de travail, et c'est lui qui expirait a 120 s le
+            # 02/09.
+            return Response(
+                page_harnais(f"/?periode=0.3#g={cible}&z=A", SONDE_ZONE),
+                mimetype="text/html")
 
         url, arreter = servir(app)
         try:

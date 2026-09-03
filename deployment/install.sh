@@ -56,6 +56,18 @@ fi
 echo "== droit de redemarrage cible =="
 # L'agent de tirage tourne en tant que climbcontest et doit pouvoir redemarrer
 # LE SEUL service climbcontest. Rien d'autre : pas de sudo general.
+#
+# ⚠️ Il y avait ici une QUATRIEME autorisation, pour que l'application demarre
+# elle-meme l'agent de deploiement (le bouton de la spec 031). Elle est retiree
+# le 2026-09-03 : elle etait juste et elle n'a jamais pu servir. climbcontest
+# .service tourne avec NoNewPrivileges=true, qui interdit a ses processus de
+# gagner des privileges par un binaire SETUID -- et sudo en est un. Le bouton
+# repondait « Le service de deploiement n'a pas pu etre demarre » a tous les
+# coups. C'est climbcontest-deploy.path qui fait ce travail desormais, sans
+# aucune elevation de privilege.
+#
+# La laisser en place serait pire qu'inutile : elle ferait croire que le chemin
+# existe, et la prochaine panne recommencerait l'enquete.
 cat > /etc/sudoers.d/climbcontest <<EOF
 $UTILISATEUR ALL=(root) NOPASSWD: /bin/systemctl restart climbcontest, /bin/systemctl stop climbcontest, /bin/systemctl start climbcontest
 EOF
@@ -70,19 +82,25 @@ install -o root -g root -m 0755 "$ICI/climbcontest-sauvegarde" /usr/local/bin/
 echo "== unites systemd =="
 install -m 0644 "$ICI/climbcontest.service"        /etc/systemd/system/
 install -m 0644 "$ICI/climbcontest-deploy.service" /etc/systemd/system/
-install -m 0644 "$ICI/climbcontest-deploy.timer"   /etc/systemd/system/
+install -m 0644 "$ICI/climbcontest-deploy.path"    /etc/systemd/system/
 install -m 0644 "$ICI/climbcontest-sauvegarde.service" /etc/systemd/system/
 install -m 0644 "$ICI/climbcontest-sauvegarde.timer"   /etc/systemd/system/
 systemctl daemon-reload
 
 # Le service applicatif est active mais PAS demarre : il n'y a pas encore de
-# release. Le timer s'en chargera au premier tick.
+# release. climbcontest-deploy.service est un oneshot SANS minuteur : il est
+# declenche a la demande, depuis la console ou a la main (spec 031). Le tirage
+# automatique toutes les 2 min a ete retire le 2026-09-03 -- il consommait la
+# moitie du quota GitHub anonyme (60 requetes/h par adresse IP publique) et
+# deployait sans que personne ne l'ait demande.
 systemctl enable climbcontest.service >/dev/null
-systemctl enable --now climbcontest-deploy.timer >/dev/null
 systemctl enable --now climbcontest-sauvegarde.timer >/dev/null
+# Le guetteur du bouton de la console. Ce n'est PAS un minuteur : il ne consulte
+# rien et ne declenche que si l'application ecrit le fichier de demande.
+systemctl enable --now climbcontest-deploy.path >/dev/null
 
 echo
 echo "Socle en place."
-echo "  Le timer verifiera la derniere release dans une minute."
+echo "  Premier deploiement :  sudo systemctl start climbcontest-deploy.service"
 echo "  Suivre :  journalctl -t climbcontest-deploy -f"
 echo "  Etat   :  systemctl status climbcontest"

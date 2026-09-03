@@ -10,6 +10,27 @@ import re
 import pytest
 
 
+class TestHiddenCacheVraiment:
+    """La barre des categories disparait VRAIMENT quand il n'y en a qu'une.
+
+    Une regle d'AUTEUR qui pose `display` bat le `[hidden] { display: none }`
+    de la feuille du NAVIGATEUR. `#barre { display: flex }` gagnait donc contre
+    le `hidden` pose par le script : la barre, videe de ses boutons, restait
+    une bande de 21 px avec son filet sous l'entete. Sur le videoprojecteur de
+    la salle, une bande noire en travers de l'ecran.
+
+    Mesure au navigateur avant correction : `display: flex`, hauteur 21 px.
+    Apres : `display: none`, hauteur 0.
+    """
+
+    def test_la_regle_globale_est_la(self, client):
+        page = client.get("/").get_data(as_text=True)
+        assert re.search(r"\[hidden\]\s*\{\s*display:\s*none\s*!important", page), (
+            "la regle globale `[hidden] { display: none !important }` a "
+            "disparu : `#barre { display: flex }` rendra a nouveau visible une "
+            "barre de categories vide")
+
+
 class TestServie:
 
     def test_la_page_repond_du_html(self, client, jeu):
@@ -950,11 +971,21 @@ class TestReglagesDeLaPage:
                   if l.get("participant_id")]
         assert lignes and all("categorie" in l for l in lignes)
 
-    def test_la_recherche_se_masque_et_le_choix_est_retenu(self, client, jeu):
+    def test_la_recherche_se_deploie_au_lieu_de_se_masquer(self, client, jeu):
+        """⚠️ Ce test disait l'inverse jusqu'à la spec 037. Le champ était
+        montré ou caché par un réglage MÉMORISÉ ; il se **déploie** désormais
+        depuis la loupe, et l'ouverture est un GESTE — ça ne se mémorise pas,
+        sinon la page rouvre toute seule un champ que personne n'a demandé.
+
+        Le besoin de la spec 020 (« masquer la recherche au vidéoprojecteur »)
+        est toujours servi, et mieux : le champ est replié tant qu'on ne le
+        demande pas.
+        """
         page = client.get("/").data.decode()
-        assert 'id="masquerRecherche"' in page
-        assert "body.sans-recherche #recherche { display: none; }" in page
-        assert "climbcontest.affichage" in page
+        assert 'id="ouvrirRecherche"' in page
+        assert 'id="boiteRecherche"' in page
+        assert "body.sans-recherche" not in page, (
+            "le reglage memorise de la recherche devait disparaitre")
 
     def test_le_bouton_de_masquage_existe_HORS_du_mode_mur(self, client, jeu):
         """`.commande` est masquee par defaut et ne s'affiche qu'en mode mur --
@@ -965,12 +996,14 @@ class TestReglagesDeLaPage:
         assert ".commande.hors-mur { display: block; }" in page
         assert "body.mur .commande.hors-mur { display: none; }" in page
 
-    def test_masquer_vide_la_recherche_en_cours(self, client, jeu):
+    def test_replier_vide_la_recherche_en_cours(self, client, jeu):
         """Masquer un filtre encore actif laisserait une liste filtree sans
-        rien pour expliquer pourquoi."""
+        rien pour expliquer pourquoi. La regle vient de la spec 020 et survit
+        au changement de motif."""
         page = client.get("/").data.decode()
-        assert "if (masquee && el.recherche.value)" in page
-        assert "(MUR || etat.sansRecherche)" in page
+        corps = page.split("function deployerRecherche(ouverte)")[1].split("\n  }")[0]
+        assert "el.recherche.value = \"\";" in corps, corps
+        assert "(MUR || !etat.rechercheOuverte)" in page
 
     def test_la_page_filtre_les_classements_masques(self, client, jeu):
         page = client.get("/").data.decode()
@@ -984,14 +1017,36 @@ class TestReglagesDeLaPage:
         assert "return restants.length ? restants : tous;" in page
 
     def test_le_filtre_ne_s_applique_pas_a_une_archive(self, client, jeu):
-        """Une archive fige ce qu'elle fige : on la revoit en entier."""
+        """Une archive fige ce qu'elle fige : on la revoit en entier.
+
+        La charge d'archive ne porte pas `groupes_masques` ; `appliquerReglages`
+        retombe alors sur une liste vide, et la route legere n'est JAMAIS
+        interrogee en mode archive (spec 033, R3).
+        """
         page = client.get("/").data.decode()
-        assert "Array.isArray(etat.competition.groupes_masques)" in page
+        assert "Array.isArray(comp.groupes_masques) ? comp.groupes_masques : []" in page
+        assert "if (!ARCHIVE) setInterval(chargerReglages, PERIODE_REGLAGES_MS);" in page
 
     def test_le_bandeau_affiche_le_nom_de_la_competition(self, client, jeu):
         page = client.get("/").data.decode()
         assert 'id="competition"' in page
         assert "etat.competition.nom" in page
+
+    def test_la_barre_AUSSI_respecte_les_classements_masques(self, client, jeu):
+        """⚠️ Le defaut du 02/09 : « je retire des scratchs de l'affichage de
+        la page resultat et je rafraichis, rien ne se passe ».
+
+        `groupesVisibles()` filtrait bien, mais `dessinerBarre()` lisait
+        `etat.classements` -- la charge BRUTE -- des qu'on n'etait pas en mode
+        mur. La pastille du scratch eteint restait donc dans la barre, et son
+        classement a un doigt. Le fichier portait deux commentaires qui se
+        contredisaient : `groupesVisibles` promettait « il s'applique PARTOUT --
+        mur et telephones », la barre expliquait le contraire.
+        """
+        page = client.get("/").data.decode()
+        barre = page.split("function dessinerBarre()")[1].split("\n  }")[0]
+        assert "var groupes = groupesVisibles();" in barre
+        assert "MUR ? groupesVisibles() : etat.classements" not in barre
 
 
 class TestLesBasculesDeLEnTete:
@@ -1010,15 +1065,29 @@ class TestLesBasculesDeLEnTete:
     def page(self, client, jeu):
         return client.get("/").data.decode()
 
-    @pytest.mark.parametrize("bouton", ["pause", "masquerRecherche"])
-    def test_l_etat_de_bascule_est_pose_des_le_depart(self, page, bouton):
-        balise = re.search(rf'<button[^>]*id="{bouton}"[^>]*>', page,
-                           re.S).group(0)
+    # L'attribut doit être là DÈS LE GABARIT, et dire l'état de DÉPART de
+    # chaque bouton — qui n'est pas le même pour les deux depuis la spec 033 :
+    # la rotation part à l'arrêt (« non activé »), la recherche part masquée
+    # (« activé », puisque le bouton la masque).
+    def test_la_rotation_dit_son_etat_des_le_depart(self, page):
+        balise = re.search(r'<button[^>]*id="pause"[^>]*>', page, re.S).group(0)
         assert 'aria-pressed="false"' in balise, balise
 
-    @pytest.mark.parametrize("bouton", ["pause", "masquerRecherche"])
-    def test_chaque_bascule_se_nomme(self, page, bouton):
-        """Un pictogramme seul (⏸, ⌕) n'a pas de nom accessible."""
+    def test_la_loupe_annonce_un_DEPLOIEMENT_et_non_une_bascule(self, page):
+        """⚠️ Depuis la spec 037, la loupe n'est plus un interrupteur qui
+        masque : elle **déploie** un champ. `aria-expanded` dit exactement ça,
+        là où `aria-pressed` annonçait un état enfoncé — et `aria-controls`
+        nomme ce qui s'ouvre."""
+        balise = re.search(r'<button[^>]*id="ouvrirRecherche"[^>]*>', page,
+                           re.S).group(0)
+        assert 'aria-expanded="false"' in balise, balise
+        assert 'aria-controls="boiteRecherche"' in balise, balise
+        assert "aria-pressed" not in balise, balise
+
+    @pytest.mark.parametrize("bouton", ["pause", "ouvrirRecherche",
+                                        "fermerRecherche"])
+    def test_chaque_commande_se_nomme(self, page, bouton):
+        """Un pictogramme seul n'a pas de nom accessible."""
         balise = re.search(rf'<button[^>]*id="{bouton}"[^>]*>', page,
                            re.S).group(0)
         assert "aria-label=" in balise, balise
@@ -1026,3 +1095,385 @@ class TestLesBasculesDeLEnTete:
     def test_le_script_tient_l_attribut_a_jour(self, page):
         """Poser l'état de départ ne sert à rien si le clic ne le suit pas."""
         assert 'el.pause.setAttribute("aria-pressed", String(etat.enPause));' in page
+
+
+class TestLaRotationDesPodiums:
+    """Deux demandes d'Adrien du 02/09, sur la même mécanique.
+
+    « Si je passe la compétition à En cours, je m'attends à ce que la page de
+    résultats se mette en play pour passer d'un podium à l'autre. De plus je
+    n'ai plus le bouton play et pause sur l'écran résultat. »
+
+    La rotation reste réservée à l'écran projeté (`?mur`) — c'est le choix
+    d'Adrien : un parent qui regarde la catégorie de son enfant sur son
+    téléphone ne doit pas la voir partir toute seule. Ce qui change est
+    ailleurs : elle DÉMARRE seule, et le bouton existe des deux côtés.
+    """
+
+    @pytest.fixture()
+    def page(self, client, jeu):
+        return client.get("/").data.decode()
+
+    def test_le_bouton_existe_hors_du_mode_mur(self, page):
+        """Il ne s'affichait qu'en `?mur`. Sur la page normale — celle qu'on
+        branche au vidéoprojecteur sans passer par `?mur`, exactement comme la
+        loupe voisine — rien ne permettait de lancer ni d'arrêter le
+        défilement."""
+        balise = re.search(r'<button[^>]*id="pause"[^>]*>', page, re.S).group(0)
+        assert "hidden" not in balise, balise
+        assert "commande partout" in balise, balise
+        assert ".commande.partout { display: block; }" in page
+
+    def test_la_page_normale_demarre_a_l_arret(self, page):
+        """Le bouton doit être une VRAIE commande, pas un bouton mort : hors du
+        mur il est à l'arrêt, et c'est lui qui lance le défilement.
+
+        ⚠️ Ce n'est plus qu'un DÉFAUT depuis la spec 033 (R4) : l'écran retient
+        ce qu'on a choisi, et le `!MUR` ne sert que quand il n'a rien retenu.
+        """
+        assert "enPause: lireEnPause()," in page
+        corps = page.split("function lireEnPause()")[1].split("\n  }")[0]
+        assert 'typeof garde === "boolean" ? garde : !MUR' in corps, corps
+
+    def test_le_bouton_dit_son_etat_avant_le_premier_clic(self, page):
+        """Sinon la page normale affiche ⏸ alors que rien ne tourne."""
+        assert "function majBoutonPause()" in page
+        assert re.search(r"majBoutonPause\(\);\s*\n\s*el\.pause\.addEventListener",
+                         page), "majBoutonPause n'est pas appelee au chargement"
+
+    def test_la_rotation_ne_renonce_plus_quand_il_n_y_a_rien_a_montrer(self, page):
+        """⚠️ LE défaut.
+
+        `programmerRotation` était armée UNE FOIS, 1,2 s après le chargement.
+        Un mur allumé avant la compétition n'avait alors aucun classement —
+        `visibles.length` valait 0 — et la fonction sortait SANS reprogrammer
+        quoi que ce soit. Passer la compétition « En cours » ne la réveillait
+        pas : l'écran restait figé jusqu'à un rechargement à la main.
+        """
+        corps = page.split("function programmerRotation()")[1].split("\n  }")[0]
+        assert "if (visibles.length < 2)" in corps
+        assert "setTimeout(programmerRotation, dureeRotation())" in corps, (
+            "la rotation renonce encore quand il n'y a rien a montrer")
+
+    def test_c_est_la_pause_qui_garde_la_rotation_et_non_le_mode(self, page):
+        """Le mode ne pilote plus que la valeur de DÉPART : garder `!MUR` dans
+        la garde rendrait le bouton de la page normale inopérant."""
+        corps = page.split("function programmerRotation()")[1].split("\n  }")[0]
+        assert "if (etat.enPause) return;" in corps
+        assert "!MUR || etat.enPause" not in corps
+
+
+class TestLaRouteLegereDesReglages:
+    """« J'active un interrupteur, par exemple scratch femme, et je regarde si à
+    côté mon scratch femme apparaît dans ma page résultat. Du coup, non. »
+    — Adrien, 03/09 (spec 033, R3).
+
+    Le réglage arrivait, mais au rythme de la relecture générale : quinze
+    secondes. Baisser ce rythme aurait multiplié par cinq le trafic d'une
+    charge de plusieurs dizaines de kilo-octets relue par soixante téléphones.
+    Cette route-ci ne calcule aucun classement, et peut donc être relue toutes
+    les trois secondes.
+    """
+
+    def test_elle_rend_les_reglages_de_la_competition_active(self, client, jeu):
+        r = client.get("/api/public/reglages")
+        assert r.status_code == 200
+        comp = r.get_json()["competition"]
+        assert comp["nom"] == "Test 2026"
+        assert comp["statut"] == "en_cours"
+        assert comp["groupes_masques"] == []
+
+    def test_elle_suit_le_reglage_de_la_console(self, client, app, competition, jeu):
+        from climbcontest import cycle
+        cycle.regler_affichage(competition, ["U11 F"])
+        comp = client.get("/api/public/reglages").get_json()["competition"]
+        assert comp["groupes_masques"] == ["U11 F"]
+
+    def test_elle_voit_le_reglage_changer_entre_deux_appels(
+            self, client, app, competition, jeu):
+        """C'est TOUT l'intérêt : elle est relue en boucle, elle doit rendre
+        l'état courant et pas celui du premier appel."""
+        from climbcontest import cycle
+        assert client.get("/api/public/reglages").get_json()[
+            "competition"]["groupes_masques"] == []
+        cycle.regler_affichage(competition, ["Scratch"])
+        assert client.get("/api/public/reglages").get_json()[
+            "competition"]["groupes_masques"] == ["Scratch"]
+        cycle.regler_affichage(competition, [])
+        assert client.get("/api/public/reglages").get_json()[
+            "competition"]["groupes_masques"] == []
+
+    def test_sans_competition_active_elle_echoue_comme_ses_voisines(self, client):
+        """Une seule façon d'échouer à connaître : la page n'a pas à traiter
+        deux formes d'erreur selon la route."""
+        r = client.get("/api/public/reglages")
+        classement = client.get("/api/public/classement")
+        assert r.status_code == classement.status_code
+        assert r.get_json()["success"] is False
+        assert r.get_json()["message"]
+
+    def test_elle_ne_calcule_AUCUN_classement(self, client, jeu, monkeypatch):
+        """La propriété qui autorise les trois secondes. Un jour où quelqu'un
+        ajoutera un champ ici, ce test dira ce que ça coûte."""
+        from climbcontest import classement_service
+
+        def interdit(*a, **k):
+            raise AssertionError("la route legere a calcule un classement")
+
+        monkeypatch.setattr(classement_service, "classements", interdit)
+        assert client.get("/api/public/reglages").status_code == 200
+
+    def test_elle_reste_beaucoup_plus_petite_que_la_charge_complete(self, client, jeu):
+        reglages = client.get("/api/public/reglages")
+        classement = client.get("/api/public/classement")
+        assert len(reglages.data) * 4 < len(classement.data), (
+            len(reglages.data), len(classement.data))
+
+
+class TestLEcranRetientCeQuOnALaisse:
+    """« Quand je recharge la page résultat, le bouton play se désactive. Moi,
+    je veux qu'on reste en play si on est en play. » — Adrien, 03/09
+    (spec 033, R4).
+
+    `enPause` se déduisait de la seule adresse, AU CHARGEMENT : la page normale
+    — celle qu'on branche au vidéoprojecteur sans passer par `?mur` — repartait
+    donc toujours à l'arrêt, quoi qu'on ait cliqué avant.
+    """
+
+    @pytest.fixture()
+    def page(self, client, jeu):
+        return client.get("/").data.decode()
+
+    def test_le_stockage_ne_garde_QUE_la_lecture(self, page):
+        """⚠️ Il en gardait deux jusqu'à la spec 037. Le réglage « la recherche
+        est-elle offerte » n'a plus d'objet depuis que le champ se déploie : il
+        est replié tant qu'on ne le demande pas, ce qui EST « masquée par
+        défaut » sans rien avoir à mémoriser.
+
+        Ouvrir la recherche est un **geste**. Le mémoriser rouvrirait, au
+        chargement suivant, un champ que personne n'a demandé.
+        """
+        assert "function ecrireAffichage()" in page
+        corps = page.split("function ecrireAffichage()")[1].split("\n  }")[0]
+        assert "enPause: etat.enPause" in corps
+        assert "sansRecherche" not in corps, corps
+
+    def test_le_clic_sur_lecture_est_enregistre(self, page):
+        corps = page.split('el.pause.addEventListener("click", function () {')[1] \
+                    .split("\n  });")[0]
+        assert "ecrireAffichage();" in corps, corps
+
+    def test_sans_rien_de_memorise_le_defaut_historique_s_applique(self, page):
+        corps = page.split("function lireEnPause()")[1].split("\n  }")[0]
+        assert 'typeof garde === "boolean" ? garde : !MUR' in corps
+
+    def test_un_stockage_indisponible_ne_casse_pas_la_page(self, page):
+        """Navigation privée, stockage plein, JSON abîmé : la page doit
+        continuer de fonctionner, pas afficher une erreur."""
+        corps = page.split("function lireAffichage()")[1].split("\n  }")[0]
+        assert "try {" in corps and "catch (e)" in corps
+        assert "return {};" in corps
+
+    def test_une_valeur_abimee_est_traitee_comme_absente(self, page):
+        corps = page.split("function lireAffichage()")[1].split("\n  }")[0]
+        assert 'typeof range === "object"' in corps
+
+
+class TestLaRechercheEstReplieeParDefaut:
+    """« Au clic sur le bouton recherche, c'est le bouton qui s'anime et qui
+    déploie horizontalement une zone de texte. » — Adrien, 03/09 (spec 037,
+    variante V3 retenue sur maquette).
+
+    ⚠️ Cette classe remplace `TestLaRechercheEstMasqueeParDefaut`. Le besoin
+    n'a pas changé — le champ ne doit pas encombrer l'écran — mais le mécanisme,
+    si : un réglage mémorisé est devenu un geste. Le défaut « masquée » est
+    désormais **structurel** au lieu d'être une valeur.
+    """
+
+    @pytest.fixture()
+    def page(self, client, jeu):
+        return client.get("/").data.decode()
+
+    def test_le_champ_part_replie(self, page):
+        """`inert` DÈS LE GABARIT : sans lui, le champ est invisible mais
+        toujours atteignable au Tab — le piège classique de ce motif."""
+        assert re.search(r'<div id="boiteRecherche"[^>]*\binert\b', page), (
+            "la boite de recherche doit partir `inert`")
+        assert "rechercheOuverte: false," in page
+
+    def test_l_etat_n_est_PAS_memorise(self, page):
+        """Un geste ne se mémorise pas : la page rouvrirait un champ que
+        personne n'a demandé."""
+        corps = page.split("function deployerRecherche(ouverte)")[1].split("\n  }")[0]
+        assert "ecrireAffichage" not in corps, corps
+
+    def test_le_champ_recouvre_la_rangee_des_commandes(self, page):
+        """La variante V3 : il glisse par-dessus les commandes, il ne les
+        pousse pas. C'est ce qui lui donne toute la largeur de la rangée."""
+        assert "#boiteRecherche {" in page
+        bloc = page.split("#boiteRecherche {")[1].split("}")[0]
+        assert "position: absolute" in bloc, bloc
+        assert "right: 0" in bloc, bloc
+        assert "clip-path: inset(0 0 0 calc(100% - 2.4em)" in bloc, bloc
+
+    def test_le_deploiement_se_fait_au_clip_et_non_a_la_largeur(self, page):
+        """Une largeur animée ferait sauter le champ à l'intérieur pendant
+        l'animation ; le découpage, non."""
+        assert ".commandes.ouverte #boiteRecherche {" in page
+        bloc = page.split(".commandes.ouverte #boiteRecherche {")[1].split("}")[0]
+        assert "clip-path: inset(0 0 0 0 round 999px)" in bloc, bloc
+
+    def test_echap_referme(self, page):
+        assert 'if (e.key === "Escape" && etat.rechercheOuverte)' in page
+
+    def test_le_focus_revient_sur_la_loupe(self, page):
+        """Sinon il retombe sur le corps du document et le clavier repart du
+        début de la page."""
+        corps = page.split("function deployerRecherche(ouverte)")[1].split("\n  }")[0]
+        assert "el.ouvrirRecherche.focus();" in corps, corps
+
+    def test_le_champ_replie_ne_filtre_plus_rien(self, page):
+        assert "(MUR || !etat.rechercheOuverte)" in page
+
+    def test_rien_de_tout_ca_sur_le_mur(self, page):
+        """Personne ne cherche sur un vidéoprojecteur, et rien ne s'y touche."""
+        assert "body.mur .commandes.ouverte #boiteRecherche { display: none; }" in page
+        balise = re.search(r'<button[^>]*id="ouvrirRecherche"[^>]*>', page,
+                           re.S).group(0)
+        assert "hors-mur" in balise, balise
+
+
+class TestLesDeuxGlyphesSontDuMemeDessin:
+    """« Le logo de pause n'est pas assorti au play, il faut qu'ils aient le
+    même style. » — Adrien, 03/09 (spec 033, R5).
+
+    « ▶ » est une forme géométrique, « ⏸ » un caractère à présentation EMOJI :
+    deux familles, deux graisses, et sur certaines plateformes une pastille
+    colorée pour le second.
+    """
+
+    @pytest.fixture()
+    def page(self, client, jeu):
+        return client.get("/").data.decode()
+
+    def test_plus_aucun_glyphe_de_texte_dans_les_boutons(self, page):
+        """Dans les BOUTONS : les commentaires, eux, citent les caractères
+        qu'on a retirés, et c'est ce qui empêchera de les remettre."""
+        for identifiant in ("pause", "ouvrirRecherche", "fermerRecherche"):
+            bouton = page.split('id="%s"' % identifiant)[1].split("</button>")[0]
+            for glyphe in ("▶", "⏸", "⌕", "✕", "×"):
+                assert glyphe not in bouton, (identifiant, glyphe)
+
+    def test_les_deux_icones_sont_dessinees_dans_la_meme_boite(self, page):
+        bouton = page.split('id="pause"')[1].split("</button>")[0]
+        for classe in ("ico-lecture", "ico-pause"):
+            assert 'class="%s"' % classe in bouton, classe
+        # Le meme carre de 24 : c'est ce qui garde la taille optique.
+        assert bouton.count('viewBox="0 0 24 24"') == 2
+
+    def test_elles_prennent_la_couleur_du_bouton(self, page):
+        bouton = page.split('id="pause"')[1].split("</button>")[0]
+        assert bouton.count('fill="currentColor"') == 2, bouton
+
+    def test_le_bouton_bascule_les_icones_et_n_ecrit_plus_de_texte(self, page):
+        corps = page.split("function majBoutonPause()")[1].split("\n  }")[0]
+        assert 'el.pause.classList.toggle("arretee", etat.enPause);' in corps
+        assert "textContent" not in corps, corps
+
+    def test_le_choix_de_l_icone_ne_passe_JAMAIS_par_hidden(self, page):
+        """⚠️ Mesuré sur cette page. `hidden` appartient à `HTMLElement` :
+        `svg.hidden = false` pose un champ JavaScript et ne touche pas
+        l'attribut. Le bouton affichait « pause » alors que la rotation était à
+        l'arrêt — le défaut même corrigé en 0.15.0, revenu par la porte du SVG.
+
+        Le piège est déjà documenté dans `juge.html`, sur le trait du voyant :
+        c'est la deuxième fois, d'où ce test.
+        """
+        corps = page.split("function majBoutonPause()")[1].split("\n  }")[0]
+        # Les lignes de CODE, pas les commentaires : le commentaire nomme le
+        # piege, et c'est lui qui empechera d'y retomber.
+        code = [l for l in corps.split("\n") if not l.strip().startswith("//")]
+        assert ".hidden" not in "\n".join(code), code
+        assert "#pause.arretee .ico-lecture { display: block; }" in page
+        assert "#pause.arretee .ico-pause { display: none; }" in page
+
+    def test_la_loupe_et_la_croix_sont_dessinees_elles_aussi(self, page):
+        """Laisser un glyphe de texte à côté de deux icônes déplacerait
+        l'incohérence d'un bouton, sans la corriger."""
+        for identifiant in ("ouvrirRecherche", "fermerRecherche"):
+            bouton = page.split('id="%s"' % identifiant)[1].split("</button>")[0]
+            assert "<svg" in bouton, (identifiant, bouton)
+
+
+class TestLaLegendeDuMurDitLesProfils:
+    """« On a perdu la légende des couleurs qui donnent l'inclinaison du mur et
+    tout ce bazar-là. J'aimerais que tu me le remettes. » — Adrien, 03/09
+    (spec 033, R11).
+
+    Le plan peint chaque pan selon son profil, sur une échelle ordonnée, et
+    rien à l'écran ne disait laquelle est laquelle.
+    """
+
+    @pytest.fixture()
+    def page(self, client, jeu):
+        return client.get("/").data.decode()
+
+    def test_les_six_profils_sont_nommes(self, page):
+        corps = page.split("var PROFILS = [")[1].split("];")[0]
+        for cle, nom in (("dalle", "dalle"), ("vertical", "vertical"),
+                         ("incline", "incliné"), ("devers", "dévers"),
+                         ("surplomb", "surplomb"), ("toit", "toit")):
+            assert 'cle: "%s", nom: "%s"' % (cle, nom) in corps, cle
+
+    def test_l_ordre_est_celui_DU_MOINS_AU_PLUS_DEVERSANT(self, page):
+        """L'ordre EST l'information : le remplissage se réchauffe à mesure
+        qu'on descend la liste. Le même que `fiches.PROFILS`."""
+        from climbcontest import fiches
+        corps = page.split("var PROFILS = [")[1].split("];")[0]
+        places = [corps.index('cle: "%s"' % p["cle"]) for p in fiches.PROFILS]
+        assert places == sorted(places), places
+
+    def test_seuls_les_profils_du_plan_sont_montres(self, page):
+        """Le plan est de la donnée saisie : une salle qui n'a que des
+        verticaux n'a pas à lire cinq pastilles qui ne désignent rien."""
+        assert "function profilsDuPlan()" in page
+        corps = page.split("function profilsDuPlan()")[1].split("\n  }")[0]
+        assert "PLAN.murs" in corps
+        assert "return PROFILS.filter(" in corps
+
+    def test_un_profil_inconnu_retombe_sur_vertical(self, page):
+        """Exactement comme le rendu : un plan un peu en avance sur la page ne
+        doit pas faire disparaître la légende."""
+        corps = page.split("function profilsDuPlan()")[1].split("\n  }")[0]
+        assert 'connus[m.profil]) ? m.profil : "vertical"' in corps
+
+    def test_la_pastille_prend_LA_MEME_couleur_que_le_pan(self, page):
+        """Une légende qui définirait ses propres teintes finirait par mentir
+        sur celle qu'elle nomme."""
+        corps = page.split("function dessinerLegende(leg)")[1].split("\n  }")[0]
+        assert 'pastille.style.background = "var(--pf-" + p.cle + ")";' in corps
+
+    def test_zone_terminee_reste_la(self, page):
+        corps = page.split("function dessinerLegende(leg)")[1].split("\n  }")[0]
+        assert "zone terminée" in corps
+
+
+class TestCeQuiSAfficheEstEnFrancaisAccentue:
+    """⚠️ La règle du dépôt distingue deux choses, et une coquille est passée
+    entre les deux : les **littéraux Python** restent en ASCII (messages
+    d'erreur, journaux, JSON), mais tout ce qui **s'affiche** est du français
+    accentué — gabarits, JavaScript compris.
+
+    Le panneau de la fiche écrivait « terminee » sous le plan du mur. Vu à
+    l'écran en vérifiant la fusion des quatre lots du 03/09, pas à la
+    relecture : le mot est court et l'œil le complète.
+    """
+
+    @pytest.fixture()
+    def page(self, client, jeu):
+        return client.get("/").data.decode()
+
+    def test_le_compte_d_une_zone_finie_est_accentue(self, page):
+        assert '? "terminée"' in page
+        assert '? "terminee"' not in page, (
+            "le panneau de la fiche affiche « terminee » sans accent")

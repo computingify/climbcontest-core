@@ -145,7 +145,10 @@ QR. C'est ce qui rend la solution automatique partout — et le
 | A10 | Une PWA installée et relancée **sans stockage** fonctionne | essai réel sur iPhone |
 
 **A10 est le critère qui compte.** C'est le seul qui prouve que le défaut est
-corrigé, et il exige un vrai iPhone — jamais essayé à ce jour.
+corrigé, et il exige un vrai téléphone. ✅ **Fait** : Adrien l'a essayé, et
+plusieurs fois depuis — installation, relance depuis l'icône, scan de bout en
+bout. La mention « jamais essayé à ce jour » de la rédaction du 30/08 est
+caduque.
 
 ## 7. Cas limites
 

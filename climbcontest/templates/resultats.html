@@ -64,6 +64,24 @@
   }
 
   * { box-sizing: border-box; }
+
+  /* ⚠️ `hidden` DOIT cacher. Une regle d'AUTEUR qui pose `display` bat le
+     `[hidden] { display: none }` de la feuille du NAVIGATEUR : l'origine
+     auteur l'emporte sur l'origine agent-utilisateur, quelle que soit la
+     specificite.
+
+     Ici, `#barre { display: flex }`. Quand la competition n'a qu'UNE seule
+     categorie, le script vide la barre et la passe en `hidden` -- elle restait
+     une bande vide de 21 px, avec son filet, sous l'entete. Mesure : `display`
+     calcule `flex`, hauteur 21 px, `border-bottom` 1 px. Sur le
+     videoprojecteur de la salle, c'est une bande noire en travers de l'ecran.
+
+     `#attente`, l'autre element pilote par `hidden`, ne pose aucun `display`
+     et se cachait deja correctement -- c'est bien la regle d'affichage qui
+     fait la difference, pas l'attribut.
+
+     Meme regle, meme place, que `admin.html`, `juge.html` et `plan.html`. */
+  [hidden] { display: none !important; }
   html, body {
     margin: 0; height: 100%;
     background: var(--fond); color: var(--encre);
@@ -121,6 +139,36 @@
      classe, plutôt qu'une exception glissée dans la règle existante. */
   .commande.hors-mur { display: block; }
   body.mur .commande.hors-mur { display: none; }
+  /* ⚠️ Le bouton de rotation, lui, existe DES DEUX COTES. Il n'apparaissait
+     qu'en `?mur` : sur la page normale -- celle qu'on branche au
+     videoprojecteur sans passer par `?mur`, exactement comme la loupe
+     ci-dessus -- rien ne permettait de lancer ni d'arreter le defilement.
+     « Je n'ai plus le bouton play et pause sur l'écran résultat », Adrien
+     02/09. Sur le mur il demarre en lecture ; ailleurs, a l'arret. */
+  .commande.partout { display: block; }
+  /* ⚠️ DES ICONES, PLUS DES GLYPHES. Le bouton portait « ▶ » (U+25B6, forme
+     geometrique) en lecture et « ⏸ » (U+23F8, caractere a presentation EMOJI
+     par defaut) en pause : deux familles de dessin, deux graisses, et sur
+     certaines plateformes une pastille coloree pour le second. « Le logo de
+     pause n'est pas assorti au play, il faut qu'ils aient le meme style »
+     (Adrien, 03/09, spec 033 R5).
+
+     La loupe voisine, elle aussi un caractere (« ⌕ »), passe en SVG avec eux :
+     laisser un glyphe de texte a cote de deux icones dessinees deplacerait
+     simplement l'incoherence d'un bouton. Les trois vivent dans la meme boite,
+     prennent `currentColor`, et le bouton n'a plus de contenu textuel. */
+  .commande svg { display: block; width: 1em; height: 1em; margin: auto; }
+  /* ⚠️ LE CHOIX DE L'ICONE PASSE PAR UNE CLASSE, JAMAIS PAR `hidden`.
+     `hidden` est une propriete de `HTMLElement` : `svg.hidden = false` en
+     JavaScript pose un simple champ sur l'objet et ne touche PAS l'attribut.
+     L'icone reste alors telle que le gabarit l'a laissee -- le bouton
+     affichait « pause » alors que la rotation etait a l'arret, c'est-a-dire
+     exactement le defaut corrige en 0.15.0.
+     Le meme piege est deja documente dans `juge.html`, sur le trait du
+     voyant. C'est la deuxieme fois : la regle est ici, en CSS. */
+  #pause .ico-lecture { display: none; }
+  #pause.arretee .ico-lecture { display: block; }
+  #pause.arretee .ico-pause { display: none; }
   .commande:hover { background: var(--carte2); color: var(--encre); }
   .commande[aria-pressed="true"] { border-color: var(--groupe); color: var(--groupe); }
   .commande:focus-visible { outline: 2px solid var(--groupe); outline-offset: 2px; }
@@ -161,15 +209,74 @@
   }
   #barre .etiquette { position: relative; }
   #barre button:focus-visible { outline: 2px solid var(--encre); outline-offset: 2px; }
+  /* ======================================================================
+     LA RECHERCHE QUI SE DEPLOIE — spec 037.
+
+     « Au clic sur le bouton recherche, c'est le bouton qui s'anime et qui
+     deploie horizontalement une zone de texte » (Adrien, 03/09). Variante V3
+     retenue sur maquette : le champ RECOUVRE la rangee des commandes.
+
+     ⚠️ DEUX ETATS, ET UN SEUL SURVIT DESORMAIS. La spec 033 memorisait « la
+     recherche est-elle offerte » et la posait a « masquee » par defaut. Ce
+     reglage n'a plus lieu d'etre : le champ est REPLIE tant qu'on ne le
+     demande pas, ce qui EST « masquee par defaut », en mieux -- on n'a plus a
+     se souvenir d'un choix, il n'y en a plus. Le stockage ne garde donc que
+     l'etat lecture/pause. Ouvrir la recherche est un GESTE, pas un reglage :
+     ca ne se memorise pas.
+     ====================================================================== */
+  .commandes { position: relative; display: flex; align-items: center; gap: 10px;
+               flex: none; }
+  /* Sous le repli de l'en-tete, la rangee est seule sur sa ligne : elle prend
+     toute la largeur, et le champ avec elle. */
+  @media (max-width: 680px) { .commandes { width: 100%; } }
+
+  #boiteRecherche {
+    position: absolute; top: 0; right: 0; height: 100%;
+    display: flex; align-items: center; gap: 8px;
+    /* Ancre a DROITE et large de ce qu'il peut : sur telephone la rangee fait
+       la largeur de l'ecran, sur grand ecran le champ s'ouvre par-dessus le
+       bandeau de droite. « Quitte a avoir un champ court » (Adrien, E5) : un
+       seul comportement a expliquer le jour J. */
+    width: min(420px, calc(100vw - 36px));
+    background: var(--fond);
+    /* Le deploiement : le rectangle se decouvre depuis la loupe, qui occupe
+       les 2,4 em de droite. `clip-path` plutot qu'une largeur : la largeur
+       ferait sauter le champ a l'interieur pendant l'animation. */
+    clip-path: inset(0 0 0 calc(100% - 2.4em) round 999px);
+    opacity: 0; pointer-events: none;
+    transition: clip-path 340ms cubic-bezier(.32,.72,.28,1), opacity 120ms ease;
+  }
+  .commandes.ouverte #boiteRecherche {
+    clip-path: inset(0 0 0 0 round 999px); opacity: 1; pointer-events: auto;
+  }
+  /* Les commandes s'effacent SOUS le champ. Elles restent en place : les
+     deplacer ferait bouger le bouton qu'on vient de toucher. */
+  .commandes.ouverte .commande:not(#fermerRecherche) { opacity: 0; }
+  .commande { transition: opacity 160ms ease; }
+
+  /* ⚠️ SUR GRAND ECRAN, LE BANDEAU DE DROITE RECULE AUSSI.
+     La rangee des commandes n'est seule sur sa ligne que sous 680 px. Au-dessus,
+     le champ s'ouvre par-dessus le nom de l'edition et l'heure -- et il les
+     coupait en plein milieu, ce qui se lit comme un defaut d'affichage et non
+     comme un panneau qui s'ouvre. Constate a l'ecran, pas a la relecture.
+     Le bandeau s'efface donc le temps de la recherche : c'est ce que
+     « recouvrir » veut dire, et il revient des qu'on referme. */
+  header:has(.commandes.ouverte) .droite {
+    opacity: 0; transition: opacity 160ms ease;
+  }
+  .droite { transition: opacity 220ms ease 120ms; }
+
   #recherche {
-    flex: none; margin: 12px 24px 0; padding: 11px 14px;
-    width: calc(100% - 48px); max-width: 420px;
+    flex: 1; min-width: 0; height: 2.4em; padding: 0 14px;
     background: var(--carte); color: var(--encre);
-    border: 1px solid var(--trait); border-radius: 10px; font: inherit;
+    border: 1px solid var(--trait); border-radius: 999px; font: inherit;
+    font-size: 0.95rem; outline: none;
   }
   #recherche::placeholder { color: var(--encre2); }
-  body.mur #recherche { display: none; }
-  body.sans-recherche #recherche { display: none; }
+  #recherche:focus { border-color: var(--groupe); }
+  /* Le champ n'existe pas sur le mur : personne ne cherche sur un
+     videoprojecteur, et rien ne s'y touche. */
+  body.mur .commandes.ouverte #boiteRecherche { display: none; }
 
   /* ---- Le classement ---- */
   main { flex: 1; min-height: 0; display: flex; flex-direction: column;
@@ -567,7 +674,6 @@
     #competition { font-size: 0.95rem; }
     .meta { white-space: normal; }
     #barre { padding: 10px 16px; }
-    #recherche { margin: 10px 16px 0; width: calc(100% - 32px); }
     main { padding: 12px 16px 24px; }
   }
 
@@ -719,14 +825,23 @@
      moment ou le mur passe la verticale : c'est la seule frontiere qui compte
      pour un grimpeur. Echelle ORDONNEE, elle ne se confond donc pas avec les
      six couleurs de difficulte, qui sont categorielles. */
-  .plan { --pf-dalle: #D2E0E7; --pf-vertical: #A6C4D3; --pf-incline: #F0D5A0;
-          --pf-devers: #EEBC7E; --pf-surplomb: #E7A074; --pf-toit: #E28379;
-          --pl-contour: #FFFFFF; --pl-trame: rgba(20,28,36,.17);
+  /* ⚠️ Les SIX TEINTES DE PROFIL sont posées sur `body`, pas sur `.plan`.
+     Elles étaient déclarées sur le dessin lui-même, ce qui suffisait tant que
+     personne d'autre ne les nommait : la légende des profils (spec 033, R11)
+     est un FRÈRE du SVG, pas un descendant, et ses pastilles sortaient
+     blanches. Une variable ne descend que dans son sous-arbre.
+
+     Les `--pl-*`, eux, restent sur `.plan` : ils décrivent le dessin — contour,
+     trame, halo de lettre — et rien d'autre ne les lit. */
+  body { --pf-dalle: #D2E0E7; --pf-vertical: #A6C4D3; --pf-incline: #F0D5A0;
+         --pf-devers: #EEBC7E; --pf-surplomb: #E7A074; --pf-toit: #E28379; }
+  body.sombre {
+         --pf-dalle: #2E3F4C; --pf-vertical: #3D6076; --pf-incline: #9A7238;
+         --pf-devers: #B57430; --pf-surplomb: #BE5B33; --pf-toit: #BC443F; }
+  .plan { --pl-contour: #FFFFFF; --pl-trame: rgba(20,28,36,.17);
           --pl-lettre: #16232E; --pl-halo: rgba(255,255,255,.92);
           --pl-anneau: #B5791B; --pl-lueur: #E0A94A; --pl-efface: .5; }
   body.sombre .plan {
-          --pf-dalle: #2E3F4C; --pf-vertical: #3D6076; --pf-incline: #9A7238;
-          --pf-devers: #B57430; --pf-surplomb: #BE5B33; --pf-toit: #BC443F;
           --pl-contour: #12131A; --pl-trame: rgba(255,255,255,.13);
           --pl-lettre: #F5F0E7; --pl-halo: rgba(9,10,14,.85);
           --pl-anneau: #FFD489; --pl-lueur: #FFC463; --pl-efface: .42; }
@@ -765,8 +880,78 @@
   .plan .cadre-zone.z-finie { stroke: var(--ok); stroke-width: 1.6; }
   .plan .cadre-zone.visee { stroke: var(--pl-anneau); stroke-width: 2.2; }
   .plan g[data-zone].visee { filter: drop-shadow(0 0 2.5px var(--pl-lueur)); }
+
+  /* L'avancement du grimpeur DANS la zone (spec 036) : « 1/4 », blocs valides
+     sur blocs de son circuit qui s'y trouvent, pose sur une PASTILLE -- le
+     socle arrondi de la pose B, tranchee par Adrien le 03/09. La pastille
+     remplace le halo de la lettre, et le fait mieux : un halo est un contour
+     decoupe sur la forme des glyphes, une pastille est un fond, et c'est un
+     fond qu'il faut sur les six aplats de profil. La place et les tailles sont
+     calculees par `plan.js` a partir de la lettre ; ici, il n'y a que des
+     couleurs.
+
+     ⚠️ Une zone SANS bloc du circuit ne porte pas de compteur. Le texte,
+     vide, ne peint deja rien ; la PASTILLE, elle, peindrait un socle vide, et
+     c'est `a-compte` -- posee par `decorer` -- qui la retire. Les deux noeuds
+     existent toujours : on ne cree ni ne supprime rien a chaque repeinture. */
+  .plan .socle-compte { fill: var(--pl-halo); stroke: none;
+                        pointer-events: none; }
+  .plan g[data-zone]:not(.a-compte) .socle-compte,
+  .plan g[data-zone]:not(.a-compte) .remplit-compte { display: none; }
+
+  /* ⚠️ LA PASTILLE EST LA JAUGE (spec 036, 03/09) : « je veux que seulement le
+     truc avec le nombre de blocs restant se remplisse de vert en fonction de
+     l'avancement ». Le vert est un rectangle franc DECOUPE dans la forme du
+     socle : il en epouse le bord arrondi a gauche et se coupe net a droite, ce
+     qui se lit comme un NIVEAU. Arrondi de son cote, il ferait une petite
+     pastille dans la grande, et on lirait deux objets.
+
+     Le cadre de la zone, lui, ne bouge pas : il garde son tout-ou-rien et dit
+     « terminee », rien d'autre. Un premier essai avait fait l'inverse -- le
+     cadre epaissi qui se remplissait -- et c'est ce qui a ete ecarte sur piece
+     le 03/09 (`specs/036-avancement-par-zone/maquettes/pastille.html`).
+
+     Le vert est FRANC (62 %) : c'est le reglage choisi, et le seul arbitrage du
+     lot -- le chiffre est pose dessus, donc plus le vert est fort, moins il se
+     detache. */
+  .plan .remplit-compte { fill: color-mix(in srgb, var(--ok) 62%, transparent);
+                          stroke: none; pointer-events: none; }
+  .plan .compte-zone { font-family: var(--titre); font-weight: 800;
+                       font-variant-numeric: tabular-nums;
+                       fill: var(--pl-lettre); text-anchor: middle;
+                       dominant-baseline: central; }
+  /* ⚠️ LE CHIFFRE D'UNE ZONE TERMINEE NE VIRE PLUS AU VERT. Il le faisait
+     quand la pastille etait un fond neutre ; sur une pastille PLEINE de vert,
+     vert sur vert ne se lit pas -- deux signaux se disputeraient le meme pixel.
+     C'est la pastille pleine qui dit « terminee », et le chiffre reste a
+     l'encre pour rester lisible. */
+
+  /* ⚠️ LA COUCHE DES COMPTEURS PASSE DEVANT LES CADRES, et c'est la largeur de
+     la pastille qui l'impose : 14,4 unites dans un pan de 15, elle croise le
+     cadre « terminee » de 0,5 unite de chaque cote. Peinte dessous, elle se
+     ferait couper par lui a ses deux extremites -- justement la ou le vert dit
+     ou il s'arrete. Elle passe devant, et c'est le cadre qui porte l'encoche.
+
+     Elle ne prend AUCUN clic : c'est le pan qui est cliquable, et le compteur
+     est pose dessus. */
+  .plan .compteurs-zone { pointer-events: none; }
+  /* La lueur reste sur le PAN. Posee aussi sur le compteur, elle ferait une
+     seconde emphase autour d'un objet de trois pixels de haut. */
+  .plan .compteurs-zone g[data-zone].visee { filter: none; }
+
   .sf-anime .plan g[data-zone].visee {
     animation: sf-rebond 760ms cubic-bezier(.34,1.56,.64,1) both; }
+  /* Le compteur rebondit AVEC son pan — il en a le centre de rotation — mais
+     sans la lueur : deux animations, un seul mouvement. */
+  .sf-anime .plan .compteurs-zone g[data-zone].visee {
+    animation: sf-rebond-nu 760ms cubic-bezier(.34,1.56,.64,1) both; }
+  @keyframes sf-rebond-nu {
+    0%   { transform: scale(.74); }
+    45%  { transform: scale(1.20); }
+    68%  { transform: scale(.95); }
+    84%  { transform: scale(1.06); }
+    100% { transform: scale(1); }
+  }
   @keyframes sf-rebond {
     0%   { transform: scale(.74); filter: drop-shadow(0 0 0 var(--pl-lueur)); }
     45%  { transform: scale(1.20); filter: drop-shadow(0 0 10px var(--pl-lueur)); }
@@ -775,10 +960,29 @@
     100% { transform: scale(1);   filter: drop-shadow(0 0 2.5px var(--pl-lueur)); }
   }
 
+  /* ⚠️ La légende dit AUSSI les profils (spec 033, R11). Le plan peint chaque
+     pan selon son inclinaison — six couleurs sur une échelle ordonnée, qui
+     passe du froid au chaud au moment où le mur passe la verticale — et rien à
+     l'écran ne disait laquelle est laquelle. « On a perdu la légende des
+     couleurs qui donnent l'inclinaison du mur et tout ce bazar-là. J'aimerais
+     que tu me le remettes » (Adrien, 03/09).
+
+     Les deux familles de repères ne se dessinent PAS pareil, et c'est
+     volontaire : « zone terminée » est un CONTOUR, parce que l'état est peint
+     comme une emphase sur le plan et jamais comme un aplat ; un profil est un
+     APLAT, parce que c'est exactement ce qu'il est sur le plan. La légende
+     ressemble à ce qu'elle explique. */
   .sf-legende { margin-top: 12px; display: flex; flex-wrap: wrap; gap: 8px 14px;
                 font-size: .72rem; color: var(--encre2); align-items: center; }
+  .sf-legende .repere { display: inline-flex; align-items: center; gap: 5px; }
   .sf-legende i { width: 14px; height: 14px; border-radius: 4px; flex: none;
                   border: 2px solid var(--ok); background: var(--carte2); }
+  .sf-legende .pf { width: 13px; height: 13px; border-radius: 3px; flex: none;
+                    border: 1px solid var(--trait); }
+  /* Un filet vertical entre l'état et les profils : deux familles, une seule
+     ligne, et rien ne disait où l'une finissait. */
+  .sf-legende .sep { width: 1px; height: 13px; flex: none;
+                     background: var(--trait); }
   .sf-zone { margin-top: 18px; padding-top: 14px; border-top: 1px solid var(--trait); }
   .sf-zone h3 { margin: 0 0 9px; font-size: .68rem; font-weight: 700;
                 letter-spacing: .1em; text-transform: uppercase;
@@ -801,11 +1005,13 @@
 
   @media (prefers-reduced-motion: reduce) {
     .sf-pile { transition: none; }
-    .sf-anime .plan g[data-zone].visee { animation: none; }
+    .sf-anime .plan g[data-zone].visee,
+    .sf-anime .plan .compteurs-zone g[data-zone].visee { animation: none; }
   }
 </style>
 </head>
 <body data-source="{{ source|default('/api/public/classement', true) }}"
+      data-reglages="{{ reglages|default('/api/public/reglages', true) }}"
       data-archive="{{ archive_libelle|default('', true) }}">
 
 <header>
@@ -821,22 +1027,68 @@
     </div>
     <div id="suivant"></div>
   </div>
-  <button id="masquerRecherche" class="commande hors-mur" type="button"
-          aria-pressed="false" aria-label="Masquer la recherche">⌕</button>
-  <!-- ⚠️ `aria-pressed` est pose DES LE DEPART, comme sur le bouton voisin.
-       Sans lui, un lecteur d'ecran annonce « bouton » et non « bouton a bascule,
-       non active » : rien ne dit que la rotation TOURNE, ni qu'on peut l'arreter.
-       L'attribut n'apparaissait qu'au premier clic -- le seul moment ou il
-       n'apprend plus rien. Les deux boutons de cet en-tete sont des bascules ;
-       ils se comportaient differemment. -->
-  <button id="pause" class="commande" type="button" hidden
-          aria-pressed="false"
-          aria-label="Mettre la rotation en pause">⏸</button>
+  <!-- ⚠️ LES DEUX COMMANDES SONT DANS UNE RANGEE, et la LOUPE la TERMINE
+       (spec 037, E3 et E4). Deux raisons, et la seconde est structurelle :
+
+       1. « Echange le logo recherche et play sur telephone » (Adrien, 03/09).
+          La loupe termine la rangee, parce que c'est de la que le champ se
+          deploie vers la gauche.
+       2. Le champ RECOUVRE cette rangee quand il s'ouvre : il lui faut donc
+          un parent positionne, et un parent qui sait ou est la loupe.
+
+       Sous 680 px l'en-tete se replie et cette rangee est seule sur sa ligne :
+       c'est ce qui donne au champ toute la largeur. Au-dessus, elle termine
+       une ligne deja pleine et le champ s'ouvre par-dessus le bandeau de
+       droite -- « quitte a avoir un champ court » (Adrien, E5). -->
+  <div class="commandes">
+    <!-- ⚠️ `aria-pressed` est pose DES LE DEPART. Sans lui, un lecteur
+         d'ecran annonce « bouton » et non « bouton a bascule, non active » :
+         rien ne dit que la rotation TOURNE, ni qu'on peut l'arreter.
+         L'attribut n'apparaissait qu'au premier clic -- le seul moment ou il
+         n'apprend plus rien. -->
+    <button id="pause" class="commande partout" type="button"
+            aria-pressed="false"
+            aria-label="Mettre la rotation en pause">
+    <!-- Le meme carre de 24, la meme hauteur optique de 12,8 : c'est ce qui
+         fait que le bouton ne change pas d'allure quand il change d'etat. -->
+    <svg class="ico-lecture" viewBox="0 0 24 24" fill="currentColor"
+         aria-hidden="true"><path d="M8.4 5.6 19 12 8.4 18.4Z" /></svg>
+      <svg class="ico-pause" viewBox="0 0 24 24" fill="currentColor"
+           aria-hidden="true">
+        <rect x="7.3" y="5.6" width="3.6" height="12.8" rx="1.1" />
+        <rect x="13.1" y="5.6" width="3.6" height="12.8" rx="1.1" />
+      </svg>
+    </button>
+
+    <button id="ouvrirRecherche" class="commande hors-mur" type="button"
+            aria-expanded="false" aria-controls="boiteRecherche"
+            aria-label="Chercher un grimpeur">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1"
+           stroke-linecap="round" aria-hidden="true">
+        <circle cx="10.5" cy="10.5" r="6.2" /><path d="M15.2 15.2 L20 20" />
+      </svg>
+    </button>
+
+    <!-- ⚠️ `inert` DES LE GABARIT. Un champ anime mais toujours focusable est
+         le piege classique de ce motif : le Tab part dedans alors que rien ne
+         se voit. `inert` le sort de l'ordre de tabulation ET du pointeur,
+         d'un seul attribut, et le script ne fait que l'oter. -->
+    <div id="boiteRecherche" inert>
+      <input id="recherche" type="search"
+             placeholder="Chercher un nom ou un dossard…"
+             autocomplete="off" aria-label="Chercher un grimpeur">
+      <button id="fermerRecherche" class="commande hors-mur" type="button"
+              aria-label="Fermer la recherche">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1"
+             stroke-linecap="round" aria-hidden="true">
+          <path d="M6.5 6.5 17.5 17.5M17.5 6.5 6.5 17.5" />
+        </svg>
+      </button>
+    </div>
+  </div>
 </header>
 
 <div id="barre" role="group" aria-label="Catégories"></div>
-<input id="recherche" type="search" placeholder="Chercher un nom ou un dossard…"
-       autocomplete="off" aria-label="Chercher un grimpeur">
 
 <main>
   <div id="attente" hidden></div>
@@ -863,8 +1115,8 @@ import { selectionDuPodium, marchesDuPodium }
 // La fiche du grimpeur (spec 026). La LOGIQUE vit dans ces deux modules pour
 // etre testable sans navigateur (`tests/js/suivi.test.mjs`, `plan.test.mjs`) ;
 // ce qui suit n'est que du branchement au DOM.
-import { blocsDeZone, compteDeZone, ecrireDiese, etatsDesZones, lireDiese }
-  from "/static/resultats/suivi.js";
+import { blocsDeZone, compteDeZone, comptesDesZones, ecrireDiese, estFait,
+         etatsDesZones, lireDiese } from "/static/resultats/suivi.js";
 import { decorer, decrire, monter, peutDessiner, zonesDe }
   from "/static/resultats/plan.js";
 (function () {
@@ -883,9 +1135,53 @@ import { decorer, decrire, monter, peutDessiner, zonesDe }
   // (spec 018). Un seul `fetch` dans tout ce fichier : c'est ce qui rend le
   // rejeu possible sans dupliquer une seule ligne d'affichage.
   var SOURCE = document.body.dataset.source || "/api/public/classement";
+  // ⚠️ Une source SÉPARÉE, et minuscule. Voir `PERIODE_REGLAGES_MS`.
+  var SOURCE_REGLAGES = document.body.dataset.reglages || "/api/public/reglages";
   var ARCHIVE = document.body.dataset.archive || null;
 
-  var PERIODE_MS = 15000;      // rafraîchissement des données
+  // Le battement du rafraîchissement. Réglable par l'URL, exactement comme
+  // `?rotation=` plus bas et pour la même raison : ce qui n'est pas réglable
+  // ne se teste qu'en le regardant passer. Deux tests navigateur attendaient
+  // ces quinze secondes en vrai — trente secondes de CI, et le premier rouge
+  // dès qu'un runner chargé les rendait trente-deux.
+  //
+  // Le plancher n'est pas décoratif : l'adresse est publique, et `?periode=0`
+  // ferait battre la page aussi vite que le navigateur veut bien. 100 ms laisse
+  // largement la place aux 300 ms des tests.
+  var PERIODE_MS = Math.max(
+    100, parseFloat(params.get("periode")) * 1000 || 15000);
+
+  // ⚠️ Les RÉGLAGES, eux, sont relus toutes les trois secondes (spec 033, R3).
+  //
+  // « J'active un interrupteur, par exemple scratch femme, et je regarde si à
+  // côté mon scratch femme apparaît dans ma page résultat. Du coup, non »
+  // (Adrien, 03/09). Le réglage arrivait — au bout de quinze secondes, ce qui
+  // se lit comme « rien ne se passe » quand on vient d'appuyer sur
+  // « Enregistrer » et qu'on regarde l'écran d'à côté.
+  //
+  // On ne baisse PAS `PERIODE_MS` pour autant : la charge de classement fait
+  // plusieurs dizaines de kilo-octets et une soixantaine de téléphones la
+  // relisent. Le calcul serveur est déjà plafonné (cache), la bande passante du
+  // wifi de la salle ne l'est pas. `/api/public/reglages` ne calcule aucun
+  // classement et tient dans deux cents octets : elle, on peut la relire
+  // souvent.
+  //
+  // Réglable, et pour la MÊME raison que `periode` juste au-dessus : le test
+  // qui tient ce comportement veut voir DEUX passages de la route légère. À
+  // 3 s fixes il attend six secondes de vraie horloge, et redevient le test
+  // que la CI voit rougir un jour de runner chargé. Même plancher.
+  var PERIODE_REGLAGES_MS = Math.max(
+    100, parseFloat(params.get("periode-reglages")) * 1000 || 3000);
+
+  // ⚠️ DECLAREE ICI, ET PAS AVEC SES DEUX FONCTIONS quatre-vingts lignes plus
+  // bas. `etat` lit le stockage au moment ou il se construit
+  // (`enPause: lireEnPause()`), donc AVANT que l'affectation du `var` d'origine
+  // n'ait eu lieu : la cle valait `undefined`, `getItem(undefined)` lisait la
+  // cle « undefined », et l'ecran repartait toujours sur le defaut. Le
+  // `var` etait bien hisse -- sa VALEUR, non.
+  //
+  // Trouve par le test du rechargement, pas a la relecture.
+  var CLE_AFFICHAGE = "climbcontest.affichage";
   var PERIME_MS = 60000;       // au-delà, l'âge passe en rouge
   // La rotation suit la TAILLE du plateau : le temps de lecture doit suivre ce
   // qu'il y a à lire. Une catégorie de 8 ne mérite pas les 30 s d'une de 26.
@@ -932,8 +1228,18 @@ import { decorer, decrire, monter, peutDessiner, zonesDe }
     minuteurRotation: null,
     dureeAffichage: 0,         // le temps que la catégorie reste à l'écran
     signatureDefilement: null, // ce qui justifie de relancer le défilement
-    enPause: false,            // la rotation, figée à la demande
-    sansRecherche: false,      // le champ, masqué pour le vidéoprojecteur
+    // La rotation tourne toute seule SUR LE MUR, et seulement là (choix
+    // d'Adrien, 02/09) : un parent qui regarde la catégorie de son enfant sur
+    // son téléphone ne doit pas la voir partir toute seule. Ailleurs le
+    // bouton de lecture existe quand même, à l'arrêt : c'est lui qui
+    // transforme la page normale en écran de projection.
+    //
+    // ⚠️ Ce n'est plus qu'un DÉFAUT. La valeur vient de ce que cet écran a
+    // retenu (`lireEnPause`, spec 033 R4) : elle ne se déduisait que de
+    // l'adresse, et la page normale repartait donc à l'arrêt à chaque
+    // rechargement, quoi qu'on ait cliqué avant.
+    enPause: lireEnPause(),    // la rotation, figée à la demande
+    rechercheOuverte: false,   // le champ déployé — un GESTE, jamais mémorisé
     groupesMasques: [],        // les classements que la console ne veut pas montrer
     animationDefilement: null,
   };
@@ -956,7 +1262,10 @@ import { decorer, decrire, monter, peutDessiner, zonesDe }
     competition: document.getElementById("competition"),
     suivant: document.getElementById("suivant"),
     pause: document.getElementById("pause"),
-    masquerRecherche: document.getElementById("masquerRecherche"),
+    ouvrirRecherche: document.getElementById("ouvrirRecherche"),
+    fermerRecherche: document.getElementById("fermerRecherche"),
+    boiteRecherche: document.getElementById("boiteRecherche"),
+    commandes: document.querySelector(".commandes"),
   };
 
   if (MUR) document.body.classList.add("mur");
@@ -976,38 +1285,85 @@ import { decorer, decrire, monter, peutDessiner, zonesDe }
   var CLE_FAVORIS = "climbcontest.favoris";
   var GROUPE_FAVORIS = "★ Mes favoris";
 
-  // --- Masquer la recherche (spec 020) --------------------------------------
+  // --- Ce que cet ÉCRAN garde (spec 020, complété par la spec 033) -----------
   //
-  // Le champ est indispensable sur le téléphone d'un parent et parasite sur un
-  // mur. Il était déjà masqué en mode `?mur`, mais celui-ci emporte aussi la
-  // rotation automatique et le grand format : on projette souvent sans.
+  // Deux choix, un seul enregistrement, et le même raisonnement pour les deux :
+  // ils ne regardent que cet appareil et n'ont rien à faire sur le réseau.
+  // C'est le raisonnement des favoris, une centaine de lignes plus haut.
   //
-  // Le choix vit dans le STOCKAGE LOCAL, à côté des favoris et pour la même
-  // raison : il ne regarde que cet appareil et n'a rien à faire sur le réseau.
+  // ⚠️ IL N'EN RESTE QU'UN. La spec 033 mémorisait aussi « la recherche est-elle
+  // offerte », posée à « masquée » par défaut. Depuis que le champ se DÉPLOIE
+  // (spec 037), ce réglage n'a plus d'objet : le champ est replié tant qu'on ne
+  // le demande pas, ce qui EST « masquée par défaut » — sans avoir à se
+  // souvenir de quoi que ce soit. Ouvrir la recherche est un GESTE ; un geste
+  // ne se mémorise pas, sinon la page rouvre toute seule un champ que personne
+  // n'a demandé.
+  //
+  // **La lecture ou la pause.** `enPause` se déduisait de la seule adresse,
+  //    au chargement : la page normale repartait donc TOUJOURS à l'arrêt,
+  //    quoi qu'on ait cliqué avant. « Quand je recharge la page résultat, le
+  //    bouton play se désactive. Moi, je veux qu'on reste en play si on est en
+  //    play » (Adrien, 03/09, spec 033 R4). Sans rien de mémorisé, le défaut
+  //    historique s'applique : en lecture sur le mur, à l'arrêt ailleurs.
 
-  var CLE_AFFICHAGE = "climbcontest.affichage";
+  // `CLE_AFFICHAGE` est declaree tout en haut, avec les autres constantes :
+  // `etat` la lit avant d'arriver ici. Voir le commentaire la-bas.
 
-  function lireSansRecherche() {
+  /** Ce que cet écran a retenu. Un objet vide quand il n'a rien retenu, ou
+   *  quand le stockage est indisponible — navigation privée, stockage plein,
+   *  JSON abîmé. La page continue de fonctionner dans tous ces cas. */
+  function lireAffichage() {
     try {
-      return JSON.parse(window.localStorage.getItem(CLE_AFFICHAGE) || "null")
-             ?.sansRecherche === true;
+      var range = JSON.parse(window.localStorage.getItem(CLE_AFFICHAGE) || "null");
+      return (range && typeof range === "object") ? range : {};
     } catch (e) {
-      // Navigation privée, stockage plein, JSON abîmé : le champ s'affiche, et
-      // surtout la page continue de fonctionner.
-      return false;
+      return {};
     }
   }
 
-  function basculerRecherche(masquee) {
-    etat.sansRecherche = masquee;
-    document.body.classList.toggle("sans-recherche", masquee);
-    el.masquerRecherche.setAttribute("aria-pressed", String(masquee));
-    el.masquerRecherche.setAttribute(
-      "aria-label", masquee ? "Afficher la recherche" : "Masquer la recherche");
+  function ecrireAffichage() {
     try {
       window.localStorage.setItem(CLE_AFFICHAGE,
-                                  JSON.stringify({ sansRecherche: masquee }));
+                                  JSON.stringify({ enPause: etat.enPause }));
     } catch (e) { /* sans stockage, le choix ne dure que la visite */ }
+  }
+
+  /** En pause au départ, sauf sur le mur — et sauf si cet écran a retenu
+   *  autre chose. */
+  function lireEnPause() {
+    var garde = lireAffichage().enPause;
+    return typeof garde === "boolean" ? garde : !MUR;
+  }
+
+  /** Déploie ou replie le champ.
+   *
+   *  ⚠️ Replier VIDE le champ, et ce n'est pas une politesse : masquer un
+   *  filtre encore actif laisserait une liste filtrée sans rien pour
+   *  l'expliquer. La règle vient de la spec 020 et ne change pas.
+   *
+   *  ⚠️ `inert` fait le travail d'accessibilité à lui seul — hors de l'ordre de
+   *  tabulation, hors du pointeur. Un champ animé mais toujours focusable est
+   *  le piège classique de ce motif : le Tab part dedans alors que rien ne se
+   *  voit.
+   */
+  function deployerRecherche(ouverte) {
+    if (etat.rechercheOuverte === ouverte) return;
+    etat.rechercheOuverte = ouverte;
+    el.commandes.classList.toggle("ouverte", ouverte);
+    el.boiteRecherche.inert = !ouverte;
+    el.ouvrirRecherche.setAttribute("aria-expanded", String(ouverte));
+
+    if (ouverte) {
+      el.recherche.focus();
+    } else if (el.recherche.value) {
+      el.recherche.value = "";
+      etat.noeuds = {};
+      el.liste.innerHTML = "";
+    }
+    dessiner();
+    // Le focus REVIENT sur la loupe : sans ça, il retombe sur le corps du
+    // document et le clavier repart du début de la page.
+    if (!ouverte) el.ouvrirRecherche.focus();
   }
 
   function lireFavoris() {
@@ -1151,6 +1507,54 @@ import { decorer, decrire, monter, peutDessiner, zonesDe }
 
   // --- Récupération ---------------------------------------------------------
 
+  /** Range les réglages d'affichage, et dit s'ils ont BOUGÉ.
+   *
+   *  Appelée par les deux chemins — la charge complète toutes les 15 s, et la
+   *  route légère toutes les 3 s. Le « ont-ils bougé » est ce qui permet à la
+   *  seconde de ne rien redessiner tant que rien ne change : trois redessins
+   *  par seconde feraient clignoter le mur pour rien.
+   */
+  function appliquerReglages(comp) {
+    if (!comp) return false;
+    var masques = Array.isArray(comp.groupes_masques) ? comp.groupes_masques : [];
+    var avant = (etat.groupesMasques || []).join("\u0000");
+    var nomAvant = etat.competition ? etat.competition.nom : null;
+    etat.groupesMasques = masques;
+    // Le nom et le statut ne se posent que sur une compétition DÉJÀ chargée :
+    // la route légère ne porte pas les classements, et fabriquer ici un objet
+    // `competition` incomplet ferait mentir `chargerFavoris`, qui lit son `id`.
+    if (etat.competition) {
+      etat.competition.nom = comp.nom;
+      etat.competition.statut = comp.statut;
+    }
+    return masques.join("\u0000") !== avant
+        || (etat.competition && comp.nom !== nomAvant);
+  }
+
+  /** Les réglages seuls, souvent. Voir `PERIODE_REGLAGES_MS`. */
+  function chargerReglages() {
+    fetch(SOURCE_REGLAGES, { cache: "no-store" })
+      .then(function (r) {
+        if (!r.ok) throw new Error("HTTP " + r.status);
+        return r.json();
+      })
+      .then(function (d) {
+        if (!appliquerReglages(d && d.competition)) return;
+        // `dessiner` rattrape le cas où le classement affiché vient d'être
+        // masqué : il retombe sur le premier visible.
+        dessiner();
+        // Un classement rallumé peut faire passer le cycle de un à deux : la
+        // rotation doit alors démarrer sans attendre son prochain battement.
+        programmerRotation();
+      })
+      .catch(function () {
+        // ⚠️ SILENCE. La charge complète porte le même réglage : une panne de
+        // cette route-ci coûte de la fraîcheur, pas de l'information. Crier
+        // toutes les trois secondes sur une page projetée serait pire que le
+        // défaut qu'on corrige.
+      });
+  }
+
   function charger() {
     fetch(SOURCE, { cache: "no-store" })
       .then(function (r) {
@@ -1162,10 +1566,9 @@ import { decorer, decrire, monter, peutDessiner, zonesDe }
         etat.classements = d.classements || [];
         etat.competition = d.competition || null;
         // Absent en mode archive : une archive se revoit en entier, elle fige
-        // ce qu'elle fige.
-        etat.groupesMasques = (etat.competition
-                               && Array.isArray(etat.competition.groupes_masques))
-          ? etat.competition.groupes_masques : [];
+        // ce qu'elle fige. Le MÊME code que la route légère : deux façons
+        // d'appliquer le même réglage finiraient par diverger.
+        appliquerReglages(etat.competition);
         etat.reussites = typeof d.reussites === "number" ? d.reussites : null;
         etat.calculeLe = d.calcule_le || null;
         etat.ageServeurS = typeof d.age_s === "number" ? d.age_s : 0;
@@ -1261,7 +1664,9 @@ import { decorer, decrire, monter, peutDessiner, zonesDe }
 
     // Le champ masqué ne filtre plus rien, même si une valeur y traîne : une
     // liste filtrée sans champ visible serait indéchiffrable.
-    var q = (MUR || etat.sansRecherche)
+    // Le champ replié ne filtre plus rien, même si une valeur y traînait : une
+    // liste filtrée sans champ visible serait indéchiffrable.
+    var q = (MUR || !etat.rechercheOuverte)
       ? "" : el.recherche.value.trim().toLowerCase();
     var lignes, titreTexte, compteTexte;
 
@@ -1918,13 +2323,32 @@ import { decorer, decrire, monter, peutDessiner, zonesDe }
     return ROTATION_FIXE_MS || etat.dureeAffichage || DUREE_MIN_MS;
   }
 
-  el.pause.hidden = !MUR;
-  el.pause.addEventListener("click", function () {
-    etat.enPause = !etat.enPause;
-    el.pause.textContent = etat.enPause ? "▶" : "⏸";
+  /** Le glyphe, l'étiquette et `aria-pressed` disent la MÊME chose que l'état.
+   *  Appelée aussi au chargement : le bouton d'une page normale doit montrer
+   *  ▶ avant qu'on ait cliqué, sinon il annonce une rotation qui ne tourne
+   *  pas. */
+  function majBoutonPause() {
+    // ⚠️ On bascule deux icônes DESSINÉES, on n'écrit plus de texte : le
+    // bouton portait « ▶ » puis « ⏸ », deux familles de glyphes, et changeait
+    // d'allure en changeant d'état (spec 033, R5).
+    //
+    // Une CLASSE, et pas `svg.hidden` : `hidden` appartient à `HTMLElement`,
+    // le poser sur un SVG depuis JavaScript ne fait rien de visible. Mesuré
+    // sur cette page même — le bouton affichait « pause » à l'arrêt.
+    el.pause.classList.toggle("arretee", etat.enPause);
     el.pause.setAttribute("aria-pressed", String(etat.enPause));
     el.pause.setAttribute("aria-label",
-      etat.enPause ? "Reprendre la rotation" : "Mettre la rotation en pause");
+      etat.enPause ? "Faire défiler les classements"
+                   : "Mettre la rotation en pause");
+  }
+
+  majBoutonPause();
+  el.pause.addEventListener("click", function () {
+    etat.enPause = !etat.enPause;
+    // Le choix est retenu POUR CET ÉCRAN : c'est ce qui le fait survivre au
+    // rechargement (spec 033, R4).
+    ecrireAffichage();
+    majBoutonPause();
     if (etat.enPause) {
       clearTimeout(etat.minuteurRotation);
       figerJauge();
@@ -1955,10 +2379,26 @@ import { decorer, decrire, monter, peutDessiner, zonesDe }
   }
 
   function programmerRotation() {
-    if (!MUR || etat.enPause) return;
+    // ⚠️ Plus de garde sur `?mur` : c'est `enPause` qui decide, et il part a
+    // l'arret hors du mur. Le mode ne pilote plus que la valeur de DEPART.
+    if (etat.enPause) return;
     clearTimeout(etat.minuteurRotation);
     var visibles = groupesVisibles();
-    if (visibles.length < 2) { jauger(0); return; }
+    if (visibles.length < 2) {
+      jauger(0);
+      // ⚠️ ON NE RENONCE PAS. La rotation etait armee UNE FOIS, 1,2 s apres le
+      // chargement. Un mur allume avant la competition n'avait alors aucun
+      // classement -- `visibles.length` valait 0 -- et cette fonction sortait
+      // SANS reprogrammer quoi que ce soit. Passer la competition « En
+      // cours » ne le reveillait pas : l'ecran restait fige sur la premiere
+      // categorie jusqu'a un rechargement a la main. Signale par Adrien le
+      // 02/09 (« je m'attends a ce que la page se mette en play »).
+      //
+      // On repasse donc au rythme du rafraichissement : des que deux
+      // classements existent, le defilement demarre tout seul.
+      etat.minuteurRotation = setTimeout(programmerRotation, dureeRotation());
+      return;
+    }
 
     // La MÊME durée que celle que le défilement vient de calculer.
     var duree = dureeRotation();
@@ -2023,9 +2463,19 @@ import { decorer, decrire, monter, peutDessiner, zonesDe }
 
   function dessinerBarre() {
     // Sur le mur, la barre montre le CYCLE : seulement ce qui défile. Sur
-    // téléphone elle montre TOUT ce qu'on peut demander, classement club
+    // téléphone elle montre tout ce qu'on peut demander, classement club
     // compris — et, en tête, les favoris du spectateur s'il en a.
-    var groupes = MUR ? groupesVisibles() : etat.classements;
+    //
+    // ⚠️ `groupesVisibles()` DES DEUX CÔTÉS. La barre lisait
+    // `etat.classements` sur téléphone, c'est-à-dire la charge brute, masque
+    // compris : éteindre un scratch dans la console ne retirait pas sa
+    // pastille, et le classement restait accessible d'un doigt. « Je retire
+    // des scratchs de l'affichage, je rafraîchis, rien ne se passe » —
+    // Adrien, 02/09. Le réglage de la spec 020 s'applique PARTOUT, c'est ce
+    // que `groupesVisibles()` dit de lui-même deux cents lignes plus haut :
+    // deux commentaires disaient l'inverse l'un de l'autre, et le code
+    // suivait le mauvais.
+    var groupes = groupesVisibles();
     if (!MUR && etat.favoris.length) {
       groupes = [{ groupe: GROUPE_FAVORIS, type: "favoris", lignes: [] }].concat(groupes);
     }
@@ -2086,7 +2536,7 @@ import { decorer, decrire, monter, peutDessiner, zonesDe }
     el.liste.innerHTML = "";
     dessiner();
     centrerBarre();
-    if (MUR) programmerRotation();
+    programmerRotation();
   }
 
   // --- Le balayage tactile : d'une catégorie à l'autre ---------------------
@@ -2099,7 +2549,7 @@ import { decorer, decrire, monter, peutDessiner, zonesDe }
   document.addEventListener("touchstart", function (e) {
     if (MUR || e.touches.length !== 1) { toucher = null; return; }
     // On ignore ce qui part de la barre : elle défile déjà horizontalement.
-    if (e.target.closest && e.target.closest("#barre, #recherche")) { toucher = null; return; }
+    if (e.target.closest && e.target.closest("#barre, .commandes")) { toucher = null; return; }
     toucher = { x: e.touches[0].clientX, y: e.touches[0].clientY };
   }, { passive: true });
 
@@ -2131,22 +2581,18 @@ import { decorer, decrire, monter, peutDessiner, zonesDe }
     dessiner();
   });
 
-  el.masquerRecherche.addEventListener("click", function () {
-    var masquee = !etat.sansRecherche;
-    basculerRecherche(masquee);
-    // Masquer un filtre ENCORE ACTIF laisserait une liste filtrée sans rien
-    // pour expliquer pourquoi. On vide donc la recherche en même temps.
-    if (masquee && el.recherche.value) {
-      el.recherche.value = "";
-      etat.noeuds = {};
-      el.liste.innerHTML = "";
-    }
-    dessiner();
+  el.ouvrirRecherche.addEventListener("click", function () {
+    deployerRecherche(!etat.rechercheOuverte);
+  });
+  el.fermerRecherche.addEventListener("click", function () {
+    deployerRecherche(false);
   });
 
-  // L'état est relu au démarrage : le choix survit au rechargement, ce qui est
-  // tout l'intérêt sur une machine qui projette toute la journée.
-  basculerRecherche(lireSansRecherche());
+  // Échap referme : un champ qui recouvre sa rangée doit toujours avoir une
+  // sortie au clavier.
+  document.addEventListener("keydown", function (e) {
+    if (e.key === "Escape" && etat.rechercheOuverte) deployerRecherche(false);
+  });
 
   // Redimensionnement : la hauteur des lignes et le défilement en dépendent.
   var minuteurTaille;
@@ -2164,6 +2610,9 @@ import { decorer, decrire, monter, peutDessiner, zonesDe }
   // Sans ce second appel, elle restait figee pendant que la ligne derriere elle
   // affichait deja un bloc de plus.
   if (!ARCHIVE) setInterval(function () { charger(); rafraichirFiche(); }, PERIODE_MS);
+  // Les réglages, eux, sont relus BEAUCOUP plus souvent — ils ne coûtent
+  // presque rien. Jamais sur une archive : elle fige ce qu'elle fige.
+  if (!ARCHIVE) setInterval(chargerReglages, PERIODE_REGLAGES_MS);
   setInterval(majMeta, 5000);
   // =========================================================================
   // LA FICHE DU GRIMPEUR, ET LE MUR — spec 026
@@ -2312,7 +2761,11 @@ import { decorer, decrire, monter, peutDessiner, zonesDe }
       var t = div("sf-couleur-tete", bloc);
       div("", t, "i").style.background = teinteDifficulte(g.couleur);
       div("", t, "span").textContent = g.couleur || "sans couleur";
-      var faits = g.blocs.filter(function (b) { return b.etat !== "reste"; }).length;
+      // ⚠️ `estFait` et non `b.etat !== "reste"` ecrit a la main. C'etait le
+      // seul des quatre compteurs de la page a ne pas passer par la regle du
+      // module -- et donc le seul qui pouvait s'en ecarter en silence le jour
+      // ou un quatrieme etat apparait.
+      var faits = g.blocs.filter(function (b) { return estFait(b.etat); }).length;
       div("", t, "em").textContent = faits + "/" + g.blocs.length;
       var cases = div("sf-cases", bloc);
       g.blocs.forEach(function (b) { cases.appendChild(caseDeBloc(b)); });
@@ -2353,9 +2806,72 @@ import { decorer, decrire, monter, peutDessiner, zonesDe }
   // pas. Le commentaire de la feuille de style promettait que « la fiche RESTE
   // montee sous le mur » ; ce n'etait pas vrai.
 
+  // Les six profils de mur, DU MOINS AU PLUS DÉVERSANT — le même ordre que
+  // `fiches.PROFILS` côté serveur, et pour la même raison : « l'ordre EST
+  // l'information », le remplissage se réchauffe à mesure qu'on descend la
+  // liste. Une légende triée autrement (par fréquence, alphabétiquement)
+  // détruirait la seule règle que le lecteur a à apprendre.
+  //
+  // Les libellés vivent ICI, à côté des couleurs qu'ils nomment : la page
+  // connaît déjà les six teintes (`--pf-*`) et le plan porte les clés. Les
+  // faire voyager depuis le serveur ajouterait un contrat pour six mots qui ne
+  // changent pas.
+  var PROFILS = [
+    { cle: "dalle", nom: "dalle" },
+    { cle: "vertical", nom: "vertical" },
+    { cle: "incline", nom: "incliné" },
+    { cle: "devers", nom: "dévers" },
+    { cle: "surplomb", nom: "surplomb" },
+    { cle: "toit", nom: "toit" },
+  ];
+
+  /** Les profils que le plan COURANT utilise, dans l'ordre canonique.
+   *
+   *  Pas les six : le plan est de la donnée saisie dans la console (spec 029),
+   *  et une salle qui n'a que des verticaux n'a pas à lire cinq pastilles qui
+   *  ne désignent rien. Un profil inconnu du plan retombe sur « vertical »,
+   *  exactement comme le fait le rendu.
+   */
+  function profilsDuPlan() {
+    var murs = (PLAN && Array.isArray(PLAN.murs)) ? PLAN.murs : [];
+    var connus = {};
+    PROFILS.forEach(function (p) { connus[p.cle] = true; });
+    var vus = {};
+    murs.forEach(function (m) {
+      var cle = (m && connus[m.profil]) ? m.profil : "vertical";
+      vus[cle] = true;
+    });
+    return PROFILS.filter(function (p) { return vus[p.cle]; });
+  }
+
+  function dessinerLegende(leg) {
+    // ⚠️ PAS `etat` : ce nom porte l'état de toute la page, et le masquer ici
+    // dans une portée locale est exactement le genre de piège qui se paie six
+    // mois plus tard.
+    var fini = div("repere", leg, "span");
+    div("", fini, "i");
+    fini.appendChild(document.createTextNode("zone terminée"));
+
+    var profils = profilsDuPlan();
+    if (!profils.length) return;
+    div("sep", leg, "span");
+    profils.forEach(function (p) {
+      var repere = div("repere", leg, "span");
+      var pastille = div("pf", repere, "i");
+      // La MÊME variable que le remplissage du pan : la légende ne peut donc
+      // pas mentir sur la couleur qu'elle nomme.
+      pastille.style.background = "var(--pf-" + p.cle + ")";
+      repere.appendChild(document.createTextNode(p.nom));
+    });
+  }
+
   function peindreMur(vue, refaire) {
     var d = fiche.donnees;
     var etats = etatsDesZones(d.groupes || []);
+    // L'avancement par zone (spec 036). Il est pose par `decorer`, avec les
+    // etats : le dessin PERSISTE d'une repeinture a l'autre, et le chiffre doit
+    // suivre une reussite qui arrive pendant qu'on regarde le plan.
+    var comptes = comptesDesZones(d.groupes || []);
     var zone = fiche.zone;
 
     if (refaire) {
@@ -2384,7 +2900,11 @@ import { decorer, decrire, monter, peutDessiner, zonesDe }
       }
       // Toucher une zone la choisit. C'est la PAGE qui ecoute : le dessin, lui,
       // ne sait rien de ce qu'on fait de ses zones.
-      Array.prototype.forEach.call(dessin.querySelectorAll("g[data-zone]"),
+      // ⚠️ `:scope >` : SEULS LES PANS. La couche des compteurs porte elle
+      // aussi un `g[data-zone]` par zone (spec 036) — elle ne prend aucun clic
+      // (`pointer-events: none`), et lui accrocher un ecouteur mort donnerait a
+      // lire deux fois la meme intention.
+      Array.prototype.forEach.call(dessin.querySelectorAll(":scope > g[data-zone]"),
         function (n) {
           n.addEventListener("click", function () {
             versZone(n.getAttribute("data-zone"), false);
@@ -2392,9 +2912,7 @@ import { decorer, decrire, monter, peutDessiner, zonesDe }
         });
       carte.appendChild(dessin);
 
-      var leg = div("sf-legende", corps);
-      div("", leg, "i");
-      leg.appendChild(document.createTextNode("zone terminee"));
+      dessinerLegende(div("sf-legende", corps));
       div("sf-panneau", corps);
     }
 
@@ -2402,7 +2920,7 @@ import { decorer, decrire, monter, peutDessiner, zonesDe }
     if (titre) titre.textContent = zone ? "Zone " + zone : "Le mur";
 
     var dessine = vue.querySelector("svg.plan");
-    if (dessine) decorer(dessine, etats, zone);
+    if (dessine) decorer(dessine, etats, zone, comptes);
 
     var panneau = vue.querySelector(".sf-panneau");
     if (!panneau) return;
@@ -2426,7 +2944,7 @@ import { decorer, decrire, monter, peutDessiner, zonesDe }
       + (siens.length > 1 ? " blocs" : " bloc");
     var c = compteDeZone(d.groupes || [], zone);
     var compte = div("sf-compte", t, "span");
-    compte.textContent = c.faits === c.total ? "terminee" : c.faits + " sur " + c.total;
+    compte.textContent = c.faits === c.total ? "terminée" : c.faits + " sur " + c.total;
     if (c.faits === c.total) compte.classList.add("finie");
     var cases = div("sf-cases", bas);
     siens.forEach(function (b) { cases.appendChild(caseDeBloc(b)); });
@@ -2489,12 +3007,16 @@ import { decorer, decrire, monter, peutDessiner, zonesDe }
     if (anime) {
       // Le dessin persiste : sans ce redemarrage, l'animation ne rejouerait
       // pas d'une zone a l'autre.
-      var visee = elVueMur.querySelector("g[data-zone].visee");
-      if (visee) {
-        visee.style.animation = "none";
-        void visee.getBoundingClientRect();
-        visee.style.animation = "";
-      }
+      // ⚠️ AU PLURIEL. La zone visee, c'est maintenant DEUX noeuds — le pan et
+      // son compteur (spec 036) — et ils rebondissent ensemble. Redemarrer le
+      // seul premier les desynchroniserait des la deuxieme visite d'une meme
+      // zone : le pan rejouerait, le chiffre non.
+      Array.prototype.forEach.call(
+        elVueMur.querySelectorAll("g[data-zone].visee"), function (visee) {
+          visee.style.animation = "none";
+          void visee.getBoundingClientRect();
+          visee.style.animation = "";
+        });
     }
   }
 
@@ -2657,7 +3179,9 @@ import { decorer, decrire, monter, peutDessiner, zonesDe }
     setTimeout(appliquer, 0);
   }
 
-  if (MUR) setTimeout(programmerRotation, 1200);
+  // Le premier armement. `programmerRotation` se garde elle-meme sur
+  // `enPause`, qui vaut deja « a l'arret » hors du mur.
+  setTimeout(programmerRotation, 1200);
 })();
 </script>
 </body>

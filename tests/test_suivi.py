@@ -334,6 +334,155 @@ class TestLeContratDuPlanNePourritPas:
             f"{acceptes} : le mur ne s'afficherait jamais")
 
 
+class TestLeCompteurTientDansSonPan:
+    """L'avancement par zone — spec 036, l'accord entre deux langages.
+
+    La page pose « 1/4 » SOUS la lettre de la zone, sur une PASTILLE, a une
+    place et des tailles calculees a partir de quatre ratios ecrits dans
+    `plan.js`. Elle ne relit aucune geometrie : elle ne connait du pan que ce
+    que le serveur lui en a dit — `etiquette` et `taille`.
+
+    ⚠️ C'EST CE TEST QUI TIENT LA POSE B. La pastille se dimensionne sur la
+    LETTRE, donc elle herite des bornes que `taille_lettre` a posees ; calibree
+    sur son TEXTE, elle n'aurait aucune borne et sortirait du pan — c'est ce
+    qui l'avait fait ecarter a la premiere maquette. Le socle est aussi ce qui
+    a de plus gros a tenir : verifier le chiffre ne suffit plus, c'est le
+    RECTANGLE qu'il faut mesurer.
+
+    ⚠️ Personne d'autre ne confronte les deux cotes. Un ratio augmente « pour
+    que ce soit plus lisible », un `taille_lettre` retouche, un plan d'usine
+    redessine avec des pans plus bas : la pastille sort sous son pan, et rien
+    ne le dit — ni un test JavaScript, qui n'a pas le plan, ni un test Python,
+    qui n'a pas les ratios. Ce test a les deux.
+
+    ⚠️ CE QU'IL NE COUVRE PAS : le plan que la console enregistre (spec 029).
+    Il verifie le plan SERVI par ce test, donc celui d'usine. Le remede propre
+    au cas general n'est pas une constante mieux choisie — il n'en existe
+    aucune qui tienne dans un pan arbitrairement bas — c'est de faire calculer
+    la place du compteur par le serveur, la ou la boite du pan est connue,
+    comme `taille_lettre` calcule celle de la lettre. Ca change la forme de
+    `plan_public()` et demande d'incrementer `FORMAT_PLAN` : un autre lot.
+    """
+
+    # La demi-hauteur d'une capitale grasse, en fraction de son corps, avec
+    # `dominant-baseline: central`. Meme famille de constante que
+    # `LARGEUR_CAPITALE` : elle sert a borner, pas a decrire.
+    DEMI_HAUTEUR = 0.36
+    # La largeur du pire chiffre tabulaire, en fraction de son corps.
+    LARGEUR_CHIFFRE = 0.58
+
+    @staticmethod
+    def _ratio(source, nom):
+        trouve = re.search(rf"(?:export )?const {nom} = ([\d.]+);", source)
+        assert trouve, f"{nom} introuvable dans plan.js — le compteur n'est plus mesurable"
+        return float(trouve.group(1))
+
+    @staticmethod
+    def _boite(d):
+        points = [tuple(float(v) for v in p.split(",")) for p in d.split(" ")]
+        xs = [p[0] for p in points]
+        ys = [p[1] for p in points]
+        return min(xs), min(ys), max(xs), max(ys)
+
+    @staticmethod
+    def _source():
+        from pathlib import Path
+
+        return (Path(__file__).resolve().parent.parent
+                / "climbcontest/static/resultats/plan.js").read_text()
+
+    def test_la_lettre_et_sa_pastille_tiennent_dans_le_pan(self, app):
+        """Trois bornes verticales, et elles se serrent toutes les trois.
+
+        ⚠️ CE TEST A CHANGE DE FORME AVEC LA POSITION « E » (03/09). La lettre
+        ne s'ecrit plus sur son centroide : elle MONTE de `LETTRE_MONTEE`, pour
+        faire la place que la pastille n'avait pas en dessous. Trois choses
+        peuvent donc sortir du pan au lieu d'une, et la troisieme est neuve :
+
+          1. le HALO de la lettre, par le haut -- personne ne le surveillait,
+             et c'est desormais lui le plus haut ;
+          2. la pastille, par le bas ;
+          3. la pastille contre le halo : ils se chevauchaient de 0,104 x taille
+             avant ce lot, et c'est exactement ce qu'Adrien a vu (« la c'est
+             trop proche »).
+
+        ⚠️ On mesure le HALO et non le glyphe : le halo est ce qui se voit, et
+        c'est lui qui touchait la pastille.
+        """
+        source = self._source()
+        echelle = self._ratio(source, "COMPTE_ECHELLE")
+        descente = self._ratio(source, "COMPTE_DESCENTE")
+        hauteur = self._ratio(source, "PASTILLE_HAUTEUR")
+        montee = self._ratio(source, "LETTRE_MONTEE")
+        # `HALO` est l'EPAISSEUR du trait, centre sur le contour du glyphe : il
+        # deborde donc de sa moitie.
+        halo = self.DEMI_HAUTEUR + self._ratio(source, "HALO") / 2
+
+        for mur in plan_public()["murs"]:
+            _, y_haut, _, y_bas = self._boite(mur["d"])
+            taille = mur["taille"]
+            y = mur["etiquette"][1]
+            demi = taille * echelle * hauteur / 2
+            centre = y + taille * descente
+            lettre = y - taille * montee
+
+            assert lettre - taille * halo >= y_haut, (
+                f"zone {mur['zone']} : le halo de la lettre monte a "
+                f"{lettre - taille * halo:.2f} pour un pan qui commence a "
+                f"{y_haut:.2f}. Baisse LETTRE_MONTEE dans plan.js.")
+
+            assert centre + demi <= y_bas, (
+                f"zone {mur['zone']} : la pastille descend a "
+                f"{centre + demi:.2f} pour un pan qui s'arrete a {y_bas:.2f}. "
+                f"Baisse COMPTE_DESCENTE, COMPTE_ECHELLE ou PASTILLE_HAUTEUR "
+                f"dans plan.js, ou fais calculer la place par le serveur.")
+
+            assert centre - demi >= lettre + taille * halo, (
+                f"zone {mur['zone']} : la pastille touche le halo de la lettre "
+                f"-- c'est le defaut qu'on vient de corriger. Augmente "
+                f"LETTRE_MONTEE ou COMPTE_DESCENTE dans plan.js.")
+
+    def test_la_pastille_ne_sort_pas_sur_les_cotes(self, app):
+        """Meme garde en largeur — et c'est celle qui avait cede.
+
+        La pastille fait `PASTILLE_LARGEUR x taille` de large, quel que soit
+        son libelle. `taille_lettre` a deja borne `taille` par la boite du pan,
+        et c'est ce lien-la que ce test verifie sur le releve reel.
+
+        ⚠️ IL S'EST RESSERRE LE 03/09 : la pastille est passee de 1,0 a 1,6 fois
+        la lettre pour porter la jauge, soit 14,4 unites dans un pan de 15. Il
+        reste 0,3 unite de chaque cote -- la pastille croise donc le cadre
+        « terminee » et lui passe devant, ce qui est assume. Ce qu'elle ne doit
+        jamais faire, c'est sortir du pan : au-dela, elle irait chez la voisine.
+        """
+        source = self._source()
+        largeur = self._ratio(source, "PASTILLE_LARGEUR")
+
+        for mur in plan_public()["murs"]:
+            x_gauche, _, x_droite, _ = self._boite(mur["d"])
+            demi = mur["taille"] * largeur / 2
+            x = mur["etiquette"][0]
+            assert x - demi >= x_gauche and x + demi <= x_droite, (
+                f"zone {mur['zone']} : la pastille deborde du pan en largeur")
+
+    def test_le_chiffre_tient_dans_la_pastille(self, app):
+        """Le libelle courant « 1/4 » est le PIRE cas : les plus longs
+
+        retrecissent (`tailleDuCompte`). Si trois chiffres au pire glyphe ne
+        tiennent pas dans le socle, le fond censes les porter ne les porte pas.
+        """
+        source = self._source()
+        echelle = self._ratio(source, "COMPTE_ECHELLE")
+        largeur = self._ratio(source, "PASTILLE_LARGEUR")
+
+        for mur in plan_public()["murs"]:
+            taille = mur["taille"]
+            texte = 3 * self.LARGEUR_CHIFFRE * taille * echelle
+            assert texte <= taille * largeur, (
+                f"zone {mur['zone']} : « 1/4 » fait {texte:.2f} de large pour "
+                f"une pastille de {taille * largeur:.2f}")
+
+
 class TestCeQuiPartDansLaPage:
     """Le plan est EMBARQUE dans le HTML : ce qui suit ne se verifie donc pas
     dans un navigateur, et rien ne le couvrait."""

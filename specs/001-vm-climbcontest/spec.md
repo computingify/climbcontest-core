@@ -3,9 +3,8 @@
 ## Résumé
 
 Créer la VM `climbcontest` sur `pve01`, avec une chaîne de livraison par tirage
-(release signée + changelog), une exposition HTTPS par `edge`, et un régime
-d'exploitation **différent des autres VM** : elle ne tourne que pendant les
-compétitions et les sessions de développement.
+(release signée + changelog), une exposition HTTPS par `edge`, et les contrôles qu'exige une machine qui
+prend 25 juges et 100 spectateurs en rafale une journée par an.
 
 C'est le socle des specs suivantes : rien de ce qui concerne le backend, le
 classement ou la page résultats n'est traité ici. Cette spec livre **une machine
@@ -18,28 +17,29 @@ aucune réponse obtenue lors de l'audit du 28/08). Le rapatrier à la maison don
 la maîtrise du déploiement, supprime la dépendance à un tiers gratuit, et
 mutualise l'exposition HTTPS déjà en place sur `edge`.
 
-## Ce qui rend cette VM différente des huit autres
+## Ce qui rend cette VM différente des neuf autres
 
 | Sujet | Les autres VM | `climbcontest` |
 | --- | --- | --- |
-| Disponibilité | 24/7, `onboot: 1` | **éteinte par défaut**, `onboot: 0` |
 | Charge | quelques requêtes/min | **25 juges + 100 spectateurs**, 250-350 req/min, et c'est normal |
-| Maintenance | fenêtre 05 h 00 automatique | **préparée avant compétition**, jamais le jour J |
-| Supervision | `MachineInjoignable` après 10 min | ne doit **pas** alerter quand elle est éteinte |
+| Maintenance | fenêtre 05 h 00 automatique | la même — mais **jamais la veille ni le matin** d'une compétition |
 | CrowdSec | bannit les IP suspectes | **ne doit jamais bannir l'IP de la salle** |
-| Sauvegarde | vzdump toutes les nuits | **la donnée seule**, et seulement quand il y en a |
+| Sauvegarde | vzdump toutes les nuits | la même, **plus** un instantané avant la compétition et une archive après |
 
-Ces six écarts sont le cœur de la spec. Chacun, s'il est oublié, casse quelque
-chose : une alerte qui hurle 350 jours par an, une fenêtre de maintenance qui
-rallume la VM à 5 h du matin, ou — le pire — CrowdSec qui bannit la salle en
-pleine compétition.
+Le plus coûteux de ces écarts, s'il est oublié, c'est CrowdSec : 25 juges et
+100 spectateurs derrière un seul NAT ressemblent à une attaque, et un
+bannissement coupe la salle entière en pleine compétition.
+
+Tout le reste est celui du parc. **Ça n'a pas toujours été le cas** : cette VM a
+été conçue intermittente, allumée pour les compétitions seulement. Ce régime a
+été abandonné le 03/09/2026 — voir « Historique » en fin de document.
 
 ## Périmètre
 
 ### Inclus
 
 1. **La VM** : VMID 110, `climbcontest`, adressage, ressources, pare-feu
-   Proxmox, `onboot: 0`.
+   Proxmox, `onboot: 1`.
 2. **Le socle applicatif** : Python, gunicorn derrière systemd, arborescence
    `releases/` + lien `current`, utilisateur de service dédié.
 3. **La chaîne de livraison** : `CHANGELOG.md`, versionnage sémantique, workflow
@@ -54,11 +54,11 @@ pleine compétition.
 5. **Le nom interne** : `climbcontest.maison.adn-dev.fr` et ses alias sur le
    portail de la LXC 109, en **redirection** vers l'adresse publique — comme
    `carte.` et `guestflow.`.
-6. **Les contrôles adaptés** : exclusion de `MachineInjoignable`, nouvelle alerte
-   « injoignable **alors qu'elle tourne** », exemptions CrowdSec pour l'API des
-   juges, absence de limite de débit sur l'API.
-7. **Le cycle marche/arrêt** : commandes d'allumage et d'extinction, préparation
-   avant compétition, ce que ça libère réellement.
+6. **Les contrôles adaptés** : exemptions CrowdSec pour l'API des juges et
+   absence de limite de débit sur l'API. La supervision, elle, est celle du
+   parc : `MachineInjoignable` s'applique sans exception.
+7. **La préparation d'une compétition** : mise à jour quelques jours avant,
+   instantané `avant-compet`, pense-bête du jour J, clôture.
 8. **La stratégie de sauvegarde**, y compris la réponse argumentée à « est-ce
    vraiment judicieux ».
 
@@ -92,8 +92,8 @@ Trois de tes précisions changent des choix faits ici :
 
 ### La machine
 
-- [ ] VM 110 `climbcontest` démarre, `onboot: 0` vérifié par un redémarrage de
-      `pve01` — la VM reste éteinte.
+- [x] VM 110 `climbcontest` démarre, `onboot: 1` vérifié par un redémarrage de
+      `pve01` — la VM revient seule, comme les neuf autres invités.
 - [ ] Pare-feu par-VM posé sur le modèle de la 105, vérifié règle par règle
       (`grep '^|' /etc/pve/firewall/110.fw` ne renvoie rien).
 - [ ] `qemu-guest-agent` installé et répondant à `qm agent 110 ping` — le piège
@@ -170,27 +170,26 @@ de la salle — donc **une seule IP publique**.
 
 ### Les contrôles
 
-- [ ] VM éteinte pendant 24 h : **aucun mail**, aucune alerte Prometheus.
-- [ ] VM allumée puis rendue muette (arrêt de gunicorn) : alerte
-      `ClimbcontestInjoignableEnService` en moins de 10 minutes.
-- [ ] La fenêtre de maintenance de 05 h 00 **ne rallume pas** la VM et
-      **n'annule pas** la séquence des huit autres invités.
-- [ ] Le chien de garde de 08 h 00 ne signale pas la VM éteinte.
+- [x] VM rendue muette (arrêt de gunicorn) : `MachineInjoignable` en moins de
+      10 minutes, comme pour n'importe quel invité du parc.
+- [x] La fenêtre de maintenance de 05 h 00 la met à jour **en tête de séquence**
+      — elle est le canari du parc — sans annuler la séquence des neuf autres.
+- [x] Le chien de garde de 08 h 00 réclame sa sauvegarde PBS du jour, et la
+      trouve : elle est dans `backup-nightly`.
 
 ### L'exploitation
 
-- [ ] `qm start 110` puis service opérationnel en moins de 90 secondes.
-- [ ] `qm shutdown 110` : arrêt propre, RAM rendue à l'hôte (vérifié sur
-      `pve01`).
-- [ ] Une procédure écrite « préparer la VM avant une compétition » existe et a
-      été jouée une fois de bout en bout.
+- [x] `qm start 110` puis service opérationnel en moins de 90 secondes —
+      vérifié au redémarrage de `pve01` du 03/09.
+- [x] Une procédure écrite « préparer la VM avant une compétition » existe et a
+      été jouée une fois de bout en bout — voir
+      [runbook-competition.md](../../docs/runbook-competition.md).
 
 ## Cas limites
 
 | Situation | Comportement attendu |
 | --- | --- |
-| `pve01` redémarre pendant l'année | La VM **reste éteinte** |
-| `pve01` redémarre **pendant** une compétition | La VM redémarre seule : `onboot` est basculé à `1` pour la journée (Q1 tranchée) |
+| `pve01` redémarre, un jour quelconque ou en pleine compétition | La VM revient seule (`onboot: 1`) |
 | GitHub est injoignable au moment du tirage | L'agent échoue silencieusement, réessaie au tick suivant, la version en service n'est pas touchée |
 | Une release est publiée pendant une compétition | **Elle est installée** — c'est voulu (Q2 tranchée) : Adrien doit pouvoir corriger le jour J. D'où l'importance du retour arrière automatique et d'une commande de déploiement immédiat |
 | L'archive téléchargée est corrompue | Empreinte invalide → rien n'est installé, message dans le journal |
@@ -207,7 +206,7 @@ de la salle — donc **une seule IP publique**.
 
 | # | Question | Décision |
 | --- | --- | --- |
-| Q1 | Rallumage automatique pendant une compétition | **Oui** — `onboot` passe à `1` pour la journée, puis revient à `0`. C'est une étape de la procédure de préparation et de la clôture |
+| Q1 | Rallumage automatique pendant une compétition | **Oui** — à l'époque par une bascule d'`onboot` le jour J. **Sans objet depuis le 03/09/2026** : `onboot` vaut `1` en permanence |
 | Q2 | Gel des déploiements pendant une compétition | **Non** — Adrien doit pouvoir corriger le jour J. Le pipeline reste actif, avec retour arrière automatique et une commande de déploiement immédiat |
 | Q3 | Nom de domaine | **`climbcontest.adn-dev.fr`**, une seule entrée, les surfaces se distinguent par le chemin |
 | Q4 | Adresse `192.168.0.32` | **Validée** — la plage DHCP de la Freebox va de `.40` à `.200`, le statique est libre en dessous |
@@ -218,3 +217,32 @@ de la salle — donc **une seule IP publique**.
 ### Encore ouvertes
 
 *Aucune.* Toutes les questions de cette spec sont tranchées.
+
+## Historique — ce que cette spec ne dit plus
+
+**Le régime intermittent a été abandonné le 03/09/2026.** La VM avait été
+conçue pour ne tourner que pendant les compétitions : `onboot: 0`, hors
+d'`ADN_GUESTS`, hors du job de sauvegarde, exclue de `MachineInjoignable` par
+une étiquette `intermittent: 'oui'`, et couverte par une alerte dédiée qui ne se
+déclenchait que si l'hyperviseur la disait démarrée.
+
+Déclencheur : la mise à jour du noyau de `pve01` a redémarré l'hyperviseur le
+03/09 à 05 h 04. Les neuf autres invités sont revenus seuls, pas elle — et rien
+ne l'a signalé, puisque c'est ce que la conception demandait.
+
+Le raisonnement en faveur de l'intermittence **a été retiré de cette spec, pas
+seulement signalé caduc** : laissé en place, il se relit comme un argumentaire
+complet, et se ré-applique. Il reste dans l'historique git de ce dossier. L'état
+en service est décrit dans `homelab/vm110-climbcontest/README.md`, qui porte
+aussi les **cinq réglages qui ne se déplacent jamais séparément** (`onboot`,
+`ADN_GUESTS`, le job `backup-nightly`, l'étiquette Prometheus, la sonde).
+
+Deux autres décisions de cette spec ont été défaites depuis :
+
+- **Q5** — « pas de copie périodique pendant la compétition ». La base est
+  aujourd'hui recopiée toutes les dix minutes dans
+  `/opt/climbcontest/shared/sauvegardes/`, les 24 dernières conservées.
+- **L'agent de tirage toutes les 2 minutes** — retiré le 03/09/2026 par la
+  [spec 031](../031-deploiement-depuis-la-console/) : une release ne s'installe
+  plus qu'en cliquant dans la console, ou par
+  `sudo systemctl start climbcontest-deploy.service`.

@@ -28,6 +28,59 @@ COTE_QR_ETIQUETTE_MM = 45.0
 COTE_QR_MM = 24.0
 
 
+# --- Le QR de poste, pose sur la table du juge (spec 034) --------------------
+
+# ⚠️ CE PREFIXE EST ECRIT DEUX FOIS : ici, et dans
+# `climbcontest/static/juge/poste.js` qui le lit. Le jour ou les deux divergent,
+# TOUS les QR de poste imprimes cessent d'etre lus, sans qu'une seule ligne ait
+# l'air fausse -- et ca se decouvre le samedi matin, avec les cartons deja poses
+# sur les tables. `tests/test_postes.py::TestLePrefixePartage` lit le fichier JS
+# et compare : le piege n'est pas documente, il est DETECTABLE.
+#
+# Pourquoi un prefixe : trois familles de QR circulent le jour J et le meme
+# viseur les voit toutes -- le dossard (`42`), le bloc (`ZJ6`), le lien de
+# l'organisateur. Sans prefixe, un juge qui scanne un bloc par erreur depuis
+# cet ecran renommerait son poste « ZJ6 » sans s'en apercevoir.
+PREFIXE_QR_POSTE = "CCPOSTE:"
+
+# ⚠️ CE MOT AUSSI EST ECRIT DEUX FOIS : ici et dans `poste.js` (`MOT_ZONE`),
+# qui compose le nom envoye a la console. Adrien, le 03/09 apres relecture :
+# « dans le nom qu'on envoie a la console, je veux que ce soit "zone" et la
+# lettre de la zone ». L'affiche imprime « ZONE » au-dessus de la lettre, le
+# telephone compose « Zone A » : les deux doivent dire la meme chose, sinon le
+# carton pose sur la table et la ligne de la console cessent de se ressembler.
+# Meme test que le prefixe : `TestLePrefixePartage`.
+MOT_ZONE = "Zone"
+
+# Le QR d'une affiche de poste.
+#
+# ⚠️ 42 mm EST LE PLANCHER, et il est mesure : c'est la taille des etiquettes de
+# blocs de la spec 024, qui se scannent a bout de bras. On garde 48 -- six
+# millimetres de marge pour un carton pose a plat, vise de biais et souvent
+# d'une seule main. A 48 mm, un « CCPOSTE:A » (version 1, 21 modules plus huit
+# de zone de silence) donne 1,6 mm par module, soit plus de trois fois le
+# plancher de `qr.MODULE_MINI_MM`.
+#
+# La premiere version en posait 70, sur une affiche pleine largeur. Adrien le
+# 03/09 : « lors de l'impression tu m'en rentres beaucoup plus sur une feuille
+# -- a quatre, j'en voudrais au moins six, voire huit ». Un QR de 70 mm interdit
+# deux colonnes ; 48 les autorise.
+COTE_QR_POSTE_MM = 48.0
+
+# La feuille imprimee, la meme que pour les etiquettes : 188 x 270 sur une page
+# utile de 190 x 277.
+#
+# ⚠️ JAMAIS LA SURFACE EXACTE. Une feuille qui occupe 190 x 277 sort en DOUBLE
+# de pages sur une vraie imprimante, dont la zone imprimable est plus petite que
+# la surface theorique -- sept feuilles etaient sorties en quatorze (spec 032).
+LARGEUR_FEUILLE_POSTES_MM = 188.0
+HAUTEUR_FEUILLE_POSTES_MM = 270.0
+
+# Le blanc autour du contenu d'une affiche, et l'ecart entre le QR et le texte.
+REMBOURRAGE_AFFICHE_POSTE_MM = 4.0
+GOUTTIERE_AFFICHE_POSTE_MM = 4.0
+
+
 # Les six profils de mur, ORDONNÉS du moins au plus déversant. L'ordre EST
 # l'information : la trame se densifie et le gris fonce à mesure qu'on descend
 # la liste, ce qui donne une seule règle à apprendre — plus ça déverse, plus ça
@@ -365,12 +418,76 @@ def _groupes(blocs) -> list[dict]:
 # coherence DU CALCUL -- monotonie, cout d'une ligne, cout d'une marge -- mais
 # aucun test ne peut verifier que ces quatre nombres decrivent encore le CSS.
 # Seule une mesure au navigateur le dit.
-HAUTEUR_UTILE_MM = 58.3          # ce qui reste sous le titre « TES N BLOCS »
-HAUTEUR_LIGNE_MM = 7.3           # une ligne de cases
-HAUTEUR_LIGNE_SUP_MM = 8.0       # chaque ligne SUPPLEMENTAIRE (ligne + gouttiere)
+# ⚠️ REMESURE le 02/09, quand la fiche est passee de 66 a 62 mm de haut pour
+# que la feuille cesse de deborder de la page (voir l'entete de
+# `dossards.html`). Quatre millimetres de fiche en moins, quatre millimetres de
+# budget de blocs en moins.
+# Mesure du 02/09 sur le gabarit a 62 mm : `.blocs` fait 56,62 mm de haut,
+# dont 3,65 pour le titre et sa marge. Reste 52,98, arrondis a 52,9.
+HAUTEUR_UTILE_MM = 52.9          # ce qui reste sous le titre « TES N BLOCS »
 MARGE_GROUPE_MM = 1.2            # entre deux groupes de couleur
 
+# --- Et sa LARGEUR, qui manquait ---------------------------------------------
+#
+# ⚠️ Le calcul ne regardait que la hauteur. La largeur n'etait bornee par rien
+# du tout : `repeat(var(--cols), 1fr)` vaut `minmax(auto, 1fr)`, et une piste
+# de grille ne descend jamais sous la largeur du texte qu'elle contient. Neuf
+# colonnes de « M52 » dans soixante millimetres faisaient donc SOIXANTE-DIX
+# millimetres de grille, et les dernieres cases se peignaient PAR-DESSUS le
+# plan du mur. Mesure du 02/09 : les 120 fiches de la planche debordaient,
+# toutes, de 5,75 mm -- avant meme le changement de format.
+#
+# Le nombre de colonnes et la TAILLE DU TEXTE se choisissent donc ensemble :
+# moins de colonnes, c'est des cases plus larges et un texte plus gros, mais
+# plus de lignes ; et chaque ligne coute moins cher quand le texte est plus
+# petit. On garde le premier couple qui tient -- donc le plus gros texte.
+LARGEUR_BLOCS_MM = 59.8          # mesure : 59,8 mm dans une fiche de 138
+GOUTTIERE_CASE_MM = 0.5          # `gap` entre deux cases
+HABILLAGE_CASE_MM = 0.8          # remplissage + filets, de part et d'autre
+CHASSE_CASE = 0.82               # largeur d'un caractere du numero, en em
+
+TAILLE_CASE_MAXI_MM = 3.0        # la taille de reference, celle du gabarit
+TAILLE_CASE_MINI_MM = 2.0        # sous laquelle on ne descend pas : on prefere
+                                 # une fiche pleine a un numero illisible
+
+# La hauteur d'une ligne de cases se DEDUIT de la taille du texte, au lieu
+# d'etre une constante mesuree a 3 mm : 4,2 mm d'habillage (remplissage,
+# filets, ligne de zone) plus 1,05 fois la taille du texte. A 3 mm, la formule
+# rend 7,35 -- la valeur qui etait ecrite en dur.
+HAUTEUR_LIGNE_FIXE_MM = 4.2
+HAUTEUR_LIGNE_PAR_TAILLE = 1.05
+
 COLONNES_MINI, COLONNES_MAXI = 6, 12
+
+
+def taille_case_mm(colonnes: int, caracteres: int) -> float:
+    """La plus grande taille de numero qui tient dans une case, en mm.
+
+    `caracteres` est la longueur du PLUS LONG numero de la fiche : c'est lui
+    qui fixe la largeur de toutes les pistes, une grille a colonnes egales ne
+    connaissant qu'une largeur.
+    """
+    largeur_case = ((LARGEUR_BLOCS_MM - (colonnes - 1) * GOUTTIERE_CASE_MM)
+                    / colonnes)
+    utile = largeur_case - HABILLAGE_CASE_MM
+    if caracteres <= 0 or utile <= 0:
+        return TAILLE_CASE_MAXI_MM
+    tient = utile / (caracteres * CHASSE_CASE)
+    return max(TAILLE_CASE_MINI_MM,
+               min(TAILLE_CASE_MAXI_MM, int(tient * 20) / 20))
+
+
+def hauteur_ligne_mm(taille: float) -> float:
+    """La hauteur d'une ligne de cases, pour un numero de cette taille."""
+    return HAUTEUR_LIGNE_FIXE_MM + HAUTEUR_LIGNE_PAR_TAILLE * taille
+
+
+# Les deux valeurs mesurees d'origine, desormais DEDUITES de la formule a la
+# taille de reference : 4,2 + 1,05 x 3 = 7,35 (mesure : 7,3) et une ligne de
+# plus coute en outre sa gouttiere (mesure : 8,0). Elles restent nommees, parce
+# qu'elles disent le cout d'une ligne dans le cas ordinaire.
+HAUTEUR_LIGNE_MM = hauteur_ligne_mm(TAILLE_CASE_MAXI_MM)
+HAUTEUR_LIGNE_SUP_MM = HAUTEUR_LIGNE_MM + GOUTTIERE_CASE_MM
 
 # Combien de fiches par feuille, et combien d'etiquettes. Les deux DECOULENT de
 # la geometrie des gabarits : 2 colonnes x 3 lignes pour les fiches (A4
@@ -378,41 +495,218 @@ COLONNES_MINI, COLONNES_MAXI = 6, 12
 # ici sans changer la geometrie laisserait des trous ou couperait une feuille.
 FICHES_PAR_FEUILLE = 6
 ETIQUETTES_PAR_FEUILLE = 8
+# --- Et les affiches de poste (spec 034) ------------------------------------
+#
+# ⚠️ CETTE VALEUR COMMANDE TOUTE LA PLANCHE. Le nombre de lignes, la hauteur
+# d'une affiche et la largeur laissee au nom de zone en descendent, par
+# `geometrie_postes()` ; le gabarit ne fait que poser les millimetres qu'on lui
+# donne. Repasser a 6 est UNE valeur a changer ici, pas une refonte du CSS.
+#
+# Adrien, le 03/09 apres relecture : « lors de l'impression tu m'en rentres
+# beaucoup plus sur une feuille -- a quatre, j'en voudrais au moins six, voire
+# huit ». On prend le haut de la fourchette : 17 zones tiennent sur 3 feuilles
+# au lieu de 6, et le QR reste a 48 mm, six de plus que le plancher mesure des
+# etiquettes de blocs.
+#
+# L'historique en dit long sur ce qui se paie a l'ecran : 2 par feuille en
+# colonne (le mode d'emploi sortait COUPE), puis 3 a l'horizontale, puis 8 en
+# deux colonnes une fois le mode d'emploi parti dans l'application.
+POSTES_PAR_FEUILLE = 8
+
+# Deux colonnes. C'est ce qui rend 6 comme 8 possibles sans toucher au QR : une
+# seule colonne obligerait a des affiches de 34 mm de haut pour en poser huit,
+# ou l'on ne mettrait ni un QR de 48 ni un nom lisible.
+POSTES_PAR_LIGNE = 2
 
 
-def hauteur_mm(tailles: list[int], colonnes: int) -> float:
+def hauteur_mm(tailles: list[int], colonnes: int,
+               taille_texte: float = TAILLE_CASE_MAXI_MM) -> float:
     """La hauteur qu'occuperaient ces groupes de blocs sur `colonnes` colonnes.
 
     Le nombre de LIGNES ne depend pas du nombre de blocs mais du nombre de
     COULEURS et du remplissage de chacune : une couleur de 22 blocs sur 8
     colonnes prend trois lignes a elle seule, et chaque groupe paie en plus sa
     marge.
+
+    `taille_texte` par defaut vaut la taille de reference du gabarit : appelee
+    sans elle, la fonction rend ce qu'elle rendait avant que la taille devienne
+    variable.
     """
+    ligne = hauteur_ligne_mm(taille_texte)
     total = 0.0
     for n in tailles:
         lignes = -(-n // colonnes)                            # ceil
-        total += HAUTEUR_LIGNE_MM + (lignes - 1) * HAUTEUR_LIGNE_SUP_MM
+        total += ligne + (lignes - 1) * (ligne + GOUTTIERE_CASE_MM)
     return total + MARGE_GROUPE_MM * max(0, len(tailles) - 1)
 
 
-def colonnes_qui_tiennent(groupes) -> int:
-    """Le nombre de colonnes le plus PETIT qui fait tenir tous les blocs.
+def mise_en_page_blocs(groupes) -> tuple[int, float]:
+    """Le couple (colonnes, taille du numero en mm) qui fait tenir la fiche.
 
-    ⚠️ C'est calcule ici et pas laisse au CSS. `auto-fit` choisit ses colonnes
-    d'apres la largeur disponible, sans rien savoir de la hauteur que ca
-    produira : quand un groupe passait sur deux lignes, la fiche debordait et
-    ses cadres chevauchaient la fiche voisine. Signale par Adrien le 02/09.
+    ⚠️ C'est calcule ici et pas laisse au CSS, POUR LES DEUX AXES.
 
-    Le plus petit nombre de colonnes qui tient donne les cases les PLUS
-    GRANDES -- donc les plus lisibles -- sans deborder.
+    En hauteur : `auto-fit` choisit ses colonnes d'apres la largeur disponible,
+    sans rien savoir du nombre de lignes que ca produira -- quand un groupe
+    passait sur deux lignes, la fiche debordait sur sa voisine (Adrien, 02/09).
+
+    En largeur : une piste `1fr` ne descend jamais sous la largeur de son
+    texte. Neuf colonnes de « M52 » faisaient soixante-dix millimetres de
+    grille dans une colonne de soixante, et les dernieres cases se peignaient
+    par-dessus le plan du mur -- sur les 120 fiches de la planche, mesure du
+    02/09. Le CSS seul ne peut pas arbitrer : lui n'a pas le droit de changer
+    la taille du texte, nous si.
+
+    On parcourt les colonnes du plus PETIT nombre au plus grand. Peu de
+    colonnes donne des cases larges et un gros texte, mais beaucoup de lignes ;
+    et une ligne coute moins cher quand le texte est plus petit. Le premier
+    couple qui tient en hauteur est donc celui qui garde le plus gros texte.
     """
     tailles = [len(g["blocs"]) for g in groupes if g["blocs"]]
     if not tailles:
-        return COLONNES_MINI
+        return COLONNES_MINI, TAILLE_CASE_MAXI_MM
+    plus_long = max((len(b["numero"]) for g in groupes for b in g["blocs"]),
+                    default=1)
+    dernier = (COLONNES_MAXI, taille_case_mm(COLONNES_MAXI, plus_long))
     for colonnes in range(COLONNES_MINI, COLONNES_MAXI + 1):
-        if hauteur_mm(tailles, colonnes) <= HAUTEUR_UTILE_MM:
-            return colonnes
-    return COLONNES_MAXI
+        taille = taille_case_mm(colonnes, plus_long)
+        if hauteur_mm(tailles, colonnes, taille) <= HAUTEUR_UTILE_MM:
+            return colonnes, taille
+    return dernier
+
+
+def colonnes_qui_tiennent(groupes) -> int:
+    """Le nombre de colonnes seul — voir `mise_en_page_blocs`."""
+    return mise_en_page_blocs(groupes)[0]
+
+
+# --- La taille du numero d'une etiquette, en millimetres ----------------------
+#
+# ⚠️ MESUREES DANS LE NAVIGATEUR, comme le budget de hauteur d'une fiche, et
+# pas estimees : la premiere version tablait sur 0,58 em par caractere, la
+# mesure en a donne 0,705, et « M40 » debordait de neuf millimetres.
+#
+# La colonne de texte fait 94 mm (l'etiquette) moins 6 (le remplissage) moins
+# 42 (le QR) moins 3 (la gouttiere) = 43 mm ; on en garde 42 pour l'arrondi.
+LARGEUR_NUMERO_MM = 42.0
+CHASSE_NUMERO = 0.72              # largeur d'un caractere, en em (mesure : 0,705)
+
+# ⚠️ UNE SEULE TAILLE, la meme sur toute etiquette (spec 033, R7).
+#
+# Elle etait calculee par etiquette : « J6 » sortait a 26 mm et « J24 » a
+# 19,5 mm, parce qu'on prenait la plus grande taille a laquelle chaque numero
+# tenait. C'est logique vu de pres, et bancal vu sur une planche de huit --
+# « le numero J6 ou J24 change de taille en fonction du nombre de caracteres,
+# je veux que la taille de la police soit fixe » (Adrien, 03/09, apres avoir
+# imprime pour de vrai).
+#
+# 42 / (3 x 0,72) = 19,4, arrondi au demi-millimetre inferieur. TROIS
+# caracteres, parce qu'un numero d'etiquette est la lettre de couleur suivie
+# du numero dans la couleur : « J6 », « J24 », « M40 ». Un quatrieme
+# caractere ne mange pas le QR -- `overflow: hidden` et `white-space: nowrap`
+# tiennent la colonne -- il est coupe, ce qui se voit et se corrige.
+#
+# ⚠️ Une constante, et PAS « la plus grande taille qui tient sur cette
+# planche ». Cette seconde option donnerait des numeros plus gros quand la
+# planche n'a que des numeros courts, mais imprimer toute la salle puis la
+# seule zone A rendrait DEUX tailles differentes pour les memes etiquettes :
+# le filtre change le plus long numero de la planche. On recollerait au mur
+# des etiquettes qui ne se ressemblent pas.
+TAILLE_NUMERO_MM = 19.0
+
+
+# --- La geometrie d'une planche d'affiches de poste (spec 034) --------------
+
+
+def geometrie_postes(par_feuille: int | None = None,
+                     par_ligne: int | None = None) -> dict:
+    """Tous les millimetres d'une planche, deduits de sa DENSITE.
+
+    ⚠️ **Une seule valeur commande la planche** : `POSTES_PAR_FEUILLE`. Le
+    nombre de lignes, la largeur et la hauteur d'une affiche, la place laissee
+    au nom de zone en descendent -- et le gabarit ne fait que poser ce qu'on
+    lui donne, en variables CSS. Repasser de 8 a 6 est une valeur a changer
+    ici, pas une refonte du CSS.
+
+    C'est ce qui a manque a la premiere version : la densite vivait dans une
+    constante Python ET dans une demi-douzaine de millimetres ecrits en dur
+    dans le gabarit, et les deux ont diverge des le premier changement.
+
+    Le calcul est volontairement bete : la feuille se divise en colonnes et en
+    lignes, sans gouttiere entre les affiches -- on decoupe sur les pointilles,
+    et deux affiches qui se touchent se coupent d'un seul coup de massicot.
+    """
+    par_feuille = par_feuille or POSTES_PAR_FEUILLE
+    colonnes = min(par_ligne or POSTES_PAR_LIGNE, par_feuille)
+    lignes = -(-par_feuille // colonnes)          # division entiere, arrondie en haut
+
+    largeur = LARGEUR_FEUILLE_POSTES_MM / colonnes
+    hauteur = HAUTEUR_FEUILLE_POSTES_MM / lignes
+    # Ce qui reste au texte une fois le QR, le rembourrage et la gouttiere pris.
+    largeur_nom = (largeur - 2 * REMBOURRAGE_AFFICHE_POSTE_MM
+                   - COTE_QR_POSTE_MM - GOUTTIERE_AFFICHE_POSTE_MM)
+
+    return {
+        "par_feuille": par_feuille,
+        "colonnes": colonnes,
+        "lignes": lignes,
+        "largeur_mm": round(largeur, 2),
+        "hauteur_mm": round(hauteur, 2),
+        "cote_qr_mm": COTE_QR_POSTE_MM,
+        "rembourrage_mm": REMBOURRAGE_AFFICHE_POSTE_MM,
+        "gouttiere_mm": GOUTTIERE_AFFICHE_POSTE_MM,
+        "largeur_nom_mm": round(largeur_nom, 2),
+    }
+
+
+# --- Et la taille du nom de zone d'une affiche de poste (spec 034) -----------
+#
+# ⚠️ Le nom de zone, LUI, reste dimensionne par son texte -- et ce n'est pas un
+# oubli de la R7 juste au-dessus. Les deux raisons qui ont fige le numero
+# d'etiquette ne mordent pas ici :
+#
+#  - une planche d'etiquettes en aligne huit cote a cote, et deux voisines de
+#    tailles differentes se voient. Une affiche de poste est un objet SEUL,
+#    scotche sur sa table ; les huit d'un meme A4 sont decoupees avant d'etre
+#    posees, et ne se revoient jamais.
+#  - la seconde raison -- imprimer toute la salle puis une seule zone donnerait
+#    deux tailles pour la MEME etiquette -- ne s'applique pas non plus : la
+#    taille ne depend que du texte, donc « TOIT » sort identique qu'on imprime
+#    une affiche ou vingt.
+#
+# Si un jour les affiches doivent se ressembler entre elles, c'est la meme
+# correction qu'en R7 : une constante, pas « la plus grande qui tient sur cette
+# planche » (le filtre changerait la taille).
+#
+# ⚠️ La largeur disponible n'est PAS une constante, elle : elle vient de
+# `geometrie_postes()`, donc de la DENSITE. Ecrite en dur, elle mentirait des
+# qu'on repasse de huit affiches par feuille a six.
+CHASSE_NOM_POSTE = 0.72           # meme graisse (800) que le numero d'etiquette
+TAILLE_NOM_POSTE_MAXI_MM = 26.0   # au-dela, le nom deborde la hauteur d'affiche
+
+
+def taille_nom_poste_mm(texte: str, geometrie: dict | None = None) -> float:
+    """La plus grande taille a laquelle ce nom de zone tient sur une ligne.
+
+    Arrondie au demi-millimetre inferieur, et sans plancher a dessein : un nom
+    tres long doit RETRECIR, pas deborder. Le gabarit pose `white-space:
+    nowrap`, donc ce qui ne tient pas serait coupe -- et un nom de zone coupe
+    ne sert plus a rien. Un texte vide rend le maximum.
+
+    La largeur disponible vient de `geometrie_postes()` : elle depend de la
+    DENSITE de la planche, pas d'une constante. On la passe quand on en a deja
+    une sous la main -- une planche entiere n'a pas a la recalculer par affiche.
+
+    ⚠️ Ce calcul etait partage avec celui du numero d'etiquette, par un
+    `_taille_qui_tient_mm` commun. La R7 a fige le numero : le partage n'a plus
+    d'objet, et un helper generique « la plus grande taille qui tient » serait
+    surtout une invitation a refaire ce qu'Adrien vient de defaire.
+    """
+    geometrie = geometrie or geometrie_postes()
+    n = len(texte or "")
+    if n <= 0:
+        return TAILLE_NOM_POSTE_MAXI_MM
+    tient = geometrie["largeur_nom_mm"] / (n * CHASSE_NOM_POSTE)
+    return min(TAILLE_NOM_POSTE_MAXI_MM, int(tient * 2) / 2)
 
 
 def en_feuilles(elements: list, par_feuille: int) -> list[list]:
@@ -461,6 +755,7 @@ def construire(comp, participants) -> list[dict]:
         zones = {b.zone for b in blocs if b.zone}
         groupes = _groupes(blocs)
 
+        colonnes, taille_case = mise_en_page_blocs(groupes)
         planche.append({
             "dossard": p.dossard,
             "nom": p.nom_complet,
@@ -470,7 +765,10 @@ def construire(comp, participants) -> list[dict]:
             "qr": qr.svg(p.dossard, cote_mm=COTE_QR_MM),
             "total": len(blocs),
             "groupes": groupes,
-            "colonnes": colonnes_qui_tiennent(groupes),
+            "colonnes": colonnes,
+            # La taille du numero d'un bloc suit le nombre de colonnes : voir
+            # `mise_en_page_blocs`. Elle part au gabarit comme `--case`.
+            "taille_case": taille_case,
             "plan": plan_pour(zones, plan),
             # Pour l'etiquette accessible du SVG : un lecteur d'ecran ne lit
             # pas un polygone, il lit le texte qu'on lui donne.
@@ -487,12 +785,24 @@ def construire(comp, participants) -> list[dict]:
 
 
 def etiquettes(comp, zone: str | None = None, tag: str | None = None) -> list[dict]:
-    """Les blocs à coller au mur, dans l'ordre du `Plan`.
+    """Les blocs à coller au mur, **zone par zone, de A à Z**.
 
-    L'ordre est celui de `Bloc.numero` — le numéro de ligne dans l'onglet
-    `Import`, qui suit le `Plan` : les blocs sortent donc zone par zone, comme
-    le classeur les range. On prend la page de la zone Z, on va coller les cinq
-    étiquettes de la zone Z, on ne trie rien à la main.
+    ⚠️ L'ordre était celui de `Bloc.numero` — le numéro de ligne de l'onglet
+    `Import`, qui suit le `Plan`. Les blocs sortaient bien zone par zone, mais
+    dans l'ordre du plan, qui n'est pas l'alphabet : celui d'Annonay commence
+    par X et Y et finit par E. « Je veux qu'ils soient classés dans l'ordre
+    alphabétique des zones, c'est-à-dire la zone A d'abord et tu finis par la
+    Z » (Adrien, 03/09, spec 033 R8).
+
+    Le tri est donc `(zone absente, zone, numéro)` :
+
+    - **`zone IS NULL` en premier critère**, parce que SQLite range les `NULL`
+      AVANT tout le reste. Sans lui, une planche s'ouvrirait sur les blocs qui
+      n'ont aucun mur où aller — l'anomalie en tête de la première feuille.
+    - la zone, sur sa VALEUR : depuis la spec 029 le nom de zone est saisi dans
+      la console, et rien ne garantit qu'il tient sur une lettre.
+    - `Bloc.numero`, qui reste l'ordre du classeur À L'INTÉRIEUR d'une zone :
+      difficulté puis numéro. C'est celui qui existait, et on n'y touche pas.
 
     Deux requêtes, quel que soit le nombre de blocs.
 
@@ -508,7 +818,8 @@ def etiquettes(comp, zone: str | None = None, tag: str | None = None) -> list[di
         requete = requete.filter(Bloc.tag == tag)
     elif zone:
         requete = requete.filter(Bloc.zone == zone)
-    blocs = requete.order_by(Bloc.numero).all()
+    blocs = requete.order_by(
+        Bloc.zone.is_(None), Bloc.zone, Bloc.numero).all()
 
     circuits = {c.id: c.nom
                 for c in Circuit.query.filter_by(competition_id=comp.id).all()}
@@ -533,5 +844,64 @@ def etiquettes(comp, zone: str | None = None, tag: str | None = None) -> list[di
             # juge attend et ce que `bloc_par_tag()` sait relire. Pas un
             # caractère de plus.
             "qr": qr.svg(bloc.tag, cote_mm=COTE_QR_ETIQUETTE_MM),
+        })
+    return planche
+
+
+# --- Les affiches de poste, posées sur la table du juge (spec 034) -----------
+
+
+def texte_qr_poste(zone: str) -> str:
+    """Ce qu'on encode dans le QR d'une zone. Le pendant de `poste.nomDePoste`."""
+    return PREFIXE_QR_POSTE + str(zone or "").strip()
+
+
+def postes(zone: str | None = None, plan: dict | None = None) -> list[dict]:
+    """Une affiche par zone du plan, triée par nom de zone.
+
+    ⚠️ **Les zones se déduisent du plan, jamais d'une liste tenue à la main.**
+    Adrien, le 03/09 : « tu connais parfaitement grâce au plan le nombre des
+    zones, donc tu peux tout à fait le générer automatiquement ». Un mur ajouté
+    dans `/admin/plan` sort son QR à l'impression suivante, sans qu'on touche à
+    quoi que ce soit — et une liste qui divergerait du plan ferait imprimer un
+    carton pour une zone qui n'existe plus.
+
+    ⚠️ **Aucune requête sur `Bloc`, `Participant` ou `Competition`.** Une
+    planche de QR de poste ne dépend d'aucune compétition : c'est ce qui permet
+    de l'imprimer la veille au soir, avant même d'avoir importé le classeur.
+
+    L'ordre est **alphabétique**, pas celui du plan. Le plan range les murs dans
+    l'ordre où on les a dessinés — arbitraire pour qui cherche la zone « M »
+    dans une pile de neuf feuilles. Les étiquettes de blocs, elles, suivent le
+    `Plan` parce qu'on les colle mur par mur : ce n'est pas le même geste.
+
+    Deux murs portant la même zone ne donnent **qu'une** affiche :
+    `zones_du_plan` rend un ensemble.
+    """
+    zones = sorted(zones_du_plan(plan if plan is not None else plan_courant()))
+    if zone:
+        # Une zone absente du plan rend une liste VIDE, pas une exception : la
+        # page doit pouvoir la nommer et dire qu'elle n'existe pas.
+        zones = [z for z in zones if z == zone]
+
+    # Une seule lecture de la geometrie pour toute la planche : elle ne depend
+    # que de la densite, pas de la zone.
+    geometrie = geometrie_postes()
+
+    planche = []
+    for z in zones:
+        texte = texte_qr_poste(z)
+        planche.append({
+            "zone": z,
+            "texte": texte,
+            # Ce que le telephone affichera apres avoir scanne ce carton, et ce
+            # que la console montrera en face de ses envois. Compose ici comme
+            # dans `poste.js` : l'affiche et la console doivent dire la meme
+            # chose, sinon le carton pose sur la table cesse de designer la
+            # ligne qu'on lit dans « Qui envoie quoi ».
+            "libelle": f"{MOT_ZONE} {z}",
+            # La taille du nom suit sa LONGUEUR : voir `taille_nom_poste_mm`.
+            "taille_nom": taille_nom_poste_mm(z, geometrie),
+            "qr": qr.svg(texte, cote_mm=COTE_QR_POSTE_MM),
         })
     return planche

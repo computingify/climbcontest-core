@@ -143,6 +143,44 @@ class TestLeServiceWorker:
         assert ".catch(" in juge[juge.index("serviceWorker.register"):]
 
 
+class TestHiddenCacheVraiment:
+    """La regle de cascade qui a laisse un bouton mort sur l'ecran Reglages.
+
+    Une regle d'AUTEUR qui pose `display` bat le `[hidden] { display: none }`
+    de la feuille du NAVIGATEUR : l'origine auteur l'emporte sur l'origine
+    agent-utilisateur, quelle que soit la specificite. Sept rustines locales
+    corrigeaient le defaut element par element, et il en manquait toujours une
+    -- `.ligne { display: flex }` rendait `#ligneRefus` visible en permanence,
+    donc « 0 refusees » et un bouton « Renvoyer » qui ne fait rien.
+
+    Le COMPORTEMENT se verifie dans un vrai navigateur
+    (`test_navigateur_juge_reglages.py`) ; ce test-ci garde la regle, et tourne
+    meme sans navigateur installe.
+    """
+
+    def test_la_regle_globale_est_la(self, client_sans_cle):
+        page = client_sans_cle.get("/juge").get_data(as_text=True)
+        assert re.search(r"\[hidden\]\s*\{\s*display:\s*none\s*!important", page), (
+            "la regle globale `[hidden] { display: none !important }` a "
+            "disparu : n'importe quelle regle posant `display` rendra a "
+            "nouveau visible un element cache")
+
+    def test_aucune_rustine_locale_ne_revient(self, client_sans_cle):
+        """Une rustine par element, c'est le motif qui a produit le defaut.
+
+        Elle donne l'impression que le sujet est traite, et laisse le prochain
+        `display` sans garde. La regle globale les rend toutes inutiles ; si
+        l'une reapparait, c'est que quelqu'un a retrouve le defaut sans
+        retrouver sa cause.
+        """
+        page = client_sans_cle.get("/juge").get_data(as_text=True)
+        style = page.split("</style>")[0]
+        rustines = re.findall(r"^\s*([#.]?[\w.-]+)\[hidden\]\s*\{", style, re.M)
+        assert not rustines, (
+            f"rustines locales revenues : {rustines} — la regle globale "
+            "`[hidden]` les couvre deja")
+
+
 class TestRienNeFuit:
     """La page est publique. Tout ce qu'elle contient l'est aussi."""
 
@@ -436,3 +474,132 @@ class TestJetonDansLeLien:
         sw = client_sans_cle.get("/juge/sw.js").get_data(as_text=True)
         debut = sw.index("const COQUILLE")
         assert "manifest.webmanifest" not in sw[debut:sw.index("]", debut)]
+
+
+class TestLEnTeteDeLApplication:
+    """« La roue de configuration, son logo ne va pas avec le reste, trouve une
+    roue plus sobre et simple. En plus je veux que ce logo soit celui de tout à
+    droite. » — Adrien, 03/09 (spec 033, R9).
+
+    Deux défauts en un : « ⚙ » (U+2699) est un caractère à présentation EMOJI —
+    il sort en couleur sur iOS et Android, dans un style qui n'est pas celui du
+    voyant juste à côté — et il était placé AVANT le voyant, donc ce n'est pas
+    lui qui terminait la barre.
+
+    ⚠️ La PWA seulement : « on parle uniquement de la PWA, car l'app Android va
+    être supprimée » (Adrien, 03/09).
+    """
+
+    @pytest.fixture()
+    def entete(self, client_sans_cle):
+        page = client_sans_cle.get("/juge").data.decode()
+        return page.split("<header>")[1].split("</header>")[0]
+
+    def test_l_engrenage_n_est_plus_un_caractere(self, entete):
+        """Dans le BOUTON : le commentaire cite le caractère qu'on a retiré, et
+        c'est lui qui empêchera de le remettre."""
+        bouton = entete.split('id="ouvrirReglages"')[1].split("</button>")[0]
+        assert "⚙" not in bouton, bouton
+
+    def test_il_est_dessine_au_MEME_trait_que_le_voyant(self, entete):
+        bouton = entete.split('id="ouvrirReglages"')[1].split("</button>")[0]
+        assert "<svg" in bouton, bouton
+        assert 'stroke-width="2.1"' in bouton, bouton
+        assert 'stroke="currentColor"' in bouton, bouton
+
+    def test_il_est_le_DERNIER_element_de_la_barre(self, entete):
+        assert entete.index('id="ouvrirReglages"') > entete.index('id="voyant"'), (
+            "l'engrenage doit terminer la barre, a la droite du voyant")
+        apres = entete.split('id="ouvrirReglages"')[1]
+        assert "<button" not in apres and "<svg id=" not in apres, apres
+
+    def test_il_a_la_meme_taille_que_le_voyant(self, client_sans_cle):
+        """Deux icônes voisines de tailles différentes se lisent comme deux
+        composants sans rapport."""
+        page = client_sans_cle.get("/juge").data.decode()
+        assert "#ouvrirReglages svg { display: block; width: 22px; height: 22px; }" in page
+        assert "#voyant { width: 22px; height: 22px; }" in page
+
+
+class TestLeNomDuPosteEstAffiche:
+    """« Il faut que si le nom du téléphone est setté, il faut l'afficher en
+    haut de l'application mobile. » — Adrien, 03/09.
+
+    Le nom désigne un ENDROIT de la salle (« Mur jaune »), jamais une personne :
+    c'est la règle d'`identite.js`, et c'est ce nom que la console affiche à
+    côté des réussites.
+    """
+
+    def test_l_emplacement_existe_et_part_masque(self, client_sans_cle):
+        entete = client_sans_cle.get("/juge").data.decode() \
+            .split("<header>")[1].split("</header>")[0]
+        assert 'id="nomPoste" hidden' in entete, entete
+
+    def test_il_se_pose_au_demarrage_ET_au_renommage(self):
+        js = (STATIQUE / "juge.js").read_text(encoding="utf-8")
+        assert "function afficherLeNomDuPoste()" in js
+        # Au demarrage : sinon le nom n'apparait qu'apres etre passe par les
+        # reglages, c'est-a-dire jamais pour un poste deja nomme.
+        assert js.count("afficherLeNomDuPoste();") >= 2, js.count(
+            "afficherLeNomDuPoste();")
+
+    def test_un_poste_sans_nom_ne_laisse_pas_de_trou(self):
+        js = (STATIQUE / "juge.js").read_text(encoding="utf-8")
+        corps = js.split("function afficherLeNomDuPoste()")[1].split("\n}")[0]
+        assert "noeud.hidden = !nom;" in corps, corps
+
+    def test_le_nom_n_est_jamais_du_balisage(self):
+        """Il est saisi à la main dans les réglages du téléphone."""
+        js = (STATIQUE / "juge.js").read_text(encoding="utf-8")
+        corps = js.split("function afficherLeNomDuPoste()")[1].split("\n}")[0]
+        assert "textContent" in corps and "innerHTML" not in corps
+
+
+class TestLaCategorieSurLaCarteDuGrimpeur:
+    """« Quand on scanne le grimpeur, on voit son nom prénom, tu as mis aussi
+    son dossard, mais il faudrait aussi que tu mettes sa catégorie. En plus
+    gros, je veux dire la taille du nom prénom. […] Je la verrais bien plutôt
+    sur la partie droite de la case grimpeur. » — Adrien, 03/09 (spec 033, R10).
+    """
+
+    @pytest.fixture()
+    def page(self, client_sans_cle):
+        return client_sans_cle.get("/juge").data.decode()
+
+    def test_la_carte_a_une_colonne_de_droite(self, page):
+        carte = page.split('id="carteGrimpeur"')[1].split("</button>")[0]
+        assert 'id="categorieGrimpeur"' in carte, carte
+        # L'identite a gauche, la categorie a droite : c'est l'ordre du DOM.
+        assert carte.index('class="identite"') < carte.index('id="categorieGrimpeur"')
+
+    def test_elle_est_a_LA_TAILLE_DU_NOM(self, page):
+        """Pas « un peu plus gros que le dossard » : la taille du nom, c'est ce
+        qui a été demandé."""
+        nom = re.search(r"\.carte \.valeur \{[^}]*font-size: ([0-9.]+)rem", page)
+        categorie = re.search(
+            r"#carteGrimpeur \.categorie \{[^}]*font-size: ([0-9.]+)rem", page,
+            re.S)
+        assert nom and categorie, (nom, categorie)
+        assert nom.group(1) == categorie.group(1), (nom.group(1), categorie.group(1))
+
+    def test_sans_categorie_la_colonne_disparait(self, page):
+        assert 'id="categorieGrimpeur" hidden' in page
+
+    def test_elle_vient_du_catalogue_LOCAL(self):
+        """Un scan ne doit pas attendre le réseau pour afficher ce que le juge
+        vérifie."""
+        js = (STATIQUE / "juge.js").read_text(encoding="utf-8")
+        assert "catalogue.categorie(etat.dossard)" in js
+        assert "caseCategorie.hidden = !categorie;" in js
+
+    def test_le_catalogue_garde_la_categorie_et_change_de_format(self):
+        """⚠️ La forme 3 ne gardait que le circuit, par minimisation. Le
+        marqueur de format est ce qui fait retélécharger les téléphones : sans
+        lui, un `c` valant « U11 » serait affiché là où on annonce une
+        catégorie."""
+        cat = (STATIQUE / "catalogue.js").read_text(encoding="utf-8")
+        assert "export const FORMAT = 4;" in cat
+        assert "categorie(dossard) {" in cat
+        # Le circuit se DEDUIT : deux champs qui disent la meme chose finissent
+        # par se contredire.
+        assert "return circuitDe(this.categorie(dossard));" in cat

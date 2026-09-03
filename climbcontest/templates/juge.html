@@ -3,12 +3,21 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="theme-color" content="#0B0D11">
+<!-- La barre du navigateur suit le theme. Le CLAIR est en PREMIER :
+     un navigateur qui ignore l'attribut `media` -- les iOS anterieurs
+     a 15.4, donc des telephones de benevoles -- garde le premier, et
+     c'est le defaut voulu. -->
+<meta name="theme-color" content="#F3EEE3" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#15161B" media="(prefers-color-scheme: dark)">
 <meta name="mobile-web-app-capable" content="yes">
 <!-- L'ancien nom reste : les iOS anterieurs a 17 ne connaissent que lui,
      et ce sont exactement les telephones des benevoles. -->
 <meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<!-- ⚠️ `default` et non plus `black-translucent` : sur un fond clair,
+     l'heure et la batterie s'ecrivaient en BLANC sur du papier sable.
+     `default` laisse iOS ecrire en sombre sur clair et en clair sur
+     sombre, ce qui est exactement ce que les deux themes demandent. -->
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="ClimbContest">
 <title>Juge — ClimbContest</title>
 <!-- ⚠️ La version est GRAVÉE ICI, et non demandée par un appel. Le service
@@ -23,33 +32,102 @@
 <link rel="apple-touch-icon" href="/static/juge/icone-192.png">
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='7' fill='%232F6BB0'/><circle cx='16' cy='16' r='7' fill='%23EEF1F5'/></svg>">
 <style>
-  /* Les MEMES couleurs que l'application Android (ui/theme/Color.kt), refonte
-     comprise. Deux clients, une seule identite : un juge qui passe d'un
-     telephone a l'autre ne doit pas avoir l'impression de changer d'outil.
+  /* Les MEMES couleurs de CIRCUIT que l'application Android
+     (ui/theme/Color.kt) : jaune, vert, bleu, mauve, rouge, noir. Deux clients,
+     une seule identite sur ce qui porte de l'information -- la teinte du
+     circuit prend l'ecran des que le bloc est scanne, et c'est elle que le
+     juge lit pour verifier qu'il est sur le bon circuit. Rien de decoratif.
 
-     Ici comme ailleurs, la couleur PORTE DE L'INFORMATION : la teinte du
-     circuit prend l'ecran des que le bloc est scanne. Rien de decoratif. */
-  /* ⚠️ Le fond a ete RECHAUFFE le 02/09 (Adrien : « change le fond pour qu'elle
-     soit plus accueillante »). Il etait un noir quasi pur, #0B0D11 : lisible,
-     mais clinique -- et cette application est tenue a une main, toute la
-     journee, dans une salle chaude et bruyante.
+     Le DECOR, lui, ne se ressemble plus : la PWA est claire, l'Android est
+     restee sombre (`darkColorScheme`). C'est assume et c'est ecrit dans la
+     spec 039 -- l'Android suivra dans sa propre release, pas dans celle-ci. */
+  /* ⚠️ CLAIR PAR DEFAUT depuis la spec 039. Adrien, 3 septembre 2026 :
+     « pour l'application PWA je voudrais que par defaut elle s'ouvre en
+     claire ».
 
-     Le gris est desormais TIRE VERS L'OCRE du logo du club, avec une lueur
-     tres douce en haut d'ecran. La contrainte n'a pas bouge : la couleur PORTE
-     DE L'INFORMATION ici, la teinte du circuit prend l'ecran des qu'un bloc est
-     scanne. Le fond devait donc se rechauffer sans jamais entrer en
-     concurrence avec elle -- d'ou une lueur, pas une teinte franche. */
+     Le fond etait sombre EN DUR : les couleurs etaient figees dans `:root` et
+     rien ne regardait `prefers-color-scheme`. Un benevole qui ouvrait
+     l'application en plein jour, dans une salle a baie vitree, lisait un ecran
+     noir sans l'avoir demande -- avec la luminosite a fond, c'est-a-dire au
+     prix de sa batterie.
+
+     Le clair est desormais le DEFAUT -- pas un cas particulier -- et le sombre
+     une redefinition sous la requete media. Le systeme decide ; il n'y a aucun
+     reglage dans l'application (choix d'Adrien, 03/09). C'est exactement le
+     motif pose par la spec 021 sur `admin.html`, et le papier sable vient de
+     la direction « Plein Jour » des maquettes de la spec 035.
+
+     ⚠️ Le sombre n'a PAS bouge d'un octet : les valeurs de la requete media
+     sont celles du 02/09, lueur ocre comprise. Ce qui change, c'est laquelle
+     des deux s'applique quand le telephone ne demande rien. */
   :root {
-    --fond: #15161B;
-    --fond-haut: #232229;
-    --lueur: rgba(224, 169, 74, .11);
-    --carte-faite: #232634; --carte-active: #1C1F29; --carte-attente: #171920;
-    --trait-fait: #333850; --trait-actif: #454B63; --trait-attente: #22252E;
-    --encre: #F4F3F0; --encre2: #7B7B86; --encre3: #43444E;
-    --fait: #34C56A; --alerte: #F0554A; --attention: #E5B44A;
+    /* `light dark` : sans ca, les cases a cocher, les champs de saisie et les
+       barres de defilement NATIVES resteraient sombres sur le papier clair.
+       Le meme reglage, pour la meme raison, que `admin.html`. */
+    color-scheme: light dark;
+
+    /* --- LE THEME CLAIR, celui qui s'applique par defaut ---------------- */
+    --fond: #F3EEE3;                    /* papier sable, direction « Plein Jour » */
+    --fond-haut: #FFFCF5;
+    --lueur: rgba(181, 118, 28, .10);
+    --carte-faite: #FCF9F3; --carte-active: #FFFFFF; --carte-attente: #EAE3D5;
+    --trait-fait: #DDD3C0; --trait-actif: #4A4436; --trait-attente: #DCD3C2;
+    --encre: #17140F; --encre2: #6C6353; --encre3: #77705F;
+    /* La puce du numero d'etape : discrete au repos, franche une fois faite. */
+    --puce: #DCD3C2; --puce-encre: #9A917F; --puce-faite: #C9BFAC;
+    --fait: #1F7A45; --alerte: #A6301F; --attention: #7A4F0A;
+    /* Les VOILES -- le bandeau « hors circuit », les pastilles de file.
+       Ils sont tires du jaune VIF et non de `--attention` : un ocre sombre
+       dilue dans du papier sable ne donne pas un bandeau jaune, il donne
+       un khaki terne. Le voile porte la couleur, le texte porte le
+       contraste -- `--attention` sur ce voile mesure 5,3:1. */
+    --attention-voile: color-mix(in srgb, #E5B44A 30%, transparent);
+    --alerte-voile: color-mix(in srgb, #F0554A 16%, transparent);
+    /* Le BLEU des actions secondaires. Deux valeurs, et il en faut deux : le
+       bleu qui porte un aplat ne peut pas etre celui qu'on ECRIT sur du
+       papier -- `#3E8CF7` sur blanc mesure 3,1:1, sous le seuil du texte. */
+    --action: #1F6FD0; --action-texte: #1A5FB4; --sur-action: #FFFFFF;
+    --ombre: 0 6px 24px rgba(27, 26, 23, .16);
+    /* La teinte du circuit ECRITE (le libelle « BLOC », le detail) : un jaune
+       pur sur du papier mesure 1,9:1. On la tire vers l'encre -- la hue reste
+       reconnaissable, le texte redevient lisible. L'APLAT, lui, garde la
+       couleur exacte du circuit : c'est lui qu'on lit a deux metres. */
+    --circuit-texte: color-mix(in srgb, var(--circuit) 50%, var(--encre));
+    --trait-circuit: color-mix(in srgb, var(--circuit) 62%, var(--trait-fait));
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      /* --- LE THEME SOMBRE, mot pour mot celui du 02/09 ---------------- */
+      --fond: #15161B;
+      --fond-haut: #232229;
+      --lueur: rgba(224, 169, 74, .11);
+      --carte-faite: #232634; --carte-active: #1C1F29; --carte-attente: #171920;
+      --trait-fait: #333850; --trait-actif: #454B63; --trait-attente: #22252E;
+      --encre: #F4F3F0; --encre2: #7B7B86; --encre3: #43444E;
+      --puce: #1E252F; --puce-encre: #3C4652; --puce-faite: #3A4759;
+      --fait: #34C56A; --alerte: #F0554A; --attention: #E5B44A;
+      /* Les memes voiles qu'avant la spec 039, au point pres :
+         `rgba(229,180,74,.15)` et `rgba(224,112,95,.15)` ecrits en roles. */
+      --attention-voile: color-mix(in srgb, #E5B44A 15%, transparent);
+      --alerte-voile: color-mix(in srgb, #F0554A 15%, transparent);
+      --action: #3E8CF7; --action-texte: #3E8CF7; --sur-action: #F7F9FC;
+      --ombre: 0 6px 24px rgba(0, 0, 0, .45);
+      /* Sur un fond sombre, la teinte du circuit est deja lisible telle
+         quelle : on n'y touche pas. */
+      --circuit-texte: var(--circuit);
+      --trait-circuit: color-mix(in srgb, var(--circuit) 50%, transparent);
+    }
+  }
+  :root {
+    /* --- CE QUI NE DEPEND PAS DU THEME -------------------------------- */
+    /* L'aplat d'attention (le bouton « Forcer l'envoi ») est le MEME dans les
+       deux themes : un jaune franc avec de l'encre sombre dessus se lit sur du
+       papier comme sur de l'ardoise. `--attention` seul, lui, sert de TEXTE et
+       de trait, et doit donc s'assombrir en clair -- d'ou les deux roles. */
+    --attention-fond: #E5B44A; --sur-attention: #12140F;
     /* posees par juge.js quand un bloc est scanne ; les valeurs de repos
        gardent l'ecran lisible sans couleur de circuit connue. */
-    --circuit: var(--encre); --encre-circuit: #0B0D11;
+    --circuit: var(--encre); --encre-circuit: var(--fond);
     --police: "Archivo", system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
   }
   /* Archivo, la police de l'application Android — une variable font, un seul
@@ -113,6 +191,21 @@
     /* Pas de fond opaque : il masquerait la lueur du degrade juste sous lui. */
   }
   header .place { flex: 1; }
+  /* L'engrenage est DESSINE (spec 033, R9) : il lui faut donc une taille, comme
+     au voyant. Meme carre de 22, meme trait, meme couleur -- c'est ce qui fait
+     que les deux icones de la barre se ressemblent enfin. */
+  #ouvrirReglages { display: flex; align-items: center; padding: 4px 4px 4px 10px;
+                    color: var(--encre2); }
+  #ouvrirReglages svg { display: block; width: 22px; height: 22px; }
+  #ouvrirReglages:active { color: var(--encre); }
+  /* Le nom du poste. Discret : il se verifie d'un coup d'oeil, il ne se lit
+     pas. Tronque plutot que de pousser le voyant hors de l'ecran -- un juge
+     peut nommer son poste « Mur jaune, cote escalier ». */
+  #nomPoste {
+    font-size: 0.82rem; font-weight: 600; letter-spacing: 0.03em;
+    color: var(--encre2); max-width: 46vw;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
   #voyant { width: 22px; height: 22px; }
   #voyant.ok    { color: var(--fait); }
   #voyant.ko    { color: var(--alerte); }
@@ -120,19 +213,35 @@
   /* Le trait n'apparait QUE sur « injoignable ». Pilote par le CSS et non par
      l'attribut `hidden` : dans un SVG, `hidden` ne cache pas de facon fiable --
      constate a l'ecran, le trait restait visible sur un voyant vert. */
+  /* ⚠️ `hidden` DOIT cacher, et il ne le faisait pas tout seul.
+
+     N'importe quelle regle d'AUTEUR qui pose `display` bat le
+     `[hidden] { display: none }` de la feuille du NAVIGATEUR : l'origine
+     auteur l'emporte sur l'origine agent-utilisateur, quelle que soit la
+     specificite. Six rustines locales corrigeaient le defaut element par
+     element (`main`, `#message`, `#viseur`, `#bandeFile`, `.pastille`,
+     `.ecran`, `#installer`) -- et il en manquait toujours une.
+
+     Celle qui manquait : `.ligne { display: flex }` rendait `#ligneRefus`
+     visible en permanence. L'ecran Reglages affichait donc « 0 refusees »
+     suivi d'un bouton « Renvoyer » bien bleu, sans l'explication qui va avec
+     (`.explication` ne pose aucun `display`, elle restait cachee). Un bouton
+     qui ne fait rien, sur le telephone d'un benevole, un jour de competition.
+
+     La regle globale ferme la classe entiere. `admin.html` et `plan.html` la
+     portent deja ; c'est la meme, au meme endroit.
+
+     ⚠️ `#barreVoyant` juste en dessous n'est PAS concerne : il ne porte pas
+     `hidden`, son affichage se pilote par une classe -- volontairement, parce
+     que `hidden` ne cache pas de facon fiable dans un SVG. */
+  [hidden] { display: none !important; }
+
   #barreVoyant { display: none; }
   #voyant.ko #barreVoyant { display: inline; }
   @keyframes battement { 0%,100% { opacity: 1 } 50% { opacity: .35 } }
   @media (prefers-reduced-motion: reduce) { #voyant.doute { animation: none } }
 
   main { padding: 12px 16px 28px; display: flex; flex-direction: column; gap: 14px; }
-  /* ⚠️ Sans cette ligne, l'attribut `hidden` ne cachait PAS le contenu
-     principal : la regle `main { display: flex }` est une regle d'AUTEUR, et
-     elle bat le `[hidden] { display: none }` de la feuille du navigateur, qui
-     n'est qu'une regle d'agent utilisateur. Les ecrans secondaires
-     s'affichaient donc SOUS l'ecran principal au lieu de le remplacer.
-     Constate a l'ecran. */
-  main[hidden] { display: none; }
 
   /* Trois etapes numerotees, UNE SEULE active a la fois — la structure de la
      refonte Android. L'etat « actif » n'est pas pose par le JS : il se deduit
@@ -156,7 +265,7 @@
   }
   .carte.fait { background: var(--carte-faite); border-color: var(--trait-fait); }
   /* la carte du bloc prend la couleur de SON circuit */
-  #carteBloc.fait { border-color: color-mix(in srgb, var(--circuit) 50%, transparent); }
+  #carteBloc.fait { border-color: var(--trait-circuit); }
 
   .carte .quoi {
     font-size: 0.72rem; letter-spacing: 0.2em; text-transform: uppercase;
@@ -169,7 +278,7 @@
     width: 19px; height: 19px; border-radius: 50%; flex: none;
     display: inline-flex; align-items: center; justify-content: center;
     font-size: 0.7rem; letter-spacing: 0; font-weight: 800;
-    background: #1E252F; color: #3C4652;
+    background: var(--puce); color: var(--puce-encre);
   }
   #carteGrimpeur:not(.fait) .quoi,
   #carteGrimpeur.fait ~ #carteBloc:not(.fait) .quoi { color: var(--encre); }
@@ -178,8 +287,8 @@
     background: var(--encre); color: var(--fond);
   }
   .carte.fait .quoi { color: var(--encre2); }
-  .carte.fait .quoi::before { background: #3A4759; color: var(--encre); }
-  #carteBloc.fait .quoi { color: var(--circuit); }
+  .carte.fait .quoi::before { background: var(--puce-faite); color: var(--encre); }
+  #carteBloc.fait .quoi { color: var(--circuit-texte); }
   #carteBloc.fait .quoi::before { background: var(--circuit); color: var(--encre-circuit); }
 
   .carte .valeur {
@@ -195,7 +304,22 @@
     border-radius: 12px; padding: 2px 14px;
   }
   .carte .detail { font-size: 0.9rem; color: var(--encre2); letter-spacing: 0.04em; }
-  #carteBloc.fait .detail { color: color-mix(in srgb, var(--circuit) 90%, transparent); }
+
+  /* La carte du grimpeur, en deux colonnes (spec 033, R10). Elle seule : la
+     carte du bloc garde sa pile, son tag EST deja la pastille qu'on verifie. */
+  #carteGrimpeur { flex-direction: row; align-items: center; gap: 14px; }
+  #carteGrimpeur .identite { min-width: 0; flex: 1;
+                             display: flex; flex-direction: column; gap: 4px; }
+  /* ⚠️ LA TAILLE DU NOM, c'est ce qui a ete demande — pas « un peu plus gros
+     que le dossard ». `flex: none` et `nowrap` : « U13 F » ne se coupe pas en
+     deux lignes, c'est le nom qui cede de la place, et il a deja son
+     ellipse. */
+  #carteGrimpeur .categorie {
+    flex: none; font-size: 1.85rem; font-weight: 800; letter-spacing: -0.01em;
+    white-space: nowrap; color: var(--encre2); text-align: right;
+  }
+  #carteGrimpeur.fait .categorie { color: var(--encre); }
+  #carteBloc.fait .detail { color: var(--circuit-texte); }
 
   /* « Ce bloc n'est pas dans son circuit » — spec 019.
 
@@ -203,7 +327,7 @@
      possible. Le jaune d'attention dit « regarde », pas « c'est refusé ». */
   #horsCircuit {
     margin: -4px 0 0; padding: 12px 14px; border-radius: 12px;
-    background: color-mix(in srgb, var(--attention) 12%, transparent);
+    background: var(--attention-voile);
     border-left: 4px solid var(--attention);
     color: var(--encre); font-size: 0.95rem; line-height: 1.45;
   }
@@ -211,7 +335,7 @@
 
   /* Le bouton dit ce qu'il fait vraiment quand on force. */
   #envoyer.force {
-    background: var(--attention); color: #12140F;
+    background: var(--attention-fond); color: var(--sur-attention);
     font-size: 1.35rem; letter-spacing: 0.06em;
   }
 
@@ -249,18 +373,22 @@
     bottom: calc(24px + env(safe-area-inset-bottom));
     max-width: 90%; padding: 12px 18px; border-radius: 10px;
     background: var(--carte-active); border-left: 4px solid var(--trait-actif);
-    font-size: 0.95rem; box-shadow: 0 6px 24px rgba(0,0,0,.45);
+    font-size: 0.95rem; box-shadow: var(--ombre);
   }
-  #message[hidden] { display: none; }
   #message.ok { border-left-color: var(--fait); }
   #message.erreur { border-left-color: var(--alerte); }
   #message.attention { border-left-color: var(--attention); }
 
   /* Le viseur. Plein ecran : on scanne a bout de bras, dans une salle mal
-     eclairee, avec des gens autour. */
+     eclairee, avec des gens autour.
+
+     ⚠️ NOIR dans les deux themes, et c'est le seul endroit : ce n'est pas du
+     decor, c'est l'image de la camera. Un cadre clair autour d'un flux video
+     eblouit dans la penombre et fait fermer l'iris du capteur -- le QR met
+     alors plus longtemps a etre reconnu. Meme raison que le mur toujours clair
+     de `resultats.html` : la couleur suit l'usage, pas le theme. */
   #viseur { position: fixed; inset: 0; background: #000; display: flex;
             flex-direction: column; z-index: 10; }
-  #viseur[hidden] { display: none; }
   #viseur video { flex: 1; width: 100%; object-fit: cover; }
   #viseur .barre { padding: 14px 16px calc(14px + env(safe-area-inset-bottom));
                    background: var(--carte-faite); display: flex; align-items: center; gap: 12px; }
@@ -274,7 +402,6 @@
      — l'ecran bougeait sous le pouce du juge. Meme lecon que sur Android.
      Toute la zone reste cliquable : elle declenche un envoi immediat. */
   #bandeFile { display: flex; gap: 8px; align-items: center; cursor: pointer; }
-  #bandeFile[hidden] { display: none; }
   /* ⚠️ Ces classes s'appelaient `.attente` et `.refus`. `.attente` entrait
      alors en collision avec `.carte .valeur.attente`, qui marque une carte NON
      SCANNEE : le fond ambre de la pastille se retrouvait derriere le texte
@@ -282,16 +409,14 @@
      relecture. Deux choses differentes, deux noms differents. */
   .pastille { font-size: 0.82rem; font-weight: 600; padding: 7px 11px;
               border-radius: 999px; }
-  .pastille[hidden] { display: none; }
-  .pastilleAttente { color: var(--attention); background: rgba(229,180,74,.15); }
+  .pastilleAttente { color: var(--attention); background: var(--attention-voile); }
   /* Le rouge est reserve a ce qui demande une ACTION : une refusee ne repartira
      pas toute seule, contrairement a une reussite en file. */
-  .pastilleRefus { color: var(--alerte); background: rgba(224,112,95,.15); }
+  .pastilleRefus { color: var(--alerte); background: var(--alerte-voile); }
 
   /* Les ecrans secondaires. Une seule page, trois vues : un juge n'a pas
      besoin d'un routeur pour trois ecrans, et une navigation par URL ferait
      sortir de la PWA installee sur certains iOS. */
-  .ecran[hidden] { display: none; }
   .barreEcran { display: flex; align-items: center; gap: 12px;
                 padding: 10px 16px; background: var(--carte-faite); }
   .barreEcran h2 { margin: 0; font-size: 1.15rem; font-weight: 700; flex: 1; }
@@ -304,14 +429,6 @@
   .bloc { background: var(--carte-faite); border-radius: 14px; padding: 16px; }
   .bloc + .bloc { margin-top: 10px; }
   .ligne { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
-  /* ⚠️ La MEME regle que pour `#message`, `#viseur`, `#bandeFile` et
-     `.pastille` — et elle manquait ici. `hidden` ne cache que par la feuille de
-     style de l'agent utilisateur ; `display: flex` est une regle d'AUTEUR et
-     l'emporte. Constate a l'ecran le 02/09 : la ligne « 0 refusees » et son
-     bouton « Renvoyer » restaient visibles en permanence dans les reglages,
-     alors que `juge.js` les cachait bel et bien. Le defaut est anterieur a la
-     spec 030 ; il a ete trouve en verifiant les nouveaux ecrans au navigateur. */
-  .ligne[hidden] { display: none; }
   .ligne + .ligne { margin-top: 14px; }
   .explication { color: var(--encre2); font-size: 0.85rem; line-height: 1.5;
                  margin: 6px 0 0; }
@@ -322,16 +439,16 @@
   }
   .bloc label { display: block; font-size: 0.8rem; color: var(--encre2);
                 margin-bottom: 6px; }
-  /* La case a cocher par defaut est blanche : sur un fond sombre, elle saute
-     aux yeux plus que le reste de l'ecran, pour un reglage secondaire. */
-  .bloc input[type=checkbox] { accent-color: #3E8CF7; }
-  .action { font: inherit; font-size: 0.95rem; font-weight: 600; color: #F7F9FC;
-            background: #3E8CF7; border: 0; border-radius: 10px;
+  /* La case a cocher NATIVE saute aux yeux plus que le reste de l'ecran,
+     pour un reglage secondaire : on lui donne le bleu des actions. */
+  .bloc input[type=checkbox] { accent-color: var(--action); }
+  .action { font: inherit; font-size: 0.95rem; font-weight: 600; color: var(--sur-action);
+            background: var(--action); border: 0; border-radius: 10px;
             padding: 11px 18px; cursor: pointer; white-space: nowrap; }
   .action:disabled { opacity: .45; cursor: default; }
   .mono { font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
           font-size: 0.8rem; color: var(--encre2); }
-  .lien { background: none; border: 0; color: #3E8CF7; font: inherit;
+  .lien { background: none; border: 0; color: var(--action-texte); font: inherit;
           font-size: 1rem; padding: 12px 0; cursor: pointer; text-align: left; }
 
   /* Les versions (spec 030). Le chiffre a droite, le VERDICT en dessous : ce
@@ -341,7 +458,6 @@
   .valeurLigne { font-weight: 700; font-variant-numeric: tabular-nums; }
   .verdict { display: flex; align-items: center; gap: 8px; font-size: 0.9rem;
              margin-top: 10px; font-weight: 600; }
-  .verdict[hidden] { display: none; }
   .verdict.ok { color: var(--fait); }
   .verdict.att { color: var(--attention); }
   /* ⚠️ La pastille ne porte JAMAIS seule : le texte a cote dit la meme chose en
@@ -376,14 +492,23 @@
                    background: none; border: 1px solid var(--trait-actif);
                    border-radius: 999px; padding: 7px 14px; cursor: pointer; }
   .filtre button.actif { color: var(--attention); border-color: var(--attention);
-                         background: rgba(229,180,74,.15); }
+                         background: var(--attention-voile); }
   .vide { color: var(--encre2); text-align: center; margin: 40px 24px;
           line-height: 1.6; }
 
   #installer { margin: 0 16px 12px; padding: 12px 14px; border-radius: 10px;
                background: var(--carte-active); color: var(--encre2); font-size: 0.88rem;
                line-height: 1.5; }
-  #installer[hidden] { display: none; }
+
+  /* Le poste pas encore nommé (spec 034, retouche du 03/09). Le MÊME motif que
+     `#relier` : un petit texte en haut de l'écran d'accueil, et juste dessous
+     le geste qui répare. Le juge scanne UNE fois le matin — d'où un bloc qui
+     s'efface dès que le téléphone porte un nom, et un bouton qui reste,
+     lui, dans les Réglages pour les fois d'après. */
+  #poste { margin: 0 16px 14px; padding: 14px; border-radius: 10px;
+           background: var(--carte-active); text-align: center; }
+  #poste .dis { display: block; color: var(--encre2); font-size: 0.88rem;
+                line-height: 1.5; margin-bottom: 12px; }
 </style>
 </head>
 <body>
@@ -403,13 +528,17 @@
     <span id="compteurRefus" class="pastille pastilleRefus" hidden></span>
     <span id="compteurAttente" class="pastille pastilleAttente" hidden></span>
   </div>
+  <!-- Le nom du poste, quand le juge en a donne un. Il designe un ENDROIT de
+       la salle (« Mur jaune »), pas une personne : c'est ce que la console
+       affiche a cote des reussites, et le juge doit pouvoir verifier d'un coup
+       d'oeil qu'il envoie sous le bon nom. Vide, l'element ne prend aucune
+       place. -->
+  <span id="nomPoste" hidden></span>
   <span class="place"></span>
   <!-- Le voyant de connexion, meme principe que sur l'Android : une icone de
        connexion sans fil, verte quand ca passe, BARREE et rouge sinon. Barree,
        parce que le vert et le rouge seuls sont indistinguables pour environ 8 %
        des hommes, et il y a des juges hommes. -->
-  <button id="ouvrirReglages" class="retour" aria-label="Réglages"
-          style="font-size:1.25rem">⚙</button>
   <svg id="voyant" class="doute" viewBox="0 0 24 24" fill="none"
        stroke="currentColor" stroke-width="2.1" stroke-linecap="round"
        role="img" aria-label="Connexion en cours">
@@ -419,6 +548,30 @@
     <circle cx="12" cy="19.4" r="1.6" fill="currentColor" stroke="none" />
     <path id="barreVoyant" d="M4.2 4.2 L19.8 19.8" />
   </svg>
+  <!-- ⚠️ EN DERNIER, et DESSINE. C'etait « ⚙ » (U+2699), un caractere a
+       presentation EMOJI : sur iOS et Android il sort en couleur, dans un
+       style qui n'est pas celui du voyant juste a cote — et il etait place
+       AVANT lui, donc ce n'est pas lui qui terminait la barre. « La roue de
+       configuration, son logo ne va pas avec le reste, trouve une roue plus
+       sobre et simple. En plus je veux que ce logo soit celui de tout a
+       droite » (Adrien, 03/09, spec 033 R9).
+
+       Un engrenage a SIX DENTS, au meme trait que le voyant (2,1) et sur le
+       meme carre de 24 : six dents plutot que huit ou douze parce qu'a 22 px
+       sur un telephone, au-dela, les creux se referment et la roue devient un
+       disque flou.
+
+       ⚠️ La JANTE compte. Sans elle -- moyeu plus six rayons detaches -- le
+       dessin se lit comme un SOLEIL, pas comme une roue : constate a
+       l'ecran. Les dents partent donc du cercle exterieur, pas du vide. -->
+  <button id="ouvrirReglages" class="retour" type="button" aria-label="Réglages">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1"
+         stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+      <circle cx="12" cy="12" r="2.7" />
+      <circle cx="12" cy="12" r="6.7" />
+      <path d="M18.70 12.00L21.50 12.00M15.35 17.80L16.75 20.23M8.65 17.80L7.25 20.23M5.30 12.00L2.50 12.00M8.65 6.20L7.25 3.77M15.35 6.20L16.75 3.77" />
+    </svg>
+  </button>
 </header>
 
 <!-- Le filet (spec 014). Affiche UNIQUEMENT si l'application demarre sans
@@ -429,16 +582,46 @@
   <button class="action" id="btnRelier" type="button">Scanner le QR de l’organisateur</button>
 </p>
 
+<!-- Le poste, sur l'écran d'accueil (spec 034, retouche du 03/09).
+
+     Adrien : « Lorsque le juge arrive à sa table, il va ouvrir l'application et
+     dans l'application, on va lui afficher un petit texte en haut […] Là ici,
+     on aura encore un petit bouton au milieu sur la page d'accueil qui permet
+     de scanner ce QR code qui permet de setter la zone. »
+
+     C'est pour ça que le mode d'emploi a QUITTÉ le carton imprimé : il arrive
+     ici, au moment où il sert. Le bloc est affiché tant que le téléphone n'a
+     pas de nom, et disparaît dès qu'il en a un — le juge scanne une fois le
+     matin, pas cent fois par jour. Le geste reste ensuite dans les Réglages,
+     où il était déjà, pour le carton changé de table ou le nom effacé. -->
+<p id="poste" hidden>
+  <span class="dis">Ce téléphone n'a pas encore de poste. Le carton posé sur ta
+    table porte le QR qui le nomme.</span>
+  <button class="action" id="btnPoste" type="button">Scanner le QR de mon poste</button>
+</p>
+
 <p id="installer" hidden>
   Ajoute cette page à ton écran d'accueil : elle s'ouvrira comme une
   application, et gardera tes scans même sans réseau.
 </p>
 
 <main id="principal">
+  <!-- ⚠️ La carte du grimpeur est en DEUX COLONNES depuis la spec 033 (R10) :
+       l'identite a gauche, la CATEGORIE a droite, « en plus gros, je veux dire
+       la taille du nom prenom » (Adrien, 03/09). Le juge a devant lui un
+       papier ou la categorie est ecrite ; c'est ce qui lui permet de verifier
+       en un coup d'oeil qu'il scanne le bon grimpeur, la ou deux dossards
+       voisins peuvent porter deux noms proches.
+
+       La colonne de droite ne prend AUCUNE place quand la categorie est
+       inconnue : la carte redevient alors exactement celle d'avant. -->
   <button class="carte" id="carteGrimpeur">
-    <span class="quoi" data-n="1">Grimpeur</span>
-    <span class="valeur attente" id="valeurGrimpeur">À scanner</span>
-    <span class="detail" id="detailGrimpeur"></span>
+    <span class="identite">
+      <span class="quoi" data-n="1">Grimpeur</span>
+      <span class="valeur attente" id="valeurGrimpeur">À scanner</span>
+      <span class="detail" id="detailGrimpeur"></span>
+    </span>
+    <span class="categorie" id="categorieGrimpeur" hidden></span>
   </button>
 
   <button class="carte" id="carteBloc">
@@ -468,6 +651,15 @@
              autocapitalize="sentences" autocomplete="off" maxlength="60">
       <p class="explication">Ce nom apparaît dans la console à côté des réussites
          envoyées depuis ce téléphone. Il désigne un poste, pas une personne.</p>
+      <!-- Spec 034. Le geste que le juge sait déjà faire, c'est SCANNER : il le
+           fait cent fois dans la journée. Taper un nom, non — et quand c'est
+           tapé, c'est tapé n'importe comment (« Zone C », « zone c », « C »),
+           si bien que deux téléphones du même mur portent deux noms. Le carton
+           posé sur la table remplit le champ ci-dessus, à l'identique. -->
+      <button class="action" id="btnScannerPoste" type="button"
+              style="width:100%;margin-top:12px">Scanner le QR de mon poste</button>
+      <p class="explication">Le carton posé sur ta table, avec le nom de la zone
+         écrit en gros. Il remplit le nom ci-dessus.</p>
       <p class="mono" id="identifiantTelephone"></p>
       <button class="lien" id="voirMesScans">Voir mes scans</button>
     </div>

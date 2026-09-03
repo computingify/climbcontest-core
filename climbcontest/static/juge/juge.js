@@ -21,6 +21,7 @@ import { ETATS, Historique, refCourte } from "./historique.js";
 import { identiteCourante, renommer } from "./identite.js";
 import { MAGASINS, MagasinIdb, reglages } from "./idb.js";
 import { doitEnvoyer } from "./politique.js";
+import { expliquerLeQrRefuse, nomDePoste } from "./poste.js";
 import { bailNeuf, identifiantDOnglet, peutPrendre } from "./verrou.js";
 import { A_JOUR, EN_RETARD, resumeDuCatalogue, verdict } from "./versions.js";
 import { expliquerLErreurCamera, lireUnQr } from "./scan.js";
@@ -182,6 +183,17 @@ function redessiner() {
   $("valeurGrimpeur").classList.toggle("attente", !grimpeurFait);
   $("detailGrimpeur").textContent = grimpeurFait && etat.grimpeur ? `n°${etat.dossard}` : "";
 
+  // La CATEGORIE, a droite et a la taille du nom (spec 033, R10). Le juge a
+  // devant lui un papier ou elle est ecrite : c'est son controle.
+  //
+  // Elle vient du catalogue LOCAL, comme le nom : un scan ne doit pas attendre
+  // le reseau. Inconnue -- participant sans categorie, catalogue d'une version
+  // anterieure -- la colonne disparait et la carte redevient celle d'avant.
+  const categorie = grimpeurFait ? catalogue.categorie(etat.dossard) : null;
+  const caseCategorie = $("categorieGrimpeur");
+  caseCategorie.textContent = categorie || "";
+  caseCategorie.hidden = !categorie;
+
   $("carteBloc").classList.toggle("fait", blocFait);
   $("valeurBloc").textContent = etat.bloc || "À scanner";
   $("valeurBloc").classList.toggle("attente", !blocFait);
@@ -303,6 +315,90 @@ async function relier() {
   }
   try { localStorage.setItem(CLE_RANGEMENT, jeton); } catch { /* mode prive */ }
   location.replace(code);
+}
+
+// --- Le QR de poste, pose sur la table du juge (spec 034) -------------------
+
+/**
+ * Le juge scanne le carton pose sur sa table, et son telephone prend le nom
+ * de la zone.
+ *
+ * Le nom du poste existe depuis la spec 011 et se tapait a la main : un
+ * reglage optionnel, invisible depuis l'ecran principal, dans une application
+ * qu'on ouvre pour scanner. Personne ne le faisait, et quand c'etait fait,
+ * c'etait « Zone C », « zone c » ou « mur de Julien » selon le benevole.
+ *
+ * ⚠️ AUCUN RENOMMAGE SILENCIEUX. `nomDePoste` rend `null` des que le QR n'est
+ * pas un QR de poste -- un bloc, un dossard, le lien de l'organisateur -- et
+ * on le DIT, avec le message qui correspond. Sans le prefixe et sans ce
+ * refus, un bloc scanne ici renommerait le poste « ZJ6 », et la console
+ * afficherait « ZJ6 » en face de tous les envois de la journee.
+ */
+async function scannerMonPoste({ depuisLAccueil = false } = {}) {
+  annulation = new AbortController();
+  $("consigne").textContent = "Vise le QR posé sur ta table";
+  $("viseur").hidden = false;
+
+  let code = null;
+  try {
+    code = await lireUnQr($("flux"), annulation.signal);
+  } catch (e) {
+    dire(expliquerLErreurCamera(e), "erreur");
+    return;
+  } finally {
+    $("viseur").hidden = true;
+  }
+  if (!code) return;                       // annulé par le juge
+
+  const nom = nomDePoste(code);
+  if (!nom) {
+    dire(expliquerLeQrRefuse(code), "erreur");
+    return;
+  }
+
+  try {
+    identite = await renommer(reglages, nom);
+  } catch {
+    // Stockage indisponible (mode privé, quota) : on le dit plutôt que de
+    // laisser croire que le poste est nommé.
+    dire("Le nom n’a pas pu être enregistré sur ce téléphone.", "erreur");
+    return;
+  }
+  // ⚠️ LES DEUX, et c'est la couture entre deux branches. `#nomPoste` dans
+  // l'en-tête vient de `fix/revue-du-03-09`, le bloc de l'accueil de la spec
+  // 034 : elles ont été écrites en parallèle, sans se toucher, et le scan est
+  // le seul chemin qui renomme le téléphone sans passer par le champ de saisie.
+  // L'oublier laisserait l'en-tête vide jusqu'au prochain démarrage — un poste
+  // nommé qui ne le dit pas.
+  afficherLeNomDuPoste();
+  // Le bloc de l'écran d'accueil n'a plus lieu d'être : le poste est nommé.
+  proposerDeNommerLePoste();
+  // Le rafraîchissement d'écran EXISTANT : c'est lui qui repose la valeur du
+  // champ depuis `identite`. Deux endroits qui savent d'où vient cette valeur
+  // finiraient par diverger.
+  //
+  // ⚠️ Sauf depuis l'ACCUEIL : ouvrir les réglages y déposerait le juge sur un
+  // écran qu'il n'a pas demandé, juste avant son premier scan. Le champ sera
+  // relu à la prochaine ouverture des réglages, par le même chemin.
+  if (!depuisLAccueil) await ouvrirLesReglages();
+  dire(`Ce téléphone s’appelle maintenant « ${nom} ».`, "ok");
+}
+
+/**
+ * Le bloc « scanne le QR de ton poste » de l'écran d'accueil, montré ou caché.
+ *
+ * ⚠️ UNE SEULE fonction décide de cette visibilité. Elle est appelée au
+ * démarrage, après un scan de poste réussi, et à chaque frappe dans le champ
+ * du nom : trois endroits qui poseraient `hidden` eux-mêmes finiraient par
+ * laisser le bloc affiché sur un téléphone déjà nommé.
+ *
+ * ⚠️ Il DISPARAÎT dès que le poste est nommé. Le juge scanne son carton une
+ * fois le matin ; un bandeau qui resterait toute la journée au-dessus des
+ * cartes de scan volerait de la place à ce qu'on touche cent fois. Le geste
+ * reste dans les Réglages, où il était déjà.
+ */
+function proposerDeNommerLePoste() {
+  $("poste").hidden = Boolean(identite && identite.nom);
 }
 
 // --- Scanner ----------------------------------------------------------------
@@ -558,6 +654,25 @@ function montrer(id) {
   // au-dessus des reglages, qui disent deja la meme chose en plus complet.
   $("bandeFile").hidden = id !== null ||
     (etat.enAttente === 0 && etat.refusees === 0);
+}
+
+/**
+ * Le nom du poste, en haut de l'écran principal.
+ *
+ * Il désigne un ENDROIT de la salle (« Mur jaune »), jamais une personne :
+ * c'est la même règle que dans `identite.js`, et c'est ce nom que la console
+ * affiche à côté des réussites. Le juge doit pouvoir vérifier d'un coup d'œil
+ * qu'il envoie sous le bon — d'où sa place en tête (spec 033).
+ *
+ * Pas de nom : l'élément est masqué et ne prend aucune place. Un poste sans nom
+ * reste parfaitement utilisable.
+ */
+function afficherLeNomDuPoste() {
+  const noeud = $("nomPoste");
+  if (!noeud) return;
+  const nom = identite.nom || "";
+  noeud.textContent = nom;              // textContent : le nom est saisi a la main
+  noeud.hidden = !nom;
 }
 
 async function ouvrirLesReglages() {
@@ -939,6 +1054,7 @@ async function demarrer() {
   try {
     catalogue = Catalogue.depuisJson(await reglages.lire(CLE_CATALOGUE));
     identite = await identiteCourante(reglages);
+    afficherLeNomDuPoste();
     etat.garderGrimpeur = (await reglages.lire("garder-grimpeur")) === true;
     // Les deux dates survivent au redémarrage : « reçu il y a 1 h » reste vrai
     // après avoir fermé et rouvert l'application.
@@ -953,6 +1069,11 @@ async function demarrer() {
     dire("Stockage local indisponible : les scans passeront par le réseau.",
          "attention");
   }
+
+  // ⚠️ APRES la lecture de l'identite, jamais avant : `identite` est encore
+  // indefinie tant que le `try` ci-dessus n'a pas rendu la main, et le bloc
+  // resterait cache sur un telephone sans nom.
+  proposerDeNommerLePoste();
 
   $("carteGrimpeur").addEventListener("click", () => scanner("grimpeur"));
   $("carteBloc").addEventListener("click", () => scanner("bloc"));
@@ -972,7 +1093,13 @@ async function demarrer() {
   });
   $("nomTelephone").addEventListener("input", async (e) => {
     identite = await renommer(reglages, e.target.value);
+    afficherLeNomDuPoste();
+    // Le champ vidé à la main redonne le geste sur l'écran d'accueil.
+    proposerDeNommerLePoste();
   });
+  $("btnScannerPoste").addEventListener("click", () => scannerMonPoste());
+  $("btnPoste").addEventListener("click",
+                                 () => scannerMonPoste({ depuisLAccueil: true }));
   $("garderGrimpeur").addEventListener("change", async (e) => {
     etat.garderGrimpeur = e.target.checked;
     await reglages.ecrire("garder-grimpeur", etat.garderGrimpeur);
@@ -991,6 +1118,19 @@ async function demarrer() {
   proposerLInstallation();
   await rafraichirLesCompteurs();
   redessiner();
+
+  // Le téléphone qui bascule clair/sombre en cours de journée — le réglage
+  // automatique d'iOS le fait au coucher du soleil, et une compétition finit
+  // le soir. Le CSS suit tout seul ; la teinte du circuit, non : elle est
+  // posée en variable en ligne par `redessiner()`, et le circuit « Noir »
+  // change de valeur avec le thème (craie sur l'ardoise, presque noir sur le
+  // papier). Sans ce redessin, un écran resté ouvert sur un bloc noir gardait
+  // la craie sur le papier clair : invisible.
+  const theme = globalThis.matchMedia
+    && globalThis.matchMedia("(prefers-color-scheme: dark)");
+  if (theme && theme.addEventListener) {
+    theme.addEventListener("change", () => redessiner());
+  }
 
   // Le voyant ne vit qu'au premier plan : en arrière-plan personne ne le
   // regarde, et un voyant figé vaut moins que pas de voyant. Au retour, on

@@ -146,10 +146,15 @@ Tu ne veux pas payer les 99 $/an du programme développeur Apple. Les options :
 
 ### Ce que ça implique
 
-- L'app Android native reste en place (elle marche, elle est publiée) tant que
-  la PWA n'a pas fait ses preuves sur une vraie compétition.
-- À terme, tu peux garder les deux, ou tout basculer sur la PWA et abandonner
-  la publication Play Store. À décider quand la PWA aura tourné en vrai.
+- ~~L'app Android native reste en place tant que la PWA n'a pas fait ses
+  preuves.~~ **Tranché le 03/09/2026 : l'application Android native sort du
+  périmètre et son dépôt doit être archivé.** Tout passe par la PWA — une seule
+  base de code, mise à jour sans store.
+- L'archivage n'est pas qu'un `gh repo archive` : il touche le dépôt
+  `computingify/ClimbContest` (neuf branches distantes non fusionnées), la fiche
+  Play Store et la politique de confidentialité qui la sert, le
+  [plan de repli](plan-de-repli.md) qui s'appuie sur l'APK `V3.1.4`, et les 25
+  téléphones du club qui basculent sur la PWA.
 - Les prototypes `climbContestApp/` (Flutter) et `ClimbContestIos/` (SwiftUI)
   sont à supprimer : ils ne servent aucun de ces scénarios.
 
@@ -210,4 +215,4 @@ prête : on repart sur Render avec la version 2025-2026.
 | ~~D3~~ | ~~Monorepo ou dépôts séparés~~ | **Tranché** : pas de monorepo, `climbcontest-core` devient le dépôt pivot. Argumentaire dans [preparation-depots.md](preparation-depots.md) |
 | D4 | Page résultats publique ou réservée au réseau de la salle | Change l'architecture d'exposition |
 | D5 | Date de la prochaine compétition | Change l'ordre des chantiers |
-| D6 | Sort de l'app Android native une fois la PWA prête | Peut attendre |
+| ~~D6~~ | ~~Sort de l'app Android native une fois la PWA prête~~ | **Tranchée le 03/09/2026** : hors périmètre, dépôt à archiver. Voir le chantier 3 |

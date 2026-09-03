@@ -101,6 +101,51 @@ curl -X POST localhost:5007/api/v2/contest/success \
 
 ---
 
+## Vingt-cinq juges sans vingt-cinq bénévoles
+
+L'émulateur montre **un** juge. Ce qu'il ne montre pas, c'est ce qui se passe
+quand vingt-cinq téléphones envoient en même temps : les files qui gonflent, les
+doublons entre deux juges voisins, un poste qui décroche du wifi et rattrape son
+retard trois minutes plus tard.
+
+```bash
+python3 tools/simulateur_juges.py
+```
+
+Le panneau s'ouvre sur <http://127.0.0.1:8765>. Y coller le **lien juge** de la
+console (onglet « App juge ») suffit : l'adresse et la clé en sont tirées. Puis
+le nombre de juges, la cadence, et « Démarrer ».
+
+L'adresse, la clé et les derniers réglages sont **retenus** dans
+`~/.config/climbcontest/simulateur-juges.json` — hors du dépôt, en `0600`, parce
+que ce fichier contient un secret et que les deux dépôts sont publics. Rien à
+ressaisir à la deuxième ouverture ; supprimer le fichier suffit à tout oublier.
+La barre du haut affiche la **version du serveur** en face, et le dit en rouge
+si la sonde le déclare dégradé.
+
+Ce qui part sur le réseau est **exactement** ce qu'envoie un téléphone : mêmes
+routes, même politique d'envoi (lot de 5 ou délai de 10 s, retrait doublé après
+un échec), recopiée de `static/juge/politique.js`. Le sélecteur de protocole
+bascule entre les lots `v3` et les trois appels `v2` de l'application gelée
+`v3.1.4` — le plan de repli de novembre, qu'on peut ainsi mettre à la même
+charge que le reste.
+
+Les dossards et les blocs viennent du **catalogue de la compétition active**,
+jamais d'une liste inventée. Chaque juge est posté sur une zone du mur et ne
+scanne que ses blocs, comme le jour J.
+
+> ⚠️ **Ce script écrit vraiment.** Les réussites entrent en base et le miroir
+> les recopie dans le classeur relié à la compétition active — dont le panneau
+> affiche le nom en permanence. Pour régler la cadence sans rien écrire : la
+> case « À blanc ». Pour une compétition jetable :
+> `python3 tools/semer_competition_test.py <id_classeur_jetable>`.
+
+À ne pas confondre avec `tools/charge.py`, qui ne fait que **lire**, depuis une
+machine hors du réseau de la salle, pour vérifier qu'aucune adresse n'a été
+bannie par le filtre.
+
+---
+
 ## Viser un autre backend
 
 L'adresse n'est plus une constante dans le code : elle vient de

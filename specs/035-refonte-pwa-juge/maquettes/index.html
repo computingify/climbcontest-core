@@ -1,0 +1,1535 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Maquettes — l'application juge, quatre directions</title>
+<!--
+  MAQUETTE. Aucune ligne de ce fichier n'est destinée à la production : ni le
+  gabarit `climbcontest/templates/juge.html`, ni `static/juge/*` ne sont touchés
+  par la spec 035. Ce fichier sert à DÉCIDER, pas à livrer.
+
+  Il est AUTONOME : il s'ouvre en `file://`, sans serveur, sans CDN, sans
+  framework. Les deux seules ressources externes sont dans le dépôt lui-même —
+  le logo du club et la police Archivo — référencées en chemin relatif. Si le
+  fichier est déplacé ailleurs, il reste lisible : la police retombe sur
+  `system-ui` et le logo sur son texte de remplacement.
+
+  Les noms de grimpeurs sont INVENTÉS. Le dépôt est public et les classeurs
+  contiennent des noms de mineurs : aucune donnée réelle n'entre ici.
+-->
+<style>
+  /* ============================================================
+     1. LA PLANCHE — le cadre autour du téléphone.
+     Repris des maquettes de la spec 031 : même sable, même ocre,
+     clair ou sombre selon le système.
+     ============================================================ */
+  :root {
+    --p-fond: #E7E1D6; --p-surface: #F7F4EE; --p-encre: #231F19;
+    --p-encre2: #6E675A; --p-trait: #CFC7B8; --p-puce: #DCD5C7;
+    --p-accent: #8A5A0F; --p-accent-vif: #B5761C;
+    --p-ombre: 0 24px 60px rgba(27, 26, 23, .18);
+    --p-titre: system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+    color-scheme: light dark;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --p-fond: #0E0D0A; --p-surface: #1A1813; --p-encre: #EDE9E0;
+      --p-encre2: #9A9385; --p-trait: #2E2B22; --p-puce: #24211A;
+      --p-accent: #E8BC70; --p-accent-vif: #E0A94A;
+      --p-ombre: 0 24px 70px rgba(0, 0, 0, .6);
+    }
+  }
+
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  body {
+    margin: 0; padding: 34px 18px 70px;
+    background: var(--p-fond); color: var(--p-encre);
+    font-family: var(--p-titre); font-size: 15px; line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+  }
+  .page { max-width: 1180px; margin: 0 auto; }
+
+  .chapeau { max-width: 70ch; margin: 0 auto 30px; text-align: center; }
+  .eyebrow {
+    font-size: .72rem; text-transform: uppercase; letter-spacing: .12em;
+    font-weight: 700; color: var(--p-accent);
+  }
+  h1 {
+    margin: 6px 0 10px; font-size: clamp(1.5rem, 1.1rem + 1.8vw, 2.15rem);
+    line-height: 1.15; letter-spacing: -.02em; text-wrap: balance;
+  }
+  .chapeau p { margin: 0; color: var(--p-encre2); }
+
+  /* --- le choix de direction : quatre cartes, une seule allumée --- */
+  .directions {
+    display: grid; gap: 12px; margin: 0 0 26px;
+    grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+  }
+  .direction {
+    text-align: left; font: inherit; cursor: pointer;
+    background: var(--p-surface); color: inherit;
+    border: 1.5px solid var(--p-trait); border-radius: 16px;
+    padding: 14px 16px; display: flex; flex-direction: column; gap: 6px;
+    transition: border-color .18s ease, transform .18s ease, box-shadow .18s ease;
+  }
+  .direction:hover { transform: translateY(-2px); }
+  .direction[aria-pressed="true"] {
+    border-color: var(--p-accent-vif); border-width: 2.5px; padding: 12.5px 14.5px;
+    box-shadow: 0 8px 26px rgba(181, 118, 28, .22);
+  }
+  .direction .lettre {
+    display: flex; align-items: center; gap: 9px;
+    font-size: .7rem; letter-spacing: .12em; text-transform: uppercase;
+    font-weight: 700; color: var(--p-encre2);
+  }
+  .direction .lettre b {
+    width: 22px; height: 22px; border-radius: 7px; flex: none;
+    display: inline-flex; align-items: center; justify-content: center;
+    background: var(--p-puce); color: var(--p-encre); font-size: .78rem;
+  }
+  .direction[aria-pressed="true"] .lettre b { background: var(--p-accent-vif); color: #fff; }
+  .direction .nom { font-size: 1.12rem; font-weight: 700; letter-spacing: -.01em; }
+  .direction .parti { margin: 0; font-size: .87rem; color: var(--p-encre2); line-height: 1.45; }
+  /* un aperçu de palette : trois pastilles qui disent la couleur de la direction */
+  .direction .palette { display: flex; gap: 5px; margin-top: 2px; }
+  .direction .palette i {
+    width: 100%; height: 7px; border-radius: 999px; display: block;
+    border: 1px solid rgba(0, 0, 0, .12);
+  }
+
+  /* --- l'atelier : commandes à gauche, téléphone à droite --- */
+  /* Sur un téléphone, les quatre partis pris en entier repoussent l'atelier
+     trois écrans plus bas. Le nom et la palette suffisent : le parti pris est
+     rappelé sous le téléphone, une fois la direction choisie. */
+  @media (max-width: 640px) {
+    .direction .parti { display: none; }
+    .direction { padding: 12px 14px; }
+  }
+
+  .atelier {
+    display: grid; gap: 26px; align-items: start;
+    grid-template-columns: minmax(240px, 300px) 1fr;
+  }
+  @media (max-width: 860px) { .atelier { grid-template-columns: 1fr; } }
+
+  .commandes { display: flex; flex-direction: column; gap: 18px; position: sticky; top: 18px; }
+  @media (max-width: 860px) { .commandes { position: static; } }
+  .groupe > h3 {
+    margin: 0 0 8px; font-size: .7rem; text-transform: uppercase;
+    letter-spacing: .11em; color: var(--p-encre2); font-weight: 700;
+  }
+  .chips { display: flex; flex-wrap: wrap; gap: 7px; }
+  .chip {
+    font: inherit; font-size: .86rem; font-weight: 600; cursor: pointer;
+    background: var(--p-surface); color: var(--p-encre);
+    border: 1.5px solid var(--p-trait); border-radius: 999px;
+    padding: 9px 14px; min-height: 40px;
+    display: inline-flex; align-items: center; gap: 7px;
+    transition: background .15s ease, border-color .15s ease;
+  }
+  .chip[aria-pressed="true"] {
+    border-color: var(--p-accent-vif); background: var(--p-puce);
+    color: var(--p-encre);
+  }
+  .chip .rond {
+    width: 13px; height: 13px; border-radius: 50%;
+    border: 1px solid rgba(0, 0, 0, .25);
+  }
+  .note {
+    margin: 0; font-size: .82rem; color: var(--p-encre2); line-height: 1.5;
+  }
+  .plein {
+    font: inherit; font-size: .9rem; font-weight: 700; cursor: pointer;
+    background: var(--p-accent-vif); color: #fff; border: 0; border-radius: 12px;
+    padding: 13px 16px; min-height: 46px;
+  }
+
+  /* --- la scène : le téléphone --- */
+  .scene {
+    display: flex; flex-direction: column; align-items: center; gap: 14px;
+  }
+  .cadre {
+    /* 390 x 844 : un iPhone 14/15 en points CSS, l'appareil le plus probable
+       dans la poche d'un bénévole. Le châssis ajoute 12 px de bord. */
+    width: 414px; height: 868px; flex: none;
+    border-radius: 56px; padding: 12px;
+    background: linear-gradient(160deg, #3B3B40, #17171A 40%, #2C2C31);
+    box-shadow: var(--p-ombre), inset 0 0 0 1.5px rgba(255, 255, 255, .16);
+    transform-origin: top center;
+  }
+  .chassis {
+    position: relative; width: 390px; height: 844px;
+    border-radius: 45px; overflow: hidden; background: #000;
+  }
+  .encoche {
+    position: absolute; top: 9px; left: 50%; transform: translateX(-50%);
+    width: 124px; height: 33px; border-radius: 999px; background: #000; z-index: 60;
+  }
+  .barre-accueil {
+    position: absolute; bottom: 8px; left: 50%; transform: translateX(-50%);
+    width: 138px; height: 5px; border-radius: 999px; z-index: 60;
+    background: currentColor; opacity: .35; pointer-events: none;
+  }
+  .legende {
+    max-width: 420px; text-align: center; color: var(--p-encre2);
+    font-size: .87rem; margin: 0;
+  }
+  .legende b { color: var(--p-encre); }
+
+  /* Le mode « plein écran » : la planche disparaît, l'application prend tout
+     l'écran. C'est le mode dans lequel on JUGE une maquette — au doigt, sur le
+     vrai téléphone, sans cadre autour pour flatter. */
+  body.nu { padding: 0; overflow: hidden; }
+  body.nu .chapeau, body.nu .directions, body.nu .commandes,
+  body.nu .legende, body.nu .pied { display: none; }
+  body.nu .page { max-width: none; }
+  body.nu .atelier { display: block; }
+  body.nu .cadre {
+    width: 100vw; height: 100dvh; padding: 0; border-radius: 0;
+    box-shadow: none; background: none; transform: none !important;
+  }
+  body.nu .chassis { width: 100%; height: 100%; border-radius: 0; }
+  body.nu .encoche, body.nu .barre-accueil { display: none; }
+  #sortir {
+    display: none; position: fixed; z-index: 200;
+    right: 12px; top: calc(12px + env(safe-area-inset-top));
+    font: inherit; font-size: .8rem; font-weight: 700; cursor: pointer;
+    background: rgba(0, 0, 0, .55); color: #fff; border: 1px solid rgba(255, 255, 255, .35);
+    border-radius: 999px; padding: 9px 14px; backdrop-filter: blur(6px);
+  }
+  body.nu #sortir { display: block; }
+
+  /* Mode CAPTURE (`&cap=1`) : le châssis seul, épinglé en haut à gauche, à
+     l'échelle 1. Il sert à sortir des images de 390 x 844 exactement — la
+     taille réelle de l'écran, sans le cadre de la planche pour flatter. */
+  body.cap {
+    padding: 0; overflow: hidden; background: #000;
+    height: 100vh; display: flex; align-items: center; justify-content: center;
+  }
+  body.cap .chapeau, body.cap .directions, body.cap .commandes,
+  body.cap .legende, body.cap .pied, body.cap #sortir { display: none; }
+  body.cap .page { max-width: none; }
+  body.cap .atelier { display: block; }
+  body.cap .scene { display: block; height: auto !important; }
+  body.cap .cadre {
+    transform: none !important; flex: none;
+    width: 390px; height: 844px; padding: 0; border-radius: 0;
+    box-shadow: none; background: none;
+  }
+  body.cap .chassis { border-radius: 0; }
+
+  .pied {
+    max-width: 76ch; margin: 46px auto 0; padding-top: 22px;
+    border-top: 1px solid var(--p-trait); color: var(--p-encre2); font-size: .92rem;
+  }
+  .pied h2 { color: var(--p-encre); font-size: 1.05rem; margin: 0 0 8px; }
+  .pied ol { margin: 0; padding-left: 1.2em; }
+  .pied li { margin-bottom: 7px; }
+  .pied b { color: var(--p-encre); }
+
+  /* ============================================================
+     2. L'APPLICATION — le squelette commun aux quatre directions.
+     Une seule structure HTML. Ce sont les VARIABLES et quelques
+     règles ciblées qui font les quatre visages.
+     ============================================================ */
+  @font-face {
+    font-family: "Archivo";
+    src: url("../../../climbcontest/static/juge/archivo.ttf") format("truetype");
+    font-weight: 100 900;
+    font-display: swap;
+  }
+
+  .app {
+    position: absolute; inset: 0; overflow: hidden;
+    font-family: "Archivo", system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+    background: var(--fond); background-image: var(--fond-img, none);
+    color: var(--encre);
+    -webkit-user-select: none; user-select: none;
+    /* Les encoches simulées. Dans la vraie application ce sont
+       `env(safe-area-inset-top)` et `env(safe-area-inset-bottom)`. */
+    --st: 46px; --sb: 26px;
+    --r: 22px;
+    transition: background-color .32s ease, color .2s ease;
+  }
+  body.nu .app { --st: env(safe-area-inset-top); --sb: env(safe-area-inset-bottom); }
+
+  .ecran { position: absolute; inset: 0; display: none; flex-direction: column; }
+  .app[data-ecran="accueil"]   .e-accueil,
+  .app[data-ecran="principal"] .e-principal,
+  .app[data-ecran="scanner"]   .e-scanner,
+  .app[data-ecran="reglages"]  .e-reglages,
+  .app[data-ecran="scans"]     .e-scans { display: flex; }
+
+  /* --- l'en-tête --- */
+  .tete {
+    display: flex; align-items: center; gap: 10px;
+    padding: calc(var(--st) + 10px) 16px 6px;
+  }
+  .tete .place { flex: 1; }
+  .marque { display: none; align-items: center; gap: 8px; }
+  .marque img { width: 30px; height: auto; display: block; }
+  .marque span {
+    font-size: 10px; font-weight: 800; letter-spacing: .14em;
+    text-transform: uppercase; color: var(--encre2); line-height: 1.1;
+  }
+  .pastilles { display: flex; gap: 7px; align-items: center; }
+  .app:not([data-file="1"]) .pastilles { display: none; }
+  .pastille {
+    font-size: 12.5px; font-weight: 700; padding: 7px 11px; border-radius: 999px;
+    white-space: nowrap;
+  }
+  .p-attente { color: var(--attention); background: color-mix(in srgb, var(--attention) 17%, transparent); }
+  .p-refus   { color: var(--alerte);    background: color-mix(in srgb, var(--alerte) 17%, transparent); }
+  .ic {
+    font: inherit; font-size: 19px; line-height: 1; cursor: pointer;
+    background: none; border: 0; color: var(--encre);
+    width: 44px; height: 44px; border-radius: 12px;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .voyant { width: 23px; height: 23px; flex: none; }
+  .app[data-reseau="ok"]    .voyant { color: var(--ok); }
+  .app[data-reseau="ko"]    .voyant { color: var(--alerte); }
+  .app[data-reseau="doute"] .voyant { color: var(--attention); animation: battement 1.4s ease-in-out infinite; }
+  /* Le trait sur le voyant : le rouge seul ne suffit pas, ~8 % des hommes ne le
+     distinguent pas du vert. La FORME dit la panne, la couleur la confirme. */
+  .barre-voyant { display: none; }
+  .app[data-reseau="ko"] .barre-voyant { display: inline; }
+  @keyframes battement { 0%, 100% { opacity: 1 } 50% { opacity: .32 } }
+
+  /* --- le corps --- */
+  .corps {
+    flex: 1; display: flex; flex-direction: column;
+    padding: 10px 16px calc(16px + var(--sb));
+    gap: 14px; min-height: 0;
+  }
+  .etapes { display: flex; flex-direction: column; gap: 14px; flex: 1; min-height: 0; }
+
+  .carte {
+    font: inherit; text-align: left; color: inherit; cursor: pointer; width: 100%;
+    background: var(--surface); border: 1.5px solid var(--trait);
+    border-radius: var(--r); padding: 17px 19px; min-height: 108px;
+    flex: 1 1 0;
+    display: flex; flex-direction: column; justify-content: center; gap: 5px;
+    transition: background .25s ease, border-color .25s ease, transform .12s ease;
+  }
+  .carte:active { transform: scale(.985); }
+  .quoi {
+    font-size: 11.5px; letter-spacing: .2em; text-transform: uppercase;
+    font-weight: 800; color: var(--encre3);
+    display: flex; align-items: center; gap: 9px;
+  }
+  .quoi::before {
+    content: attr(data-n); flex: none;
+    width: 20px; height: 20px; border-radius: 50%;
+    display: inline-flex; align-items: center; justify-content: center;
+    font-size: 11px; letter-spacing: 0; font-weight: 800;
+    background: var(--puce); color: var(--encre3);
+  }
+  .textes { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+  .valeur {
+    font-size: 30px; font-weight: 800; letter-spacing: -.015em;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .valeur.attente { font-size: 21px; font-weight: 500; color: var(--encre2); }
+  .detail { font-size: 14px; color: var(--encre2); letter-spacing: .03em; min-height: 1px; }
+
+  /* L'étape ACTIVE se déduit du voisinage, jamais d'une classe posée par le JS :
+     l'étape 1 tant qu'elle n'est pas faite, l'étape 2 dès que la 1 l'est. */
+  .app:not([data-grimpeur="1"]) .c-grimpeur,
+  .app[data-grimpeur="1"]:not([data-bloc="1"]) .c-bloc {
+    background: var(--surface-active); border-color: var(--trait-actif); border-width: 2.5px;
+    padding: 16px 18px;
+  }
+  .app:not([data-grimpeur="1"]) .c-grimpeur .quoi,
+  .app[data-grimpeur="1"]:not([data-bloc="1"]) .c-bloc .quoi { color: var(--encre); }
+  .app:not([data-grimpeur="1"]) .c-grimpeur .quoi::before,
+  .app[data-grimpeur="1"]:not([data-bloc="1"]) .c-bloc .quoi::before {
+    background: var(--encre); color: var(--fond-plat);
+  }
+  .app[data-grimpeur="1"] .c-grimpeur { background: var(--surface-faite); }
+  .app[data-grimpeur="1"] .c-grimpeur .quoi { color: var(--encre2); }
+  .app[data-grimpeur="1"] .c-grimpeur .quoi::before { background: var(--ok); color: var(--sur-ok); }
+
+  /* La carte du bloc quand il est scanné : c'est ICI que la couleur du circuit
+     entre dans l'écran. Chaque direction en fait autre chose. */
+  .app[data-bloc="1"] .c-bloc { border-color: color-mix(in srgb, var(--circuit) 55%, transparent); }
+  .app[data-bloc="1"] .c-bloc .quoi { color: var(--circuit); }
+  .app[data-bloc="1"] .c-bloc .quoi::before { background: var(--circuit); color: var(--encre-circuit); }
+  .app[data-bloc="1"] .c-bloc .valeur {
+    align-self: flex-start; max-width: 100%;
+    background: var(--circuit); color: var(--encre-circuit);
+    border-radius: 12px; padding: 2px 15px;
+  }
+  .app[data-bloc="1"] .c-bloc .detail { color: color-mix(in srgb, var(--circuit) 88%, var(--encre)); }
+
+  /* L'avertissement hors-circuit. Jaune d'attention, jamais rouge : rien n'est
+     cassé, et l'envoi reste possible. */
+  .hors {
+    display: none; margin: 0; padding: 13px 15px; border-radius: 13px;
+    background: color-mix(in srgb, var(--attention) 15%, transparent);
+    border-left: 4px solid var(--attention);
+    font-size: 14.5px; line-height: 1.45;
+  }
+  .app[data-hors="1"] .hors { display: block; }
+  .hors b { color: var(--attention); }
+
+  .dock { display: flex; flex-direction: column; gap: 8px; margin-top: auto; }
+  .envoyer {
+    width: 100%; height: 104px; border-radius: var(--r); font: inherit;
+    font-size: 30px; font-weight: 800; letter-spacing: .1em; text-transform: uppercase;
+    color: var(--encre-circuit); background: var(--circuit); border: 0; cursor: pointer;
+    display: flex; align-items: center; justify-content: center; gap: 12px;
+    transition: background .25s ease, color .25s ease;
+  }
+  /* Désactivé, il ne doit PAS ressembler à une carte à remplir : creux et
+     cerclé d'un trait, il se lit comme un emplacement qui attend. */
+  .app:not([data-bloc="1"]) .envoyer {
+    background: transparent; border: 1.5px dashed var(--trait);
+    color: var(--encre3); cursor: default;
+  }
+  .app[data-pret="1"] .envoyer { animation: souffle 2.8s ease-in-out infinite; }
+  @keyframes souffle {
+    0%, 100% { box-shadow: 0 0 8px color-mix(in srgb, var(--circuit) 40%, transparent); }
+    50% { box-shadow: 0 0 28px color-mix(in srgb, var(--circuit) 55%, transparent); }
+  }
+  .app[data-hors="1"] .envoyer {
+    background: var(--attention); color: var(--sur-attention); font-size: 21px;
+    animation: none;
+  }
+  .app[data-envoi="1"] .envoyer { animation: none; opacity: .82; }
+  .toupie {
+    display: none; width: 26px; height: 26px; border-radius: 50%; flex: none;
+    border: 3px solid color-mix(in srgb, var(--encre-circuit) 30%, transparent);
+    border-top-color: var(--encre-circuit); animation: tourne .8s linear infinite;
+  }
+  .app[data-envoi="1"] .toupie { display: block; }
+  @keyframes tourne { to { transform: rotate(360deg) } }
+
+  .aide { margin: 0; text-align: center; color: var(--encre2); font-size: 14px; }
+  /* L'aide dit quoi scanner ensuite. Dès que le bloc est là, il n'y a plus
+     rien à scanner — y compris pendant l'envoi, où « prêt » est faux mais où
+     la consigne serait fausse elle aussi. */
+  .app[data-bloc="1"] .aide { visibility: hidden; }
+  .effacer {
+    background: none; border: 0; font: inherit; font-size: 15px;
+    color: var(--encre2); padding: 13px; cursor: pointer; min-height: 44px;
+  }
+
+  /* --- le message --- */
+  .message {
+    position: absolute; left: 50%; transform: translateX(-50%) translateY(14px);
+    bottom: calc(26px + var(--sb)); z-index: 40;
+    max-width: 86%; padding: 13px 19px; border-radius: 12px;
+    background: var(--surface-faite); border-left: 4px solid var(--ok);
+    color: var(--encre); font-size: 15px; font-weight: 600;
+    box-shadow: 0 10px 34px rgba(0, 0, 0, .38);
+    opacity: 0; pointer-events: none; transition: opacity .2s ease, transform .2s ease;
+  }
+  .message.vu { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+  /* --- l'écran d'accueil --- */
+  .e-accueil {
+    align-items: center; justify-content: center; gap: 18px;
+    background: var(--fond); background-image: var(--accueil-img, var(--fond-img, none));
+  }
+  .e-accueil img { width: 190px; height: auto; }
+  .e-accueil .nom {
+    font-size: 15px; font-weight: 700; letter-spacing: .18em;
+    text-transform: uppercase; color: var(--encre2);
+  }
+  /* Les six circuits, alignés. C'est la promesse de l'application en une
+     ligne : ici, la couleur veut dire quelque chose. */
+  .rubans { display: flex; gap: 6px; margin-top: 6px; }
+  .rubans i { width: 26px; height: 6px; border-radius: 999px; display: block; }
+
+  /* --- le scanner --- */
+  .e-scanner { background: #000; }
+  .flux {
+    flex: 1; position: relative; overflow: hidden;
+    /* Une caméra simulée : des taches floues qui évoquent un mur de bloc.
+       Rien de photographique — on juge le viseur, pas la photo. */
+    background:
+      radial-gradient(42% 30% at 24% 26%, rgba(224, 169, 74, .30), transparent 70%),
+      radial-gradient(38% 26% at 74% 62%, rgba(62, 140, 247, .22), transparent 70%),
+      radial-gradient(50% 40% at 52% 88%, rgba(240, 85, 74, .18), transparent 72%),
+      linear-gradient(165deg, #2A2B31, #101115 62%);
+  }
+  /* Le QR qu'on vise. Ce n'est PAS un code valide : c'est un dessin, pour
+     juger le viseur. Un vrai code scannable dans une maquette serait un piège
+     — quelqu'un finirait par le viser pour de bon. */
+  .faux-qr {
+    position: absolute; left: 50%; top: 50%;
+    transform: translate(-50%, -50%) rotate(-4deg);
+    width: 124px; height: 124px; border-radius: 6px; background: #F4F3EF;
+    padding: 8px; box-shadow: 0 8px 26px rgba(0, 0, 0, .55);
+  }
+  .mire {
+    position: absolute; left: 50%; top: 47%; transform: translate(-50%, -50%);
+    width: 232px; height: 232px; border-radius: 26px;
+    box-shadow: 0 0 0 2000px rgba(0, 0, 0, .52);
+  }
+  .mire i {
+    position: absolute; width: 40px; height: 40px;
+    border: 4px solid var(--mire, #fff); border-radius: 4px;
+  }
+  .mire i:nth-child(1) { top: -2px; left: -2px; border-right: 0; border-bottom: 0; border-top-left-radius: 18px; }
+  .mire i:nth-child(2) { top: -2px; right: -2px; border-left: 0; border-bottom: 0; border-top-right-radius: 18px; }
+  .mire i:nth-child(3) { bottom: -2px; left: -2px; border-right: 0; border-top: 0; border-bottom-left-radius: 18px; }
+  .mire i:nth-child(4) { bottom: -2px; right: -2px; border-left: 0; border-top: 0; border-bottom-right-radius: 18px; }
+  .laser {
+    position: absolute; left: 8px; right: 8px; height: 2px; border-radius: 2px;
+    background: var(--mire, #fff); box-shadow: 0 0 14px var(--mire, #fff);
+    animation: balaye 2.1s ease-in-out infinite;
+  }
+  @keyframes balaye { 0%, 100% { top: 14px } 50% { top: 214px } }
+  .barre-scan {
+    padding: 16px 16px calc(16px + var(--sb));
+    background: var(--surface-faite); display: flex; align-items: center; gap: 12px;
+  }
+  .barre-scan span { flex: 1; color: var(--encre2); font-size: 15px; }
+  .barre-scan button {
+    font: inherit; font-size: 15px; font-weight: 600; color: var(--encre);
+    background: var(--surface); border: 1.5px solid var(--trait);
+    border-radius: 12px; padding: 13px 20px; cursor: pointer; min-height: 46px;
+  }
+
+  /* --- les écrans secondaires --- */
+  .barre-ecran {
+    display: flex; align-items: center; gap: 10px;
+    padding: calc(var(--st) + 8px) 12px 10px; background: var(--surface-faite);
+  }
+  .barre-ecran h2 { margin: 0; font-size: 19px; font-weight: 700; flex: 1; }
+  .retour {
+    background: none; border: 0; color: var(--encre); font: inherit; font-size: 22px;
+    width: 44px; height: 44px; border-radius: 12px; cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .defilable { flex: 1; overflow-y: auto; padding-bottom: calc(20px + var(--sb)); }
+  .section { margin: 16px; }
+  .section > h3 {
+    margin: 0 0 7px 4px; font-size: 11.5px; text-transform: uppercase;
+    letter-spacing: .11em; color: var(--encre2); font-weight: 700;
+  }
+  .bloc {
+    background: var(--surface-faite); border: 1px solid var(--trait);
+    border-radius: 16px; padding: 16px;
+  }
+  .ligne { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+  .ligne + .ligne { margin-top: 14px; }
+  .ligne > span { font-size: 15px; }
+  .explication { color: var(--encre2); font-size: 13.5px; line-height: 1.5; margin: 7px 0 0; }
+  .champ {
+    width: 100%; font: inherit; font-size: 16px; color: var(--encre);
+    background: var(--surface); border: 1.5px solid var(--trait); border-radius: 12px;
+    padding: 13px 14px;
+  }
+  .etiq { display: block; font-size: 12.5px; color: var(--encre2); margin-bottom: 6px; }
+  .action {
+    font: inherit; font-size: 14.5px; font-weight: 700; color: var(--sur-accent);
+    background: var(--accent); border: 0; border-radius: 12px;
+    padding: 12px 18px; cursor: pointer; white-space: nowrap; min-height: 44px;
+  }
+  .action[disabled] { opacity: .4; }
+  .mono {
+    font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+    font-size: 12.5px; color: var(--encre2);
+  }
+  .lien {
+    background: none; border: 0; color: var(--accent-lien); font: inherit;
+    font-size: 15px; font-weight: 600; padding: 12px 0; cursor: pointer;
+    text-align: left; min-height: 44px;
+  }
+  /* L'interrupteur : sa piste doit se lire ÉTEINTE d'un coup d'œil (leçon D8). */
+  .bascule {
+    position: relative; width: 54px; height: 32px; border-radius: 999px; flex: none;
+    background: var(--puce); border: 1.5px solid var(--trait); cursor: pointer;
+    transition: background .18s ease;
+  }
+  .bascule::after {
+    content: ""; position: absolute; top: 3px; left: 3px;
+    width: 23px; height: 23px; border-radius: 50%; background: var(--encre2);
+    transition: transform .18s ease, background .18s ease;
+  }
+  .bascule[aria-pressed="true"] { background: var(--ok); border-color: var(--ok); }
+  .bascule[aria-pressed="true"]::after { transform: translateX(21px); background: #fff; }
+
+  .filtre {
+    display: flex; align-items: center; justify-content: space-between; gap: 12px;
+    margin: 13px 16px; color: var(--encre2); font-size: 13.5px;
+  }
+  .filtre button {
+    font: inherit; font-size: 13.5px; font-weight: 600; color: var(--encre2);
+    background: none; border: 1.5px solid var(--trait); border-radius: 999px;
+    padding: 9px 15px; cursor: pointer; min-height: 40px;
+  }
+  .liste-scans { margin: 0 16px; }
+  .scan {
+    display: flex; align-items: center; gap: 12px; background: var(--surface-faite);
+    border: 1px solid var(--trait); border-radius: 14px; padding: 13px 14px; margin-bottom: 8px;
+  }
+  .scan .point { width: 10px; height: 10px; border-radius: 50%; flex: none; }
+  .scan .qui { flex: 1; min-width: 0; }
+  .scan .nomg { font-weight: 700; font-size: 15px; }
+  .scan .ou { color: var(--encre2); font-size: 13px; }
+  .scan .motif { color: var(--alerte); font-size: 12.5px; }
+  .scan .etat { text-align: right; font-size: 12.5px; font-weight: 700; }
+
+  /* ============================================================
+     3. LES QUATRE DIRECTIONS
+     ============================================================ */
+
+  /* ---------- A — PLEIN JOUR ----------------------------------
+     Le contraire du noir : du papier sable, de l'encre presque noire,
+     et la couleur du circuit posée en aplat imprimé. Pensée pour la
+     baie vitrée de la salle et pour l'écran d'un téléphone à fond. */
+  .app[data-d="A"] {
+    --fond: #F3EEE3; --fond-plat: #F3EEE3;
+    --fond-img: radial-gradient(120% 60% at 50% -8%, #FFFCF5, transparent 62%);
+    --surface: #FFFFFF; --surface-active: #FFFFFF; --surface-faite: #FBF7EE;
+    --trait: #D9CFBC; --trait-actif: #1A1611;
+    --encre: #17140F; --encre2: #6C6353; --encre3: #9A917F;
+    --puce: #E7DFCE;
+    --accent: #B5761C; --sur-accent: #FFFFFF; --accent-lien: #8A5A0F;
+    --ok: #1F7A45; --sur-ok: #FFFFFF; --alerte: #B3392A;
+    --attention: #9A6B0B; --sur-attention: #FFFFFF;
+    --mire: #B5761C;
+    --r: 20px;
+  }
+  .app[data-d="A"] .marque { display: flex; }
+  .app[data-d="A"] .carte {
+    box-shadow: 0 2px 0 rgba(26, 22, 17, .06);
+  }
+  /* Le bouton « imprimé » : un aplat, un liseré d'encre, une ombre franche.
+     Il a la matière d'une étiquette collée au mur — la même que les blocs. */
+  .app[data-d="A"] .envoyer {
+    border: 2px solid #17140F;
+    box-shadow: 0 5px 0 #17140F;
+    border-radius: 18px;
+  }
+  .app[data-d="A"]:not([data-bloc="1"]) .envoyer {
+    border: 2px dashed var(--trait); box-shadow: none;
+  }
+  .app[data-d="A"][data-bloc="1"] .c-bloc {
+    background: color-mix(in srgb, var(--circuit) 13%, #FFFFFF);
+    border-color: #17140F; border-width: 2.5px; padding: 16px 18px;
+  }
+  .app[data-d="A"][data-bloc="1"] .c-bloc .valeur { border: 2px solid #17140F; }
+  .app[data-d="A"][data-bloc="1"] .c-bloc .quoi { color: #17140F; }
+  .app[data-d="A"][data-bloc="1"] .c-bloc .detail { color: #4A4234; }
+  .app[data-d="A"] .barre-accueil { color: #17140F; }
+  .app[data-d="A"] .message { box-shadow: 0 10px 34px rgba(26, 22, 17, .18); }
+
+  /* ---------- B — BASCULE -------------------------------------
+     La couleur ne borde plus : elle inonde. Au repos, un fond neutre
+     et froid ; dès que le bloc est scanné, TOUT l'écran passe à la
+     teinte du circuit, et le bouton s'inverse. */
+  .app[data-d="B"] {
+    --fond: #0E1015; --fond-plat: #0E1015;
+    --fond-img: radial-gradient(140% 60% at 50% 0%, #1B1F28, transparent 66%);
+    --surface: rgba(255, 255, 255, .055); --surface-active: rgba(255, 255, 255, .10);
+    --surface-faite: rgba(255, 255, 255, .085);
+    --trait: rgba(255, 255, 255, .12); --trait-actif: rgba(255, 255, 255, .5);
+    --encre: #F5F6F8; --encre2: rgba(245, 246, 248, .62); --encre3: rgba(245, 246, 248, .38);
+    --puce: rgba(255, 255, 255, .12);
+    --accent: #E0A94A; --sur-accent: #14120C; --accent-lien: #E0A94A;
+    --ok: #34C56A; --sur-ok: #08140C; --alerte: #F0554A;
+    --attention: #E5B44A; --sur-attention: #14120C;
+    --mire: #FFFFFF;
+    --r: 24px;
+  }
+  /* LA bascule. Toutes les surfaces sont exprimées en part d'encre : elles
+     restent lisibles que le circuit soit jaune (encre sombre) ou bleu (encre
+     claire), sans une seule règle par couleur. */
+  .app[data-d="B"][data-bloc="1"] {
+    --fond: var(--circuit); --fond-plat: var(--circuit);
+    --fond-img: radial-gradient(130% 62% at 50% -6%, color-mix(in srgb, #FFFFFF 26%, transparent), transparent 64%);
+    --encre: var(--encre-circuit);
+    --surface: color-mix(in srgb, var(--encre-circuit) 11%, transparent);
+    --surface-active: color-mix(in srgb, var(--encre-circuit) 15%, transparent);
+    --surface-faite: color-mix(in srgb, var(--encre-circuit) 13%, transparent);
+    --trait: color-mix(in srgb, var(--encre-circuit) 22%, transparent);
+    --trait-actif: color-mix(in srgb, var(--encre-circuit) 55%, transparent);
+    --encre2: color-mix(in srgb, var(--encre-circuit) 70%, transparent);
+    --encre3: color-mix(in srgb, var(--encre-circuit) 45%, transparent);
+    --puce: color-mix(in srgb, var(--encre-circuit) 18%, transparent);
+    --attention: var(--encre-circuit); --sur-attention: var(--circuit);
+    --ok: color-mix(in srgb, #34C56A 62%, var(--encre-circuit)); --sur-ok: var(--circuit);
+    --alerte: color-mix(in srgb, #F0554A 62%, var(--encre-circuit));
+  }
+  /* Le bouton s'INVERSE : noir sur jaune, blanc sur rouge. Le geste le plus
+     répété de la journée devient la chose la plus contrastée de l'écran. */
+  .app[data-d="B"][data-bloc="1"] .envoyer {
+    background: var(--encre-circuit); color: var(--circuit);
+    box-shadow: none; animation: none;
+  }
+  .app[data-d="B"][data-bloc="1"] .c-bloc {
+    border-color: color-mix(in srgb, var(--encre-circuit) 35%, transparent);
+  }
+  .app[data-d="B"][data-bloc="1"] .c-bloc .quoi { color: var(--encre); }
+  .app[data-d="B"][data-bloc="1"] .c-bloc .quoi::before {
+    background: var(--encre-circuit); color: var(--circuit);
+  }
+  .app[data-d="B"][data-bloc="1"] .c-bloc .valeur {
+    background: var(--encre-circuit); color: var(--circuit); border-radius: 14px;
+  }
+  .app[data-d="B"][data-bloc="1"] .c-bloc .detail { color: var(--encre2); }
+  .app[data-d="B"][data-bloc="1"] .hors {
+    background: var(--encre-circuit); color: var(--circuit);
+    border-left: 0; border-radius: 14px;
+  }
+  .app[data-d="B"][data-bloc="1"] .hors b { color: var(--circuit); }
+  .app[data-d="B"][data-bloc="1"] .pastille {
+    background: var(--encre-circuit); color: var(--circuit);
+  }
+  .app[data-d="B"][data-bloc="1"] .toupie {
+    border-color: color-mix(in srgb, var(--circuit) 35%, transparent);
+    border-top-color: var(--circuit);
+  }
+  .app[data-d="B"] .barre-accueil { color: var(--encre); }
+  .app[data-d="B"] .valeur { font-size: 32px; }
+
+  /* ---------- C — OCRE & ARDOISE ------------------------------
+     Le sombre, mais chaud et signé. L'ocre du club tient la structure —
+     numéros d'étape, filets, boutons secondaires — et la couleur du
+     circuit remplit la carte du bloc d'un aplat plein. */
+  .app[data-d="C"] {
+    --fond: #14120E; --fond-plat: #14120E;
+    --fond-img:
+      radial-gradient(118% 52% at 50% -4%, rgba(224, 169, 74, .19), transparent 62%),
+      linear-gradient(180deg, #241F17 0%, #14120E 46%);
+    --surface: #1D1A14; --surface-active: #262117; --surface-faite: #221E16;
+    --trait: #2E2920; --trait-actif: #E0A94A;
+    --encre: #F7F3EA; --encre2: #A79B87; --encre3: #6D6455;
+    --puce: #2A251B;
+    --accent: #E0A94A; --sur-accent: #191509; --accent-lien: #E0A94A;
+    --ok: #34C56A; --sur-ok: #08140C; --alerte: #F0554A;
+    --attention: #E5B44A; --sur-attention: #17140C;
+    --mire: #E0A94A;
+    --r: 26px;
+  }
+  .app[data-d="C"] .marque { display: flex; }
+  .app[data-d="C"] .tete {
+    border-bottom: 1px solid rgba(224, 169, 74, .16);
+    padding-bottom: 10px; margin-bottom: 4px;
+  }
+  .app[data-d="C"] .carte { box-shadow: inset 0 1px 0 rgba(255, 255, 255, .055); }
+  .app[data-d="C"]:not([data-grimpeur="1"]) .c-grimpeur .quoi::before,
+  .app[data-d="C"][data-grimpeur="1"]:not([data-bloc="1"]) .c-bloc .quoi::before {
+    background: var(--accent); color: var(--sur-accent);
+  }
+  /* L'aplat plein : la carte du bloc DEVIENT le circuit. */
+  .app[data-d="C"][data-bloc="1"] .c-bloc {
+    background: var(--circuit); border-color: var(--circuit);
+    box-shadow: 0 8px 30px color-mix(in srgb, var(--circuit) 34%, transparent);
+  }
+  .app[data-d="C"][data-bloc="1"] .c-bloc .quoi { color: color-mix(in srgb, var(--encre-circuit) 72%, transparent); }
+  .app[data-d="C"][data-bloc="1"] .c-bloc .quoi::before {
+    background: color-mix(in srgb, var(--encre-circuit) 82%, transparent); color: var(--circuit);
+  }
+  .app[data-d="C"][data-bloc="1"] .c-bloc .valeur {
+    background: none; color: var(--encre-circuit); padding: 0; font-size: 34px;
+  }
+  .app[data-d="C"][data-bloc="1"] .c-bloc .detail { color: color-mix(in srgb, var(--encre-circuit) 78%, transparent); }
+  .app[data-d="C"] .envoyer { letter-spacing: .12em; }
+  .app[data-d="C"] .barre-accueil { color: var(--encre); }
+
+  /* ---------- D — GRAND POUCE ---------------------------------
+     L'architecture change. L'écran se coupe en deux : ce qu'on LIT en
+     haut, sur clair ; ce qu'on TOUCHE en bas, dans un socle sombre où
+     tombe le pouce. Le bouton devient un disque de 210 px. */
+  .app[data-d="D"] {
+    --fond: #EAE5DA; --fond-plat: #EAE5DA;
+    --fond-img: radial-gradient(110% 46% at 50% 0%, #FBF8F1, transparent 60%);
+    --surface: #FFFFFF; --surface-active: #FFFFFF; --surface-faite: #F5F1E8;
+    --trait: #D5CCBA; --trait-actif: #1A1611;
+    --encre: #16130F; --encre2: #6B6252; --encre3: #9A9180;
+    --puce: #E4DCCB;
+    --accent: #B5761C; --sur-accent: #FFFFFF; --accent-lien: #8A5A0F;
+    --ok: #1F7A45; --sur-ok: #FFFFFF; --alerte: #B3392A;
+    --attention: #9A6B0B; --sur-attention: #FFFFFF;
+    --socle: #15161B; --socle-encre: #F2F1EE; --socle-encre2: rgba(242, 241, 238, .6);
+    --mire: #E0A94A;
+    --r: 18px;
+  }
+  .app[data-d="D"] .corps { padding: 8px 0 0; gap: 0; }
+  .app[data-d="D"] .etapes { padding: 0 16px; gap: 10px; flex: none; margin: auto 0; }
+  .app[data-d="D"] .carte { flex: none; }
+  /* Les cartes deviennent des LIGNES : le libellé à gauche en petit, la valeur
+     à droite en grand. La hauteur gagnée descend dans le socle. */
+  .app[data-d="D"] .carte {
+    flex-direction: row; align-items: center; justify-content: space-between;
+    gap: 14px; min-height: 84px; padding: 14px 16px; border-radius: 18px;
+  }
+  .app[data-d="D"] .carte .quoi { flex: none; flex-direction: column; align-items: flex-start; gap: 6px; }
+  .app[data-d="D"] .carte .textes {
+    display: flex; flex-direction: column; align-items: flex-end; gap: 2px;
+    min-width: 0; flex: 1;
+  }
+  .app[data-d="D"] .valeur { font-size: 25px; text-align: right; }
+  .app[data-d="D"] .valeur.attente { font-size: 18px; }
+  .app[data-d="D"] .detail { font-size: 13px; }
+  .app[data-d="D"] .hors { margin: 12px 16px 0; }
+  /* Le socle : arrondi haut, plein cadre, il tient l'action et rien d'autre. */
+  .app[data-d="D"] .dock {
+    margin-top: auto; background: var(--socle); color: var(--socle-encre);
+    border-radius: 34px 34px 0 0; padding: 20px 20px calc(10px + var(--sb));
+    align-items: center; gap: 12px;
+    box-shadow: 0 -14px 40px rgba(22, 19, 15, .22);
+  }
+  .app[data-d="D"] .aide { color: var(--socle-encre2); order: -1; }
+  .app[data-d="D"] .envoyer {
+    width: 210px; height: 210px; border-radius: 50%;
+    font-size: 25px; letter-spacing: .06em; padding: 0 22px; text-align: center;
+    flex-direction: column; line-height: 1.1;
+  }
+  .app[data-d="D"]:not([data-bloc="1"]) .envoyer {
+    border: 2px dashed rgba(242, 241, 238, .28); color: rgba(242, 241, 238, .45);
+  }
+  .app[data-d="D"][data-hors="1"] .envoyer {
+    font-size: 20px; background: #E5B44A; color: #17140C;
+  }
+  .app[data-d="D"] .effacer { color: var(--socle-encre2); }
+  .app[data-d="D"] .barre-accueil { color: var(--socle-encre); }
+  .app[data-d="D"][data-bloc="1"] .c-bloc {
+    background: color-mix(in srgb, var(--circuit) 15%, #FFFFFF);
+    border-color: color-mix(in srgb, var(--circuit) 70%, transparent); border-width: 2.5px;
+  }
+  .app[data-d="D"][data-bloc="1"] .c-bloc .quoi { color: var(--encre); }
+  .app[data-d="D"][data-bloc="1"] .c-bloc .detail { color: #4A4234; }
+  .app[data-d="D"][data-bloc="1"] .c-bloc .valeur { align-self: flex-end; }
+  .app[data-d="D"] .message { bottom: auto; top: calc(var(--st) + 60px); }
+</style>
+</head>
+<body>
+
+<button id="sortir" type="button">Quitter le plein écran</button>
+
+<div class="page">
+
+  <div class="chapeau">
+    <div class="eyebrow">Spec 035 · maquettes · 3 septembre 2026</div>
+    <h1>L'application juge — quatre directions</h1>
+    <p>Rien n'est implémenté. Choisis une direction, promène-toi dans les écrans
+       et les états, appuie sur les cartes : elles scannent pour de faux. Le but
+       de cette page est une <b>décision</b>, pas une livraison.</p>
+  </div>
+
+  <nav class="directions" id="directions" aria-label="Directions de design"></nav>
+
+  <div class="atelier">
+    <div class="commandes">
+      <div class="groupe">
+        <h3>Écran</h3>
+        <div class="chips" id="ecrans"></div>
+      </div>
+      <div class="groupe">
+        <h3>État de l'écran principal</h3>
+        <div class="chips" id="etats"></div>
+      </div>
+      <div class="groupe">
+        <h3>Couleur du circuit</h3>
+        <div class="chips" id="circuits"></div>
+        <p class="note">La teinte du circuit est de l'<b>information</b>, pas de
+           la décoration : c'est elle que le juge lit pour vérifier qu'il est sur
+           le bon circuit. Le circuit « Noir » est le cas limite — chaque
+           direction doit dire comment elle le rend.</p>
+      </div>
+      <div class="groupe">
+        <h3>Bandeau</h3>
+        <div class="chips" id="bandeaux"></div>
+      </div>
+      <button class="plein" id="entrer" type="button">Essayer en plein écran</button>
+      <p class="note">Sur ton téléphone : ouvre cette page, appuie sur
+         « Essayer en plein écran », et l'application prend tout l'écran, sans
+         cadre pour la flatter.</p>
+    </div>
+
+    <div class="scene">
+      <div class="cadre" id="cadre">
+        <div class="chassis">
+          <div class="encoche"></div>
+
+          <div class="app" id="app" data-d="A" data-ecran="principal"
+               data-reseau="ok" data-circuit="jaune">
+
+            <!-- ÉCRAN D'ACCUEIL -->
+            <div class="ecran e-accueil">
+              <img src="../../../climbcontest/static/juge/logo-club.png"
+                   alt="Annonay Escalade" width="380" height="325">
+              <div class="nom">Annonay Escalade</div>
+              <div class="rubans" id="rubans"></div>
+            </div>
+
+            <!-- ÉCRAN PRINCIPAL -->
+            <div class="ecran e-principal">
+              <div class="tete">
+                <div class="marque">
+                  <img src="../../../climbcontest/static/juge/logo-club.png"
+                       alt="" width="380" height="325">
+                  <span>Annonay<br>Escalade</span>
+                </div>
+                <div class="pastilles">
+                  <span class="pastille p-refus">1 refusée</span>
+                  <span class="pastille p-attente">3 en attente</span>
+                </div>
+                <span class="place"></span>
+                <button class="ic" id="versReglages" type="button" aria-label="Réglages">⚙</button>
+                <svg class="voyant" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                     stroke-width="2.1" stroke-linecap="round" role="img"
+                     aria-label="État de la connexion">
+                  <path d="M3.2 11 Q12 2.6 20.8 11" />
+                  <path d="M6.9 14.6 Q12 9 17.1 14.6" />
+                  <path d="M10.1 17.9 Q12 15.6 13.9 17.9" />
+                  <circle cx="12" cy="19.4" r="1.6" fill="currentColor" stroke="none" />
+                  <path class="barre-voyant" d="M4.2 4.2 L19.8 19.8" />
+                </svg>
+              </div>
+
+              <div class="corps">
+                <div class="etapes">
+                  <button class="carte c-grimpeur" id="carteGrimpeur" type="button">
+                    <span class="quoi" data-n="1">Grimpeur</span>
+                    <span class="textes">
+                      <span class="valeur attente" id="valeurGrimpeur">À scanner</span>
+                      <span class="detail" id="detailGrimpeur"></span>
+                    </span>
+                  </button>
+
+                  <button class="carte c-bloc" id="carteBloc" type="button">
+                    <span class="quoi" data-n="2">Bloc</span>
+                    <span class="textes">
+                      <span class="valeur attente" id="valeurBloc">À scanner</span>
+                      <span class="detail" id="detailBloc"></span>
+                    </span>
+                  </button>
+                </div>
+
+                <p class="hors" id="hors"></p>
+
+                <div class="dock">
+                  <button class="envoyer" id="envoyer" type="button">
+                    <span class="toupie"></span><span id="texteEnvoyer">Envoyer</span>
+                  </button>
+                  <p class="aide" id="aide">Scannez le grimpeur puis le bloc</p>
+                  <button class="effacer" id="effacer" type="button">Effacer le scan</button>
+                </div>
+              </div>
+
+              <div class="message" id="message">Validé</div>
+            </div>
+
+            <!-- SCANNER -->
+            <div class="ecran e-scanner">
+              <div class="flux">
+                <div class="mire">
+                  <i></i><i></i><i></i><i></i>
+                  <svg class="faux-qr" viewBox="0 0 21 21" shape-rendering="crispEdges"
+                       role="img" aria-label="Un QR code, pour la démonstration">
+                    <rect width="21" height="21" fill="#F4F3EF"/>
+                    <g fill="#14140F">
+                      <path d="M0 0h7v7H0zM14 0h7v7h-7zM0 14h7v7H0z"/>
+                    </g>
+                    <g fill="#F4F3EF">
+                      <path d="M1 1h5v5H1zM15 1h5v5h-5zM1 15h5v5H1z"/>
+                    </g>
+                    <g fill="#14140F">
+                      <path d="M2 2h3v3H2zM16 2h3v3h-3zM2 16h3v3H2z"/>
+                      <path d="M9 0h1v1H9zM11 1h1v1h-1zM9 2h1v1H9zM12 3h1v1h-1zM9 4h1v1H9zM11 5h1v1h-1z"/>
+                      <path d="M0 9h1v1H0zM1 11h1v1H1zM2 9h1v1H2zM3 12h1v1H3zM4 9h1v1H4zM5 11h1v1H5z"/>
+                      <path d="M8 8h2v2H8zM11 8h1v1h-1zM13 8h2v1h-2zM16 8h1v2h-1zM18 8h2v1h-2z"/>
+                      <path d="M8 11h1v2H8zM10 11h2v1h-2zM13 11h1v1h-1zM15 11h2v2h-2zM19 11h1v1h-1z"/>
+                      <path d="M9 14h2v1H9zM12 14h1v2h-1zM14 14h1v1h-1zM16 14h2v1h-2zM19 14h1v2h-1z"/>
+                      <path d="M8 17h1v1H8zM10 17h1v2h-1zM13 17h2v1h-2zM16 17h1v1h-1zM18 17h1v2h-1z"/>
+                      <path d="M9 19h1v1H9zM12 19h2v1h-2zM15 19h1v1h-1zM17 20h2v1h-2z"/>
+                      <path d="M11 9h1v1h-1zM14 10h1v1h-1zM17 12h1v1h-1zM8 15h1v1H8zM20 16h1v1h-1z"/>
+                    </g>
+                  </svg>
+                  <div class="laser"></div>
+                </div>
+              </div>
+              <div class="barre-scan">
+                <span id="consigne">Vise le QR du grimpeur</span>
+                <button type="button" class="quitterScan">Annuler</button>
+              </div>
+            </div>
+
+            <!-- RÉGLAGES -->
+            <div class="ecran e-reglages">
+              <div class="barre-ecran">
+                <button class="retour" type="button" aria-label="Retour">←</button>
+                <h2>Réglages</h2>
+              </div>
+              <div class="defilable">
+                <div class="section">
+                  <h3>Ce téléphone</h3>
+                  <div class="bloc">
+                    <label class="etiq" for="nomTel">Nom de ce téléphone</label>
+                    <input class="champ" id="nomTel" type="text" value="Mur jaune">
+                    <p class="explication">Ce nom apparaît dans la console à côté
+                       des réussites envoyées depuis ce téléphone. Il désigne un
+                       poste, pas une personne.</p>
+                    <p class="mono">tel-7f21c9</p>
+                    <button class="lien" id="versScans" type="button">Voir mes scans</button>
+                  </div>
+                </div>
+                <div class="section">
+                  <h3>Saisie</h3>
+                  <div class="bloc">
+                    <div class="ligne">
+                      <span>Garder le grimpeur entre deux blocs</span>
+                      <button class="bascule" type="button" aria-pressed="true"
+                              aria-label="Garder le grimpeur entre deux blocs"></button>
+                    </div>
+                    <p class="explication">Pratique quand un grimpeur enchaîne
+                       plusieurs blocs : seul le bloc est remis à zéro après un envoi.</p>
+                  </div>
+                </div>
+                <div class="section">
+                  <h3>File d'attente</h3>
+                  <div class="bloc">
+                    <div class="ligne">
+                      <span id="etatFile">3 réussites en attente</span>
+                      <button class="action" id="toutEnvoyer" type="button">Tout envoyer</button>
+                    </div>
+                    <div class="ligne" id="ligneRefus">
+                      <span>1 refusée</span>
+                      <button class="action" type="button">Renvoyer</button>
+                    </div>
+                    <p class="explication" id="expliquerRefus">Une réussite est refusée quand le serveur
+                       ne connaît pas encore le dossard. Dès que l'organisateur a
+                       ajouté le participant, renvoyez-la.</p>
+                  </div>
+                </div>
+                <div class="section">
+                  <h3>Serveur</h3>
+                  <div class="bloc">
+                    <div class="ligne"><span id="etatServeur">Serveur joignable</span></div>
+                    <p class="mono">https://climbcontest.adn-dev.fr</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- MES SCANS -->
+            <div class="ecran e-scans">
+              <div class="barre-ecran">
+                <button class="retour" type="button" aria-label="Retour">←</button>
+                <h2>Mes scans</h2>
+              </div>
+              <div class="filtre">
+                <span>12 scans</span>
+                <button type="button">Pas arrivés (4)</button>
+              </div>
+              <div class="defilable">
+                <div class="liste-scans" id="listeScans"></div>
+              </div>
+            </div>
+
+          </div><!-- /app -->
+
+          <div class="barre-accueil"></div>
+        </div>
+      </div>
+
+      <p class="legende" id="legende"></p>
+    </div>
+  </div>
+
+  <div class="pied">
+    <h2>Ce qui reste à trancher</h2>
+    <ol>
+      <li><b>La direction.</b> A, B, C ou D — ou un croisement, par exemple la
+          bascule de B posée sur le papier de A.</li>
+      <li><b>Clair ou sombre ?</b> L'app est sombre depuis la refonte Android
+          parce qu'un écran clair éblouit quand on lève les yeux vers le mur.
+          A et D remettent cette décision sur la table.</li>
+      <li><b>Le circuit « Noir ».</b> Sur fond sombre il est rendu en craie
+          claire, faute de mieux. Sur fond clair il redevient noir pour de vrai.
+          C'est un argument technique pour A et D.</li>
+      <li><b>Jusqu'où va la couleur ?</b> B fait basculer l'écran entier ;
+          A, C et D la gardent sur la carte du bloc et le bouton.</li>
+    </ol>
+  </div>
+
+</div>
+
+<script>
+/* ==================================================================
+   L'ÉTAT DE LA MAQUETTE, et rien d'autre.
+   Pas de module, pas d'import : la page doit s'ouvrir en `file://`,
+   où les modules ES sont bloqués par la politique d'origine.
+   ================================================================== */
+
+/* Les couleurs de circuit, RECOPIÉES de `static/juge/couleurs.js`. La maquette
+   ne doit jamais inventer une teinte : c'est le point où elle mentirait. */
+var CIRCUITS = {
+  jaune: "#F5B72E", vert: "#34C56A", bleu: "#3E8CF7",
+  mauve: "#A86CF0", rouge: "#F0554A", noir: null
+};
+
+/* Le circuit « Noir » n'a pas de couleur universelle : un aplat noir sur un
+   fond noir ne se voit pas. L'application le rend aujourd'hui en CRAIE — une
+   rustine que seul le fond sombre impose. Chaque direction dit donc ce qu'elle
+   en fait, et c'est une des décisions ouvertes de la spec. */
+var NOIR = { A: "#16130E", B: "#0B0D12", C: "#E8EBF0", D: "#15161A" };
+
+var TAGS = { jaune: "ZJ6", vert: "ZV3", bleu: "ZB4", mauve: "ZM2", rouge: "ZR7", noir: "ZN1" };
+var CIRCUITS_DU_BLOC = {
+  jaune: "U11 · U13", vert: "U13 · U15", bleu: "U15 · U17",
+  mauve: "U17 · Sénior", rouge: "Sénior", noir: "Sénior"
+};
+var NOMS_COULEUR = {
+  jaune: "Jaune", vert: "Vert", bleu: "Bleu",
+  mauve: "Mauve", rouge: "Rouge", noir: "Noir"
+};
+
+var DIRECTIONS = [
+  { id: "A", nom: "Plein Jour",
+    parti: "Du papier sable, de l'encre presque noire, la couleur du circuit en aplat imprimé. Lisible dehors, en plein soleil, à luminosité maximale.",
+    palette: ["#F3EEE3", "#17140F", "#B5761C"] },
+  { id: "B", nom: "Bascule",
+    parti: "Au repos, un fond neutre. Dès que le bloc est scanné, tout l'écran passe à la teinte du circuit et le bouton s'inverse. On lit le circuit à deux mètres.",
+    palette: ["#0E1015", "#F5B72E", "#3E8CF7"] },
+  { id: "C", nom: "Ocre & Ardoise",
+    parti: "Le sombre, mais chaud et signé : l'ocre du club tient la structure, et la carte du bloc devient un aplat plein de son circuit.",
+    palette: ["#14120E", "#E0A94A", "#34C56A"] },
+  { id: "D", nom: "Grand Pouce",
+    parti: "L'écran se coupe en deux : ce qu'on lit en haut sur clair, ce qu'on touche en bas dans un socle sombre. Le bouton devient un disque de 210 px.",
+    palette: ["#EAE5DA", "#15161B", "#B5761C"] }
+];
+
+var ECRANS = [
+  { id: "principal", nom: "Principal" },
+  { id: "scanner", nom: "Scanner" },
+  { id: "reglages", nom: "Réglages" },
+  { id: "scans", nom: "Mes scans" },
+  { id: "accueil", nom: "Accueil" }
+];
+
+var ETATS = [
+  { id: "rien", nom: "Rien de scanné" },
+  { id: "grimpeur", nom: "Grimpeur scanné" },
+  { id: "deux", nom: "Les deux scannés" },
+  { id: "hors", nom: "Hors-circuit" },
+  { id: "envoi", nom: "Envoi en cours" }
+];
+
+/* Noms INVENTÉS. Aucune donnée réelle : le dépôt est public. */
+var SCANS = [
+  { nom: "Camille Vasseur", ou: "ZV3 · 10:41", etat: "ok", ref: "a3f9" },
+  { nom: "Nils Perret", ou: "ZJ6 · 10:38", etat: "attente", ref: "7c21" },
+  { nom: "Dossard 118", ou: "ZB4 · 10:36", etat: "refus", ref: "4e0b",
+    motif: "Dossard inconnu du serveur" },
+  { nom: "Lou Chastel", ou: "ZR7 · 10:33", etat: "ok", ref: "91da" },
+  { nom: "Émile Rouvier", ou: "ZM2 · 10:29", etat: "ok", ref: "b6c4" }
+];
+
+var etat = {
+  d: "A", ecran: "principal", s: "rien", c: "jaune",
+  file: false, reseau: "ok", envoi: false
+};
+
+var app = document.getElementById("app");
+var minuteur = null;
+
+/* Du texte lisible sur n'importe quelle teinte — la même luminance que
+   `encreSur()` dans `couleurs.js`. */
+function encreSur(hex) {
+  var n = parseInt(hex.slice(1), 16);
+  var r = (n >> 16 & 255) / 255, v = (n >> 8 & 255) / 255, b = (n & 255) / 255;
+  return (0.2126 * r + 0.7152 * v + 0.0722 * b) > 0.55 ? "#12140F" : "#F7F9FC";
+}
+
+function couleurCircuit() {
+  return CIRCUITS[etat.c] || NOIR[etat.d];
+}
+
+/* ---- les commandes ---- */
+
+function bouton(classe, presse, libelle, avant) {
+  var b = document.createElement("button");
+  b.type = "button";
+  b.className = classe;
+  b.setAttribute("aria-pressed", presse ? "true" : "false");
+  if (avant) b.appendChild(avant);
+  b.appendChild(document.createTextNode(libelle));
+  return b;
+}
+
+function construireCommandes() {
+  var nav = document.getElementById("directions");
+  nav.textContent = "";
+  DIRECTIONS.forEach(function (d) {
+    var b = document.createElement("button");
+    b.type = "button";
+    b.className = "direction";
+    b.setAttribute("aria-pressed", etat.d === d.id ? "true" : "false");
+    b.dataset.id = d.id;
+
+    var l = document.createElement("div");
+    l.className = "lettre";
+    var g = document.createElement("b");
+    g.textContent = d.id;
+    l.appendChild(g);
+    l.appendChild(document.createTextNode("Direction " + d.id));
+    b.appendChild(l);
+
+    var n = document.createElement("div");
+    n.className = "nom";
+    n.textContent = d.nom;
+    b.appendChild(n);
+
+    var p = document.createElement("p");
+    p.className = "parti";
+    p.textContent = d.parti;
+    b.appendChild(p);
+
+    var pal = document.createElement("div");
+    pal.className = "palette";
+    d.palette.forEach(function (c) {
+      var i = document.createElement("i");
+      i.style.background = c;
+      pal.appendChild(i);
+    });
+    b.appendChild(pal);
+
+    b.addEventListener("click", function () { etat.d = d.id; rendre(); });
+    nav.appendChild(b);
+  });
+
+  var e = document.getElementById("ecrans");
+  e.textContent = "";
+  ECRANS.forEach(function (x) {
+    var b = bouton("chip", etat.ecran === x.id, x.nom);
+    b.dataset.id = x.id;
+    b.addEventListener("click", function () { etat.ecran = x.id; rendre(); });
+    e.appendChild(b);
+  });
+
+  var s = document.getElementById("etats");
+  s.textContent = "";
+  ETATS.forEach(function (x) {
+    var b = bouton("chip", etat.s === x.id, x.nom);
+    b.dataset.id = x.id;
+    b.addEventListener("click", function () {
+      etat.s = x.id; etat.ecran = "principal"; rendre();
+    });
+    s.appendChild(b);
+  });
+
+  var c = document.getElementById("circuits");
+  c.textContent = "";
+  Object.keys(NOMS_COULEUR).forEach(function (k) {
+    var pastille = document.createElement("span");
+    pastille.className = "rond";
+    pastille.style.background = CIRCUITS[k] || "#15161A";
+    var b = bouton("chip", etat.c === k, NOMS_COULEUR[k], pastille);
+    b.dataset.id = k;
+    b.addEventListener("click", function () {
+      etat.c = k;
+      if (etat.s === "rien" || etat.s === "grimpeur") etat.s = "deux";
+      rendre();
+    });
+    c.appendChild(b);
+  });
+
+  var t = document.getElementById("bandeaux");
+  t.textContent = "";
+  var bf = bouton("chip", etat.file, "File d'attente");
+  bf.addEventListener("click", function () { etat.file = !etat.file; rendre(); });
+  t.appendChild(bf);
+  var br = bouton("chip", etat.reseau === "ko", "Serveur injoignable");
+  br.addEventListener("click", function () {
+    etat.reseau = etat.reseau === "ko" ? "ok" : "ko"; rendre();
+  });
+  t.appendChild(br);
+}
+
+function majPresses() {
+  ["directions", "ecrans", "etats", "circuits"].forEach(function (id) {
+    var actif = { directions: etat.d, ecrans: etat.ecran, etats: etat.s, circuits: etat.c }[id];
+    var noeuds = document.getElementById(id).children;
+    for (var i = 0; i < noeuds.length; i++) {
+      noeuds[i].setAttribute("aria-pressed", noeuds[i].dataset.id === actif ? "true" : "false");
+    }
+  });
+  var b = document.getElementById("bandeaux").children;
+  b[0].setAttribute("aria-pressed", etat.file ? "true" : "false");
+  b[1].setAttribute("aria-pressed", etat.reseau === "ko" ? "true" : "false");
+}
+
+/* ---- le rendu de l'application ---- */
+
+function rendre() {
+  var grimpeurFait = etat.s !== "rien";
+  var blocFait = etat.s === "deux" || etat.s === "hors" || etat.s === "envoi";
+  var hors = etat.s === "hors";
+  var envoi = etat.s === "envoi";
+  var pret = grimpeurFait && blocFait && !envoi;
+
+  app.dataset.d = etat.d;
+  app.dataset.ecran = etat.ecran;
+  app.dataset.circuit = etat.c;
+  app.dataset.reseau = etat.reseau;
+  app.dataset.file = etat.file ? "1" : "0";
+  app.dataset.grimpeur = grimpeurFait ? "1" : "0";
+  app.dataset.bloc = blocFait ? "1" : "0";
+  app.dataset.hors = hors ? "1" : "0";
+  app.dataset.envoi = envoi ? "1" : "0";
+  app.dataset.pret = pret ? "1" : "0";
+
+  var teinte = blocFait ? couleurCircuit() : null;
+  if (teinte) {
+    app.style.setProperty("--circuit", teinte);
+    app.style.setProperty("--encre-circuit", encreSur(teinte));
+  } else {
+    /* Sans bloc scanné, la teinte de repos est l'encre : le bouton reste
+       lisible avant que le circuit soit connu. */
+    app.style.setProperty("--circuit", "var(--encre)");
+    app.style.setProperty("--encre-circuit", "var(--fond-plat)");
+  }
+
+  var vg = document.getElementById("valeurGrimpeur");
+  vg.textContent = grimpeurFait ? "Camille Vasseur" : "À scanner";
+  vg.classList.toggle("attente", !grimpeurFait);
+  document.getElementById("detailGrimpeur").textContent = grimpeurFait ? "n°47" : "";
+
+  var vb = document.getElementById("valeurBloc");
+  vb.textContent = blocFait ? TAGS[etat.c] : "À scanner";
+  vb.classList.toggle("attente", !blocFait);
+  document.getElementById("detailBloc").textContent = blocFait
+    ? CIRCUITS_DU_BLOC[etat.c] + " — " + NOMS_COULEUR[etat.c] : "";
+
+  var h = document.getElementById("hors");
+  h.textContent = "";
+  if (hors) {
+    h.appendChild(document.createTextNode("Ce bloc est "));
+    var b1 = document.createElement("b");
+    b1.textContent = CIRCUITS_DU_BLOC[etat.c];
+    h.appendChild(b1);
+    h.appendChild(document.createTextNode(" — ce grimpeur est "));
+    var b2 = document.createElement("b");
+    b2.textContent = "U13";
+    h.appendChild(b2);
+    h.appendChild(document.createTextNode("."));
+    h.appendChild(document.createElement("br"));
+    h.appendChild(document.createTextNode("La réussite ne comptera pas dans son classement."));
+  }
+
+  document.getElementById("texteEnvoyer").textContent =
+    envoi ? "Envoi…" : hors ? "Envoyer quand même" : "Envoyer";
+  document.getElementById("aide").textContent = grimpeurFait
+    ? "Scannez le bloc réussi" : "Scannez le grimpeur puis le bloc";
+
+  document.getElementById("etatServeur").textContent =
+    etat.reseau === "ko" ? "Serveur injoignable" : "Serveur joignable";
+  document.getElementById("etatFile").textContent =
+    etat.file ? "3 réussites en attente" : "Tout est déjà envoyé";
+  document.getElementById("toutEnvoyer").disabled = !etat.file;
+  /* La ligne « refusée » et son explication voyagent ENSEMBLE : un bouton
+     « Renvoyer » sans son explication est un bouton qui ne dit rien. */
+  document.getElementById("ligneRefus").style.display = etat.file ? "" : "none";
+  document.getElementById("expliquerRefus").style.display = etat.file ? "" : "none";
+
+  var d = DIRECTIONS.filter(function (x) { return x.id === etat.d; })[0];
+  var leg = document.getElementById("legende");
+  leg.textContent = "";
+  var fort = document.createElement("b");
+  fort.textContent = d.nom + " — ";
+  leg.appendChild(fort);
+  leg.appendChild(document.createTextNode(d.parti));
+
+  construireRubans();
+  majPresses();
+  ajusterEchelle();
+  ecrireAdresse();
+}
+
+function construireRubans() {
+  var r = document.getElementById("rubans");
+  r.textContent = "";
+  ["jaune", "vert", "bleu", "mauve", "rouge", "noir"].forEach(function (k) {
+    var i = document.createElement("i");
+    i.style.background = CIRCUITS[k] || NOIR[etat.d];
+    /* Le circuit « Noir » est le seul qui a besoin d'un contour : sans lui, il
+       disparaît dans le fond des directions sombres — et c'est précisément la
+       question que la spec pose. */
+    if (k === "noir") i.style.boxShadow = "inset 0 0 0 1px color-mix(in srgb, var(--encre) 45%, transparent)";
+    r.appendChild(i);
+  });
+}
+
+function construireScans() {
+  var liste = document.getElementById("listeScans");
+  liste.textContent = "";
+  SCANS.forEach(function (s) {
+    var couleur = s.etat === "ok" ? "var(--ok)"
+                : s.etat === "refus" ? "var(--alerte)" : "var(--attention)";
+    var libelle = s.etat === "ok" ? "Arrivé" : s.etat === "refus" ? "Refusé" : "En attente";
+
+    var l = document.createElement("div");
+    l.className = "scan";
+    var pt = document.createElement("span");
+    pt.className = "point";
+    pt.style.background = couleur;
+    l.appendChild(pt);
+
+    var qui = document.createElement("div");
+    qui.className = "qui";
+    var n = document.createElement("div");
+    n.className = "nomg";
+    n.textContent = s.nom;
+    qui.appendChild(n);
+    var ou = document.createElement("div");
+    ou.className = "ou";
+    ou.textContent = s.ou;
+    qui.appendChild(ou);
+    if (s.motif) {
+      var m = document.createElement("div");
+      m.className = "motif";
+      m.textContent = s.motif;
+      qui.appendChild(m);
+    }
+    l.appendChild(qui);
+
+    var dr = document.createElement("div");
+    var e = document.createElement("div");
+    e.className = "etat";
+    e.style.color = couleur;
+    e.textContent = libelle;
+    dr.appendChild(e);
+    var r = document.createElement("div");
+    r.className = "mono";
+    r.textContent = s.ref;
+    dr.appendChild(r);
+    l.appendChild(dr);
+
+    liste.appendChild(l);
+  });
+}
+
+/* ---- l'échelle : le téléphone doit tenir dans la page ---- */
+function ajusterEchelle() {
+  var cadre = document.getElementById("cadre");
+  if (document.body.classList.contains("nu") || document.body.classList.contains("cap")) {
+    cadre.style.transform = ""; return;
+  }
+  var scene = cadre.parentElement;
+  var large = scene.clientWidth;
+  /* On garde de la place au-dessus pour le titre et le choix de direction :
+     un téléphone à l'échelle 1 qui déborde de l'écran ne se compare pas. */
+  var haut = window.innerHeight - 200;
+  var k = Math.min(1, large / 414, haut / 868);
+  cadre.style.transform = "scale(" + k + ")";
+  scene.style.height = (868 * k + 30) + "px";
+}
+
+/* ---- l'adresse : chaque état est partageable et rejouable ---- */
+function ecrireAdresse() {
+  var p = "?d=" + etat.d + "&e=" + etat.ecran + "&s=" + etat.s + "&c=" + etat.c
+        + (etat.file ? "&f=1" : "") + (etat.reseau === "ko" ? "&r=ko" : "")
+        + (document.body.classList.contains("nu") ? "&nu=1" : "");
+  try { history.replaceState(null, "", p); } catch (e) { /* file:// refuse */ }
+}
+
+function lireAdresse() {
+  var q = new URLSearchParams(location.search || location.hash.replace(/^#/, "?"));
+  if (q.get("d")) etat.d = q.get("d");
+  if (q.get("e")) etat.ecran = q.get("e");
+  if (q.get("s")) etat.s = q.get("s");
+  if (q.get("c")) etat.c = q.get("c");
+  etat.file = q.get("f") === "1";
+  etat.reseau = q.get("r") === "ko" ? "ko" : "ok";
+  if (q.get("nu") === "1") document.body.classList.add("nu");
+  if (q.get("cap") === "1") document.body.classList.add("cap");
+}
+
+/* ---- l'interaction : la maquette se manipule comme l'application ---- */
+
+function scanner(quoi) {
+  var precedent = etat.ecran;
+  document.getElementById("consigne").textContent =
+    quoi === "grimpeur" ? "Vise le QR du grimpeur" : "Vise le QR du bloc";
+  etat.ecran = "scanner";
+  rendre();
+  clearTimeout(minuteur);
+  minuteur = setTimeout(function () {
+    etat.ecran = "principal";
+    if (quoi === "grimpeur") {
+      etat.s = (etat.s === "deux" || etat.s === "hors") ? etat.s : "grimpeur";
+    } else {
+      /* Le mauve est le circuit des Séniors : sur un grimpeur U13, il est
+         hors-circuit. C'est la démonstration la plus honnête du garde-fou. */
+      etat.s = (etat.c === "mauve" || etat.c === "rouge") ? "hors" : "deux";
+    }
+    rendre();
+  }, 1100);
+  return precedent;
+}
+
+function dire(texte) {
+  var m = document.getElementById("message");
+  m.textContent = texte;
+  m.classList.add("vu");
+  setTimeout(function () { m.classList.remove("vu"); }, 1600);
+}
+
+function brancher() {
+  document.getElementById("carteGrimpeur").addEventListener("click", function () {
+    scanner("grimpeur");
+  });
+  document.getElementById("carteBloc").addEventListener("click", function () {
+    if (etat.s === "rien") { dire("Scanne d'abord le grimpeur"); return; }
+    scanner("bloc");
+  });
+  document.getElementById("envoyer").addEventListener("click", function () {
+    if (app.dataset.pret !== "1") return;
+    etat.s = "envoi";
+    rendre();
+    clearTimeout(minuteur);
+    minuteur = setTimeout(function () {
+      etat.s = "grimpeur";   /* « garder le grimpeur » est actif */
+      rendre();
+      dire("Validé");
+    }, 900);
+  });
+  document.getElementById("effacer").addEventListener("click", function () {
+    etat.s = "rien"; rendre();
+  });
+  document.getElementById("versReglages").addEventListener("click", function () {
+    etat.ecran = "reglages"; rendre();
+  });
+  document.getElementById("versScans").addEventListener("click", function () {
+    etat.ecran = "scans"; rendre();
+  });
+  Array.prototype.forEach.call(document.querySelectorAll(".retour, .quitterScan"),
+    function (b) {
+      b.addEventListener("click", function () {
+        clearTimeout(minuteur);
+        etat.ecran = "principal"; rendre();
+      });
+    });
+  Array.prototype.forEach.call(document.querySelectorAll(".bascule"), function (b) {
+    b.addEventListener("click", function () {
+      b.setAttribute("aria-pressed", b.getAttribute("aria-pressed") === "true" ? "false" : "true");
+    });
+  });
+  document.getElementById("entrer").addEventListener("click", function () {
+    document.body.classList.add("nu"); rendre();
+  });
+  document.getElementById("sortir").addEventListener("click", function () {
+    document.body.classList.remove("nu"); rendre();
+  });
+  window.addEventListener("resize", ajusterEchelle);
+}
+
+lireAdresse();
+construireCommandes();
+construireScans();
+construireRubans();
+brancher();
+rendre();
+</script>
+</body>
+</html>

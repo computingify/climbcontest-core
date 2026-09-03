@@ -48,10 +48,14 @@ def health():
     corps = {"status": "ok", "version": VERSION}
     code = 200
     try:
-        from ..contest import reussites_en_attente
+        from ..contest import reussites_en_attente, reussites_inenvoyables
         corps["reussites_en_attente"] = reussites_en_attente()
+        # Le retard qui se rattrape d'un côté, ce qui n'ira jamais de l'autre.
+        # Les mélanger rendait le premier illisible.
+        corps["reussites_inenvoyables"] = reussites_inenvoyables()
     except Exception as e:
         corps["reussites_en_attente"] = None
+        corps["reussites_inenvoyables"] = None
         corps["status"] = "degraded"
         corps["base"] = f"injoignable : {type(e).__name__}"
         code = 503

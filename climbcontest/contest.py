@@ -14,7 +14,7 @@ from .extensions import db
 from .version import VERSION
 from .models import (
     Appareil, Bloc, Competition, EN_COURS, Participant, ReaffectationDossard,
-    SOURCE_MANUEL, SOURCE_SCAN, Success,
+    SOURCE_MANUEL, SOURCE_SCAN, Success, prochaine_version_catalogue,
 )
 
 logger = logging.getLogger(__name__)
@@ -317,6 +317,35 @@ def incrementer_catalogue(comp: Competition) -> None:
     db.session.add(comp)
 
 
+def incrementer_tous_les_catalogues() -> int:
+    """Signale un changement de donnée **globale**. Rend le nombre d'éditions
+    prévenues.
+
+    ⚠️ **Pour ce qui n'appartient à aucune compétition.** Le plan du mur est le
+    premier cas : le club a un mur, pas un mur par édition (spec 029 F1), et il
+    voyage pourtant dans le catalogue de chacune. `incrementer_catalogue` ne
+    sait prévenir qu'une seule édition, et **aucune** quand il n'y en a pas
+    d'active — or c'est exactement le moment où l'on redessine le mur.
+
+    ⚠️ **Un numéro NEUF par édition, jamais le même pour deux.** Le 304 de
+    `/api/v2/catalog` se décide par égalité stricte, et c'est délibéré : un
+    client qui annonce un numéro venu d'ailleurs n'est pas à jour. Donner le
+    même numéro à deux éditions ferait donc répondre « rien de neuf » à un
+    téléphone qui vient de changer de compétition et qui a besoin d'une autre
+    liste de participants. On tire donc un numéro par édition, sur l'horloge
+    commune.
+    """
+    editions = Competition.query.order_by(Competition.id).all()
+    for comp in editions:
+        comp.catalogue_version = prochaine_version_catalogue()
+        db.session.add(comp)
+        # ⚠️ `flush`, sinon `prochaine_version_catalogue()` relit le maximum
+        # d'avant et rend le MEME numero a l'edition suivante -- ce que la
+        # docstring interdit deux lignes plus haut.
+        db.session.flush()
+    return len(editions)
+
+
 def enregistrer_lot(elements: list[dict], appareil: dict | None = None) -> list[dict]:
     """Enregistre un lot de réussites. Un élément qui échoue n'entraîne pas les autres.
 
@@ -505,11 +534,37 @@ def reussites_suspectes(comp: Competition | None = None) -> list[dict]:
 
 
 def reussites_en_attente() -> int:
-    """Combien de réussites ne sont pas encore dans le classeur.
+    """Ce que le miroir a encore à écrire dans le classeur.
 
-    Exposé par /health : c'est l'indicateur qui dit si le miroir suit.
+    Exposé par /health : c'est l'indicateur qui dit si le miroir suit, et c'est
+    le chiffre qu'on regarde le jour de la compétition.
+
+    ⚠️ Il comptait TOUTES les réussites non synchronisées, sans distinguer la
+    compétition. Or le miroir ne sert que l'**active**. Le 03/09, `/health`
+    annonçait 714 en attente pendant que le miroir n'avait plus rien à faire :
+    714 réussites d'ailleurs, inenvoyables par construction, affichées à jamais.
+
+    Le coût n'est pas cosmétique. Un vrai retard de cinquante réussites aurait
+    affiché 764 — indistinguable de 714 au coup d'œil. Le garde-fou était
+    aveuglé par son propre bruit, et c'est exactement le jour où il sert qu'il
+    aurait manqué. Ce qui n'est pas envoyable se compte désormais à part, dans
+    `reussites_inenvoyables` : on le sort du chiffre, on ne le cache pas.
     """
-    return Success.query.filter(Success.sheet_synced_at.is_(None)).count()
+    from .sheets.mirror import en_attente
+    comp = Competition.query.filter_by(active=True).first()
+    return en_attente(comp.id) if comp else 0
+
+
+def reussites_inenvoyables() -> int:
+    """Celles que le miroir n'écrira JAMAIS : d'une autre compétition, ou sans dossard.
+
+    Elles ne sont perdues pour personne — elles sont en base, et l'archive de
+    leur compétition les contient. Mais elles n'iront pas dans le classeur relié
+    à la compétition d'aujourd'hui, et le dire vaut mieux que de les mélanger à
+    un retard qui, lui, se rattrape.
+    """
+    total = Success.query.filter(Success.sheet_synced_at.is_(None)).count()
+    return total - reussites_en_attente()
 
 
 # --- Tracabilite : quel telephone a envoye quoi (spec 011) -------------------
@@ -592,6 +647,50 @@ def enregistrer_annonce(identifiant: str, nom: str | None = None,
         db.session.rollback()
         logger.warning("annonce d'appareil ignoree (%s) : %s", type(e).__name__, e)
 
+#: Le nombre de caracteres d'`appareil_id` qui suffisent a distinguer les
+#: telephones d'une competition. Huit caracteres d'UUID, c'est ce que
+#: l'application affiche deja dans ses reglages et ce que la colonne
+#: « Identifiant » de la console montre : le juge peut donc LIRE le meme code
+#: sur son ecran et le dicter par radio.
+CODE_APPAREIL_CARACTERES = 8
+
+
+def libelle_poste(nom: str | None, appareil_id: str | None) -> str | None:
+    """Comment un poste se nomme dans la console : « Zone A (3f9a1c2b) ».
+
+    ⚠️ **PLUSIEURS TELEPHONES PEUVENT PORTER LE MEME NOM**, et c'est desormais
+    la norme, pas l'accident. Depuis la spec 034, un poste se nomme en scannant
+    le carton pose sur la table : deux juges affectes a la meme zone scannent
+    le MEME carton, et leurs deux telephones s'appellent « Zone A ». Adrien, le
+    03/09 : « il peut y avoir plusieurs telephones par zone [...] ce que je
+    veux, c'est que tu sois capable de les distinguer cote console ».
+
+    Deux lignes « Zone A » cote a cote ne disent pas laquelle est laquelle. Le
+    code court les separe -- et il n'invente RIEN : `appareil_id` est l'UUID
+    que `static/juge/identite.js` pose sur chaque telephone depuis la spec 011,
+    et que la vue « Telephones » affiche deja dans sa colonne « Identifiant ».
+    Ce qui manquait n'etait pas une donnee, c'etait de la LISIBILITE.
+
+    ⚠️ **UNE SEULE FONCTION COMPOSE CE LIBELLE**, et toutes les vues de la
+    console l'appellent -- « Qui envoie quoi », la colonne « Telephone » de la
+    recherche de scans, et ce qui viendra. La forme exacte (parentheses, tiret,
+    code devant ou derriere) est en cours d'arbitrage : elle doit rester une
+    modification d'un seul endroit.
+
+    Rend `None` quand il n'y a pas d'appareil du tout -- une saisie manuelle
+    n'en a pas, et lui en inventer un serait faux. L'appelant sait quoi dire a
+    la place (« saisie de adrien »).
+    """
+    code = str(appareil_id or "").strip()[:CODE_APPAREIL_CARACTERES]
+    propre = str(nom or "").strip()
+    if not code:
+        return propre or None
+    if not propre:
+        # Un telephone qui envoie sans s'etre nomme. Le code seul serait
+        # illisible ; « Sans nom » seul se confondrait avec les autres.
+        return f"Sans nom ({code})"
+    return f"{propre} ({code})"
+
 
 def appareils(comp: Competition, maintenant: datetime | None = None) -> list[dict]:
     """Les telephones connus de cette competition, du plus recent au plus ancien.
@@ -654,6 +753,9 @@ def appareils(comp: Competition, maintenant: datetime | None = None) -> list[dic
             "derniere_le": derniere.isoformat() if derniere else None,
             "silence_s": round(silence) if silence is not None else None,
             "silencieux": silence is not None and silence >= SILENCE_S,
+            # Le nom SUIVI du code court : deux juges d'une meme zone scannent
+            # le meme carton et portent le meme nom. Voir `libelle_poste`.
+            "libelle": libelle_poste(dernier_nom, identifiant),
             # Comblees juste apres par la table des annonces, quand elle en a.
             "version_app": None,
             "catalogue_version": None,
@@ -678,6 +780,7 @@ def appareils(comp: Competition, maintenant: datetime | None = None) -> list[dic
                 "derniere_le": None,
                 "silence_s": None,
                 "silencieux": False,
+                "libelle": libelle_poste(annonce.nom, annonce.id),
             }
             par_id[annonce.id] = fiche
         # Le nom d'une annonce est plus FRAIS que celui recopie sur la derniere
@@ -685,6 +788,9 @@ def appareils(comp: Competition, maintenant: datetime | None = None) -> list[dic
         # verrait sinon l'ancien nom jusqu'a sa prochaine reussite.
         if annonce.nom:
             fiche["nom"] = annonce.nom
+            # Le libelle derive du nom : il se refait ici, sinon la vue
+            # « Qui envoie quoi » garderait l'ancien nom entre parentheses.
+            fiche["libelle"] = libelle_poste(annonce.nom, annonce.id)
         fiche["version_app"] = annonce.version_app
         fiche["catalogue_version"] = annonce.catalogue_version
         fiche["vu_le"] = annonce.vu_le.isoformat() if annonce.vu_le else None
@@ -819,6 +925,10 @@ def reussites_tracees(comp: Competition, ref: str | None = None,
         "ref_client": r.ref_client,
         "appareil_id": r.appareil_id,
         "appareil_nom": r.appareil_nom,
+        # Le meme libelle que dans « Qui envoie quoi », compose au meme
+        # endroit : deux vues qui nommeraient un poste differemment obligeraient
+        # a faire la correspondance de tete, au pire moment.
+        "appareil_libelle": libelle_poste(r.appareil_nom, r.appareil_id),
         "grimpeur": r.participant.nom_complet if r.participant else None,
         "dossard": r.dossard_scanne,
         "bloc": r.bloc.tag if r.bloc else None,

@@ -35,6 +35,7 @@ from .. import circuits as circuits_module
 from .. import cascade as cascade_module
 from .. import cycle
 from .. import fiches
+from .. import maj
 from ..models import Archive
 from ..sheets import consentement, parametrage
 from ..sheets.client import ErreurClasseur, ecrire_jeton_json
@@ -298,7 +299,7 @@ def changer_mon_mot_de_passe():
 @bp.get("/referentiels")
 @exige_role(ORGANISATEUR)
 def referentiels():
-    """Les categories et les clubs deja connus de la competition en cours.
+    """Les categories, les clubs, et les zones du plan.
 
     De quoi remplir les listes deroulantes de la console (spec 013). La liste
     est **derivee, pas stockee** : c'est l'ensemble des valeurs distinctes
@@ -306,17 +307,27 @@ def referentiels():
     fois dans « Autre… » -- elle rejoint la liste des l'enregistrement. Aucune
     table a tenir a jour, aucun ecran de gestion.
 
-    Un seul appel pour les deux listes : la console les charge ensemble, a
-    l'ouverture. Deux routes auraient fait deux allers-retours pour un geste.
+    Un seul appel pour toutes les listes : la console les charge ensemble, a
+    l'ouverture. Deux routes auraient fait deux allers-retours pour un geste --
+    c'est aussi pourquoi les ZONES sont ici (spec 034) et non sur une route a
+    elles. Elles ne sont PAS derivees des participants : elles viennent du plan
+    de la salle, et existent donc sans competition active.
 
     Sans competition active : deux listes vides et `success: true`, **pas une
     erreur**. Le formulaire doit rester utilisable -- « Autre… » suffit a creer
     le tout premier participant.
     """
+    # ⚠️ HORS du `try` : les zones viennent du PLAN, qui ne depend d'aucune
+    # competition (spec 034). Les calculer apres la garde priverait la console
+    # de sa liste de zones tant qu'aucune edition n'est active -- or c'est
+    # exactement le moment ou on imprime les QR de poste, la veille au soir.
+    zones = sorted(fiches.zones_du_plan(fiches.plan_courant()))
+
     try:
         comp = competition_active()
     except ErreurMetier:
-        return jsonify({"success": True, "categories": [], "clubs": []}), 200
+        return jsonify({"success": True, "categories": [], "clubs": [],
+                        "zones": zones}), 200
 
     def distinctes(colonne):
         return sorted(
@@ -330,6 +341,9 @@ def referentiels():
         "success": True,
         "categories": distinctes(Participant.categorie),
         "clubs": distinctes(Participant.club),
+        # Les zones du plan courant : de quoi remplir la liste deroulante des
+        # QR de poste sans une deuxieme route pour un seul geste (spec 034).
+        "zones": zones,
     }), 200
 
 
@@ -629,13 +643,47 @@ def page_etiquettes():
                 len(planche), g.utilisateur.identifiant, titre)
     # ⚠️ Plus de saut de page par zone (correctif du 02/09). Il produisait des
     # feuilles a moitie vides -- une zone de cinq blocs laissait trois places
-    # perdues, une zone d'un seul en gaspillait cinq. Les blocs sortent deja
-    # dans l'ordre du `Plan`, donc zone par zone : le regroupement physique est
-    # conserve sans payer une feuille par zone.
+    # perdues, une zone d'un seul en gaspillait cinq. Les blocs sortent zone
+    # par zone (`fiches.etiquettes` trie par zone) : le regroupement physique
+    # est conserve sans payer une feuille par zone.
     return render_template("etiquettes.html",
                            feuilles=fiches.en_feuilles(planche,
                                                        fiches.ETIQUETTES_PAR_FEUILLE),
-                           total=len(planche), titre=titre, filtre=filtre)
+                           total=len(planche), titre=titre, filtre=filtre,
+                           taille_numero=fiches.TAILLE_NUMERO_MM)
+
+
+@bp.get("/postes")
+@exige_role(ORGANISATEUR)
+def page_postes():
+    """Les QR de poste a poser sur les tables des juges. `?zone=C` pour une seule.
+
+    Le juge arrive a sa table, ouvre l'application, scanne le carton pose
+    devant lui : son telephone s'appelle « Zone C ». Il n'a rien tape.
+
+    ⚠️ LES ZONES VIENNENT DU PLAN, jamais d'une liste tenue a la main (spec
+    034). Un mur ajoute dans `/admin/plan` sort son QR a l'impression suivante.
+
+    ⚠️ PAS DE `competition_active()`, donc PAS DE 409 : c'est la seule page
+    d'impression de la console qui marche sans competition, et c'est voulu. Le
+    plan de la salle ne depend d'aucune edition, et on imprime ces cartons la
+    veille au soir, avant meme d'avoir importe le classeur.
+    """
+    zone = (request.args.get("zone") or "").strip() or None
+    planche = fiches.postes(zone=zone)
+
+    logger.info("impression de %d QR de poste par %s (%s)",
+                len(planche), g.utilisateur.identifiant, zone or "toutes zones")
+    # ⚠️ LA GEOMETRIE VIENT DU SERVEUR, pas du CSS : la densite (huit affiches
+    # par A4) commande la hauteur d'une affiche, le nombre de colonnes et la
+    # place laissee au nom. Ecrite en dur dans le gabarit, elle mentirait des
+    # qu'on repasse a six.
+    return render_template("postes.html",
+                           feuilles=fiches.en_feuilles(planche,
+                                                       fiches.POSTES_PAR_FEUILLE),
+                           geo=fiches.geometrie_postes(),
+                           mot_zone=fiches.MOT_ZONE,
+                           total=len(planche), filtre=zone)
 
 
 def _corps_objet():
@@ -1502,3 +1550,45 @@ def chercher_reussites():
         "trouvee": bool(lignes) if ref else None,
         "reussites": lignes,
     }), 200
+
+
+# --- Mise a jour du serveur (spec 031) --------------------------------------
+#
+# Trois routes, toutes reservees a un administrateur. Le raisonnement -- une
+# verification par jour, pourquoi le minuteur a ete retire, pourquoi une
+# competition en cours bloque -- est dans climbcontest/maj.py.
+
+
+@bp.get("/maj")
+@exige_role(ADMIN)
+def maj_etat():
+    """Ce que la console affiche : version en service, version disponible, et
+    l'issue d'une installation recente s'il y en a eu une.
+
+    C'est CETTE route qui declenche la verification quotidienne, quand elle est
+    due. Il n'y a aucun minuteur : la console est le seul appelant, donc le
+    quota GitHub n'est consomme que si quelqu'un regarde.
+    """
+    return jsonify({"success": True, **maj.etat(version_module.VERSION)}), 200
+
+
+@bp.post("/maj/verifier")
+@exige_role(ADMIN)
+def maj_verifier():
+    """Le bouton « Vérifier » : on interroge GitHub sans attendre l'echeance."""
+    maj.verifier(force=True)
+    return jsonify({"success": True, **maj.etat(version_module.VERSION)}), 200
+
+
+@bp.post("/maj/installer")
+@exige_role(ADMIN)
+def maj_installer():
+    """Le bouton « Installer ». Rend la main tout de suite : l'agent redemarre
+    l'application quelques secondes plus tard, donc ce processus meme."""
+    corps = request.get_json(silent=True) or {}
+    try:
+        lancee = maj.installer((corps.get("tag") or "").strip(),
+                               par=g.utilisateur.identifiant)
+    except maj.ErreurMaj as e:
+        return jsonify({"success": False, "message": e.message}), e.code
+    return jsonify({"success": True, "installation": lancee}), 202

@@ -85,8 +85,46 @@ Ce n'est pas une économie de requêtes : c'est ce qui rend le plan **versionné
 Servi par une route à part, un client garderait un mur périmé sans aucun moyen
 de le savoir.
 
-⚠️ **Une incohérence connue, latente aujourd'hui** : `catalogue_version` porte
-sur la compétition **active**, alors que le plan est **global**. Dessiner hors
-saison, sans compétition active, n'incrémente donc rien — il n'y a personne à
-prévenir, et l'enregistrement réussit quand même. Le jour où deux compétitions
-coexisteront, ce sera un vrai défaut de fraîcheur.
+### La portée du numéro, et pourquoi il en fallait un par édition
+
+Cette section portait une **incohérence connue, laissée latente** : le plan est
+global (F1) alors que `catalogue_version` appartient à une compétition. Dessiner
+hors saison n'incrémentait donc rien, et l'enregistrement réussissait quand
+même. Elle a été fermée le 02/09/2026 — `plan_du_mur._signaler_le_changement()`
+appelle désormais `contest.incrementer_tous_les_catalogues()`.
+
+Le trou n'était pas seulement « hors saison ». Il se refermait mal parce qu'il
+avait **deux bouches** :
+
+- **aucune édition active** — on redessine le mur entre deux compétitions, ce
+  qui est le moment le plus naturel pour le faire. Personne à prévenir ; le
+  compteur de l'édition suivante restait celui qu'un téléphone connaissait
+  déjà, et à la réouverture ce téléphone recevait un **304** en gardant
+  l'ancien mur ;
+- **une édition non active** — elle porte le nouveau plan sans que son numéro
+  ait bougé, et le trou se rouvre dès qu'on bascule dessus.
+
+⚠️ **La correction ne pouvait pas être un compteur global unique**, et c'est le
+piège de ce coin du code. Deux propriétés se contredisent :
+
+1. `/api/v2/catalog` décide son 304 par **égalité stricte** (correctif du
+   30/08) : un numéro identifie un couple (édition, état de son catalogue), et
+   un client qui en annonce un venu d'ailleurs n'est pas à jour ;
+2. le plan est global : le changer doit périmer le catalogue de **toutes** les
+   éditions.
+
+Un numéro partagé satisferait (2) et casserait (1) — un téléphone qui vient de
+changer d'édition recevrait « rien de neuf » alors qu'il lui faut une autre
+liste de participants. On tire donc **un numéro neuf par édition** sur
+l'horloge commune (`prochaine_version_catalogue()`), avec un `flush` entre
+chaque : sans lui, le maximum relu est celui d'avant et deux éditions
+repartiraient avec le même numéro.
+
+L'étiquette reste **un entier**, et le contrat de `/api/v2/catalog` ne bouge
+pas : les téléphones déjà déployés n'ont rien à apprendre. C'était une
+contrainte, pas une facilité — l'application juge n'est pas mise à jour le
+matin d'une compétition.
+
+Vérifié par `tests/test_fraicheur_du_plan.py`, dont quatre tests tombent si l'on
+revient au comportement précédent, et cinq gardent ce qu'il ne fallait pas
+casser.
