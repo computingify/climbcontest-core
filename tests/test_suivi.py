@@ -337,16 +337,23 @@ class TestLeContratDuPlanNePourritPas:
 class TestLeCompteurTientDansSonPan:
     """L'avancement par zone — spec 036, l'accord entre deux langages.
 
-    La page pose « 1/4 » SOUS la lettre de la zone, a une place et une taille
-    calculees a partir de deux ratios ecrits dans `plan.js`. Elle ne relit
-    aucune geometrie : elle ne connait du pan que ce que le serveur lui en a
-    dit — `etiquette` et `taille`.
+    La page pose « 1/4 » SOUS la lettre de la zone, sur une PASTILLE, a une
+    place et des tailles calculees a partir de quatre ratios ecrits dans
+    `plan.js`. Elle ne relit aucune geometrie : elle ne connait du pan que ce
+    que le serveur lui en a dit — `etiquette` et `taille`.
 
-    ⚠️ Personne d'autre ne confronte les deux. Un ratio augmente « pour que ce
-    soit plus lisible », un `taille_lettre` retouche, un plan d'usine redessine
-    avec des pans plus bas : le chiffre sort sous son pan, et rien ne le dit —
-    ni un test JavaScript, qui n'a pas le plan, ni un test Python, qui n'a pas
-    les ratios. Ce test a les deux.
+    ⚠️ C'EST CE TEST QUI TIENT LA POSE B. La pastille se dimensionne sur la
+    LETTRE, donc elle herite des bornes que `taille_lettre` a posees ; calibree
+    sur son TEXTE, elle n'aurait aucune borne et sortirait du pan — c'est ce
+    qui l'avait fait ecarter a la premiere maquette. Le socle est aussi ce qui
+    a de plus gros a tenir : verifier le chiffre ne suffit plus, c'est le
+    RECTANGLE qu'il faut mesurer.
+
+    ⚠️ Personne d'autre ne confronte les deux cotes. Un ratio augmente « pour
+    que ce soit plus lisible », un `taille_lettre` retouche, un plan d'usine
+    redessine avec des pans plus bas : la pastille sort sous son pan, et rien
+    ne le dit — ni un test JavaScript, qui n'a pas le plan, ni un test Python,
+    qui n'a pas les ratios. Ce test a les deux.
 
     ⚠️ CE QU'IL NE COUVRE PAS : le plan que la console enregistre (spec 029).
     Il verifie le plan SERVI par ce test, donc celui d'usine. Le remede propre
@@ -361,9 +368,6 @@ class TestLeCompteurTientDansSonPan:
     # `dominant-baseline: central`. Meme famille de constante que
     # `LARGEUR_CAPITALE` : elle sert a borner, pas a decrire.
     DEMI_HAUTEUR = 0.36
-    # Le halo deborde de la moitie de son epaisseur, et `plan.js` pose cette
-    # epaisseur a 0,24 du corps — pour la lettre comme pour le compteur.
-    DEMI_HALO = 0.12
     # La largeur du pire chiffre tabulaire, en fraction de son corps.
     LARGEUR_CHIFFRE = 0.58
 
@@ -380,51 +384,76 @@ class TestLeCompteurTientDansSonPan:
         ys = [p[1] for p in points]
         return min(xs), min(ys), max(xs), max(ys)
 
-    def test_le_chiffre_ne_sort_pas_de_son_pan(self, app):
+    @staticmethod
+    def _source():
         from pathlib import Path
 
-        source = (Path(__file__).resolve().parent.parent
-                  / "climbcontest/static/resultats/plan.js").read_text()
+        return (Path(__file__).resolve().parent.parent
+                / "climbcontest/static/resultats/plan.js").read_text()
+
+    def test_la_pastille_ne_sort_pas_de_son_pan(self, app):
+        """Le socle tient entre le bas du glyphe de la lettre et le bas du pan.
+
+        Deux bornes, et elles se serrent : sur les pans de 15 unites d'Annonay
+        le budget vertical vaut 0,473 x taille, la pastille en occupe 0,448.
+        """
+        source = self._source()
         echelle = self._ratio(source, "COMPTE_ECHELLE")
         descente = self._ratio(source, "COMPTE_DESCENTE")
+        hauteur = self._ratio(source, "PASTILLE_HAUTEUR")
 
         for mur in plan_public()["murs"]:
-            _, y_haut, _, y_bas = self._boite(mur["d"])
+            _, _, _, y_bas = self._boite(mur["d"])
             taille = mur["taille"]
             y = mur["etiquette"][1]
-            corps = taille * echelle
-            debord = corps * (self.DEMI_HAUTEUR + self.DEMI_HALO)
+            demi = taille * echelle * hauteur / 2
+            centre = y + taille * descente
 
-            bas = y + taille * descente + debord
-            assert bas <= y_bas, (
-                f"zone {mur['zone']} : le compteur descend a {bas:.2f} pour un "
-                f"pan qui s'arrete a {y_bas:.2f}. Baisse COMPTE_ECHELLE ou "
-                f"COMPTE_DESCENTE dans plan.js, ou fais calculer la place par "
-                f"le serveur.")
+            assert centre + demi <= y_bas, (
+                f"zone {mur['zone']} : la pastille descend a "
+                f"{centre + demi:.2f} pour un pan qui s'arrete a {y_bas:.2f}. "
+                f"Baisse COMPTE_DESCENTE, COMPTE_ECHELLE ou PASTILLE_HAUTEUR "
+                f"dans plan.js, ou fais calculer la place par le serveur.")
 
-            haut = y + taille * descente - debord
-            assert haut >= y + taille * self.DEMI_HAUTEUR, (
-                f"zone {mur['zone']} : le compteur mord la lettre. Augmente "
-                f"COMPTE_DESCENTE ou baisse COMPTE_ECHELLE dans plan.js.")
+            assert centre - demi >= y + taille * self.DEMI_HAUTEUR, (
+                f"zone {mur['zone']} : la pastille mord la lettre. Augmente "
+                f"COMPTE_DESCENTE, ou baisse COMPTE_ECHELLE ou "
+                f"PASTILLE_HAUTEUR dans plan.js.")
 
-    def test_le_chiffre_ne_sort_pas_sur_les_cotes(self, app):
-        """Meme garde en largeur, sur le libelle courant « 1/4 ».
+    def test_la_pastille_ne_sort_pas_sur_les_cotes(self, app):
+        """Meme garde en largeur — et c'est celle qui avait cede.
 
-        Les libelles plus longs retrecissent (`tailleDuCompte`), donc c'est
-        bien le plus court qui est le pire cas en largeur.
+        La pastille fait `PASTILLE_LARGEUR x taille` de large, quel que soit
+        son libelle. `taille_lettre` a deja borne `taille` a 0,94 x la largeur
+        du pan, donc tant que `PASTILLE_LARGEUR` vaut 1 la pastille tient ;
+        c'est ce lien-la que ce test verifie sur le releve reel.
         """
-        from pathlib import Path
-
-        source = (Path(__file__).resolve().parent.parent
-                  / "climbcontest/static/resultats/plan.js").read_text()
-        echelle = self._ratio(source, "COMPTE_ECHELLE")
+        source = self._source()
+        largeur = self._ratio(source, "PASTILLE_LARGEUR")
 
         for mur in plan_public()["murs"]:
             x_gauche, _, x_droite, _ = self._boite(mur["d"])
-            demi = 3 * self.LARGEUR_CHIFFRE * mur["taille"] * echelle / 2
+            demi = mur["taille"] * largeur / 2
             x = mur["etiquette"][0]
             assert x - demi >= x_gauche and x + demi <= x_droite, (
-                f"zone {mur['zone']} : « 1/4 » deborde du pan en largeur")
+                f"zone {mur['zone']} : la pastille deborde du pan en largeur")
+
+    def test_le_chiffre_tient_dans_la_pastille(self, app):
+        """Le libelle courant « 1/4 » est le PIRE cas : les plus longs
+
+        retrecissent (`tailleDuCompte`). Si trois chiffres au pire glyphe ne
+        tiennent pas dans le socle, le fond censes les porter ne les porte pas.
+        """
+        source = self._source()
+        echelle = self._ratio(source, "COMPTE_ECHELLE")
+        largeur = self._ratio(source, "PASTILLE_LARGEUR")
+
+        for mur in plan_public()["murs"]:
+            taille = mur["taille"]
+            texte = 3 * self.LARGEUR_CHIFFRE * taille * echelle
+            assert texte <= taille * largeur, (
+                f"zone {mur['zone']} : « 1/4 » fait {texte:.2f} de large pour "
+                f"une pastille de {taille * largeur:.2f}")
 
 
 class TestCeQuiPartDansLaPage:

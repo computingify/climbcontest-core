@@ -73,48 +73,79 @@ centroïde de surface) et **quelle taille elle peut faire** (`taille`, bornée p
 la boîte du pan — `fiches.taille_lettre`). Le compteur se raccroche à ces deux
 nombres, et à rien d'autre : il n'y a **aucune lecture de géométrie côté page**.
 
+Le compteur est posé sur une **pastille** — la pose B, tranchée par Adrien le
+03/09. Quatre ratios, et une règle qui les gouverne tous : **la pastille se
+dimensionne sur la LETTRE, jamais sur son texte.**
+
 ```
+cy       = etiquette[1] + taille * 0.60      COMPTE_DESCENTE
 x        = etiquette[0]                      (meme axe que la lettre)
-y        = etiquette[1] + taille * 0.59      COMPTE_DESCENTE
-fontSize = taille * min(0.46, 1/(0.58 * n))  COMPTE_ECHELLE, n = longueur du libelle
-halo     = fontSize * 0.24                   (stroke-width, comme la lettre)
+socle    = taille * 1.00  de large           PASTILLE_LARGEUR
+           taille * 0.40 * 1.12 de haut      COMPTE_ECHELLE * PASTILLE_HAUTEUR
+           rx = la demi-hauteur              (un stade, pas un rectangle)
+fontSize = taille * min(0.40, 1/(0.58 * n))  COMPTE_ECHELLE, n = longueur du libelle
 ```
 
-**D'où sortent 0,59 et 0,46.** Ce ne sont pas des valeurs « à l'œil » : ce sont
-les deux plus grandes qui tiennent. Avec `dominant-baseline: central`, une
-capitale grasse occupe environ ±0,36 × son corps, et le halo déborde de la
-moitié de son épaisseur. Il faut donc que le compteur passe **sous** la lettre
-(`descente − 0,48 × échelle ≥ 0,36`) et **au-dessus** du bord bas du pan
-(`descente + 0,48 × échelle ≤ 0,833`, la demi-hauteur d'un pan de 15 unités
-rapportée à une lettre plafonnée à 9). Les deux inégalités se croisent à
-`échelle ≤ 0,49` ; 0,46 laisse la marge, 0,59 la centre entre les deux bornes.
-Un chiffre plus gros mordrait la lettre ou sortirait du pan — la maquette montre
-les deux.
+**Pourquoi la largeur est le point.** C'est ce qui avait fait écarter la pose B
+à la première maquette : le socle y était calibré sur son **texte**, donc rien
+ne le bornait, et il sortait du pan. Calibré sur `taille`, il hérite de la borne
+que `fiches.taille_lettre` a déjà posée par la boîte du pan
+(`taille ≤ 0,94 × largeur`). **Aucune géométrie n'est relue côté page** — c'était
+l'objection de fond, et elle tombe.
+
+**D'où sortent 0,60, 0,40 et 1,12.** Le budget vertical est ce qui reste **entre
+le bas du glyphe de la lettre** et **le bas du pan**. Avec
+`dominant-baseline: central`, une capitale grasse occupe ±0,36 × son corps ; le
+bas du pan est à `0,833 × taille` (la demi-hauteur d'un pan de 15 unités
+rapportée à une lettre plafonnée à 9). Le budget vaut donc
+`0,833 − 0,36 = 0,473 × taille`, et **pas un centième de plus**. La pastille en
+occupe `1,12 × 0,40 = 0,448`, centrée à 0,60 :
+
+```
+haut = 0.60 - 0.224 = 0.376  >=  0.36    elle ne mord pas la lettre
+bas  = 0.60 + 0.224 = 0.824  <=  0.833   elle ne sort pas du pan
+```
+
+Les deux marges valent 0,145 et 0,084 × taille — soit 1,3 et 0,8 dixièmes
+d'unité pour une lettre de 9. C'est mince, et il faut le dire : **ce n'est pas
+une place qu'on peut reprendre pour grossir le chiffre.**
+
+**Ce que la pastille coûte, et ce qu'elle rapporte.** Le chiffre passe de 0,46 à
+`0,40 × taille` : **13 % de corps en moins**. En échange il gagne un **fond** au
+lieu d'un **halo**. Ce n'est pas un troc neutre : un halo est un contour découpé
+sur la forme des glyphes, qui laisse passer l'aplat de profil entre les jambages
+et se battait avec les six teintes ; une pastille est une surface pleine, et
+c'est ce qu'il faut sous trois chiffres de trois pixels. Le compteur **n'a plus
+de halo du tout** — garder les deux ferait un liseré clair autour de chaque
+chiffre, sur un socle déjà clair.
 
 **Pourquoi sous la lettre et pas ailleurs.** Le centroïde est le seul point que
 le serveur garantit à l'intérieur du pan ; s'en éloigner en diagonale (un coin,
-une pastille sur un bord) demanderait la boîte englobante, donc de recopier côté
+un socle sur un bord) demanderait la boîte englobante, donc de recopier côté
 page une géométrie qui vit côté serveur — et de la voir diverger le jour où un
 pan cesse d'être un rectangle. Sous la lettre, la seule chose qu'on consomme,
 c'est la place que `taille` a **déjà** réservée.
 
-**Le rétrécissement.** `min(0.46, 1/(0.58·n))` borne la largeur du libellé à une
-fois `taille`, quel que soit le nombre de chiffres : « 1/4 » sort à sa taille
-pleine, « 12/15 » rétrécit au lieu de déborder. Le 0,58 est la largeur d'un
-chiffre tabulaire en fraction de sa taille — la même famille de constante que
-`LARGEUR_CAPITALE` côté Python, et prise comme elle sur le pire glyphe.
+**Le rétrécissement, et ce qui ne rétrécit pas.** `min(0.40, 1/(0.58·n))` borne
+la largeur du libellé à une fois `taille`, quel que soit le nombre de chiffres :
+« 1/4 » sort à sa taille pleine, « 12/15 » rétrécit au lieu de déborder. Le 0,58
+est la largeur d'un chiffre tabulaire en fraction de sa taille — la même famille
+de constante que `LARGEUR_CAPITALE` côté Python, et prise comme elle sur le pire
+glyphe. ⚠️ **La pastille, elle, se calcule sur le corps NOMINAL** et jamais sur
+le corps réduit : c'est le chiffre qui rentre dans le socle, pas le socle qui
+s'étire pour le chiffre. Sans ça, deux zones voisines porteraient deux pastilles
+de tailles différentes pour dire la même chose.
 
-**La limite connue, et ce qui la surveille.** Le compteur descend jusqu'à
-`0,81 × taille` sous le centroïde, halo compris — soit 7,30 unités quand la
-lettre est à son plafond de 9. Il faut donc un pan d'au moins **14,6 unités de
-haut**. Les dix-sept zones d'Annonay en font 15 au minimum : la marge est de
-0,20 unité, soit un demi-pixel sur un téléphone. Elle est réelle, mais elle est
-mince, et il faut la dire : ce n'est pas une place qu'on peut reprendre pour
-grossir le chiffre.
+**La limite connue, et ce qui la surveille.** La pastille descend jusqu'à
+`0,824 × taille` sous le centroïde — soit 7,42 unités quand la lettre est à son
+plafond de 9. Il faut donc un pan d'au moins **14,8 unités de haut**. Les
+dix-sept zones d'Annonay en font 15 au minimum : la marge est de 0,08 unité, un
+cinquième de pixel sur un téléphone.
 
-Ce n'est pas laissé à un commentaire : `tests/test_suivi.py` **relit les deux
-constantes dans `plan.js`** et vérifie, pan par pan, que la boîte du compteur
-tient dans le plan servi. Si quelqu'un change un ratio ou touche à
+Ce n'est pas laissé à un commentaire : `tests/test_suivi.py` **relit les quatre
+constantes dans `plan.js`** et vérifie, pan par pan, que la boîte de la
+**pastille** tient dans le plan servi — c'est elle le plus gros objet, mesurer
+le seul chiffre ne suffit plus. Si quelqu'un change un ratio ou touche à
 `taille_lettre`, le test rougit et nomme la zone. C'est le même dispositif que
 `test_la_page_sait_dessiner_ce_que_le_serveur_envoie` : un accord entre deux
 langages que rien d'autre ne confronterait.
@@ -122,7 +153,7 @@ langages que rien d'autre ne confronterait.
 **Ce que ce test ne couvre pas, et le vrai remède.** Il vérifie le plan **servi
 par le test**, donc le plan d'usine. Depuis la spec 029, Adrien peut en
 enregistrer un autre depuis la console ; s'il y dessine des pans de douze
-unités, le chiffre sortira sous son pan et aucun test ne le dira. Le remède
+unités, la pastille sortira sous son pan et aucun test ne le dira. Le remède
 propre n'est pas une constante mieux choisie — il n'en existe aucune qui tienne
 dans un pan arbitrairement bas — c'est de faire calculer la place du compteur
 **par le serveur**, là où la boîte du pan est connue, exactement comme
@@ -137,20 +168,22 @@ Tout dans `resultats.html`, sous les règles `.plan` existantes, avec les
 variables déjà posées pour le thème clair et `body.sombre` :
 
 ```css
-.plan .compte-zone { ... paint-order: stroke fill; stroke: var(--pl-halo); }
+.plan .socle-compte { fill: var(--pl-halo); stroke: none; pointer-events: none; }
+.plan g[data-zone]:not(.a-compte) .socle-compte { display: none; }
+.plan .compte-zone { ... font-variant-numeric: tabular-nums; }
 .plan .compte-zone.compte-finie { fill: var(--ok); }
-.plan g[data-zone]:not(.a-compte) .compte-zone { display: none; }
 ```
 
-- Le **halo** (`paint-order: stroke fill`, `stroke: var(--pl-halo)`) est repris
-  de la lettre, pour la raison qui l'y a mis : un chiffre posé sur un aplat de
-  profil devient illisible sans lui. Les deux variables de halo existent déjà
-  dans les deux thèmes ; **aucune nouvelle variable de couleur n'est créée**.
+- La **pastille** prend `var(--pl-halo)`, la couleur qui servait au halo de la
+  lettre. Elle existe déjà dans les deux thèmes ; **aucune nouvelle variable de
+  couleur n'est créée**.
 - `font-variant-numeric: tabular-nums`, comme partout où la page aligne des
   chiffres.
-- La zone porte `a-compte` quand elle a un compteur : c'est ce qui cache le
-  nœud vide sur les zones effacées, **en CSS et sans toucher au DOM**, donc sans
-  que `decorer` ait à créer ou supprimer des nœuds.
+- La zone porte `a-compte` quand elle a un compteur. Le **texte** vide ne peint
+  déjà rien ; c'est la **pastille** qu'il faut retirer, sans quoi dix-sept
+  socles clairs se poseraient sur des zones où le grimpeur n'a rien à faire.
+  Retrait **en CSS et sans toucher au DOM**, donc sans que `decorer` ait à créer
+  ou supprimer des nœuds.
 
 **Ce qu'on ne touche pas.** `.sf-legende` et ses règles sont **hors limites** :
 une PR parallèle (`fix/revue-du-03-09`) y remet la légende des couleurs de
@@ -162,11 +195,11 @@ modifiée par ce lot, et aucun bloc n'est inséré à côté d'elle.
 | Fichier | Ce qui change |
 | --- | --- |
 | `climbcontest/static/resultats/suivi.js` | `comptesDesZones`, `libelleCompte` ; `etatsDesZones` et `compteDeZone` en dérivent |
-| `climbcontest/static/resultats/plan.js` | `COMPTE_ECHELLE`, `COMPTE_DESCENTE`, `tailleDuCompte` ; le nœud `compte-zone` dans `decrire` ; le 4ᵉ argument de `decorer` |
-| `climbcontest/templates/resultats.html` | les règles `.plan .compte-zone` ; l'appel `decorer(..., comptes)` ; `estFait` dans `peindreFiche` |
+| `climbcontest/static/resultats/plan.js` | `COMPTE_ECHELLE`, `COMPTE_DESCENTE`, `PASTILLE_HAUTEUR`, `PASTILLE_LARGEUR`, `tailleDuCompte` ; les nœuds `socle-compte` et `compte-zone` dans `decrire` ; le 4ᵉ argument de `decorer` |
+| `climbcontest/templates/resultats.html` | les règles `.plan .socle-compte` et `.plan .compte-zone` ; l'appel `decorer(..., comptes)` ; `estFait` dans `peindreFiche` |
 | `tests/js/suivi.test.mjs` | les comptes, le libellé, l'invariant état ↔ compte |
 | `tests/js/plan.test.mjs` | le nœud décrit, la décoration, la zone sans compteur, le rétrécissement |
-| `tests/test_suivi.py` | le compteur tient dans chaque pan du plan servi |
+| `tests/test_suivi.py` | la **pastille** tient dans chaque pan du plan servi, et le chiffre tient dans la pastille |
 | `tests/test_navigateur_fiche.py` | les compteurs lus dans un vrai navigateur, et leur mise à jour en direct |
 
 **Aucun fichier Python de `climbcontest/` n'est modifié.** La charge servie

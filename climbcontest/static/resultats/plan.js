@@ -37,28 +37,51 @@ export const FORMATS_RENDUS = ["polygones/1"];
 
 // --- Le compteur d'avancement, spec 036 --------------------------------------
 //
-// Le chiffre « 1/4 » se pose SOUS la lettre de la zone, et il ne connaît de la
-// salle que ce que la lettre en connaît : `etiquette` (le centroïde, seul point
-// que le serveur garantit dans le pan) et `taille` (le corps de la lettre, que
-// `fiches.taille_lettre` a déjà borné par la boîte du pan). Aucune géométrie
-// n'est relue ici — c'est ce qui fait qu'un plan redessiné ne casse rien.
+// « 1/4 » se pose SOUS la lettre de la zone, SUR UNE PASTILLE — un socle
+// arrondi qui le détache du remplissage de profil du pan. C'est la pose B de
+// `specs/036-avancement-par-zone/maquettes/compteurs.html`, tranchée par
+// Adrien le 03/09 : « j'aime beaucoup la pastille que tu mets là dans
+// l'écran B ».
 //
-// ⚠️ CES DEUX RATIOS SONT LES DEUX PLUS GRANDS QUI TIENNENT, pas des valeurs à
-// l'œil. Avec `dominant-baseline: central`, une capitale grasse occupe ±0,36 de
-// son corps et le halo déborde de la moitié de son épaisseur (0,12). Il faut
-// donc passer SOUS la lettre — `descente − 0,48 × échelle ≥ 0,36` — et rester
-// AU-DESSUS du bord bas du pan — `descente + 0,48 × échelle ≤ 0,833`, la
-// demi-hauteur d'un pan de 15 unités rapportée à une lettre plafonnée à 9. Les
-// deux se croisent à 0,49 d'échelle. Grossir le chiffre mord la lettre ou sort
-// du pan : `tests/test_suivi.py` relit ces deux nombres et le vérifie pan par
-// pan sur le plan réellement servi.
-export const COMPTE_ECHELLE = 0.46;
-export const COMPTE_DESCENTE = 0.59;
+// Le compteur ne connaît de la salle que ce que la lettre en connaît :
+// `etiquette` (le centroïde, seul point que le serveur garantit dans le pan) et
+// `taille` (le corps de la lettre, que `fiches.taille_lettre` a déjà borné par
+// la boîte du pan). Aucune géométrie n'est relue ici — c'est ce qui fait qu'un
+// plan redessiné ne casse rien.
+//
+// ⚠️ LA PASTILLE SE DIMENSIONNE SUR LA LETTRE, JAMAIS SUR SON TEXTE. C'est
+// tout le point : un socle calibré sur le libellé a une largeur que rien ne
+// borne, et il sortait du pan — c'est ce qui avait fait écarter la pose B à la
+// première maquette. Calibré sur `taille`, il hérite des bornes que le serveur
+// a déjà posées sur la lettre. Un libellé long rétrécit DANS une pastille qui,
+// elle, ne bouge pas : dix-sept pastilles identiques plutôt que dix-sept
+// tailles.
+//
+// ⚠️ CES QUATRE RATIOS SONT CALCULÉS, pas choisis à l'œil. Avec
+// `dominant-baseline: central`, une capitale grasse occupe ±0,36 de son corps.
+// Le budget vertical de la pastille est donc ce qui reste ENTRE le bas du
+// glyphe de la lettre (0,36 × taille) et le bas du pan (0,833 × taille, la
+// demi-hauteur d'un pan de 15 unités rapportée à une lettre plafonnée à 9) :
+// 0,473 × taille, et pas un centième de plus. La pastille en occupe
+// 1,12 × 0,40 = 0,448, centrée à 0,60 :
+//
+//     haut = 0,60 − 0,224 = 0,376 ≥ 0,36    elle ne mord pas la lettre
+//     bas  = 0,60 + 0,224 = 0,824 ≤ 0,833   elle ne sort pas du pan
+//
+// Le chiffre y perd 13 % de corps par rapport au chiffre nu de la première
+// maquette (0,40 au lieu de 0,46) ; c'est le prix de la pastille, et il est
+// chiffré. En échange il gagne un FOND au lieu d'un halo — un contour découpé
+// sur la forme des glyphes, qui se battait avec les six aplats de profil.
+// `tests/test_suivi.py` relit ces nombres et vérifie la pastille pan par pan
+// sur le plan réellement servi.
+export const COMPTE_ECHELLE = 0.40;
+export const COMPTE_DESCENTE = 0.60;
+export const PASTILLE_HAUTEUR = 1.12;
+export const PASTILLE_LARGEUR = 1.0;
 
-/** L'épaisseur du halo, en fraction du corps du texte qu'il porte.
+/** L'épaisseur du halo de la LETTRE, en fraction de son corps.
  *
- * La lettre l'avait en clair ; le compteur le reprend, et il n'y a donc plus
- * qu'un seul endroit à changer si le halo devient trop mince ou trop gras. */
+ * Le compteur ne l'a plus : la pastille remplace le halo, et le fait mieux. */
 const HALO = 0.24;
 
 /** La largeur d'un chiffre tabulaire, en fraction de son corps.
@@ -136,6 +159,13 @@ export function decrire(plan) {
     // Le corps d'un compteur de trois caractères : celui de « 1/4 », le cas
     // courant. `decorer` le refait quand le libellé est plus long.
     const corps = tailleDuCompte(taille, "0/0");
+    // ⚠️ La pastille se calcule sur le corps NOMINAL, pas sur `corps` : un
+    // libellé long rétrécit le chiffre, il ne doit pas rétrécir son socle.
+    // Sans ça, deux zones voisines porteraient deux pastilles de tailles
+    // différentes pour dire la même chose.
+    const hPastille = taille * COMPTE_ECHELLE * PASTILLE_HAUTEUR;
+    const lPastille = taille * PASTILLE_LARGEUR;
+    const cy = y + taille * COMPTE_DESCENTE;
     enfants.push({
       tag: "g",
       // `data-zone` sur le GROUPE et non sur le polygone : l'état efface la
@@ -156,14 +186,23 @@ export function decrire(plan) {
         // monde. C'est aussi ce qui le rend « en direct » sans rien
         // reconstruire — une réussite qui arrive pendant qu'on regarde le plan
         // ne repasse que par la décoration.
+        // La pastille est DÉCRITE POUR TOUTES LES ZONES et cachée par le CSS
+        // sur celles qui ne portent pas de compteur (`:not(.a-compte)`). Sa
+        // géométrie ne dépend que du pan, donc elle ne change jamais : la
+        // décrire une fois évite de créer et détruire un nœud à chaque
+        // repeinture, exactement comme pour le chiffre.
+        { tag: "rect", attrs: { class: "socle-compte",
+                                x: (x - lPastille / 2).toFixed(2),
+                                y: (cy - hPastille / 2).toFixed(2),
+                                width: lPastille.toFixed(2),
+                                height: hPastille.toFixed(2),
+                                rx: (hPastille / 2).toFixed(2) } },
         // `data-corps` porte le corps de la LETTRE, seule chose dont
         // `decorer` a besoin pour redimensionner le chiffre selon sa longueur
         // sans jamais relire la géométrie du pan.
-        { tag: "text", attrs: { class: "compte-zone", x,
-                                y: y + taille * COMPTE_DESCENTE,
+        { tag: "text", attrs: { class: "compte-zone", x, y: cy,
                                 "data-corps": taille,
-                                "font-size": corps.toFixed(2),
-                                "stroke-width": (corps * HALO).toFixed(2) },
+                                "font-size": corps.toFixed(2) },
           texte: "" },
       ],
     });
@@ -254,9 +293,10 @@ export function decorer(racine, etats, visee, comptes) {
         n.classList.add("a-compte");
         if (compte.faits === compte.total) chiffre.classList.add("compte-finie");
         // Le corps suit la longueur : « 10/12 » rétrécit au lieu de déborder.
+        // La PASTILLE, elle, ne bouge pas — c'est le chiffre qui rentre dans
+        // le socle, jamais le socle qui s'étire pour le chiffre.
         const corps = tailleDuCompte(chiffre.getAttribute("data-corps"), texte);
         chiffre.setAttribute("font-size", corps.toFixed(2));
-        chiffre.setAttribute("stroke-width", (corps * HALO).toFixed(2));
       }
     }
     if (zone && zone === visee) trouvee = true;

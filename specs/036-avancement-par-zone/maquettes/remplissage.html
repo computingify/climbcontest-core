@@ -1,0 +1,806 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Maquette 036 — remplir le cadre de la zone</title>
+<!--
+  SUITE DE `compteurs.html`, ET PAS SON REMPLAÇANT.
+
+  `compteurs.html` a comparé quatre façons de POSER le compteur ; Adrien a
+  tranché pour la pastille (l'essai B). Cette planche-ci part de ce choix
+  acquis et pose la question suivante, la sienne :
+
+    « je ne mettrais pas un anneau, je mettrais le rectangle que tu mets en
+      surbrillance vert pour dire que la zone est terminée. Et bien celui-là,
+      je le remplirais en fonction de l'avancement. »
+
+  C'est une UNIFICATION : le cadre vert « zone terminée » et le compteur
+  cessent d'être deux signaux pour devenir deux lectures de la même donnée —
+  « terminée » n'est plus un état à part, c'est le cadre plein.
+
+  Même discipline que la planche précédente : le VRAI relevé d'Annonay, la
+  VRAIE géométrie (polygones, place et taille des lettres sorties de
+  `fiches.plan_pour(set())`), les vrais jetons de couleur de
+  `climbcontest/templates/resultats.html`, et la bascule clair/sombre.
+
+  LES CINQ CAS SONT POSÉS SUR CINQ PANS QUI SE TOUCHENT BORD À BORD — J, I, H,
+  G, F, la bande du milieu — et sur cinq profils différents. C'est fait exprès :
+  c'est là que les remplissages de surface se cassent, pas sur un carré isolé.
+
+    J 0/4   I 1/4   H 3/4   G 4/4   F aucun bloc du circuit
+
+  Trois autres zones portent le reste des pièges :
+    D 1/2  — la ZONE VISÉE (anneau ocre + rebond), et un pan deux fois plus
+             haut que large ;
+    L 2/3  — un pan collé au bord du cadrage, empilé sur M et N qui, elles,
+             ne portent rien : c'est le cas qui dit si un remplissage
+             vertical se lit comme une frontière de pan.
+-->
+<style>
+  :root {
+    --fond: #F1F4F8; --carte: #FFFFFF; --carte2: #E9EDF3; --trait: #D8DEE7;
+    --encre: #0E1420; --encre2: #5A6472; --encre3: #7B8494; --ok: #1E7A45;
+    --alerte: #B3261E;
+    --titre: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  }
+  body.sombre {
+    --fond: #0B0F17; --carte: #161B24; --carte2: #1E2430; --trait: #2A313D;
+    --encre: #F0F3F8; --encre2: #97A2B2; --encre3: #798398; --ok: #57D58D;
+    --alerte: #FF8A80;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; padding: 22px 20px 60px; background: var(--fond);
+         color: var(--encre); font-family: var(--titre); line-height: 1.5; }
+  h1 { font-size: 1.3rem; margin: 0 0 4px; }
+  h2 { font-size: .95rem; margin: 0 0 2px; }
+  h3.section { font-size: .7rem; font-weight: 700; letter-spacing: .1em;
+               text-transform: uppercase; color: var(--encre3);
+               margin: 30px 0 12px; padding-bottom: 6px;
+               border-bottom: 1px solid var(--trait); }
+  p.chapo { margin: 0 0 16px; color: var(--encre2); font-size: .85rem;
+            max-width: 88ch; }
+  .barre { display: flex; gap: 10px; align-items: center; margin-bottom: 6px;
+           flex-wrap: wrap; }
+  .barre button { font: inherit; font-size: .8rem; padding: 7px 13px;
+                  border-radius: 8px; border: 1px solid var(--trait);
+                  background: var(--carte); color: var(--encre); cursor: pointer; }
+  .rangee { display: flex; flex-wrap: wrap; gap: 18px; align-items: flex-start; }
+  .essai { background: var(--carte); border: 1px solid var(--trait);
+           border-radius: 14px; padding: 12px; width: 340px; }
+  h2 small, h4 small { display: block; font-weight: 400; font-size: .74rem;
+                       color: var(--encre2); }
+  .cellule h4 small { display: inline; font-size: .68rem; }
+  .carte { margin-top: 10px; background: var(--fond); border: 1px solid var(--trait);
+           border-radius: 12px; padding: 12px 10px; }
+  .verdict { margin: 10px 0 0; font-size: .78rem; color: var(--encre2); }
+  .verdict b { color: var(--encre); }
+  .verdict .non { color: var(--alerte); font-weight: 700; }
+  .verdict .oui { color: var(--ok); font-weight: 700; }
+
+  /* La planche de détail : la bande des cinq cas, agrandie, et la colonne
+     empilée à côté. */
+  .detail { background: var(--carte); border: 1px solid var(--trait);
+            border-radius: 14px; padding: 14px; margin-bottom: 16px;
+            width: 726px; }
+  .detail .paire { margin-top: 10px; }
+  .detail .bande { background: var(--fond); border-radius: 10px;
+                   border: 1px solid var(--trait); padding: 8px; }
+  .colonne { width: 126px; background: var(--carte); border-radius: 12px;
+             border: 1px solid var(--trait); padding: 9px 10px; }
+  .colonne h2 { font-size: .74rem; margin-bottom: 6px; }
+  /* La bande, à l'échelle EXACTE de la carte de 340 px : 80 unités de plan
+     sur les 122 du cadrage, dans un SVG large de (340 − 24 − 20) px. */
+  .vrai { background: var(--carte); border: 1px solid var(--trait);
+          border-radius: 12px; padding: 9px 10px; width: 216px; }
+  .vrai .plan { width: 193px; }
+  .vrai h2 { font-size: .74rem; margin-bottom: 6px; }
+  /* --- Section 4 : la matrice epaisseur x pose ---------------------------- */
+  .large { width: 1592px; max-width: 100%; }
+  .matrice { display: flex; flex-wrap: wrap; gap: 16px; margin-top: 10px; }
+  .cellule { width: 500px; background: var(--fond); border: 1px solid var(--trait);
+             border-radius: 10px; padding: 9px; }
+  .cellule h4 { margin: 0 0 7px; font-size: .74rem; font-weight: 700;
+                color: var(--encre); }
+  .mini { width: 215px; padding: 6px 10px; background: var(--carte);
+          border: 1px solid var(--trait); border-radius: 8px;
+          margin: 10px 0 9px; }
+  .mini .plan { width: 193px; }
+  .lg { font-size: .58rem; color: var(--encre3); margin: 0 0 4px;
+        letter-spacing: .06em; text-transform: uppercase; }
+  .etiq { font-size: .64rem; letter-spacing: .06em; text-transform: uppercase;
+          color: var(--encre3); margin: 0 0 5px; }
+  .reco { background: var(--carte); border: 1px solid var(--trait);
+          border-left: 4px solid var(--ok); border-radius: 12px;
+          padding: 12px 16px; margin: 14px 0 16px; max-width: 88ch; }
+  .reco h2 { font-size: .7rem; font-weight: 700; letter-spacing: .1em;
+             text-transform: uppercase; color: var(--encre3); margin: 0 0 6px; }
+  .reco p { margin: 0 0 7px; font-size: .82rem; color: var(--encre2); }
+  .reco p:last-child { margin-bottom: 0; }
+  .reco b { color: var(--encre); }
+  .reco2 { border-left-color: var(--pl-anneau, #B5791B); max-width: 110ch; }
+  .mesures { font-size: .74rem; color: var(--encre2); background: var(--carte2);
+             border-radius: 10px; padding: 10px 12px; margin: 0 0 16px;
+             max-width: 88ch; }
+  .mesures b { color: var(--encre); }
+
+  /* --- Le plan, tel qu'il est dans la page de résultats ------------------- */
+  .plan { display: block; width: 100%; height: auto;
+          --pf-dalle: #D2E0E7; --pf-vertical: #A6C4D3; --pf-incline: #F0D5A0;
+          --pf-devers: #EEBC7E; --pf-surplomb: #E7A074; --pf-toit: #E28379;
+          --pl-contour: #FFFFFF; --pl-trame: rgba(20,28,36,.17);
+          --pl-lettre: #16232E; --pl-halo: rgba(255,255,255,.92);
+          --pl-anneau: #B5791B; --pl-lueur: #E0A94A; --pl-efface: .5;
+          --jauge-piste: rgba(30,122,69,.38); --jauge-alpha: .28;
+          --piste-visee: rgba(181,121,27,.34); }
+  body.sombre .plan {
+          --pf-dalle: #2E3F4C; --pf-vertical: #3D6076; --pf-incline: #9A7238;
+          --pf-devers: #B57430; --pf-surplomb: #BE5B33; --pf-toit: #BC443F;
+          --pl-contour: #12131A; --pl-trame: rgba(255,255,255,.13);
+          --pl-lettre: #F5F0E7; --pl-halo: rgba(9,10,14,.85);
+          --pl-anneau: #FFD489; --pl-lueur: #FFC463; --pl-efface: .42;
+          --jauge-piste: rgba(87,213,141,.38); --jauge-alpha: .24;
+          --piste-visee: rgba(255,212,137,.34); }
+  .plan .mur { stroke: var(--pl-contour); stroke-width: .9; stroke-linejoin: round; }
+  .plan g[data-profil="dalle"] .mur    { fill: var(--pf-dalle); }
+  .plan g[data-profil="vertical"] .mur { fill: var(--pf-vertical); }
+  .plan g[data-profil="incline"] .mur  { fill: var(--pf-incline); }
+  .plan g[data-profil="devers"] .mur   { fill: var(--pf-devers); }
+  .plan g[data-profil="surplomb"] .mur { fill: var(--pf-surplomb); }
+  .plan g[data-profil="toit"] .mur     { fill: var(--pf-toit); }
+  .plan .lettre { font-family: var(--titre); font-weight: 800;
+                  fill: var(--pl-lettre); text-anchor: middle;
+                  dominant-baseline: central; paint-order: stroke fill;
+                  stroke: var(--pl-halo); }
+  .plan .repere-plan { font-family: var(--titre); font-style: italic;
+                       font-size: 4.6px; text-anchor: middle; fill: var(--encre2); }
+  .plan g[data-zone] { opacity: var(--pl-efface); }
+  .plan g[data-zone].z-reste, .plan g[data-zone].z-finie { opacity: 1; }
+  .plan g[data-zone].visee { filter: drop-shadow(0 0 2.5px var(--pl-lueur)); }
+
+  /* --- LA POSE RETENUE : la pastille (essai B de `compteurs.html`) --------
+     Ce qui la faisait déborder dans la planche précédente, c'était sa
+     LARGEUR, calculée sur le texte : rien ne la bornait. Ici elle est calculée
+     sur la LETTRE — largeur = `taille`, hauteur = 1,12 × le corps nominal du
+     chiffre. Les deux sont déjà bornées par la boîte du pan côté serveur
+     (`taille_lettre`), donc la pastille l'est aussi, sans que la page relise
+     un seul point de géométrie. Un libellé long rétrécit DANS une pastille qui,
+     elle, ne bouge pas : dix-sept pastilles identiques, et pas dix-sept
+     tailles. */
+  .plan .socle-compte { fill: var(--pl-halo); stroke: none; }
+  .plan .compte-zone { font-family: var(--titre); font-weight: 800;
+                       font-variant-numeric: tabular-nums; text-anchor: middle;
+                       dominant-baseline: central; fill: var(--pl-lettre);
+                       stroke: none; }
+  .plan .compte-zone.compte-finie { fill: var(--ok); }
+
+  /* --- La jauge, sous ses cinq formes ------------------------------------ */
+  .plan .piste-zone { fill: none; stroke: var(--jauge-piste); stroke-width: 1.6;
+                      stroke-linejoin: round; }
+  .plan .piste-zone.visee { stroke: var(--piste-visee); }
+  .plan .jauge-zone { fill: none; stroke: var(--ok); stroke-width: 1.6;
+                      stroke-linejoin: round; stroke-linecap: butt; }
+  .plan .jauge-zone.visee { stroke: var(--pl-anneau); stroke-width: 2.2; }
+  /* ⚠️ LE CONTOUR RENTRE — la reponse au piege n°1.
+     Un cadre pose SUR l'arete du pan deborde de la moitie de son epaisseur
+     chez la voisine ; deux jauges voisines se soudent alors en un seul trait,
+     et on ne sait plus a qui il appartient. `scale()` sur la boite de la forme
+     le rentre de 10 % SANS que la page lise un point de geometrie : c'est le
+     navigateur qui connait la boite, pas nous. L'epaisseur est remontee a
+     1,78 pour compenser la reduction, que `scale` applique aussi au trait. */
+  .plan .rentre { transform: scale(.90); transform-box: fill-box;
+                  transform-origin: center; stroke-width: 1.78; }
+  .plan .jauge-zone.rentre.visee { stroke-width: 2.44; }
+  /* ⚠️ « ROGNEE DANS LE PAN » — la reponse propre a « plus large ».
+     Le trait est pose sur l'arete comme dans R1, mais l'element est DECOUPE
+     par la forme du pan lui-meme (`clip-path`) : seule sa moitie interieure
+     est peinte. Consequences : la jauge ne sort JAMAIS du pan, quelle que soit
+     son epaisseur ; sa largeur visible vaut exactement la moitie du
+     `stroke-width` ; et elle epouse n'importe quelle forme, la ou `scale()` ne
+     rentre uniformement que sur un pan carre. Le decoupage se fait avec les
+     MEMES points que le pan — la page ne mesure toujours rien. */
+  .plan .remplissage { stroke: none; }
+  .plan .socle-jauge { stroke: none; }
+  /* Les arrêts de dégradé vivent dans `<defs>` : aucune classe de la zone ne
+     descend jusqu'à eux, ils portent donc la leur. */
+  .st-plein { stop-color: var(--ok); stop-opacity: var(--jauge-alpha); }
+  .st-vide  { stop-color: var(--ok); stop-opacity: 0; }
+  .st-plein.st-visee { stop-color: var(--pl-anneau); }
+  .st-vide.st-visee  { stop-color: var(--pl-anneau); }
+  /* ⚠️ Dans R5 le chiffre NE VIRE PAS au vert : la pastille est déjà verte
+     dessous, et vert sur vert ne se lit pas. Deux signaux qui se disputent le
+     même pixel — c'est un défaut de R5, pas un réglage. */
+  .plan.v-r5 .compte-zone.compte-finie { fill: var(--pl-lettre); }
+  .st-plein.st-pastille { stop-opacity: .55; }
+  .st-vide.st-pastille  { stop-opacity: 0; }
+</style>
+</head>
+<body>
+
+<h1>036 — le cadre de la zone devient la jauge</h1>
+<p class="chapo">
+  La pose du compteur est acquise : <b>la pastille</b> (l'essai B de
+  <code>compteurs.html</code>), redimensionnée pour tenir — sa largeur est
+  celle de la lettre, plus celle de son texte. Reste la question d'Adrien :
+  <b>comment le cadre se remplit-il ?</b> Cinq réponses, plus le témoin
+  d'aujourd'hui. Les cinq cas sont posés sur <b>cinq pans qui se touchent bord
+  à bord</b> — J&nbsp;0/4, I&nbsp;1/4, H&nbsp;3/4, G&nbsp;4/4, F&nbsp;sans
+  bloc — et sur cinq profils différents. <b>D</b> (1/2) est la zone visée,
+  <b>L</b> (2/3) est collée au bord du cadrage et empilée sur deux zones vides.
+</p>
+
+<div class="barre">
+  <button id="theme" type="button">Thème sombre</button>
+</div>
+
+<div class="reco" id="reco1">
+  <h2>Ma recommandation, en trois lignes</h2>
+  <p><b>R1b — le contour qui se remplit, rentré de 10 % dans le pan.</b> C'est
+  la seule des cinq qui tienne les cinq pièges à la fois : elle ne touche ni la
+  surface du pan ni sa couleur de profil (piège 2), elle ne peut pas se
+  confondre avec sa voisine une fois rentrée (piège 1), elle porte une PISTE
+  faible qui sépare « 0/4 » de « pas de bloc ici » (piège 4), et la zone visée
+  la teint en ocre au lieu de s'ajouter à elle (piège 3).</p>
+  <p><b>Sur un téléphone, elle passe — de justesse et par le bon côté.</b> Le
+  trait ne fait que 3,8 px d'épaisseur, mais ce qui varie est sa
+  <i>longueur</i> : 35,9 px pour un quart de pan. Une longueur de 36 px se voit
+  à 3,8 px d'épaisseur ; une épaisseur de 3,8 px qui varierait, non. C'est
+  exactement pour ça qu'il faut une jauge de longueur et pas d'épaisseur.</p>
+  <p><b>Et un cadeau du relevé d'Annonay :</b> ses pans sont carrés, donc un
+  quart de périmètre tombe pile sur une arête. Une zone à quatre blocs dessine
+  <i>une arête par bloc</i>, sans qu'on ait rien demandé — R2 (le contour
+  gradué) fait la même chose explicitement, et c'est lui qu'il faut prendre si
+  on veut que ce soit vrai aussi sur les pans qui ne sont pas carrés.</p>
+</div>
+<p class="mesures" id="mesures">…</p>
+
+<div id="anciennes">
+<h3 class="section">1 — À la taille d'un téléphone (carte de 340&nbsp;px)</h3>
+<div class="rangee" id="telephone"></div>
+
+<h3 class="section">1 bis — La bande des cinq cas, à la taille EXACTE du téléphone</h3>
+<p class="chapo">
+  Les mêmes cinq pans, découpés dans la carte de 340&nbsp;px sans être
+  agrandis d'un pixel : <b>c'est ce que le grimpeur a vraiment sous les yeux.</b>
+  Le reste de la planche est grossi pour comprendre ; celle-ci est grandeur
+  nature, et c'est elle qui décide.
+</p>
+<div class="rangee" id="vrai"></div>
+
+<h3 class="section">2 — Le détail, grossi : la bande des cinq cas</h3>
+<div class="rangee" id="detail"></div>
+
+<h3 class="section">3 — La colonne empilée : L à 2/3, posée sur M qui n'a aucun bloc</h3>
+<p class="chapo">
+  Deux pans <b>empilés</b>, bord à bord, dont un seul porte des blocs — et L
+  fait 15 × 25, il n'est pas carré. C'est le test du remplissage vertical : si
+  une zone à 2/3 se lit comme deux pans de profils différents, l'idée est morte
+  pour ce relevé-là. Les sept, côte à côte, au même grossissement.
+</p>
+<div class="rangee" id="colonnes"></div>
+</div>
+
+<h3 class="section">4 — « Plus large, et au-dessus de tout » — la réponse d'Adrien du 03/09</h3>
+
+<div class="reco reco2">
+  <h2>Ce que « au-dessus de tout » change, et ce que « plus large » coûte</h2>
+  <p><b>« Au-dessus de tout » est déjà le cas — et c'est le problème, pas la
+  solution.</b> La couche des cadres est peinte <b>après tous les murs</b>, donc
+  après les lettres, leurs halos et les pastilles ; seuls les trois repères
+  (« Escalier », « Haut », « Bas ») passent après, et ils sont dans le vide
+  entre les pans. Il n'y a donc rien à remonter. En revanche, regarde la carte
+  <b>R1b</b> de la section 2 : sur H (3/4) et G (4/4), <b>l'arête basse coupe
+  déjà la pastille en deux.</b> Ce n'est pas un réglage raté, c'est
+  arithmétique — la pastille descend à <b>0,084 unité</b> du bord bas du pan,
+  donc toute jauge plus épaisse que ça la croise.</p>
+  <p><b>« Plus large » aggrave exactement ça.</b> Une jauge de longueur plus
+  épaisse se voit mieux, c'est vrai et la matrice ci-dessous le montre. Mais à
+  ×2 elle recouvre <b>77 %</b> de la hauteur de la pastille, et à ×3 elle la
+  mange entièrement. Les deux demandes se contredisent, et il faut choisir : la
+  jauge par-dessus le compteur, ou le compteur par-dessus la jauge
+  (<b>section 5</b>).</p>
+  <p><b>Et une pose nouvelle règle « plus large » sans rien casser d'autre :
+  la jauge ROGNÉE dans le pan.</b> Posée sur l'arête comme R1, mais découpée
+  par la forme du pan : seule sa moitié intérieure est peinte. Elle ne sort
+  donc <b>jamais</b> chez la voisine, à n'importe quelle épaisseur — alors que
+  « posée » et « rentrée de 10 % » débordent toutes les deux dès qu'on les
+  épaissit.</p>
+</div>
+
+<p class="mesures" id="mesures-ep">…</p>
+
+<div id="epaisseurs"></div>
+
+<h3 class="section">5 — Le compteur ou la jauge : lequel passe devant ?</h3>
+<p class="chapo">
+  À ×2, rognée dans le pan, la jauge recouvre les trois quarts de la pastille
+  dès que l'arête basse est peinte — c'est-à-dire à partir de 2/4, et
+  <b>toujours</b> à 4/4, le cas qu'on regarde le plus. Deux sorties, et une
+  seule est tenable.
+</p>
+<div class="rangee" id="cartouche"></div>
+
+<script>
+const PLAN = {"cadrage":"-1.0 -1.0 122.0 152.0","murs":[{"zone":"X","profil":"vertical","d":"60,0 80,0 80,15 60,15","etiquette":[70.0,7.5],"taille":9.0},{"zone":"Y","profil":"vertical","d":"80,0 100,0 100,15 80,15","etiquette":[90.0,7.5],"taille":9.0},{"zone":"D","profil":"toit","d":"5,15 20,15 20,45 5,45","etiquette":[12.5,30.0],"taille":9.0},{"zone":"Z","profil":"vertical","d":"100,15 115,15 115,30 100,30","etiquette":[107.5,22.5],"taille":9.0},{"zone":"C","profil":"incline","d":"20,45 35,45 35,60 20,60","etiquette":[27.5,52.5],"taille":9.0},{"zone":"B","profil":"devers","d":"35,45 50,45 50,60 35,60","etiquette":[42.5,52.5],"taille":9.0},{"zone":"A","profil":"vertical","d":"50,45 70,45 70,60 50,60","etiquette":[60.0,52.5],"taille":9.0},{"zone":"L","profil":"toit","d":"0,75 15,75 15,100 0,100","etiquette":[7.5,87.5],"taille":9.0},{"zone":"M","profil":"dalle","d":"0,100 15,100 15,115 0,115","etiquette":[7.5,107.5],"taille":9.0},{"zone":"K","profil":"surplomb","d":"15,75 30,75 30,90 15,90","etiquette":[22.5,82.5],"taille":9.0},{"zone":"J","profil":"vertical","d":"30,75 45,75 45,90 30,90","etiquette":[37.5,82.5],"taille":9.0},{"zone":"I","profil":"devers","d":"45,75 60,75 60,90 45,90","etiquette":[52.5,82.5],"taille":9.0},{"zone":"H","profil":"incline","d":"60,75 75,75 75,90 60,90","etiquette":[67.5,82.5],"taille":9.0},{"zone":"G","profil":"vertical","d":"75,75 90,75 90,90 75,90","etiquette":[82.5,82.5],"taille":9.0},{"zone":"F","profil":"dalle","d":"90,75 105,75 105,90 90,90","etiquette":[97.5,82.5],"taille":9.0},{"zone":"N","profil":"dalle","d":"0,115 15,115 15,130 0,130","etiquette":[7.5,122.5],"taille":9.0},{"zone":"E","profil":"vertical","d":"105,90 120,90 120,105 105,105","etiquette":[112.5,97.5],"taille":9.0}],"reperes":[{"texte":"Escalier","x":97,"y":52},{"texte":"Haut","x":61,"y":111},{"texte":"Bas","x":60,"y":30}]};
+
+// Les cinq cas de la spec, posés sur cinq pans QUI SE TOUCHENT, plus la zone
+// visée (D) et la colonne empilée (L au-dessus de M et N, qui ne portent rien).
+const COMPTES = { J: [0, 4], I: [1, 4], H: [3, 4], G: [4, 4], D: [1, 2], L: [2, 3] };
+const VISEE = "D";
+
+// --- La pastille : trois ratios, et le calcul qui les fixe -------------------
+//
+// Le budget vertical est celui qui reste ENTRE le bas du glyphe de la lettre
+// (0,36 × taille sous son axe, avec `dominant-baseline: central`) et le bas du
+// pan (0,833 × taille pour un pan de 15 unités portant une lettre de 9). Soit
+// 0,473 × taille, et pas un centième de plus.
+//
+//   pastille = 1,12 × corps du chiffre     corps = 0,40 × taille
+//   → hauteur = 0,448 × taille, centrée à 0,60 × taille sous l'axe
+//   → haut  = 0,60 − 0,224 = 0,376 ≥ 0,36  (elle ne mord pas la lettre)
+//   → bas   = 0,60 + 0,224 = 0,824 ≤ 0,833 (elle ne sort pas du pan)
+//
+// Le halo du chiffre disparaît : la pastille le remplace, et le fait mieux —
+// un halo est un contour découpé sur la forme des glyphes, une pastille est un
+// fond. En échange le chiffre perd 13 % de corps par rapport à l'essai A
+// (0,40 au lieu de 0,46) ; c'est le prix de la pastille, et il est chiffré.
+const ECHELLE = 0.40;
+const DESCENTE = 0.60;
+const PASTILLE_HAUTEUR = 1.12;   // × le corps NOMINAL, jamais le corps réduit
+const PASTILLE_LARGEUR = 1.0;    // × taille de la lettre
+const LARGEUR_CHIFFRE = 0.58;
+
+function tailleDuCompte(taille, texte) {
+  const n = Math.max(1, String(texte || "").length);
+  return taille * Math.min(ECHELLE, 1 / (LARGEUR_CHIFFRE * n));
+}
+
+const NS = "http://www.w3.org/2000/svg";
+function n(tag, attrs, texte) {
+  const e = document.createElementNS(NS, tag);
+  for (const [c, v] of Object.entries(attrs || {})) e.setAttribute(c, String(v));
+  if (texte !== undefined) e.textContent = texte;
+  return e;
+}
+function etat(zone) {
+  const c = COMPTES[zone];
+  if (!c) return "z-rien";
+  return c[0] === c[1] ? "z-finie" : "z-reste";
+}
+
+/** Un dégradé à deux arrêts francs : la fraction remplie, puis rien.
+ *  `objectBoundingBox` est la clé — la proportion se dit en fraction de la
+ *  boîte du polygone, que le NAVIGATEUR connaît. La page, elle, ne relit
+ *  toujours aucune géométrie : c'est la règle 3 de `plan.js`. */
+function degrade(defs, id, p, vertical, visee, pastille) {
+  const coords = vertical ? { x1: 0, y1: 1, x2: 0, y2: 0 }
+                          : { x1: 0, y1: 0, x2: 1, y2: 0 };
+  const g = n("linearGradient", Object.assign({ id }, coords));
+  const sup = (visee ? " st-visee" : "") + (pastille ? " st-pastille" : "");
+  g.appendChild(n("stop", { class: "st-plein" + sup, offset: p.toFixed(4) }));
+  g.appendChild(n("stop", { class: "st-vide" + sup, offset: p.toFixed(4) }));
+  defs.appendChild(g);
+  return "url(#" + id + ")";
+}
+
+function dessiner(variante, cadrage, uid, opts) {
+  opts = opts || {};
+  const svg = n("svg", { class: "plan v-" + variante,
+                         viewBox: cadrage || PLAN.cadrage,
+                         role: "img", "aria-label": "Plan du mur" });
+  const defs = n("defs", {});
+  svg.appendChild(defs);
+  // ⚠️ `pastilleDessus` déplace pastilles et chiffres dans une couche peinte
+  // APRÈS les cadres. C'est la section 5 : la question de savoir qui, du
+  // compteur ou de la jauge, passe devant l'autre.
+  const couchePastilles = opts.pastilleDessus ? n("g", { class: "pastilles" }) : null;
+
+  for (const mur of PLAN.murs) {
+    const [x, y] = mur.etiquette, t = mur.taille;
+    const c = COMPTES[mur.zone];
+    const fini = !!c && c[0] === c[1];
+    const p = c ? c[0] / c[1] : 0;
+    const visee = mur.zone === VISEE;
+
+    const g = n("g", { "data-zone": mur.zone, "data-profil": mur.profil });
+    g.classList.add(etat(mur.zone));
+    if (visee) g.classList.add("visee");
+    if (c) g.classList.add("a-compte");
+    g.appendChild(n("polygon", { class: "mur", points: mur.d }));
+
+    if (c && variante === "ep" && opts.pose === "rogne") {
+      // Le découpage se fait avec les MÊMES points que le pan : la page ne
+      // mesure rien, elle recopie ce que le serveur lui a déjà donné.
+      const cp = n("clipPath", { id: uid + "-k-" + mur.zone });
+      cp.appendChild(n("polygon", { points: mur.d }));
+      defs.appendChild(cp);
+    }
+
+    // Le remplissage de SURFACE (r3 vertical, r4 horizontal) se peint dans le
+    // groupe, juste au-dessus du pan : la lettre et la pastille passent dessus.
+    if (c && (variante === "r3" || variante === "r4")) {
+      const url = degrade(defs, uid + "-s-" + mur.zone, p, variante === "r3",
+                          visee, false);
+      g.appendChild(n("polygon", { class: "remplissage", points: mur.d, fill: url }));
+    }
+
+    g.appendChild(n("text", { class: "lettre", x, y, "font-size": t,
+                              "stroke-width": (t * 0.24).toFixed(2) }, mur.zone));
+
+    if (c) {
+      const texte = c[0] + "/" + c[1];
+      const corps = tailleDuCompte(t, texte);
+      const h = t * ECHELLE * PASTILLE_HAUTEUR;
+      const l = t * PASTILLE_LARGEUR;
+      const cy = y + t * DESCENTE;
+      const boite = { x: (x - l / 2).toFixed(2), y: (cy - h / 2).toFixed(2),
+                      width: l.toFixed(2), height: h.toFixed(2),
+                      rx: (h / 2).toFixed(2) };
+      const cible = couchePastilles || g;
+      cible.appendChild(n("rect", Object.assign({ class: "socle-compte" }, boite)));
+      if (variante === "r5") {
+        const url = degrade(defs, uid + "-p-" + mur.zone, p, false, visee, true);
+        cible.appendChild(n("rect", Object.assign({ class: "socle-jauge", fill: url },
+                                                  boite)));
+      }
+      cible.appendChild(n("text", {
+        class: "compte-zone" + (fini ? " compte-finie" : ""),
+        x, y: cy.toFixed(2), "font-size": corps.toFixed(2) }, texte));
+    }
+    svg.appendChild(g);
+  }
+
+  // ⚠️ LA COUCHE DES CADRES EST PEINTE APRÈS TOUS LES MURS. En SVG l'ordre de
+  // peinture est l'ordre du document : un cadre dessiné dans le groupe de sa
+  // zone se ferait rogner sur les arêtes qu'elle PARTAGE avec sa voisine — et
+  // la bande J-I-H-G-F n'est que ça, des arêtes partagées.
+  const cadres = n("g", { class: "cadres-zone" });
+  for (const mur of PLAN.murs) {
+    const c = COMPTES[mur.zone];
+    if (!c) continue;                       // aucun bloc : AUCUN cadre
+    const p = c[0] / c[1];
+    const visee = mur.zone === VISEE;
+    const sufv = visee ? " visee" : "";
+    const base = { points: mur.d };
+
+    if (variante === "ep") {
+      // Une épaisseur VISIBLE identique dans les trois poses, pour que la
+      // comparaison porte sur la pose et pas sur le réglage :
+      //   posée   → stroke = e            (e/2 dehors, chez la voisine)
+      //   rentrée → stroke = e / 0,90     (`scale` réduit aussi le trait)
+      //   rognée  → stroke = 2e, découpé  (seule la moitié intérieure se peint)
+      const e = opts.epaisseur;
+      const commun = { pathLength: 100 };
+      let cls = "";
+      if (opts.pose === "arete") {
+        commun.style = "stroke-width:" + e;
+      } else if (opts.pose === "rentre") {
+        cls = " rentre";
+        commun.style = "stroke-width:" + (e / 0.9).toFixed(2);
+      } else {
+        commun.style = "stroke-width:" + (2 * e);
+        commun["clip-path"] = "url(#" + uid + "-k-" + mur.zone + ")";
+      }
+      cadres.appendChild(n("polygon", Object.assign(
+        { class: "piste-zone" + cls + sufv }, commun, base)));
+      cadres.appendChild(n("polygon", Object.assign(
+        { class: "jauge-zone" + cls + sufv,
+          "stroke-dasharray": (p * 100).toFixed(2) + " 100" }, commun, base)));
+    } else if (variante === "r1" || variante === "r1b") {
+      // `pathLength="100"` normalise le périmètre : la page dit « 25 % » sans
+      // jamais calculer la longueur du contour. C'est ce qui rend cette
+      // variante compatible avec la règle « la page ne lit pas la géométrie ».
+      const rentre = variante === "r1b" ? " rentre" : "";
+      cadres.appendChild(n("polygon", Object.assign(
+        { class: "piste-zone" + sufv + rentre, pathLength: 100 }, base)));
+      cadres.appendChild(n("polygon", Object.assign(
+        { class: "jauge-zone" + sufv + rentre, pathLength: 100,
+          "stroke-dasharray": (p * 100).toFixed(2) + " 100" }, base)));
+    } else if (variante === "r2") {
+      const M = c[1], F = c[0];
+      const pas = 100 / M, jeu = Math.min(2.2, pas * 0.20), seg = pas - jeu;
+      cadres.appendChild(n("polygon", Object.assign(
+        { class: "piste-zone rentre" + sufv, pathLength: 100,
+          "stroke-dasharray": seg.toFixed(2) + " " + jeu.toFixed(2) }, base)));
+      if (F > 0) {
+        const liste = [];
+        for (let i = 0; i < F; i += 1) {
+          liste.push(seg.toFixed(2));
+          liste.push(i === F - 1 ? "200" : jeu.toFixed(2));
+        }
+        cadres.appendChild(n("polygon", Object.assign(
+          { class: "jauge-zone rentre" + sufv, pathLength: 100,
+            "stroke-dasharray": liste.join(" ") }, base)));
+      }
+    } else {
+      // r0 (témoin), r3, r4, r5 : le cadre reste binaire. La piste dit « cette
+      // zone est mesurée » — sans elle, 0/4 et « pas de bloc ici » auraient le
+      // même cadre, c'est-à-dire aucun.
+      if (variante !== "r0") {
+        // La piste est RENTRÉE partout : c'est un élément neuf, on n'a aucune
+        // raison de le poser sur une arête partagée où il fusionnerait avec
+        // celle de la voisine (cf. R1 contre R1b).
+        cadres.appendChild(n("polygon", Object.assign(
+          { class: "piste-zone rentre" + sufv }, base)));
+      }
+      if (p >= 1) {
+        cadres.appendChild(n("polygon", Object.assign(
+          { class: "jauge-zone" + sufv }, base)));
+      } else if (variante === "r0" && visee) {
+        cadres.appendChild(n("polygon", Object.assign(
+          { class: "jauge-zone visee" }, base)));
+      }
+    }
+    if (visee && variante !== "r0") {
+      // La zone visée ne prend PAS un troisième cerclage : sa jauge change de
+      // couleur, elle ne se double pas. Rien à ajouter ici — les classes
+      // `visee` posées plus haut suffisent. (Le rebond et la lueur, eux, sont
+      // sur le groupe.)
+      void 0;
+    }
+  }
+  svg.appendChild(cadres);
+  if (couchePastilles) svg.appendChild(couchePastilles);
+
+  for (const r of PLAN.reperes) {
+    svg.appendChild(n("text", { class: "repere-plan", x: r.x, y: r.y }, r.texte));
+  }
+  return svg;
+}
+
+const ESSAIS = [
+  ["r0", "Témoin — aujourd'hui, avec la pastille",
+   "Le cadre ne dit que « terminée », en tout ou rien. C'est l'état de la branche, la pastille en plus.",
+   "<span class='non'>Le point de départ.</span> Quatre zones entamées se peignent à l'identique ; seul le chiffre les sépare. C'est exactement ce qu'Adrien veut corriger : le cadre ne travaille que le dernier quart de seconde, quand tout est fait."],
+
+  ["r1", "R1 — le contour qui se remplit",
+   "Le trait du cadre se dessine progressivement, depuis le premier point du polygone et dans son propre sens. Piste faible dessous.",
+   "<span class='non'>Bonne idée, mauvaise pose.</span> Le principe tient — la jauge vit sur le contour, elle ne touche NI la surface du pan NI sa couleur de profil — mais posée SUR l'arête elle déborde de 0,8 unité chez la voisine : regarde la bande, les arêtes peintes de I, H et G se soudent en un seul trait vert continu qui n'appartient à personne. C'est le piège n°1, et il est fatal tel quel. Voir R1b."],
+
+  ["r1b", "R1b — le même contour, mais RENTRÉ de 10 %",
+   "Identique à R1, sauf que le cadre est rentré dans le pan au lieu d'être posé sur son arête.",
+   "<span class='oui'>RETENU.</span> C'est la correction du piège n°1, et elle est spectaculaire : compare avec R1 juste au-dessus, où les arêtes peintes de I, H et G se soudent en un seul long trait vert qui n'appartient à personne. Rentré de 10 %, chaque cadre redevient l'affaire d'une seule zone — y compris à 340 px, où on distingue encore « une arête peinte » (1/4) de « trois arêtes peintes » (3/4). Le rentrait se fait avec <code>transform: scale(.90)</code> sur la boîte de la forme : c'est le NAVIGATEUR qui la calcule, la page ne lit toujours aucune géométrie — la règle 3 de <code>plan.js</code> tient. <br><br><b>Par quel coin ça commence, et pourquoi.</b> Par <b>le premier point du polygone, dans le sens du polygone</b> — et pas par un coin qu'on aurait choisi. La page ne peut PAS choisir un coin : choisir demande de savoir lequel est en haut à gauche, donc de lire la géométrie, ce qu'elle s'interdit. Le coin de départ est donc une <b>garantie du serveur</b>, à écrire dans la spec : <code>fiches.PLAN</code> énumère aujourd'hui tous ses pans depuis le coin haut-gauche dans le sens horaire, et <code>plan_public()</code> les recopie tels quels. Ça tombe bien, c'est le bon coin — l'œil entre dans un rectangle par le haut-gauche, et sur un pan carré le premier quart est exactement l'arête du haut, la plus dégagée de la bande."],
+
+  ["r2", "R2 — le contour gradué : un segment par bloc, rentré",
+   "Le même contour, mais découpé en autant de segments que la zone compte de blocs. Trois segments peints sur quatre : 3/4.",
+   "<span class='oui'>La version riche de R1b, à prendre si Adrien veut COMPTER sur le plan.</span> Il dit la proportion ET le nombre : sur une zone à quatre blocs, on compte les segments sans lire le chiffre. Il rend surtout la jauge honnête sur les pans qui ne sont PAS carrés — sur le pan D (15 × 30), R1b coupe une jauge à 1/2 au milieu d'une arête et ça ne veut plus rien dire, alors que R2 y pose deux segments francs. Deux réserves, vues au rendu : à 340 px les segments d'une zone à quatre blocs font 34 px et tiennent, mais à douze blocs ils font 11 px et redeviennent un pointillé — il dégrade alors vers R1b, ce qui n'est pas une panne ; et il est visuellement PLUS CHARGÉ, ce qui se paie sur un plan de dix-sept pans."],
+
+  ["r3", "R3 — le remplissage par le bas (l'éprouvette)",
+   "La surface du pan se remplit verticalement, en vert translucide.",
+   "<span class='non'>Écarté, et c'est net.</span> Il fabrique une ARÊTE HORIZONTALE au milieu du pan — exactement ce qu'est une frontière entre deux pans sur ce relevé. Regarde la colonne : le pan L à 2/3 se lit comme deux pans empilés, un brun sous un saumon, alors que c'en est un seul. C'est le piège n°2 pris en flagrant délit, et il a un deuxième étage : la teinte obtenue dépend du profil. Vert sur <i>dalle</i> (bleu froid) donne un vert-de-gris qui n'existe dans aucune des six teintes — lisible. Vert sur <i>incliné</i> (ocre) donne un olive, et vert sur <i>toit</i> (rouge) donne un brun : deux couleurs qui ressemblent à des profils. La même donnée ne se lit donc pas pareil selon le pan qui la porte, ce qui est exactement ce qu'une carte ne doit pas faire."],
+
+  ["r4", "R4 — le remplissage horizontal",
+   "La même surface, remplie de gauche à droite comme une barre de progression.",
+   "<span class='non'>Écarté, et pour la même raison en pire.</span> L'arête est VERTICALE, et la bande J-I-H-G-F n'est faite que d'arêtes verticales partagées : quatre pans partiellement remplis côte à côte donnent, au rendu, sept colonnes de couleur pour cinq zones. On ne sait plus où finit une zone — c'est le piège n°1 et le piège n°2 en même temps. Il a en plus le défaut de commencer à gauche du pan alors que la pastille est au centre : la barre passe SOUS le chiffre, qui la coupe en deux."],
+
+  ["r5", "R5 — c'est la pastille qui se remplit, pas le cadre",
+   "Le cadre reste binaire ; le socle du chiffre se remplit de gauche à droite, sous le chiffre.",
+   "<span class='non'>Écarté, mais gardé sous le coude.</span> Sur le papier c'est le plus propre : la jauge se pose sur le HALO, jamais sur le profil — zéro conflit de couleur, zéro arête parasite, et elle reste collée au chiffre qu'elle illustre. Trois choses la coulent. Elle mesure 21,5 × 9,7 px sur un téléphone, donc elle dit « à peu près la moitié » et rien de plus fin. Elle interdit au chiffre de virer au vert à 4/4 — vert sur vert ne se lit pas, il a fallu le rendre à l'encre : deux signaux se disputent le même pixel. Et surtout elle ne répond PAS à la demande d'Adrien : le cadre, lui, ne bouge toujours pas."],
+];
+
+const BANDE = "27.5 72.8 80 18.9";      // J, I, H, G, F : les cinq cas, bord à bord
+const COLONNE = "-2 72.8 19 44.4";      // L (2/3) empilée sur M et N, qui ne portent rien
+
+const telephone = document.getElementById("telephone");
+const detail = document.getElementById("detail");
+
+ESSAIS.forEach(function (essai, i) {
+  const [v, titre, sous, verdict] = essai;
+
+  const bloc = document.createElement("div");
+  bloc.className = "essai";
+  bloc.innerHTML = "<h2>" + titre + "<small>" + sous + "</small></h2>";
+  const carte = document.createElement("div");
+  carte.className = "carte";
+  carte.appendChild(dessiner(v, null, "t" + i));
+  bloc.appendChild(carte);
+  telephone.appendChild(bloc);
+
+  const vrai = document.createElement("div");
+  vrai.className = "vrai";
+  vrai.innerHTML = "<h2>" + titre.split(" — ")[0] + "</h2>";
+  vrai.appendChild(dessiner(v, BANDE, "v" + i));
+  document.getElementById("vrai").appendChild(vrai);
+
+  const d = document.createElement("div");
+  d.className = "detail";
+  d.id = "d-" + v;
+  d.innerHTML = "<h2>" + titre + "</h2>";
+  const paire = document.createElement("div");
+  paire.className = "paire bande";
+  paire.innerHTML = "<p class='etiq'>J 0/4 · I 1/4 · H 3/4 · G 4/4 · F aucun bloc</p>";
+  paire.appendChild(dessiner(v, BANDE, "b" + i));
+  d.appendChild(paire);
+  const p = document.createElement("p");
+  p.className = "verdict";
+  p.innerHTML = "<b>Verdict.</b> " + verdict;
+  d.appendChild(p);
+  detail.appendChild(d);
+
+  const col = document.createElement("div");
+  col.className = "colonne";
+  col.innerHTML = "<h2>" + titre.split(" — ")[0] + "</h2>";
+  col.appendChild(dessiner(v, COLONNE, "c" + i));
+  document.getElementById("colonnes").appendChild(col);
+});
+
+// --- Sections 4 et 5 : « plus large », et qui passe devant -------------------
+//
+// ⚠️ TOUTE LA GEOMETRIE CI-DESSOUS EST CELLE D'UN PAN DE 15 UNITES PORTANT UNE
+// LETTRE DE 9 — le cas de quinze des dix-sept zones d'Annonay. Les nombres
+// affichés dans la page en sortent, ils ne sont pas écrits à la main.
+const DEMI_PAN = 7.5;                          // demi-hauteur d'un pan de 15
+const DEMI_GLYPHE = 0.36 * 9;                  // 3,24 : le glyphe de la lettre
+const DEMI_HALO = DEMI_GLYPHE + 0.24 * 9 / 2;  // 4,32 : son halo compris
+const H_PASTILLE = 9 * ECHELLE * PASTILLE_HAUTEUR;      // 4,032
+const BAS_PASTILLE = 9 * DESCENTE + H_PASTILLE / 2;     // 7,416
+const EPAISSEURS = [
+  ["×1", 1.6, "l'épaisseur d'aujourd'hui"],
+  ["×2", 3.2, "deux fois plus"],
+  ["×3", 4.8, "trois fois plus"],
+];
+const POSES = [
+  ["arete", "A — posée sur l'arête",
+   "Le trait est centré sur le bord du pan : la moitié part chez la voisine.",
+   "<span class='non'>Elle empire avec l'épaisseur.</span> À ×1 elle mord déjà 0,8 unité chez la voisine ; à ×3, 2,4 unités, soit un sixième du pan d'à côté. Sur la bande J-I-H-G-F, trois jauges épaisses côte à côte redeviennent un seul bandeau vert — c'est le piège n°1, et l'épaissir le rend simplement plus gros."],
+  ["rentre", "B — rentrée de 10 % (R1b)",
+   "`transform: scale(.90)` : le cadre est ramené vers le centre du pan.",
+   "<span class='non'>Elle ne tient QUE si le trait reste fin.</span> Le rentrait vaut 0,75 unité sur un pan de 15 ; dès que le trait dépasse 1,5 unité d'épaisseur, sa moitié extérieure ressort du pan et on retrouve le débord de A. À ×2 et ×3 elle déborde donc autant que « posée ». Deuxième défaut, visible sur D et L : `scale()` est UNIFORME, donc sur un pan deux fois plus haut que large il rentre deux fois plus en haut et en bas qu'à gauche et à droite. Le cadre n'est plus à distance constante du bord."],
+  ["rogne", "C — rognée dans le pan",
+   "Posée sur l'arête, mais découpée par la forme du pan : seule la moitié intérieure est peinte.",
+   "<span class='oui'>La bonne réponse à « plus large » — mais elle a un plafond, et c'est ×2.</span> Elle ne sort JAMAIS du pan, à n'importe quelle épaisseur : c'est la forme du pan qui la coupe, pas un réglage. Sa largeur visible vaut exactement la moitié du <code>stroke-width</code>, donc elle se règle au chiffre près, et elle épouse n'importe quelle forme de pan là où <code>scale()</code> ne rentre proprement que sur un carré. Le découpage utilise les MÊMES points que le pan : la page ne mesure toujours rien. <br><br>Le plafond, lui, se voit à l'œil : à <b>×3 la jauge noie le pan</b> — 4,8 unités de chaque côté d'un pan qui en fait 15, soit les deux tiers de sa largeur ; elle recouvre le halo de la lettre (qui commence à 3,18 unités du bord) et le G de la zone terminée devient illisible. <b>×2 est le maximum</b>, et il est franchement plus lisible que ×1 à taille réelle. Reste qu'à ×2 elle recouvre 77 % de la pastille : elle ne tient qu'avec le cartouche de la section 5."],
+];
+
+const cadreEp = document.getElementById("epaisseurs");
+POSES.forEach(function (pose, ip) {
+  const [cle, titre, sous, verdict] = pose;
+  const carte = document.createElement("div");
+  carte.className = "detail large";
+  carte.id = "d-ep-" + cle;
+  carte.innerHTML = "<h2>" + titre + "<small>" + sous + "</small></h2>";
+  const matrice = document.createElement("div");
+  matrice.className = "matrice";
+  EPAISSEURS.forEach(function (ep, ie) {
+    const [nom, e, quoi] = ep;
+    const cel = document.createElement("div");
+    cel.className = "cellule";
+    cel.innerHTML = "<h4>" + nom + " — " + e.toFixed(1) + " unités "
+      + "<small>(" + quoi + ")</small></h4>";
+    const mini = document.createElement("div");
+    mini.className = "mini";
+    mini.innerHTML = "<p class='lg'>Taille réelle</p>";
+    mini.appendChild(dessiner("ep", BANDE, "e" + ip + ie,
+                              { pose: cle, epaisseur: e }));
+    const grand = document.createElement("div");
+    grand.className = "grand";
+    grand.innerHTML = "<p class='lg'>Grossi</p>";
+    grand.appendChild(dessiner("ep", BANDE, "E" + ip + ie,
+                               { pose: cle, epaisseur: e }));
+    cel.appendChild(mini);
+    cel.appendChild(grand);
+    matrice.appendChild(cel);
+  });
+  carte.appendChild(matrice);
+  const v = document.createElement("p");
+  v.className = "verdict";
+  v.innerHTML = "<b>Verdict.</b> " + verdict;
+  carte.appendChild(v);
+  cadreEp.appendChild(carte);
+});
+
+// --- Section 5 : qui passe devant ------------------------------------------
+const CARTOUCHE = [
+  [false, "La jauge par-dessus — ce que fait le code aujourd'hui",
+   "L'ordre de peinture actuel : la couche des cadres passe après tous les murs, donc après les pastilles.",
+   "<span class='non'>Le compteur est amputé.</span> À ×2, l'arête basse recouvre 77 % de la hauteur de la pastille : « 3/4 » et « 4/4 » se lisent à moitié. Et ça arrive au pire moment — l'arête basse est le troisième quart du contour, donc elle est peinte dès 2/4 et TOUJOURS à 4/4, le cas qu'on regarde le plus. Ce n'est pas réglable : la pastille descend à 0,084 unité du bord bas, et le budget vertical (0,473 × taille) ne permet pas de la remonter."],
+  [true, "Le compteur par-dessus — le cartouche",
+   "La pastille et son chiffre sont peints APRÈS la jauge : le compteur est un cartouche serti dans le cadre.",
+   "<span class='oui'>RECOMMANDÉ.</span> Le compteur reste entier, et la jauge y gagne une encoche CONSTANTE — présente sur toutes les zones comptées, à toutes les valeurs : c'est un décor, pas un signal, et l'œil l'apprend en une seconde. C'est même un procédé typographique classique, le titre qui coupe un filet. Le prix, chiffré : la pastille masque 9 des 15 unités de l'arête basse, soit 60 % de cette arête et 15 % du périmètre. Si c'est jugé trop, le levier est la LARGEUR de la pastille (`PASTILLE_LARGEUR`), pas l'ordre de peinture — la ramener à 0,78 ramènerait l'encoche à 47 % de l'arête."],
+];
+
+const cadreCart = document.getElementById("cartouche");
+CARTOUCHE.forEach(function (cas, i) {
+  const [dessus, titre, sous, verdict] = cas;
+  const carte = document.createElement("div");
+  carte.className = "detail";
+  carte.id = "d-cart-" + i;
+  carte.innerHTML = "<h2>" + titre + "<small>" + sous + "</small></h2>";
+  const opts = { pose: "rogne", epaisseur: 3.2, pastilleDessus: dessus };
+  const mini = document.createElement("div");
+  mini.className = "mini";
+  mini.innerHTML = "<p class='lg'>Taille réelle</p>";
+  mini.appendChild(dessiner("ep", BANDE, "c" + i, opts));
+  const bande = document.createElement("div");
+  bande.className = "paire bande";
+  bande.innerHTML = "<p class='etiq'>×2, rognée — J 0/4 · I 1/4 · H 3/4 · G 4/4</p>";
+  bande.appendChild(dessiner("ep", BANDE, "C" + i, opts));
+  carte.appendChild(mini);
+  carte.appendChild(bande);
+  const v = document.createElement("p");
+  v.className = "verdict";
+  v.innerHTML = "<b>Verdict.</b> " + verdict;
+  carte.appendChild(v);
+  cadreCart.appendChild(carte);
+});
+
+// --- Ce que ça donne VRAIMENT à 340 px --------------------------------------
+// Les chiffres du piège n°5 ne se devinent pas : on les mesure sur la première
+// carte, celle qui fait la largeur d'un téléphone.
+/** Combien de pixels vaut UNE UNITE DE PLAN sur une carte de 340 px.
+ *
+ * ⚠️ Mesuré, jamais supposé — et mesuré sur un élément qui existe dans les DEUX
+ * vues : `?epaisseurs` masque les sections 1 à 3, donc la carte téléphone peut
+ * ne pas être là. Les bandes « taille réelle » de la section 4 sont dessinées à
+ * la même échelle (193 px pour les 80 unités du cadrage BANDE, contre 294 px
+ * pour les 122 unités du plan entier), elles servent donc de repli. */
+function pxParUnite() {
+  const carte = document.querySelector("#telephone .plan");
+  if (carte && carte.getBoundingClientRect().width > 0) {
+    return carte.getBoundingClientRect().width / 122;
+  }
+  const mini = document.querySelector(".mini .plan");
+  return mini ? mini.getBoundingClientRect().width / 80 : 2.41;
+}
+
+window.requestAnimationFrame(function () {
+  const cible = document.getElementById("mesures");
+  if (!cible || cible.hidden) return;
+  const px = pxParUnite();
+  const q = function (u) { return (u * px).toFixed(1); };
+  cible.innerHTML =
+    "<b>Le piège n°5, mesuré.</b> Sur cette carte de 340 px, le plan rend "
+    + "<b>" + px.toFixed(2) + " px par unité</b>. Le trait du cadre fait donc "
+    + "<b>" + q(1.6) + " px</b> d'épaisseur — c'est peu — mais un quart de "
+    + "périmètre d'un pan de 15 unités fait <b>" + q(15) + " px</b> de long, "
+    + "et une longueur de 36 px se voit. Le chiffre de la pastille fait "
+    + "<b>" + q(9 * ECHELLE) + " px</b> de corps (contre " + q(9 * 0.46)
+    + " px pour l'essai A sans pastille), dans une pastille de <b>" + q(9)
+    + " × " + q(9 * ECHELLE * PASTILLE_HAUTEUR) + " px</b>.";
+});
+
+window.requestAnimationFrame(function () {
+  const px = pxParUnite();
+  const q = (u) => (u * px).toFixed(1);
+  const libre = DEMI_PAN - DEMI_HALO;              // du bord au halo de la lettre
+  const ligne = (nom, e) =>
+    "<b>" + nom + "</b> (" + e.toFixed(1) + " u, " + q(e) + " px) : "
+    + "déborde de <b>" + (e / 2).toFixed(1) + " u</b> chez la voisine si elle est "
+    + "posée sur l'arête ; rognée, elle rentre de <b>" + e.toFixed(1) + " u</b> "
+    + "dans le pan (le halo de la lettre est à " + libre.toFixed(2) + " u du bord, "
+    + "donc elle " + (e > libre ? "<b>le mord</b>" : "ne l'atteint pas")
+    + ") et recouvre <b>"
+    + Math.min(100, Math.round((e - (DEMI_PAN - BAS_PASTILLE)) / H_PASTILLE * 100))
+    + " %</b> de la hauteur de la pastille.";
+  document.getElementById("mesures-ep").innerHTML =
+    "<b>Les trois épaisseurs, mesurées</b> (pan de 15 unités, lettre de 9, "
+    + px.toFixed(2) + " px par unité sur une carte de 340 px).<br>"
+    + EPAISSEURS.map(([nom, e]) => ligne(nom, e)).join("<br>")
+    + "<br><b>La pastille descend à " + (DEMI_PAN - BAS_PASTILLE).toFixed(3)
+    + " unité du bord bas</b> : c'est pour ça que toute jauge, même la plus "
+    + "fine, la croise.";
+});
+
+// `?epaisseurs` ne garde que les sections 4 et 5 : c'est la planche qu'on
+// depose dans le document de decision d'Adrien, sans lui refaire relire ce
+// qu'il a deja lu.
+if (location.search.indexOf("epaisseurs") >= 0) {
+  for (const id of ["anciennes", "reco1", "mesures"]) {
+    const n = document.getElementById(id);
+    if (n) n.hidden = true;
+  }
+  document.querySelector("h1").textContent =
+    "036 — la jauge plus large, et qui passe devant";
+}
+
+if (location.search.indexOf("sombre") >= 0) document.body.classList.add("sombre");
+const bouton = document.getElementById("theme");
+bouton.textContent = document.body.classList.contains("sombre")
+  ? "Thème clair" : "Thème sombre";
+bouton.addEventListener("click", function () {
+  document.body.classList.toggle("sombre");
+  bouton.textContent = document.body.classList.contains("sombre")
+    ? "Thème clair" : "Thème sombre";
+});
+</script>
+</body>
+</html>
