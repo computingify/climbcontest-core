@@ -586,9 +586,17 @@
     var pose = document.querySelector('input[name="e1a"]:checked');
     var jauge = !!pose && pose.value !== "rien";
 
+    // ⚠️ TOUTES LES QUESTIONS QUI DEPENDENT DE LA JAUGE, pas seulement E2.
+    // La premiere version ne posait « sans objet » que sur E2 : Adrien a donc
+    // repondu a E1b et E1c -- l'epaisseur et l'ordre de peinture d'une jauge
+    // qu'il venait de refuser. Le formulaire lui a fait trancher dans le vide.
+    // Deuxieme fois que ce recapitulatif se trompe ; la regle est desormais
+    // une LISTE, a cote des questions qu'elle gouverne.
+    var DEPENDENT_DE_LA_JAUGE = ["e1b", "e1c", "e2"];
+
     var lignes = QUESTIONS.map(function (q) {
-      if (q[0] === "e2" && !jauge) {
-        return q[1] + " : sans objet (pas de jauge de contour)";
+      if (DEPENDENT_DE_LA_JAUGE.indexOf(q[0]) !== -1 && !jauge) {
+        return q[1] + " : sans objet (le cadre n'est pas rempli)";
       }
       var coche = document.querySelector('input[name="' + q[0] + '"]:checked');
       return q[1] + " : " + (coche
