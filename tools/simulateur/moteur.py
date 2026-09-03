@@ -137,6 +137,22 @@ class Api:
         return {"etat": "echec", "code": code, "latence": latence,
                 "message": message or _message_reseau(code)}
 
+    def sante(self) -> dict:
+        """`/health` : la version du serveur, et s'il se porte bien.
+
+        Publique et sans clé — c'est la sonde que l'agent de déploiement
+        interroge. On la lit quand même avec l'en-tête : ça ne coûte rien et ça
+        marche si un jour elle passe derrière le filtre.
+
+        ⚠️ Une sonde `degraded` répond **503**, pas 200 : la version y est
+        quand même, et c'est précisément le cas où on veut la voir.
+        """
+        code, corps, _ = self._appel("/health", None, "GET")
+        if not isinstance(corps, dict):
+            return {}
+        return {"version": corps.get("version"), "statut": corps.get("status"),
+                "code": code}
+
     def envoyer_lot(self, reussites, appareil=None):
         """POST /api/v3/successes — un verdict par élément, ou rien du tout.
 
@@ -632,6 +648,8 @@ class Simulation:
         self.api: Api | None = None
         self.catalogue: Catalogue | None = None
         self.serveur = ""
+        self.version_serveur = None
+        self.sante_serveur = None
         self.juges: list[Juge] = []
         self.fils: list[threading.Thread] = []
         self.arret = threading.Event()
@@ -670,8 +688,11 @@ class Simulation:
         motif = catalogue.utilisable()
         if motif:
             return {"ok": False, "message": motif}
+        sonde = api.sante()
         with self.verrou:
             self.api, self.catalogue, self.serveur = api, catalogue, serveur
+            self.version_serveur = sonde.get("version")
+            self.sante_serveur = sonde.get("statut")
             # Relire le catalogue, c'est repartir de zéro : après un effacement
             # des données depuis la console, les couples qu'on croyait pris
             # sont redevenus libres.
@@ -680,6 +701,10 @@ class Simulation:
         self.journal("oki", "catalogue",
                      f"« {catalogue.nom} » — {len(catalogue.participants)} dossards, "
                      f"{len(catalogue.blocs)} blocs, version {catalogue.version}")
+        self.journal("oki", "serveur",
+                     f"{serveur} — version {self.version_serveur or 'inconnue'}"
+                     + (f" ⚠ {self.sante_serveur}"
+                        if self.sante_serveur not in (None, "ok") else ""))
         return {"ok": True, **self.cible()}
 
     def cible(self) -> dict:
@@ -688,6 +713,8 @@ class Simulation:
         c = self.catalogue
         return {"connecte": True, "serveur": self.serveur, "competition": c.nom,
                 "statut": c.statut, "version": c.version,
+                "version_serveur": self.version_serveur,
+                "sante_serveur": self.sante_serveur,
                 "participants": len(c.participants), "blocs": len(c.blocs),
                 "zones": sorted(c.zones)}
 
