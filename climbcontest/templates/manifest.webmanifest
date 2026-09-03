@@ -13,8 +13,17 @@
   "scope": "/juge",
   "display": "standalone",
   "orientation": "portrait",
-  "background_color": "#0B0D11",
-  "theme_color": "#0B0D11",
+  {#- Spec 039 : l'application s'ouvre en CLAIR. Ces deux valeurs sont l'ecran
+      de demarrage et la barre de l'application INSTALLEE -- elles ne peuvent
+      pas suivre `prefers-color-scheme` (un manifeste n'a pas de requete media),
+      elles portent donc le theme par DEFAUT. Un telephone regle en sombre voit
+      un demarrage clair puis une application sombre ; l'inverse -- un
+      demarrage noir sur les telephones du plus grand nombre -- serait le
+      mauvais compromis.
+      ⚠️ `#F3EEE3` est le `--fond` clair de `juge.html`. Les deux se tiennent :
+      une valeur qui derive fait un liseré au demarrage. -#}
+  "background_color": "#F3EEE3",
+  "theme_color": "#F3EEE3",
   "lang": "fr",
   "icons": [
     { "src": "/static/juge/icone-192.png", "sizes": "192x192", "type": "image/png" },

@@ -33,7 +33,13 @@
 // dans la coquille des telephones en v4 : sans changement de NOM, ils
 // garderaient l'ancienne version du module et continueraient de se nommer
 // « A » tout court.
-const CACHE = "climbcontest-juge-v5";
+// v6 le 03/09 (spec 039) -- l'application s'ouvre en CLAIR. La coquille porte
+// le gabarit `/juge`, donc tout le CSS : sans changement de nom, un telephone
+// deja installe rouvrirait l'ancienne page sombre et personne ne verrait le
+// changement. `couleurs.js` change aussi (le circuit « Noir » depend du
+// theme), et une coquille qui melangerait l'ancien CSS et le nouveau module
+// afficherait de la craie sur du papier.
+const CACHE = "climbcontest-juge-v6";
 
 /**
  * Ce qu'on garde pour pouvoir démarrer sans réseau.
