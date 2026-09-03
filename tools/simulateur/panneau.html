@@ -58,6 +58,8 @@
     padding-left: 14px; border-left: 1px solid var(--trait);
   }
   .cible .hote { font-family: var(--chiffre); font-size: .82rem; color: var(--encre2); }
+  .cible .hote .v { color: var(--accent-texte); font-weight: 700; }
+  .cible .hote .degrade { color: var(--alerte); font-weight: 700; }
   .cible .comp { font-size: .93rem; font-weight: 600; }
   .cible .comp .puce { color: var(--ok); }
   .cible .comp.hs .puce { color: var(--encre3); }
@@ -178,7 +180,7 @@
 <header class="barre">
   <div class="marque"><div class="pastille">⛰</div><b>Simulateur de juges</b></div>
   <div class="cible">
-    <span class="hote" id="hote">—</span>
+    <span class="hote"><span id="hote">—</span><span id="versionServeur"></span></span>
     <span class="comp hs" id="ligneComp"><span class="puce">●</span>
       <span id="competition">non connecté</span>
       <span class="zone" id="taille"></span></span>
@@ -476,6 +478,10 @@ function rendre(etat) {
   if (!hydrate) { hydrate = true; hydrater(etat); }
 
   $("hote").textContent = c.connecte ? c.serveur.replace(/^https?:\/\//, "") : "—";
+  $("versionServeur").innerHTML = !c.connecte ? ""
+    : ` · <span class="v">${c.version_serveur || "version ?"}</span>`
+      + (c.sante_serveur && c.sante_serveur !== "ok"
+         ? ` <span class="degrade">${c.sante_serveur}</span>` : "");
   $("competition").textContent = c.connecte ? c.competition : "non connecté";
   $("ligneComp").classList.toggle("hs", !c.connecte);
   $("taille").textContent = c.connecte

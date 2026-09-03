@@ -27,7 +27,10 @@ qu'on ne met pas à jour le matin d'une compétition :
   Ce qui part sur le réseau est ce qu'envoie un téléphone — mêmes routes, même
   politique d'envoi, recopiée de `static/juge/politique.js` — et le protocole
   bascule entre les lots `v3` et les trois appels `v2` de l'application gelée.
-  Bibliothèque standard uniquement : aucune installation. Voir
+  Bibliothèque standard uniquement : aucune installation. L'adresse, la clé et
+  les derniers réglages sont retenus d'une session à l'autre, **hors du dépôt**
+  (`~/.config/climbcontest/`, `0600`), et la barre du haut affiche la version du
+  serveur en face. Voir
   [docs/tester-avec-l-emulateur.md](docs/tester-avec-l-emulateur.md).
 
 ## [0.17.0] — 2026-09-03
