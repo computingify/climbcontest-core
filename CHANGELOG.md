@@ -19,6 +19,27 @@ qu'on ne met pas à jour le matin d'une compétition :
 
 ## [Non publié]
 
+### Modifié
+
+- **La documentation dit l'état réel** — trois textes décrivaient encore un
+  système qui n'existe plus.
+  - Le **runbook de compétition** faisait allumer puis éteindre la VM, et
+    annonçait qu'« un timer s'en charge seul en 2 minutes ». La VM tourne en
+    permanence depuis le 03/09 et **plus rien ne s'installe tout seul** : une
+    release publiée attend qu'on clique dans la console. Un jour de compétition,
+    ces deux phrases coûtaient cher.
+  - La **spec 001** portait tout l'argumentaire du régime intermittent. Il a été
+    **retiré**, pas seulement signalé caduc : laissé en place, il se relit comme
+    un raisonnement complet et se ré-applique. Ce qu'il en reste tient dans une
+    section « Historique », avec les deux autres décisions défaites depuis
+    (la copie de base toutes les dix minutes, le minuteur de déploiement).
+  - L'**index des specs** marquait « codée, en attente de relecture » vingt
+    specs qui tournent en production depuis des jours. Chaque ligne porte
+    maintenant la version qui l'a livrée.
+  - Ajouté au passage : **le trou du numéro 030** est expliqué là où on le
+    remarque. La spec `030-versions-visibles` existe, codée et testée, mais
+    seulement sur une branche locale jamais poussée.
+
 ## [0.19.0] — 2026-09-03
 
 ### Ajouté

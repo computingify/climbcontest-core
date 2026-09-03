@@ -13,16 +13,15 @@ Caddy sur `edge`, supervision sur la 108, sauvegarde PBS sur la 107.
 | VMID | **110** | premier libre après la 109 |
 | Nom | `climbcontest` | |
 | IP | **192.168.0.32/24** | premier libre après `.31` ; la plage DHCP Freebox va de `.40` à `.200` — **validé le 28/08** |
-| vCPU | **4** | l'hôte a 20 threads et la VM ne tourne que ponctuellement ; du CPU en réserve coûte zéro quand elle est éteinte |
-| RAM | **4 Go** | rendue à l'hôte à l'arrêt |
+| vCPU | **4** | l'hôte a 20 threads ; la pointe d'une compétition dure quelques heures, le reste du temps ce CPU ne coûte rien |
+| RAM | **4 Go** | |
 | Disque | **24 Go** sur `local-lvm` (thin, `discard=on`) | ~4 Go réellement occupés |
-| `onboot` | **0** hors compétition, **1** le jour J | ⚠ le seul invité dans ce cas ; la bascule fait partie de la procédure (§7) |
+| `onboot` | **1** | comme les neuf autres invités : elle revient seule après une coupure |
 | `agent` | `enabled=1` **et paquet installé** | le piège de la 107 (gel du 2026-08-26) |
 | OS | Debian 13, cloud-init, compte `adrien` | comme la 105 |
-| `tags` | `climbcontest`, `intermittent` | l'étiquette `intermittent` sert aux exclusions |
+| `tags` | `climbcontest` | |
 
-Modèle de config : `homelab/pve01/vm-configs/105.conf`, avec `onboot: 0` et les
-ressources ci-dessus.
+La config en service est `homelab/pve01/vm-configs/110.conf`.
 
 ## 2. Pare-feu (`110.fw`)
 
@@ -164,8 +163,12 @@ fonctionnalité, `PATCH` sur correction.
 
 ### L'agent de tirage
 
-`/usr/local/bin/climbcontest-deploy`, timer systemd
-(`OnBootSec=1min`, `OnUnitActiveSec=2min`), utilisateur `climbcontest`.
+`/usr/local/bin/climbcontest-deploy`, unité systemd déclenchée **à la demande**,
+utilisateur `climbcontest`. Le minuteur (`OnBootSec=1min`,
+`OnUnitActiveSec=2min`) a été **retiré le 03/09/2026** par la
+[spec 031](../031-deploiement-depuis-la-console/) : il consommait 30 requêtes/h
+sur un quota GitHub anonyme de 60 partagé par toute la maison, et installait
+sans qu'on l'ait demandé.
 
 Directement dérivé de `solio-map-deploy`, **avec ses deux bugs déjà corrigés** :
 
@@ -325,9 +328,9 @@ Même découpage que `carte.` / `carte-admin.` : le nom du service mène au serv
 le nom de l'outil mène à l'outil. La page d'accueil `maison.adn-dev.fr` doit
 lister ClimbContest avec les autres.
 
-⚠ Un nom interne pointant vers un service **éteint 350 jours par an** affichera
-une erreur de connexion la plupart du temps. À signaler sur la page d'accueil du
-portail (mention « démarré à la demande »), pour ne pas croire à une panne.
+*(La réserve d'origine — « un nom interne qui pointe vers un service éteint 350
+jours par an affiche une erreur de connexion la plupart du temps » — est sans
+objet depuis le 03/09/2026 : la VM tourne en permanence.)*
 
 ## 6. Les contrôles adaptés
 
@@ -378,136 +381,75 @@ qu'un attaquant ne le remplit ») ne s'applique pas ici : le trafic des juges es
 légitime, il faut qu'il passe. La protection de l'API est la **clé d'API**, pas
 le débit.
 
-### 6.3 Prometheus — ne pas hurler 350 jours par an
+### 6.3 Prometheus — les règles du parc, sans exception
 
-`MachineInjoignable` se déclenche sur `up{job="nodes"} == 0` pendant 10 min. Une
-VM éteinte l'année entière produirait une alerte permanente.
-
-**Étape 1** — exclure la machine intermittente de la règle générale :
-
-```yaml
-- alert: MachineInjoignable
-  expr: up{job="nodes", intermittent!="oui"} == 0
-```
-
-et étiqueter la cible dans `prometheus.yml` :
+`MachineInjoignable` se déclenche sur `up{job="nodes"} == 0` pendant 10 min, et
+elle s'applique ici comme partout ailleurs. La cible est déclarée sans étiquette
+particulière :
 
 ```yaml
 - targets: ['192.168.0.32:9100']
-  labels: {machine: 'climbcontest', role: 'app', expose: 'internet', intermittent: 'oui'}
+  labels: {machine: 'climbcontest', role: 'app', expose: 'internet'}
 ```
 
-**Étape 2** — une alerte qui ne se déclenche que si la VM **est censée tourner**.
-Le signal d'intention, c'est l'état de la VM côté hyperviseur. `pve01` publie
-déjà `node_exporter` sur `:9100` (cible ajoutée le 2026-08-26) : on lui ajoute un
-**collecteur textfile** qui écrit l'état des invités toutes les minutes.
+### 6.4 `adn-maintenance` — la VM en fait partie, en tête de liste
 
-```bash
-# /usr/local/sbin/adn-guest-state → /var/lib/node_exporter/textfile/adn-guests.prom
-# pve_guest_running{vmid="110",name="climbcontest"} 1
-```
+La 110 est **le premier invité d'`ADN_GUESTS`**. Deux conséquences voulues :
 
-```yaml
-- alert: ClimbcontestInjoignableEnService
-  expr: pve_guest_running{vmid="110"} == 1 and on() up{machine="climbcontest"} == 0
-  for: 5m
-  labels: {severity: critical}
-  annotations:
-    summary: "climbcontest tourne mais ne repond plus"
-    description: >-
-      La VM est demarree (donc probablement une competition en cours) et
-      node_exporter ne repond pas depuis 5 min. Verifier gunicorn :
-      ssh adrien@192.168.0.32 'systemctl status climbcontest'
-```
+1. la fenêtre de 05 h 00 la met à jour comme les autres — instantané, mise à
+   jour, sonde, retour arrière si échec ;
+2. elle est le **canari** de la séquence : si sa mise à jour casse quelque
+   chose, ça se voit sur elle avant de se voir sur les neuf autres.
 
-Ce collecteur sert aussi le reste du parc : savoir depuis Prometheus quels
-invités tournent est utile bien au-delà de cette VM.
+`check_backup` exige une sauvegarde PBS du jour pour **chaque** invité
+d'`ADN_GUESTS` et annule toute la séquence s'il en manque une. C'est pour ça
+que l'entrée dans `ADN_GUESTS` et l'entrée dans le job `backup-nightly` ne se
+font jamais l'une sans l'autre.
 
-### 6.4 `adn-maintenance` — la VM n'y participe pas
-
-Deux raisons, toutes deux mesurées dans le script :
-
-1. `adn-maintenance` **rallume les invités éteints** (`qm status … | grep -q
-   running || qm start`, ligne 102). La VM serait démarrée toutes les nuits à
-   05 h 00.
-2. `check_backup` exige une sauvegarde PBS **du jour pour chaque invité de
-   `ADN_GUESTS`** et **annule toute la séquence** s'il en manque une. Y mettre une
-   VM exclue du job de sauvegarde bloquerait la maintenance des huit autres.
-
-⇒ **La 110 n'est pas dans `ADN_GUESTS`.** Elle est mise à jour lors de la
-préparation avant compétition (§7), avec la même discipline : instantané, mise à
-jour, sonde, retour arrière si échec — mais déclenchée par un humain, pas par une
-minuterie.
-
-C'est aussi la bonne pratique métier : **on ne met jamais à jour le matin d'une
-compétition.**
+Ce que ça ne change pas : **on ne met jamais à jour la veille ni le matin d'une
+compétition.** La fenêtre nocturne tourne toute l'année ; la préparation d'une
+compétition, elle, se fait à la main quelques jours avant (§7).
 
 ### 6.5 Le chien de garde
 
-`adn-watchdog` signale les sauvegardes du jour manquantes. Comme la 110 sort du
-job nocturne (§8), il faut vérifier qu'il ne la réclame pas — il itère sur
-`ADN_GUESTS`, dont elle est absente : rien à faire, mais à **vérifier** en
-recette.
+`adn-watchdog` réclame la sauvegarde PBS du jour pour chaque invité
+d'`ADN_GUESTS`. La 110 y est, et elle est dans le job `backup-nightly` : il la
+réclame, et il la trouve.
 
-## 7. Le cycle marche / arrêt
+## 7. Préparer une compétition
 
-### Ce que l'arrêt libère vraiment
+La VM tourne toute l'année. Il n'y a donc plus de cycle marche/arrêt : ce qui
+reste, c'est la préparation du jour J. La procédure complète, commande par
+commande, est dans
+[`docs/runbook-competition.md`](../../docs/runbook-competition.md) ; ce qui suit
+n'en est que l'ossature.
 
-| Ressource | Libérée à l'arrêt ? |
-| --- | --- |
-| **RAM (4 Go)** | ✅ **oui, immédiatement** — c'est le gain réel |
-| **CPU** | ✅ oui |
-| Disque (~4 Go réels sur 24 Go provisionnés) | ❌ non — le volume LVM-thin reste alloué |
+### Quelques jours avant — jamais la veille
 
-Sur un SSD de 960 Go dont ~25 Go sont réellement occupés, **4 Go ne valent pas
-qu'on s'en préoccupe**. Si tu veux malgré tout les récupérer, la seule voie est
-`vzdump` vers PBS puis `qm destroy 110`, et une restauration avant la compétition
-suivante (~5 min). C'est documenté mais **non recommandé** : ça remplace un
-`qm start` de 30 secondes par une restauration, pour 0,4 % du disque.
-
-### Les commandes
-
-```bash
-# Allumer (depuis le Mac)
-ssh root@192.168.0.21 'qm start 110'
-
-# Éteindre proprement (l'agent invité fait un arrêt système)
-ssh root@192.168.0.21 'qm shutdown 110'
-
-# État
-ssh root@192.168.0.21 'qm status 110'
-```
-
-Un script `homelab/scripts/climbcontest` enveloppera ces trois commandes avec la
-vérification de santé, pour que « allumer » veuille dire « allumé **et** qui
-répond ».
-
-### Préparer une compétition (quelques jours avant, jamais la veille)
-
-1. Démarrer la VM.
-2. Instantané `avant-prepa`.
-3. Mise à jour OS (`unattended-upgrade`), redémarrage si nécessaire.
-4. Déployer la dernière release (le timer le fait seul en 2 min).
-5. Vérifier la sonde, l'accès au classeur, et un scan de bout en bout.
-6. Instantané **`prete-compet`** — le point de retour de secours.
-7. Éteindre.
+1. Mise à jour de l'OS, redémarrage si nécessaire.
+2. Dernière release installée **depuis la console** (Réglages → Version du
+   serveur → Installer). Il n'y a plus de tirage automatique depuis la
+   [spec 031](../031-deploiement-depuis-la-console/).
+3. Clé d'API, classeur relié, jeton Google, miroir qui écrit vraiment.
+4. Un scan de bout en bout avec un vrai téléphone et un vrai QR code.
+5. Instantané `prete-compet`.
 
 ### Le jour J
 
-1. `qm start 110`.
-2. **Basculer `onboot` à `1`** (décision Q1) : si `pve01` redémarre en pleine
-   compétition, la VM revient seule.
-3. Instantané `avant-compet`.
-4. Vérifier la sonde et un scan de bout en bout.
-5. Ne rien toucher d'autre — **sauf en cas de problème**, voir ci-dessous.
+```bash
+climbcontest competition   # instantané 'avant-compet' + pense-bête
+```
+
+Rien à basculer : `onboot` vaut déjà `1`, donc un redémarrage de l'hyperviseur
+en pleine compétition ramène la VM toute seule.
 
 ### Corriger pendant la compétition (décision Q2 : pas de gel)
 
-Adrien doit pouvoir livrer un correctif le jour même. Deux commandes, à avoir
-sous la main :
+Adrien doit pouvoir livrer un correctif le jour même.
 
 ```bash
-# Deployer immediatement, sans attendre le tick de 2 minutes
+# Installer la release publiee : console > Reglages > Version du serveur,
+# ou a la main
 ssh adrien@192.168.0.32 'sudo systemctl start climbcontest-deploy.service'
 
 # Revenir a la release precedente, instantanement
@@ -518,11 +460,14 @@ ssh adrien@192.168.0.32 'sudo climbcontest-rollback'
 précédente et redémarre le service — quelques secondes, sans réinstallation,
 puisque les trois dernières releases sont sur le disque.
 
+⚠️ Une compétition **en cours** bloque le bouton de la console : c'est voulu
+(spec 031), et sans contournement dans l'interface.
+
 ### Après la compétition
 
-1. Export de la base + `vzdump` manuel vers PBS (§8).
-2. **Remettre `onboot` à `0`.**
-3. Éteindre la VM.
+1. Archiver l'édition **depuis la console** (spec 018), puis exporter la base.
+2. `climbcontest cloture` — retire l'instantané `avant-compet`. La VM reste
+   allumée : la sauvegarde PBS de 02 h 30 emporte la compétition dès cette nuit.
 
 ## 8. Sauvegarde — la version revue
 
@@ -543,11 +488,13 @@ défend — voici pourquoi, et ce qui la remplace.
 | Secrets | oui | gestionnaire de mots de passe |
 | **Données d'une compétition** | ❌ non | irremplaçable, **pendant une seule journée par an** |
 
-### Pourquoi la sauvegarde nocturne n'a pas de sens ici
+### La sauvegarde nocturne, écartée puis reprise
 
-- 364 nuits sur 365, elle sauvegarde une VM éteinte qui ne contient rien de neuf.
-- Elle consommerait une entrée dans `check_backup`, ce qui **bloquerait la
-  maintenance des huit autres VM** les nuits où elle manquerait (§6.4).
+Elle avait été écartée : 364 nuits sur 365, elle aurait sauvegardé une VM
+éteinte sans rien de neuf. **Depuis le 03/09/2026 la VM tourne en permanence**,
+elle est dans `ADN_GUESTS`, et `check_backup` exige donc une sauvegarde du jour
+pour elle — les deux réglages se déplacent ensemble (§6.4). Elle est dans le job
+`backup-nightly`.
 
 ### Ce qui protège réellement les données du jour J
 
@@ -571,11 +518,11 @@ outils sont ailleurs :
 | Pendant la journée | **recopie locale de la base, toutes les 10 min** | `shared/sauvegardes/` |
 | En fin de compétition | un `vzdump` manuel + un export de la base | PBS 107 → NAS (immuable) |
 | Après un changement d'infra | un `vzdump` manuel | PBS 107 |
-| Le reste de l'année | **rien** | — |
+| Le reste de l'année | `vzdump` nocturne, comme les neuf autres | PBS 107 → NAS |
 
-La VM sort du job `backup-nightly`. Les archives de fin de compétition passent par
-PBS et héritent donc des instantanés Btrfs immuables du NAS : la propriété
-d'immuabilité est conservée pour ce qui compte.
+La VM est dans le job `backup-nightly` depuis le 03/09/2026 : elle est
+sauvegardée chaque nuit à 02 h 30, comme les autres. Les archives passent par
+PBS et héritent des instantanés Btrfs immuables du NAS.
 
 > **Q7, tranchée le 29/08 — et l'argument d'origine était faux.**
 >
@@ -613,11 +560,11 @@ d'immuabilité est conservée pour ce qui compte.
 | `pve01/adn-maintenance/probes/110.sh` | créé (sonde, utilisée hors fenêtre nocturne) |
 | `vm101-edge/Caddyfile` | bloc `climbcontest.adn-dev.fr` ajouté |
 | `vm109-intra/Caddyfile` | noms internes + alias, en redirection ; entrée sur la page d'accueil |
-| `vm108-monitoring/prometheus.yml` | cible `.32` avec `intermittent: 'oui'` |
-| `vm108-monitoring/rules/adn-rules.yml` | `MachineInjoignable` filtrée + `ClimbcontestInjoignableEnService` |
+| `vm108-monitoring/prometheus.yml` | cible `.32`, sans étiquette particulière |
+| `vm108-monitoring/rules/adn-rules.yml` | rien de spécifique : les règles génériques s'appliquent |
 | `vm108-monitoring/crowdsec-whitelist-adn.yaml` | exemption des chemins d'API |
 | `vm110-climbcontest/` | nouveau dossier : unités systemd, agent de tirage, README |
-| `scripts/climbcontest` | allumer / éteindre / état |
+| `scripts/climbcontest` | état, préparation du jour J, clôture |
 
 ### Dans le dépôt du backend
 

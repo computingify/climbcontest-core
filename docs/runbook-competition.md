@@ -10,25 +10,30 @@ Ajoute-le à ton `PATH` ou lance-le par son chemin complet.
 
 ## Quelques jours avant — préparer, jamais la veille
 
-> **On ne met jamais à jour le matin d'une compétition.** C'est la règle qui
-> justifie que cette VM soit exclue de la fenêtre de maintenance automatique
-> de 05 h 00.
+> **On ne met jamais à jour le matin d'une compétition.** La VM est mise à jour
+> toutes les nuits par la fenêtre de maintenance de 05 h 00, comme les neuf
+> autres invités — et elle est **en tête de séquence**, donc c'est sur elle
+> qu'une mise à jour cassante se voit d'abord. La veille et le matin du jour J,
+> on ne touche à rien.
 
-```bash
-climbcontest start
-```
+> **La VM tourne en permanence depuis le 03/09/2026.** Il n'y a plus rien à
+> allumer : `climbcontest status` doit répondre, et c'est tout. Si elle est
+> éteinte, c'est une anomalie — voir `homelab/vm110-climbcontest/README.md`.
 
-Puis :
-
-1. **Mise à jour du système**
+1. **Mise à jour du système** — normalement déjà faite par la fenêtre nocturne.
+   Pour la forcer :
    ```bash
    ssh adrien@192.168.0.32 'sudo unattended-upgrade -v; sudo reboot'
    ```
    Attendre, puis `climbcontest status`.
 
-2. **Dernière release en place** — le timer s'en charge seul en 2 minutes.
+2. **Dernière release en place.** ⚠️ **Plus aucun tirage automatique** depuis la
+   spec 031 : une release publiée reste sur GitHub tant que personne ne clique.
+   L'installer depuis `/console` → **Réglages** → « Version du serveur » →
+   **Installer**, ou à la main :
    ```bash
-   ssh adrien@192.168.0.32 'sudo climbcontest-rollback --list'
+   ssh adrien@192.168.0.32 'sudo systemctl start climbcontest-deploy.service'
+   ssh adrien@192.168.0.32 'sudo climbcontest-rollback --list'   # ce qui est installé
    ```
 
 3. **La clé d'API est-elle en place ?** ⚠️ Depuis la spec 012, sans elle le
@@ -90,10 +95,9 @@ Puis :
    ssh root@192.168.0.21 'qm snapshot 110 prete-compet --description "Prete pour la competition"'
    ```
 
-9. **Éteindre**
-   ```bash
-   climbcontest stop
-   ```
+   La VM **reste allumée** : elle l'est toute l'année. Ne pas l'éteindre — la
+   supervision la déclarerait injoignable au bout de dix minutes, et la fenêtre
+   de 05 h 00 la rallumerait pour la mettre à jour.
 
 ---
 
@@ -122,13 +126,15 @@ avec leur flèche. Personne n'a besoin d'y toucher.
 climbcontest competition
 ```
 
-Cette seule commande fait quatre choses :
+Cette seule commande fait trois choses :
 
-- allume la VM et **attend qu'elle réponde vraiment** (pas juste qu'elle démarre) ;
-- bascule `onboot` à **1** — si l'hyperviseur redémarre en pleine compétition
-  (coupure de courant), la VM revient seule ;
+- vérifie que la VM **répond vraiment** (pas juste qu'elle tourne) ;
 - prend l'instantané `avant-compet` ;
 - affiche le pense-bête des trois commandes d'urgence.
+
+Il n'y a plus rien à basculer : `onboot` vaut `1` toute l'année, donc si
+l'hyperviseur redémarre en pleine compétition (coupure de courant), la VM
+revient seule.
 
 Puis vérifier depuis l'extérieur, **avec un téléphone en 4G, pas sur le wifi de
 la maison** :
@@ -146,13 +152,23 @@ https://climbcontest.adn-dev.fr/
 Les déploiements **ne sont pas gelés** : c'est une décision assumée, tu dois
 pouvoir corriger le jour J.
 
-```bash
-# depuis le Mac, après avoir poussé une release
-ssh adrien@192.168.0.32 'sudo systemctl start climbcontest-deploy.service'
-```
+Deux chemins, au choix :
 
-N'attend pas le tick de 2 minutes. Si la nouvelle version ne répond pas, l'agent
-**revient tout seul** à la précédente et le vérifie.
+- `/console` → **Réglages** → « Version du serveur » → **Installer**. ⚠️ Ce
+  bouton **refuse de travailler pendant une compétition en cours** : c'est
+  voulu, et sans contournement dans l'interface. Le jour J, c'est donc l'autre
+  chemin.
+- ```bash
+  # depuis le Mac, après avoir poussé une release
+  ssh adrien@192.168.0.32 'sudo systemctl start climbcontest-deploy.service'
+  ```
+
+⚠️ **Rien ne s'installe tout seul** : le minuteur qui tirait GitHub toutes les
+2 minutes a été retiré le 03/09/2026 (spec 031). Publier une release ne la met
+pas en production ; il faut demander l'installation.
+
+Si la nouvelle version ne répond pas, l'agent **revient tout seul** à la
+précédente et le vérifie.
 
 ### Revenir en arrière tout de suite
 
@@ -218,9 +234,12 @@ Concrètement : demande aux juges de **fermer complètement l'application et de 
 rouvrir**. Sur iPhone, glisser vers le haut depuis la barre d'accueil puis
 balayer la carte de l'application.
 
-**Android.** Un correctif passe par le Play Store, donc par une mise à jour
-d'application. On ne fait pas ça un jour de compétition — c'est le sens du gel
-de repli.
+**Android.** ⚠️ **L'application Android native est hors périmètre depuis le
+03/09/2026** : plus aucune version n'en sera publiée. Un téléphone qui la porte
+encore garde la version installée, avec sa file locale — elle continue
+d'envoyer, elle ne se corrige plus. Le chemin d'un correctif, pour tout le
+monde, c'est la PWA. L'APK `V3.1.4` reste installable comme filet de secours,
+au titre du [plan de repli](plan-de-repli.md).
 
 ### Le service ne répond plus
 
@@ -302,7 +321,8 @@ scp adrien@192.168.0.32:/tmp/compet-*.db ~/Documents/
 # 2. Archiver la machine entière
 ssh root@192.168.0.21 'vzdump 110 --storage pbs-nas --mode snapshot --compress zstd'
 
-# 3. Clôturer : onboot remis à 0, instantané nettoyé, VM éteinte
+# 3. Clôturer : retire l'instantané 'avant-compet'. La VM reste allumée,
+#    la sauvegarde PBS de 02 h 30 emporte la competition des cette nuit.
 climbcontest cloture
 ```
 
@@ -348,6 +368,14 @@ Dans la Google Cloud Console du projet qui porte `credentials.json` :
    L'application doit être **« En production »**. Même avec un seul
    utilisateur, même non vérifiée : l'écran « application non vérifiée » se
    franchit par « Paramètres avancés », c'est notre propre compte.
+
+   ⚠️ **Ce point est en cours de vérification sur le terrain** (03/09/2026) :
+   le jeton en service permet de trancher tout seul. S'il fonctionne encore
+   plus de 7 jours après avoir été posé, c'est que le projet n'est **pas** en
+   état « Test », et cette alerte tombe. S'il cesse de fonctionner sans que
+   personne n'ait rien touché, c'est exactement ce cas — et le symptôme est
+   `reussites_en_attente` qui monte, avec `miroir_derniere_erreur` qui le dit.
+   Le relire une fois par semaine d'ici la compétition coûte dix secondes.
 
 Le scope demandé est `spreadsheets`, et rien de plus : le jeton n'a jamais eu
 à lister ni supprimer des fichiers du Drive.
@@ -430,7 +458,7 @@ Attendu : `"status": "ok"`, `"regime": "strict"`, `"cles_acceptees": 1`.
 
 Pour les **iPhone des bénévoles** (PWA), poser aussi une clé distincte —
 c'est elle qui voyage dans le lien d'installation, la séparer permet de la
-révoquer sans toucher aux téléphones Android :
+révoquer séparément :
 
 ```bash
 CLE_PWA=$(python3 -c 'import secrets; print(secrets.token_urlsafe(32))')
@@ -457,15 +485,21 @@ releaseApiKey=la-valeur-lue
 ⚠️ **Jamais** dans le `gradle.properties` du projet : il est suivi par git, et
 les deux dépôts ClimbContest sont publics.
 
-### 3. Publier l'application
+### 3. Publier l'application — **caduc**
+
+⚠️ **L'application Android native est hors périmètre depuis le 03/09/2026** ;
+il n'y a plus de build à publier. Ce qui reste vrai : la clé qui voyage vers
+les téléphones est `CLIMBCONTEST_API_KEY_PWA`, et elle est **dans le lien
+d'installation** de la PWA, que la console affiche en QR dans l'onglet
+**App juge**. Changer cette clé change le lien : il faut refaire installer la
+PWA, ou au minimum rouvrir le lien à jour.
+
+Pour mémoire, la commande d'alors :
 
 ```bash
 cd climbcontest-android
 ./gradlew assembleRelease -PreleaseServerUrl=https://climbcontest.adn-dev.fr
 ```
-
-Le build **refuse de démarrer** sans clé : c'est voulu, un APK sans clé serait
-refusé par le serveur et on le découvrirait le jour J.
 
 ### Changer de clé sans coupure
 
@@ -473,7 +507,7 @@ Le serveur accepte deux clés en même temps. On ne fait donc jamais de bascule
 brutale :
 
 1. `CLIMBCONTEST_API_KEY_PRECEDENTE=<l'ancienne>` et `CLIMBCONTEST_API_KEY=<la nouvelle>`, redémarrer ;
-2. publier l'application avec la nouvelle clé, attendre que tous les téléphones l'aient ;
+2. faire réinstaller la PWA depuis le lien à jour, attendre que tous les téléphones l'aient ;
 3. retirer `CLIMBCONTEST_API_KEY_PRECEDENTE`, redémarrer.
 
 ---
