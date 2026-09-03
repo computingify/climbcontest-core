@@ -10,10 +10,18 @@
 - [x] 4. `climbcontest/maj.py` — vérification quotidienne, blocage, délégation
 - [x] 5. Trois routes `@exige_role(ADMIN)` dans `routes/admin.py`
 - [x] 6. Console : pastille du bandeau, carte des Réglages, fenêtre de confirmation
-- [x] 7. Élargir `/etc/sudoers.d/climbcontest` au démarrage du service de déploiement
-- [x] 8. `tests/test_maj_serveur.py`
-- [ ] 9. Poser le sudoers sur la VM 110 **avant** que la release qui porte ce code
-      n'y arrive — sinon le bouton répondra « service non démarré »
+- [x] ~~7. Élargir `/etc/sudoers.d/climbcontest` au démarrage du service de
+      déploiement~~ 🔴 **défait le 2026-09-03** : `sudo` ne peut pas aboutir
+      sous `NoNewPrivileges=true`. Remplacé par `climbcontest-deploy.path`, et
+      la règle est retirée. Voir `architecture.md` § 4.
+- [x] 8. `tests/test_maj_serveur.py` — ⚠️ ces tests remplaçaient
+      `subprocess.run` par un leurre : ils prouvaient qu'on **appelait** `sudo`,
+      la seule chose qui ne pouvait pas marcher. Complétés le 03/09 par
+      `tests/test_deploiement_sans_privileges.py`.
+- [x] ~~9. Poser le sudoers sur la VM 110~~ → **poser le guetteur** sur la
+      VM 110 : `install -m 0644 climbcontest-deploy.path /etc/systemd/system/`,
+      `systemctl daemon-reload`, `systemctl enable --now climbcontest-deploy.path`.
+      Fait le 2026-09-03 au soir, chaîne vérifiée de bout en bout.
 - [ ] 10. Relecture, PR, merge (portes 5 à 7)
 
 ## Plan de test

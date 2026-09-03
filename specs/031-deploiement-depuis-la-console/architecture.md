@@ -17,10 +17,15 @@ routes/admin.py  ──►  climbcontest/maj.py
                           │  reglage[maj_verification]  ← ce qu'on sait
                           │  reglage[maj_installation]  ← ce qu'on a demandé
                           ▼
-                      sudo systemctl start --no-block climbcontest-deploy.service
+                      écrit shared/deploiement-demande      ← corrigé le 2026-09-03
+                          ▼
+                      climbcontest-deploy.path  (unité de root, PathChanged)
                           ▼
                       /usr/local/bin/climbcontest-deploy   (inchangé)
 ```
+
+> 🔴 **Ce schéma disait `sudo systemctl start …` jusqu'au 2026-09-03.**
+> Ça ne pouvait pas marcher — voir la section 4.
 
 ## 2. L'état, en base
 
@@ -69,18 +74,81 @@ de la dernière version connue.
 
 ## 4. Le droit de démarrer le service
 
+> 🔴 **CADUQUE depuis le 2026-09-03. Ne pas ré-appliquer ce qui suit en gris.**
+> Le raisonnement ci-dessous est complet et il est faux : la solution sudo n'a
+> **jamais** pu fonctionner. Elle est remplacée, plus bas, par
+> `climbcontest-deploy.path`.
+
 L'application tourne sous le compte `climbcontest`, comme le service de
 déploiement. Elle ne l'exécute pas elle-même : elle demande à systemd, ce qui
-conserve le journal, le type `oneshot` et le cloisonnement de l'unité.
+conserve le journal, le type `oneshot` et le cloisonnement de l'unité. **Ça,
+c'est toujours vrai.** Ce qui suivait ne l'est pas :
 
-Une quatrième entrée dans `/etc/sudoers.d/climbcontest` :
+> ~~Une quatrième entrée dans `/etc/sudoers.d/climbcontest` :~~
+>
+> ```
+> climbcontest ALL=(root) NOPASSWD: …, /bin/systemctl start --no-block climbcontest-deploy.service
+> ```
+>
+> ~~⚠️ Les arguments sont listés **en entier**. `sudo` compare la ligne de
+> commande complète : cette autorisation ne permet pas de démarrer un autre
+> service.~~
+
+### Pourquoi c'était mort-né
+
+`climbcontest.service` porte **`NoNewPrivileges=true`**, qui interdit à ses
+processus de gagner des privilèges par un binaire **setuid** — et `sudo` en est
+un. La règle sudoers était juste **mot pour mot**, et sans le moindre effet. Le
+bouton répondait « Le service de déploiement n'a pas pu être démarré » à tous
+les coups, et personne ne l'a su : il n'avait jamais été cliqué pour de vrai
+avant le 03/09.
 
 ```
-climbcontest ALL=(root) NOPASSWD: …, /bin/systemctl start --no-block climbcontest-deploy.service
+$ systemd-run --uid=climbcontest -p NoNewPrivileges=yes /usr/bin/sudo -n -l
+sudo: The "no new privileges" flag is set, which prevents sudo from running as root.
+$ systemd-run --uid=climbcontest -p NoNewPrivileges=no  /usr/bin/sudo -n -l
+User climbcontest may run the following commands …        ← la même commande passe
 ```
 
-⚠️ Les arguments sont listés **en entier**. `sudo` compare la ligne de commande
-complète : cette autorisation ne permet pas de démarrer un autre service.
+⚠️ La vérification d'alors avait « rejoué le chemin exact du bouton ». Elle
+rejouait la même **commande**, depuis un shell de connexion — pas depuis le
+**contexte durci du service**. Tout l'écart est là, et il vaut pour n'importe
+quel chemin privilégié : ce qui se vérifie, c'est
+`systemd-run --uid=<compte> -p NoNewPrivileges=yes <la commande>`.
+
+### Le dessin retenu
+
+Aucune élévation ne traverse l'application. Elle **écrit un fichier** dans le
+seul chemin que `ReadWritePaths=/opt/climbcontest/shared` lui laisse, et une
+unité qui, elle, appartient à root, démarre l'agent :
+
+```ini
+# deployment/climbcontest-deploy.path
+[Path]
+PathChanged=/opt/climbcontest/shared/deploiement-demande
+Unit=climbcontest-deploy.service
+```
+
+**`PathChanged` et non `PathExists`**, pour deux raisons distinctes :
+
+1. un second clic réécrit le **même** fichier ; `PathExists` ne se déclenche
+   qu'à l'apparition, et le bouton n'aurait marché qu'une fois ;
+2. une demande qui traîne relancerait l'agent **au démarrage de la machine** —
+   une installation automatique le matin d'une compétition, exactement ce que
+   cette spec supprime. Vérifié sur la VM : redémarrer le guetteur avec le
+   fichier présent ne déclenche rien.
+
+La quatrième règle sudoers est **retirée** — d'`install.sh` et de la VM 110
+(sauvegarde `/root/climbcontest.sudoers.bak-avant-retrait-nnp-20260903`). La
+laisser ferait croire que ce chemin existe.
+
+⚠️ **Les unités systemd ne voyagent pas dans une release.** Le guetteur se pose
+à la main, en root, sinon le clic dépose sa demande et rien ne l'écoute :
+
+```bash
+install -m 0644 climbcontest-deploy.path /etc/systemd/system/
+systemctl daemon-reload && systemctl enable --now climbcontest-deploy.path
+```
 
 ## 5. La console
 
@@ -109,7 +177,7 @@ Même règle que le voyant de connexion de l'app juge.
 | `climbcontest/routes/admin.py` | trois routes, deux imports |
 | `climbcontest/templates/admin.html` | pastille, carte, fenêtre, styles, JS |
 | `deployment/climbcontest-deploy.timer` | **supprimé** |
-| `deployment/install.sh` | plus d'installation du minuteur, sudoers élargi |
+| `deployment/install.sh` | plus d'installation du minuteur ; ~~sudoers élargi~~ **sudoers réduit**, et pose du guetteur (2026-09-03) |
 | `deployment/climbcontest-deploy` | un commentaire qui parlait du minuteur |
 | `tests/test_maj_serveur.py` | **nouveau** — 21 tests |
 
