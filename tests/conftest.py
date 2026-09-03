@@ -172,3 +172,23 @@ def pytest_terminal_summary(terminalreporter):
 def pytest_sessionfinish(session, exitstatus):
     if _hors_budget() and session.exitstatus == 0:
         session.exitstatus = 1
+
+
+def pytest_collection_modifyitems(session, config, items):
+    """Chauffe le navigateur en fond si la selection en contient.
+
+    La collecte importe les modules de test : si `tests.navigateur` est dans
+    `sys.modules`, c'est qu'au moins un test navigateur a ete collecte. On ne
+    lance donc pas un chromium pour un `pytest tests/test_modele.py`.
+
+    En fond, et sans jamais attendre le resultat : la chauffe tourne pendant
+    les quinze cents tests qui n'ont pas besoin de navigateur. Voir
+    `tests.navigateur.chauffer`.
+    """
+    import sys
+    import threading
+
+    navigateur = sys.modules.get("tests.navigateur")
+    if navigateur is None or navigateur.CHROME is None:
+        return
+    threading.Thread(target=navigateur.chauffer, daemon=True).start()

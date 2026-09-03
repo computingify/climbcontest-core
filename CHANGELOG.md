@@ -42,7 +42,7 @@ qu'on ne met pas à jour le matin d'une compétition :
 
   | test | avant | après |
   | --- | --- | --- |
-  | `TestUneZoneQueLePlanNeConnaitPlus` | 29,3 s\* | 0,9 s |
+  | `TestUneZoneQueLePlanNeConnaitPlus` | 29,3 s\* | 1,0 s |
   | `TestLeMurSeMetAJouerToutSeul` | 16,5 s | 2,5 s |
   | `test_reprend_un_autre_port_si_le_sien_est_pris` | 15,9 s | 7,5 s |
   | `test_le_parcours_complet` (fiche) | 15,3 s | 0,9 s |
@@ -68,12 +68,30 @@ qu'on ne met pas à jour le matin d'une compétition :
     Un port squatté par une socket qui écoute sans jamais répondre laisse la
     connexion s'établir, puis se tait : la sonde attendait ses 15 s pleines.
 
-  Et le harnais navigateur n'attend plus « que le document contienne plus de
-  vingt éléments » — un pari sur la vitesse de l'analyseur. `admin.html` fait
-  1600 lignes, `#connexion` est à la 850ᵉ et `#console` à la 889ᵉ : dès que le
-  runner ralentissait, la sonde qui attendait le premier lisait `null` sur le
-  second et rendait un échec qui n'accusait personne. Il attend maintenant un
-  document **fini**, sur une adresse qui n'est plus `about:blank`.
+  Et trois défauts du harnais navigateur lui-même, tous invisibles sur le Mac
+  et tous payés sur le runner :
+
+  - il attendait « que le document contienne **plus de vingt éléments** », un
+    pari sur la vitesse de l'analyseur. `admin.html` fait 1600 lignes,
+    `#connexion` est à la 850ᵉ et `#console` à la 889ᵉ : dès que le runner
+    ralentissait, la sonde qui attendait le premier lisait `null` sur le second
+    et rendait un échec qui n'accusait personne. Il attend désormais un document
+    **fini**, sur une adresse qui n'est plus `about:blank`.
+  - son serveur servait **une requête à la fois** (`wsgiref`). Un navigateur en
+    ouvre six en parallèle, et une page qui relit ses données pendant ce
+    temps-là passe devant les fichiers qu'elle attend encore. Il est fileté.
+  - le **premier** lancement de chromium coûte **7,2 s** sur un runner, les
+    suivants 0,33 s (mesuré le 03/09 ; Google Chrome fait 5,3 puis 0,25). Ce
+    n'est pas un défaut, c'est un disque froid — mais la facture allait au
+    premier test navigateur venu, celui de la couture des zones par ordre
+    alphabétique, qui affichait 15 s en CI contre 0,7 s ici et passait pour un
+    test qui attend. Le navigateur se **chauffe** maintenant en fond dès la fin
+    de la collecte, pendant les quinze cents tests qui n'en ont pas besoin.
+
+  Enfin, un test navigateur qui met plus de 5 s à rendre son verdict lève un
+  **avertissement** qui nomme ses attentes de plus de 500 ms — ou dit qu'il n'y
+  en a aucune, et que le temps est passé avant le pilote. C'est ce qui manquait
+  pour diagnostiquer : un test qui passe ne montre rien de ce qu'il a fait.
 
 ### Corrigé
 
