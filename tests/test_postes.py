@@ -633,6 +633,25 @@ class TestLaCoutureAvecLApplicationJuge:
         assert source.count('$("poste").hidden') == 1
         assert source.count("proposerDeNommerLePoste()") >= 4  # 1 def + 3 appels
 
+    def test_le_scan_rafraichit_le_nom_affiche_dans_l_en_tete(self):
+        """⚠️ La couture entre DEUX branches ecrites en parallele.
+
+        `#nomPoste` dans l'en-tete vient de `fix/revue-du-03-09` ; le scan du
+        QR de poste vient de la spec 034. Elles ne se touchent pas -- elles ont
+        donc fusionne SANS conflit, et sans que rien rappelle que le scan est
+        le seul chemin qui renomme le telephone hors du champ de saisie.
+
+        Sans cet appel, un juge qui scanne son carton verrait le bloc de
+        l'accueil disparaitre et l'en-tete rester vide jusqu'au prochain
+        demarrage : un poste nomme qui ne le dit pas.
+        """
+        source = (Path(__file__).resolve().parents[1] / "climbcontest" /
+                  "static" / "juge" / "juge.js").read_text(encoding="utf-8")
+        corps = source.split("async function scannerMonPoste", 1)[1] \
+                      .split("\nfunction proposerDeNommerLePoste", 1)[0]
+        assert "afficherLeNomDuPoste()" in corps
+        assert "proposerDeNommerLePoste()" in corps
+
     def test_le_geste_n_est_pas_dans_l_en_tete(self):
         """⚠️ L'en-tete est refondu en parallele (fix/revue-du-03-09).
 
@@ -733,6 +752,13 @@ class TestDeuxTelephonesSurLaMemeZone:
                   "templates" / "admin.html").read_text(encoding="utf-8")
         assert "a.libelle" in source            # « Qui envoie quoi »
         assert "r.appareil_libelle" in source   # la colonne « Téléphone »
+        # ⚠️ Trois vues, pas deux : « Les dernières réussites » (spec 033) et
+        # son menu de filtrage sont arrivés en parallèle et nomment le même
+        # poste. Deux entrées « Zone A » dans un menu déroulant ne se
+        # choisissent pas.
+        assert source.count("r.appareil_libelle") == 2
+        assert source.count("a.libelle") == 2
         # Et plus jamais le nom brut, qui ne distingue pas deux « Zone A ».
-        assert "r.appareil_nom ||" not in source
+        assert "r.appareil_nom" not in source
+        assert 'o.textContent = a.nom' not in source
 

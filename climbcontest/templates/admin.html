@@ -2352,9 +2352,10 @@
       (d.appareils || []).forEach(function (a) {
         var o = document.createElement("option");
         o.value = a.id;
-        // Un poste sans nom reste identifiable : c'est ce que la colonne
-        // « Identifiant » de la vue Telephones affiche.
-        o.textContent = a.nom || ("Sans nom · " + (a.id || "").slice(0, 8));
+        // ⚠️ Le LIBELLE : il porte deja le code court, et sans lui deux juges
+        // d'une meme zone donneraient DEUX entrees « Zone A » dans ce menu --
+        // impossible de savoir laquelle on filtre. Compose cote serveur.
+        o.textContent = a.libelle || "Sans nom";
         menu.appendChild(o);
       });
       // Le telephone choisi a pu disparaitre (base effacee) : on ne laisse pas
@@ -2399,7 +2400,10 @@
      heure(r.horodatage),
      // Une saisie a la main n'a pas de telephone, et le dire vaut mieux qu'un
      // tiret : c'est la reponse a « pourquoi ce scan n'est sur aucun poste ? »
-     r.appareil_nom || (r.saisie_par ? "saisie de " + r.saisie_par : "—")
+     // ⚠️ Le LIBELLE, pas le nom brut (spec 034) : deux juges d'une meme zone
+     // scannent le meme carton et leurs telephones portent le meme nom. Compose
+     // cote serveur par `contest.libelle_poste`, seul endroit qui en decide.
+     r.appareil_libelle || (r.saisie_par ? "saisie de " + r.saisie_par : "—")
     ].forEach(function (texte) {
       var td = document.createElement("td");
       td.textContent = texte;             // textContent : ces noms sont saisis
