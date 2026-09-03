@@ -314,9 +314,11 @@ grimpeur s'y signale, comme dans la recherche par référence.
       par autre chose qu'un point pâle : pastille pleine à l'accent de la
       console, et fond de carte teinté.
 - [ ] R3 — un classement rallumé dans la console apparaît sur la page de
-      résultats **sans rechargement** et en moins de cinq secondes ; un
-      classement éteint disparaît, et s'il était affiché la page bascule sur un
-      autre.
+      résultats **sans rechargement** ; un classement éteint disparaît, et s'il
+      était affiché la page bascule sur un autre. Le délai est de **3 s** en
+      local, et jusqu'à **8 s** derrière le proxy, qui garde les réponses de
+      `/api/public/*` cinq secondes — contre quinze auparavant, et un
+      rechargement à la main.
 - [ ] R4 — page mise en lecture, rechargement : elle repart **en lecture**.
       Mise en pause, rechargement : elle repart en pause. Rien de mémorisé :
       lecture sur `?mur`, pause ailleurs.

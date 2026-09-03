@@ -898,8 +898,12 @@
     </div>
     <div id="suivant"></div>
   </div>
+  <!-- ⚠️ `aria-pressed="true"` DES LE GABARIT : le champ part masque depuis la
+       spec 033 (R6), et l'attribut doit dire l'etat avant que le script ne
+       tourne. Il valait « false » sous une etiquette qui annonce « Afficher » :
+       les deux se contredisaient le temps du chargement. -->
   <button id="masquerRecherche" class="commande hors-mur" type="button"
-          aria-pressed="false" aria-label="Afficher la recherche">
+          aria-pressed="true" aria-label="Afficher la recherche">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1"
          stroke-linecap="round" aria-hidden="true">
       <circle cx="10.5" cy="10.5" r="6.2" /><path d="M15.2 15.2 L20 20" />

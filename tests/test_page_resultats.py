@@ -1277,6 +1277,8 @@ class TestLaRechercheEstMasqueeParDefaut:
         que pas d'étiquette."""
         balise = re.search(r'<button[^>]*id="masquerRecherche"[^>]*>', page, re.S).group(0)
         assert 'aria-label="Afficher la recherche"' in balise, balise
+        # Et l'attribut dit le meme etat que l'etiquette, des le gabarit.
+        assert 'aria-pressed="true"' in balise, balise
 
 
 class TestLesDeuxGlyphesSontDuMemeDessin:

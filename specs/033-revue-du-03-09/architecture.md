@@ -45,6 +45,16 @@ deux cents octets. Elle est donc relisible souvent.
 | Coût serveur | classement (en cache 5 s) | une ligne de base |
 | Rythme de la page | 15 s | **3 s** |
 
+⚠️ **Le proxy ajoute son propre délai.** Caddy garde les réponses de
+`/api/public/*` cinq secondes ; le réglage arrive donc en 3 à 8 secondes selon
+l'instant du clic, pas en 3 exactement. C'est le prix du cache qui protège le
+serveur des soixante téléphones, et il est payé volontiers : la mesure à battre
+est quinze secondes plus un rechargement à la main.
+
+Aucune règle de proxy à ajouter : la route vit sous `/api/public/`, donc elle
+hérite de l'exemption CrowdSec et de la mise en cache, toutes deux posées sur le
+préfixe.
+
 ⚠️ **Elle ne remplace rien.** `groupes_masques` reste dans la charge de
 `/classement` : c'est cette charge que `cycle.archiver` fige, et une archive
 amputée serait irréparable. La page prend le réglage des deux endroits, le plus
