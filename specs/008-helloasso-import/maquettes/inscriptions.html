@@ -1,0 +1,1267 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Spec 008 — Inscriptions HelloAsso</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='7' fill='%23B5761C'/><path d='M8 20h16M16 8v12' stroke='%23FFF' stroke-width='3' stroke-linecap='round'/></svg>">
+<style>
+/* Aucune dépendance extérieure : polices système, un seul fichier.
+   Les couleurs sont celles de la console (spec 021) — ocre du logo, clair par
+   défaut, sombre sous `prefers-color-scheme`. Le sélecteur `[data-theme]`
+   permet de comparer les deux à l'œil sans changer le réglage du Mac. */
+:root {
+  --fond: #FBFAF8; --surface: #FFFFFF; --surface2: #F4F1EB; --surface3: #E9E4DA;
+  --trait: #DDD7CB; --encre: #1B1A17; --encre2: #5C574C; --encre3: #8A8375;
+  --accent: #B5761C; --accent-texte: #8A5A0F; --sur-accent: #FFFFFF;
+  --ok: #2E7D4F; --alerte: #B3392A; --attention: #9A6B0B;
+  --titre: system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+  --chiffre: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  --ombre: 0 10px 30px rgba(27,26,23,.10);
+  --rayon: 14px;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --fond: #14130F; --surface: #1D1B16; --surface2: #26241D; --surface3: #322F26;
+    --trait: #3A3628; --encre: #F2EFE8; --encre2: #B0AA9B; --encre3: #7C766A;
+    --accent: #E0A94A; --accent-texte: #E8BC70; --sur-accent: #1B1A17;
+    --ok: #6FC08A; --alerte: #F08A78; --attention: #E5B44A;
+    --ombre: 0 18px 48px rgba(0,0,0,.5);
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --fond: #14130F; --surface: #1D1B16; --surface2: #26241D; --surface3: #322F26;
+  --trait: #3A3628; --encre: #F2EFE8; --encre2: #B0AA9B; --encre3: #7C766A;
+  --accent: #E0A94A; --accent-texte: #E8BC70; --sur-accent: #1B1A17;
+  --ok: #6FC08A; --alerte: #F08A78; --attention: #E5B44A;
+  --ombre: 0 18px 48px rgba(0,0,0,.5);
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+body {
+  margin: 0; background: var(--fond); color: var(--encre);
+  font-family: var(--titre); font-size: 15px; line-height: 1.55;
+  -webkit-font-smoothing: antialiased;
+}
+a { color: var(--accent-texte); }
+.page { max-width: 1080px; margin: 0 auto; padding: 30px 22px 90px; }
+
+/* --- chapeau ------------------------------------------------------------- */
+.chapeau { margin-bottom: 22px; }
+.eyebrow {
+  display: inline-block; font-size: .74rem; font-weight: 700; letter-spacing: .09em;
+  text-transform: uppercase; color: var(--accent-texte);
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+  border-radius: 999px; padding: 4px 11px;
+}
+.chapeau h1 { margin: 12px 0 6px; font-size: 1.85rem; letter-spacing: -.025em; line-height: 1.15; }
+.chapeau p { margin: 0; color: var(--encre2); max-width: 62ch; }
+.meta { margin-top: 14px; display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+.tag {
+  font-size: .78rem; border: 1px solid var(--trait); border-radius: 999px;
+  padding: 3px 10px; color: var(--encre2); background: var(--surface);
+}
+
+/* --- onglets ------------------------------------------------------------- */
+.onglets {
+  position: sticky; top: 0; z-index: 20; margin: 22px -22px 26px; padding: 10px 22px;
+  background: color-mix(in srgb, var(--fond) 88%, transparent);
+  backdrop-filter: blur(9px); border-bottom: 1px solid var(--trait);
+  display: flex; gap: 6px; flex-wrap: wrap; align-items: center;
+}
+.onglets button {
+  font: inherit; font-size: .88rem; font-weight: 600; cursor: pointer;
+  border: 1px solid transparent; background: none; color: var(--encre2);
+  padding: 7px 13px; border-radius: 999px;
+}
+.onglets button:hover { color: var(--encre); background: var(--surface2); }
+.onglets button[aria-current="true"] {
+  background: var(--accent); color: var(--sur-accent); border-color: var(--accent);
+}
+.onglets .espace { flex: 1 1 auto; }
+.bascule { display: inline-flex; border: 1px solid var(--trait); border-radius: 999px; overflow: hidden; }
+.bascule button { border-radius: 0; padding: 6px 11px; font-size: .8rem; }
+.bascule button[aria-pressed="true"] { background: var(--surface3); color: var(--encre); }
+
+/* --- plaques ------------------------------------------------------------- */
+.plaque { margin: 0 0 34px; }
+.puce {
+  display: inline-block; font-size: .8rem; color: var(--encre2);
+  background: var(--surface2); border: 1px solid var(--trait);
+  border-radius: 999px; padding: 3px 11px; margin-bottom: 9px;
+}
+.puce b { color: var(--encre); }
+.plaque > p { margin: 0 0 12px; color: var(--encre2); max-width: 68ch; }
+.note {
+  margin: 12px 0 0; padding: 10px 14px; font-size: .87rem; color: var(--encre2);
+  border-left: 3px solid var(--accent); background: var(--surface2); border-radius: 0 8px 8px 0;
+}
+.note b { color: var(--encre); }
+
+/* --- l'écran de console -------------------------------------------------- */
+.ecran {
+  border: 1px solid var(--trait); border-radius: var(--rayon); overflow: hidden;
+  background: var(--fond); box-shadow: var(--ombre);
+}
+.barre {
+  display: flex; align-items: center; gap: 12px; padding: 12px 16px;
+  background: var(--surface); border-bottom: 1px solid var(--trait);
+}
+.burger { display: inline-flex; flex-direction: column; gap: 4px; }
+.burger i { display: block; width: 18px; height: 2px; background: var(--encre2); border-radius: 2px; }
+.ou { display: flex; flex-direction: column; line-height: 1.2; }
+.ou b { font-size: .96rem; }
+.ou span { font-size: .78rem; color: var(--encre3); }
+.droite { margin-left: auto; display: flex; align-items: center; gap: 10px; }
+.pastille {
+  display: inline-flex; align-items: center; gap: 6px; font: inherit; cursor: pointer;
+  font-size: .75rem; font-weight: 600; border-radius: 999px; padding: 4px 11px;
+  border: 1px solid color-mix(in srgb, var(--accent) 45%, transparent);
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+  color: var(--accent-texte);
+}
+.pastille svg { width: 14px; height: 14px; }
+.jeton {
+  font-size: .78rem; color: var(--encre2); background: var(--surface2);
+  border: 1px solid var(--trait); border-radius: 999px; padding: 3px 10px;
+}
+.dedans { padding: 20px; }
+.fil { margin: 0 0 4px; font-size: .78rem; color: var(--encre3); }
+.titre-vue h1 { margin: 0 0 4px; font-size: 1.35rem; letter-spacing: -.02em; }
+.titre-vue p { margin: 0 0 18px; color: var(--encre2); font-size: .9rem; }
+
+.carte {
+  background: var(--surface); border: 1px solid var(--trait);
+  border-radius: var(--rayon); padding: 18px; margin-bottom: 16px;
+}
+.carte:last-child { margin-bottom: 0; }
+.carte h2 {
+  margin: 0 0 12px; font-size: 1.02rem; letter-spacing: -.01em;
+  display: flex; align-items: center; gap: 9px;
+}
+.compte {
+  font-family: var(--chiffre); font-size: .78rem; font-weight: 700;
+  background: var(--accent); color: var(--sur-accent);
+  border-radius: 999px; padding: 1px 8px; min-width: 22px; text-align: center;
+}
+.compte.calme { background: var(--surface3); color: var(--encre2); }
+.aide { margin: -6px 0 12px; font-size: .85rem; color: var(--encre2); }
+
+/* boutons */
+.action, .secondaire, .mini {
+  font: inherit; cursor: pointer; border-radius: 9px; font-weight: 600;
+}
+.action {
+  background: var(--accent); color: var(--sur-accent); border: 1px solid var(--accent);
+  padding: 9px 16px; font-size: .9rem;
+}
+.secondaire {
+  background: var(--surface); color: var(--encre); border: 1px solid var(--trait);
+  padding: 9px 16px; font-size: .9rem;
+}
+.mini {
+  background: var(--surface); color: var(--encre); border: 1px solid var(--trait);
+  padding: 5px 11px; font-size: .81rem;
+}
+.mini.fort { background: var(--accent); color: var(--sur-accent); border-color: var(--accent); }
+.mini.risque { color: var(--alerte); border-color: color-mix(in srgb, var(--alerte) 45%, transparent); }
+.boutons { display: flex; gap: 9px; flex-wrap: wrap; margin-top: 14px; }
+
+/* champs */
+label { display: block; font-size: .82rem; font-weight: 600; color: var(--encre2); margin-bottom: 5px; }
+input, select {
+  font: inherit; width: 100%; padding: 9px 11px; border-radius: 9px;
+  border: 1px solid var(--trait); background: var(--surface2); color: var(--encre);
+}
+.grille { display: grid; gap: 14px; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); }
+
+/* état clé/valeur */
+dl.etat { margin: 0; display: grid; grid-template-columns: max-content 1fr; gap: 6px 18px; font-size: .88rem; }
+dl.etat dt { color: var(--encre3); }
+dl.etat dd { margin: 0; }
+dl.etat dd b { font-family: var(--chiffre); font-size: .86rem; }
+
+/* verdicts */
+.verdict { display: flex; align-items: center; gap: 8px; margin: 12px 0 0; font-size: .9rem; font-weight: 600; }
+.rond { width: 9px; height: 9px; border-radius: 50%; flex: none; background: var(--encre3); }
+.est-ok { color: var(--ok); } .est-ok .rond { background: var(--ok); }
+.est-attention { color: var(--attention); } .est-attention .rond { background: var(--attention); }
+.est-alerte { color: var(--alerte); } .est-alerte .rond { background: var(--alerte); }
+
+/* tableaux */
+table { width: 100%; border-collapse: collapse; font-size: .88rem; }
+th {
+  text-align: left; font-size: .75rem; text-transform: uppercase; letter-spacing: .05em;
+  color: var(--encre3); font-weight: 700; padding: 0 10px 8px; border-bottom: 1px solid var(--trait);
+}
+td { padding: 9px 10px; border-bottom: 1px solid var(--trait); vertical-align: middle; }
+tr:last-child td { border-bottom: 0; }
+td.num { font-family: var(--chiffre); }
+.scroll { overflow-x: auto; }
+.discret { color: var(--encre3); font-size: .82rem; }
+
+/* la carte « à trancher » */
+.cas {
+  border: 1px solid color-mix(in srgb, var(--attention) 40%, var(--trait));
+  border-radius: 11px; padding: 14px; margin-bottom: 12px; background: var(--surface2);
+}
+.cas:last-of-type { margin-bottom: 0; }
+.cas .quoi { display: flex; align-items: baseline; gap: 9px; flex-wrap: wrap; margin-bottom: 10px; }
+.cas .quoi b { font-size: .98rem; }
+.motif {
+  font-size: .74rem; font-weight: 700; letter-spacing: .04em; text-transform: uppercase;
+  border-radius: 999px; padding: 2px 9px;
+  color: var(--attention); background: color-mix(in srgb, var(--attention) 14%, transparent);
+}
+.motif.rouge { color: var(--alerte); background: color-mix(in srgb, var(--alerte) 14%, transparent); }
+.face-a-face { display: grid; gap: 10px; grid-template-columns: 1fr 1fr; }
+@media (max-width: 620px) { .face-a-face { grid-template-columns: 1fr; } }
+.colonne {
+  background: var(--surface); border: 1px solid var(--trait); border-radius: 9px; padding: 11px 13px;
+}
+.colonne h3 {
+  margin: 0 0 8px; font-size: .74rem; text-transform: uppercase; letter-spacing: .06em;
+  color: var(--encre3); font-weight: 700;
+}
+.colonne dl { margin: 0; display: grid; grid-template-columns: max-content 1fr; gap: 3px 12px; font-size: .85rem; }
+.colonne dt { color: var(--encre3); }
+.colonne dd { margin: 0; }
+.diff { color: var(--alerte); font-weight: 600; }
+.pareil { color: var(--ok); font-weight: 600; }
+
+/* --- décisions ----------------------------------------------------------- */
+.decision {
+  background: var(--surface); border: 1px solid var(--trait);
+  border-radius: var(--rayon); padding: 18px; margin-bottom: 16px;
+}
+.decision > h3 { margin: 0 0 4px; font-size: 1.02rem; display: flex; gap: 9px; align-items: baseline; }
+.decision > h3 .code {
+  font-family: var(--chiffre); font-size: .78rem; color: var(--sur-accent);
+  background: var(--accent); border-radius: 6px; padding: 1px 7px;
+}
+.decision > p { margin: 0 0 13px; color: var(--encre2); font-size: .9rem; }
+.choix { display: grid; gap: 9px; }
+.choix label {
+  display: flex; gap: 11px; align-items: flex-start; font-weight: 400; margin: 0;
+  border: 1px solid var(--trait); border-radius: 11px; padding: 12px 14px;
+  background: var(--surface2); cursor: pointer; color: var(--encre);
+}
+.choix label:has(input:checked) {
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 9%, var(--surface));
+}
+.choix input { width: auto; margin: 3px 0 0; accent-color: var(--accent); flex: none; }
+.choix .quoi { display: block; }
+.choix .quoi b { display: block; font-size: .93rem; font-weight: 700; }
+.choix .quoi i { display: block; font-style: normal; font-size: .85rem; color: var(--encre2); margin-top: 2px; }
+.propose {
+  font-size: .68rem; font-weight: 700; letter-spacing: .05em; text-transform: uppercase;
+  color: var(--ok); background: color-mix(in srgb, var(--ok) 14%, transparent);
+  border-radius: 999px; padding: 1px 8px; margin-left: 7px; vertical-align: 2px;
+}
+#recap { border-color: var(--accent); }
+#recapTexte {
+  width: 100%; min-height: 250px; font-family: var(--chiffre); font-size: .8rem;
+  padding: 12px; border-radius: 11px; border: 1px solid var(--trait);
+  background: var(--surface2); color: var(--encre); resize: vertical; line-height: 1.5;
+}
+
+/* --- texte long (spec / archi / plan) ------------------------------------ */
+.doc { background: var(--surface); border: 1px solid var(--trait); border-radius: var(--rayon); padding: 22px 24px; }
+.doc h2 { margin: 26px 0 10px; font-size: 1.15rem; letter-spacing: -.015em; }
+.doc h2:first-child { margin-top: 0; }
+.doc h3 { margin: 20px 0 8px; font-size: .98rem; }
+.doc p, .doc li { color: var(--encre2); }
+.doc p { margin: 0 0 11px; }
+.doc b, .doc strong { color: var(--encre); }
+.doc table { margin: 12px 0 18px; }
+.doc code {
+  font-family: var(--chiffre); font-size: .84em; background: var(--surface2);
+  border: 1px solid var(--trait); border-radius: 5px; padding: 1px 5px;
+}
+.doc pre {
+  background: var(--surface2); border: 1px solid var(--trait); border-radius: 11px;
+  padding: 14px 16px; overflow-x: auto; font-family: var(--chiffre);
+  font-size: .8rem; line-height: 1.5; color: var(--encre);
+}
+.doc ul { margin: 0 0 14px; padding-left: 20px; }
+.doc li { margin-bottom: 5px; }
+.etapes { list-style: none; padding: 0; margin: 0; }
+.etapes li {
+  display: flex; gap: 11px; align-items: flex-start; padding: 9px 0;
+  border-bottom: 1px solid var(--trait);
+}
+.etapes li:last-child { border-bottom: 0; }
+.etapes .lot {
+  font-family: var(--chiffre); font-size: .74rem; font-weight: 700; flex: none;
+  border-radius: 6px; padding: 2px 8px; margin-top: 2px;
+  background: var(--surface3); color: var(--encre2);
+}
+.etapes .lot.zero { background: color-mix(in srgb, var(--alerte) 16%, transparent); color: var(--alerte); }
+
+@media (max-width: 560px) {
+  .page { padding: 22px 14px 70px; }
+  .dedans, .carte, .doc { padding: 14px; }
+  .chapeau h1 { font-size: 1.45rem; }
+}
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
+</style>
+</head>
+<body>
+<div class="page">
+
+<header class="chapeau">
+  <span class="eyebrow">Spec 008 — maquette</span>
+  <h1>Les inscriptions en ligne arrivent toutes seules</h1>
+  <p>HelloAsso alimente une salle d'attente ; c'est la salle d'attente qui décide
+     si un participant est créé. Derrière chaque ligne, un geste physique :
+     imprimer un dossard et l'apporter.</p>
+  <div class="meta">
+    <span class="tag">Porte 2 — rien n'est codé</span>
+    <span class="tag">Branche <code>feat/008-helloasso-import</code></span>
+    <span class="tag">API v5 relevée le 03/09/2026</span>
+  </div>
+</header>
+
+<nav class="onglets" aria-label="Sections">
+  <button type="button" data-vue="ecrans" aria-current="true">Écrans</button>
+  <button type="button" data-vue="decisions">Décisions <span class="compte calme" id="compteD">7</span></button>
+  <button type="button" data-vue="spec">Spec</button>
+  <button type="button" data-vue="archi">Architecture</button>
+  <button type="button" data-vue="plan">Plan</button>
+  <span class="espace"></span>
+  <span class="bascule" role="group" aria-label="Thème">
+    <button type="button" data-theme="auto" aria-pressed="true">Auto</button>
+    <button type="button" data-theme="light" aria-pressed="false">Clair</button>
+    <button type="button" data-theme="dark" aria-pressed="false">Sombre</button>
+  </span>
+</nav>
+
+<!-- ═══════════════════════════ ÉCRANS ═══════════════════════════ -->
+<main id="vue-ecrans">
+
+  <section class="plaque">
+    <span class="puce"><b>1</b> · Le bandeau, depuis n'importe quel écran</span>
+    <p>La pastille de la spec 031, même forme, même ocre. Elle compte
+       <b>à trancher + à imprimer</b>, mène à la vue Inscriptions, et disparaît
+       quand la pile est vide.</p>
+    <div class="ecran">
+      <div class="barre">
+        <span class="burger"><i></i><i></i><i></i></span>
+        <span class="ou"><b>Réussites</b><span>Bloc Party 2026</span></span>
+        <span class="droite">
+          <button type="button" class="pastille">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"
+                 stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/>
+              <path d="M19 8v6"/><path d="M22 11h-6"/>
+            </svg>
+            5 inscriptions
+          </button>
+          <span class="jeton">adrien</span>
+        </span>
+      </div>
+    </div>
+  </section>
+
+  <section class="plaque">
+    <span class="puce"><b>2</b> · La vue Inscriptions — l'écran qu'on laisse ouvert</span>
+    <p>Trois piles, dans l'ordre où on les traite. Elle se rafraîchit toute seule
+       toutes les 30 s. C'est le « dashboard » demandé le 28/08.</p>
+    <div class="ecran">
+      <div class="barre">
+        <span class="burger"><i></i><i></i><i></i></span>
+        <span class="ou"><b>Inscriptions</b><span>Bloc Party 2026</span></span>
+        <span class="droite"><span class="jeton">adrien</span></span>
+      </div>
+      <div class="dedans">
+        <div class="titre-vue">
+          <h1>Inscriptions</h1>
+          <p>Relevé il y a 40 s · 5 en attente</p>
+        </div>
+
+        <div class="carte">
+          <h2>À trancher <span class="compte">2</span></h2>
+
+          <div class="cas">
+            <div class="quoi">
+              <b>Léa Brunel</b>
+              <span class="motif">Doublon possible</span>
+              <span class="discret">reçue à 09:12</span>
+            </div>
+            <div class="face-a-face">
+              <div class="colonne">
+                <h3>HelloAsso</h3>
+                <dl>
+                  <dt>Nom</dt><dd class="pareil">Brunel Léa</dd>
+                  <dt>Naissance</dt><dd class="diff">non renseignée</dd>
+                  <dt>Club</dt><dd>Annonay Escalade</dd>
+                  <dt>Catégorie</dt><dd>U13 F</dd>
+                </dl>
+              </div>
+              <div class="colonne">
+                <h3>Déjà dans la liste — dossard 47</h3>
+                <dl>
+                  <dt>Nom</dt><dd class="pareil">Brunel Léa</dd>
+                  <dt>Naissance</dt><dd class="diff">12/04/2014</dd>
+                  <dt>Club</dt><dd>Annonay Escalade</dd>
+                  <dt>Catégorie</dt><dd>U13 F</dd>
+                </dl>
+              </div>
+            </div>
+            <div class="boutons">
+              <button type="button" class="mini fort">La même personne</button>
+              <button type="button" class="mini">Deux personnes</button>
+              <button type="button" class="mini risque">Ignorer</button>
+            </div>
+          </div>
+
+          <div class="cas">
+            <div class="quoi">
+              <b>Tom Vidal</b>
+              <span class="motif">Catégorie inconnue</span>
+              <span class="discret">tarif « Découverte »</span>
+            </div>
+            <div class="grille" style="max-width:420px">
+              <div>
+                <label for="catTom">Catégorie</label>
+                <select id="catTom">
+                  <option>— choisir —</option>
+                  <option>U11 H</option><option>U13 H</option><option>U15 H</option>
+                </select>
+              </div>
+            </div>
+            <div class="boutons">
+              <button type="button" class="mini fort">Ranger</button>
+              <button type="button" class="mini">Régler la correspondance…</button>
+              <button type="button" class="mini risque">Ignorer</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="carte">
+          <h2>À imprimer <span class="compte">3</span></h2>
+          <div class="scroll"><table>
+            <thead><tr><th>Dossard</th><th>Nom</th><th>Catégorie</th><th>Club</th><th>Reçue</th><th></th></tr></thead>
+            <tbody>
+              <tr>
+                <td class="num">128</td><td>Nino Chapuis</td><td>U11 H</td>
+                <td>Annonay Escalade</td><td class="discret">09:31</td>
+                <td style="text-align:right;white-space:nowrap">
+                  <button type="button" class="mini fort">Imprimer</button>
+                  <button type="button" class="mini">Déjà remis</button>
+                </td>
+              </tr>
+              <tr>
+                <td class="num">129</td><td>Jade Peyron</td><td>U13 F</td>
+                <td>CAF Vivarais</td><td class="discret">09:28</td>
+                <td style="text-align:right;white-space:nowrap">
+                  <button type="button" class="mini fort">Imprimer</button>
+                  <button type="button" class="mini">Déjà remis</button>
+                </td>
+              </tr>
+              <tr>
+                <td class="num">130</td><td>Sacha Peyron</td><td>U15 H</td>
+                <td>CAF Vivarais</td><td class="discret">09:28</td>
+                <td style="text-align:right;white-space:nowrap">
+                  <button type="button" class="mini fort">Imprimer</button>
+                  <button type="button" class="mini">Déjà remis</button>
+                </td>
+              </tr>
+            </tbody>
+          </table></div>
+          <p class="note" style="margin-top:14px">Jade et Sacha Peyron sont
+             <b>une seule commande, deux articles</b>. C'est le cas nominal d'une
+             fratrie — et celui qu'un import « par commande » raterait.</p>
+        </div>
+
+        <div class="carte">
+          <h2>Faites <span class="compte calme">14</span></h2>
+          <p class="aide">Repliée. On l'ouvre pour retrouver quelqu'un.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="plaque">
+    <span class="puce"><b>3</b> · Deux états qu'on voit plus souvent qu'on ne croit</span>
+    <p>À gauche, la pile vide — l'état nominal pendant les trois quarts de la
+       journée. À droite, une annulation arrivée après coup : on remonte la
+       ligne, on ne supprime rien.</p>
+    <div class="face-a-face">
+      <div class="ecran"><div class="dedans">
+        <p class="fil">Inscriptions</p>
+        <div class="carte">
+          <h2>Rien en attente</h2>
+          <dl class="etat">
+            <dt>Dernier relevé</dt><dd>il y a 25 s</dd>
+            <dt>Aujourd'hui</dt><dd><b>19</b> inscriptions</dd>
+          </dl>
+          <div class="boutons"><button type="button" class="secondaire">Relever maintenant</button></div>
+        </div>
+      </div></div>
+      <div class="ecran"><div class="dedans">
+        <p class="fil">Inscriptions</p>
+        <div class="carte">
+          <h2>À trancher <span class="compte">1</span></h2>
+          <div class="cas">
+            <div class="quoi">
+              <b>Hugo Marret</b>
+              <span class="motif rouge">Annulée chez HelloAsso</span>
+              <span class="discret">dossard 96</span>
+            </div>
+            <p class="aide" style="margin:0 0 10px">Aucune réussite enregistrée.</p>
+            <div class="boutons">
+              <button type="button" class="mini risque">Retirer le participant</button>
+              <button type="button" class="mini">Le garder</button>
+            </div>
+          </div>
+        </div>
+      </div></div>
+    </div>
+  </section>
+
+  <section class="plaque">
+    <span class="puce"><b>4</b> · Administration → HelloAsso, pas encore relié</span>
+    <p>Tant qu'aucune clé n'est posée : pas d'entrée de menu <i>Inscriptions</i>,
+       pas de fil de fond, <b>aucun appel réseau</b>.</p>
+    <div class="ecran">
+      <div class="barre">
+        <span class="burger"><i></i><i></i><i></i></span>
+        <span class="ou"><b>HelloAsso</b><span>Bloc Party 2026</span></span>
+        <span class="droite"><span class="jeton">adrien</span></span>
+      </div>
+      <div class="dedans">
+        <div class="titre-vue">
+          <h1>HelloAsso</h1>
+          <p>Les inscriptions en ligne. Réservé aux administrateurs.</p>
+        </div>
+        <div class="carte">
+          <h2>Relier le compte du club</h2>
+          <p class="aide">La clé se trouve sur le compte HelloAsso du club,
+             <b>Mon Compte → Intégrations et API</b>.</p>
+          <div class="grille">
+            <div><label for="haId">Identifiant client</label><input id="haId" placeholder="9fdc22226bf2…"></div>
+            <div><label for="haSecret">Secret client</label><input id="haSecret" type="password" placeholder="••••••••••••"></div>
+            <div>
+              <label for="haEnv">Environnement</label>
+              <select id="haEnv"><option>Production</option><option>Bac à sable</option></select>
+            </div>
+          </div>
+          <div class="boutons"><button type="button" class="action">Relier</button></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="plaque">
+    <span class="puce"><b>5</b> · HelloAsso, relié</span>
+    <p>Le secret n'est jamais réaffiché. L'état tient en trois lignes ; le reste
+       est un bouton.</p>
+    <div class="ecran"><div class="dedans">
+      <p class="fil">HelloAsso</p>
+
+      <div class="carte">
+        <h2>Compte</h2>
+        <dl class="etat">
+          <dt>Environnement</dt><dd>Production</dd>
+          <dt>Clé</dt><dd><b>9fdc…3715</b></dd>
+          <dt>Association</dt><dd>Annonay Escalade</dd>
+        </dl>
+        <p class="verdict est-ok"><span class="rond" aria-hidden="true"></span>Reliée</p>
+        <div class="boutons">
+          <button type="button" class="secondaire">Tester</button>
+          <button type="button" class="secondaire">Remplacer la clé</button>
+        </div>
+      </div>
+
+      <div class="carte">
+        <h2>Formulaire de cette édition</h2>
+        <div class="grille" style="max-width:520px">
+          <div>
+            <label for="haForm">Formulaire</label>
+            <select id="haForm">
+              <option>Bloc Party 2026 — Événement</option>
+              <option>Adhésions 2026-2027 — Adhésion</option>
+              <option>Sortie falaise — Événement</option>
+            </select>
+          </div>
+        </div>
+        <div class="boutons"><button type="button" class="action">Choisir et découvrir</button></div>
+      </div>
+
+      <div class="carte">
+        <h2>Relevé</h2>
+        <dl class="etat">
+          <dt>Dernier</dt><dd>il y a 40 s</dd>
+          <dt>Cadence</dt><dd>60 s <span class="discret">(compétition en cours)</span></dd>
+          <dt>Aujourd'hui</dt><dd><b>19</b> inscriptions</dd>
+        </dl>
+        <p class="verdict est-ok"><span class="rond" aria-hidden="true"></span>À jour</p>
+        <div class="boutons"><button type="button" class="secondaire">Relever maintenant</button></div>
+      </div>
+    </div></div>
+    <p class="note">Les deux états d'échec, en une ligne chacun :
+       <span class="verdict est-attention" style="display:inline-flex;margin:0 0 0 6px">
+       <span class="rond"></span>HelloAsso injoignable</span> — on retente tout seul ·
+       <span class="verdict est-alerte" style="display:inline-flex;margin:0 0 0 6px">
+       <span class="rond"></span>Clé à reconnecter</span> — et le fil <b>s'arrête</b>,
+       pour ne pas brûler le quota.</p>
+  </section>
+
+  <section class="plaque">
+    <span class="puce"><b>6</b> · La correspondance — la seule chose qu'on ne peut pas deviner</span>
+    <p>La console lit le formulaire et montre ce qu'elle y a trouvé. Les tarifs et
+       les champs changent chaque année ; c'est le seul écran à remplir par édition.</p>
+    <div class="ecran"><div class="dedans">
+      <p class="fil">HelloAsso · Bloc Party 2026</p>
+
+      <div class="carte">
+        <h2>Les tarifs <span class="compte calme">5</span></h2>
+        <p class="aide">1 tarif sans catégorie — ses inscrits attendront.</p>
+        <div class="scroll"><table>
+          <thead><tr><th>Tarif HelloAsso</th><th>Catégorie</th><th></th></tr></thead>
+          <tbody>
+            <tr><td>U11 filles</td>
+                <td><select><option selected>U11 F</option><option>U11 H</option></select></td>
+                <td class="discret">4 inscrits</td></tr>
+            <tr><td>U11 garçons</td>
+                <td><select><option selected>U11 H</option><option>U11 F</option></select></td>
+                <td class="discret">6 inscrits</td></tr>
+            <tr><td>U13 filles</td>
+                <td><select><option selected>U13 F</option></select></td>
+                <td class="discret">5 inscrits</td></tr>
+            <tr><td>U13 garçons</td>
+                <td><select><option selected>U13 H</option></select></td>
+                <td class="discret">3 inscrits</td></tr>
+            <tr><td>Découverte</td>
+                <td><select><option selected>— aucune —</option><option>U11 H</option><option>U13 H</option></select></td>
+                <td class="discret" style="color:var(--attention)">1 en attente</td></tr>
+          </tbody>
+        </table></div>
+      </div>
+
+      <div class="carte">
+        <h2>Les champs du formulaire</h2>
+        <div class="scroll"><table>
+          <thead><tr><th>Champ HelloAsso</th><th>Sert à</th></tr></thead>
+          <tbody>
+            <tr><td>Votre club</td><td><select><option selected>Club</option><option>— ignoré —</option></select></td></tr>
+            <tr><td>Date de naissance</td><td><select><option selected>Date de naissance</option><option>— ignoré —</option></select></td></tr>
+            <tr><td>Numéro de licence</td><td><select><option selected>— ignoré —</option><option>Club</option></select></td></tr>
+            <tr><td>Certificat médical</td><td><select><option selected>— ignoré —</option></select></td></tr>
+          </tbody>
+        </table></div>
+        <div class="boutons">
+          <button type="button" class="action">Enregistrer</button>
+          <button type="button" class="secondaire">Rejouer les inscriptions en attente</button>
+        </div>
+      </div>
+    </div></div>
+    <p class="note"><b>La date de naissance ne sert pas au classement</b> — elle
+       sert à savoir si deux « Léa Brunel » sont la même personne. C'est la seule
+       preuve qui autorise une fusion sans demander. Voir décision <b>D1</b>.</p>
+  </section>
+
+  <section class="plaque">
+    <span class="puce"><b>7</b> · Le guichet, quand quelqu'un s'est déjà inscrit en ligne</span>
+    <p>Le rapprochement marche dans les deux sens : la saisie manuelle prévient
+       avant de créer un doublon.</p>
+    <div class="ecran"><div class="dedans">
+      <p class="fil">Participants</p>
+      <div class="carte">
+        <h2>Ajouter un participant</h2>
+        <div class="grille">
+          <div><label for="pn">Nom *</label><input id="pn" value="Brunel"></div>
+          <div><label for="pp">Prénom</label><input id="pp" value="Léa"></div>
+          <div><label for="pc">Club</label><select id="pc"><option>Annonay Escalade</option></select></div>
+          <div><label for="pk">Catégorie</label><select id="pk"><option>U13 F</option></select></div>
+        </div>
+        <p class="verdict est-attention" style="margin-top:14px">
+          <span class="rond" aria-hidden="true"></span>Léa Brunel s'est inscrite en ligne à 09:12
+        </p>
+        <div class="boutons">
+          <button type="button" class="action">Reprendre son inscription</button>
+          <button type="button" class="secondaire">Ajouter quand même</button>
+        </div>
+      </div>
+    </div></div>
+  </section>
+
+</main>
+
+<!-- ═══════════════════════════ DÉCISIONS ═══════════════════════════ -->
+<main id="vue-decisions" hidden>
+  <p style="color:var(--encre2);margin:0 0 20px;max-width:68ch">
+    Sept points qui changent ce qui est construit. Mon choix est présélectionné.
+    Le récapitulatif en bas se met à jour tout seul — copie-le, ou dis-moi
+    simplement les numéros que tu changes.</p>
+
+  <div class="decision">
+    <h3><span class="code">D1</span> D'où vient la catégorie ?</h3>
+    <p>Un grimpeur rangé dans la mauvaise catégorie fausse un classement entier.</p>
+    <div class="choix">
+      <label><input type="radio" name="d1" value="tarif" checked>
+        <span class="quoi"><b>Du tarif<span class="propose">proposé</span></b>
+          <i>Le club vend un tarif par catégorie. Une ligne par tarif, découverte toute seule.</i></span></label>
+      <label><input type="radio" name="d1" value="naissance">
+        <span class="quoi"><b>De la date de naissance</b>
+          <i>Calculée par année. Il faut alors une table année → catégorie, et le sexe en plus.</i></span></label>
+      <label><input type="radio" name="d1" value="champ">
+        <span class="quoi"><b>D'un champ du formulaire</b>
+          <i>Si le club fait choisir la catégorie explicitement à l'inscription.</i></span></label>
+    </div>
+  </div>
+
+  <div class="decision">
+    <h3><span class="code">D2</span> Une inscription sans ambiguïté crée-t-elle le participant toute seule ?</h3>
+    <p>« Sans ambiguïté » = catégorie connue, aucun homonyme.</p>
+    <div class="choix">
+      <label><input type="radio" name="d2" value="auto" checked>
+        <span class="quoi"><b>Oui, automatiquement<span class="propose">proposé</span></b>
+          <i>Elle arrive directement dans « à imprimer ». Sinon on clique cent fois le matin même.</i></span></label>
+      <label><input type="radio" name="d2" value="manuel">
+        <span class="quoi"><b>Non, tout passe par un humain</b>
+          <i>Chaque inscription est validée à la main. Plus sûr, beaucoup plus lent.</i></span></label>
+    </div>
+  </div>
+
+  <div class="decision">
+    <h3><span class="code">D3</span> Webhook, ou sondage seul ?</h3>
+    <p>Le webhook d'une association n'est <b>pas signé</b> (HMAC réservé aux
+       partenaires) et son corps ne porte <b>pas</b> les champs personnalisés.</p>
+    <div class="choix">
+      <label><input type="radio" name="d3" value="sondage" checked>
+        <span class="quoi"><b>Sondage seul<span class="propose">proposé</span></b>
+          <i>60 s pendant la compétition. Rien d'ouvert sur Internet.</i></span></label>
+      <label><input type="radio" name="d3" value="webhook">
+        <span class="quoi"><b>Sondage + webhook de réveil</b>
+          <i>Quelques dizaines de secondes gagnées, contre une route publique non authentifiée.</i></span></label>
+    </div>
+  </div>
+
+  <div class="decision">
+    <h3><span class="code">D4</span> Qu'est-ce qui clôt une inscription ?</h3>
+    <p>Le vrai geste est : imprimer le dossard et l'apporter.</p>
+    <div class="choix">
+      <label><input type="radio" name="d4" value="impression" checked>
+        <span class="quoi"><b>Imprimer vaut « remis »<span class="propose">proposé</span></b>
+          <i>Un clic. Avec un « déjà remis » pour le cas inverse.</i></span></label>
+      <label><input type="radio" name="d4" value="deux">
+        <span class="quoi"><b>Deux gestes distincts</b>
+          <i>Imprimer, puis cocher « remis ». Plus fidèle, un clic de plus par personne.</i></span></label>
+    </div>
+  </div>
+
+  <div class="decision">
+    <h3><span class="code">D5</span> Que garde-t-on de la commande HelloAsso ?</h3>
+    <p>Elle porte des <b>noms de mineurs</b> et les coordonnées de leurs parents.</p>
+    <div class="choix">
+      <label><input type="radio" name="d5" value="elague" checked>
+        <span class="quoi"><b>Une copie élaguée<span class="propose">proposé</span></b>
+          <i>Nom, prénom, naissance, club, catégorie, tarif, courriel du payeur. Rien d'autre.</i></span></label>
+      <label><input type="radio" name="d5" value="brut">
+        <span class="quoi"><b>Le JSON brut</b>
+          <i>Plus facile à rejouer si la correspondance change. Stocke adresses et téléphones.</i></span></label>
+      <label><input type="radio" name="d5" value="minimal">
+        <span class="quoi"><b>Le strict minimum</b>
+          <i>Pas même le courriel. On ne peut alors plus rappeler quelqu'un qui a fait une faute de saisie.</i></span></label>
+    </div>
+  </div>
+
+  <div class="decision">
+    <h3><span class="code">D6</span> Sur quoi développe-t-on ?</h3>
+    <div class="choix">
+      <label><input type="radio" name="d6" value="sandbox" checked>
+        <span class="quoi"><b>Le bac à sable<span class="propose">proposé</span></b>
+          <i>Une association et un formulaire de test. La vraie clé n'arrive qu'à la recette.</i></span></label>
+      <label><input type="radio" name="d6" value="prod">
+        <span class="quoi"><b>Directement le compte du club</b>
+          <i>En lecture seule, donc sans risque d'écriture — mais avec de vraies données personnelles dans mes tests.</i></span></label>
+    </div>
+  </div>
+
+  <div class="decision">
+    <h3><span class="code">D7</span> Le préalable R13</h3>
+    <p>Le <code>README.md</code> du dépôt <b>public</b> <code>climbBackEnd</code>
+       contient un <code>clientSecret</code> HelloAsso et deux jetons en clair.</p>
+    <div class="choix">
+      <label><input type="radio" name="d7" value="avant" checked>
+        <span class="quoi"><b>Révoquer et nettoyer avant de commencer<span class="propose">proposé</span></b>
+          <i>C'est toi qui le fais : il faut être connecté au compte du club.</i></span></label>
+      <label><input type="radio" name="d7" value="pendant">
+        <span class="quoi"><b>Le faire en parallèle</b>
+          <i>Le code avance pendant ce temps. La clé publiée reste vivante quelques jours de plus.</i></span></label>
+    </div>
+  </div>
+
+  <div class="decision" id="recap">
+    <h3>Récapitulatif</h3>
+    <p>À me renvoyer tel quel, ou à commenter ligne par ligne.</p>
+    <textarea id="recapTexte" readonly></textarea>
+    <div class="boutons"><button type="button" class="action" id="btnCopier">Copier</button></div>
+  </div>
+</main>
+
+<!-- ═══════════════════════════ SPEC ═══════════════════════════ -->
+<main id="vue-spec" hidden>
+  <div class="doc">
+    <h2>Le besoin, tel que le terrain le pose</h2>
+    <p><code>docs/contraintes-metier.md</code> §3, recueilli le 28/08 :</p>
+    <ul>
+      <li>HelloAsso est la plateforme d'inscription à la compétition.</li>
+      <li><b>Des inscriptions se font sur place</b>, sans passer par elle. L'import
+          est un flux d'alimentation, <b>jamais la source unique</b>.</li>
+      <li>Quelqu'un peut s'inscrire en ligne <b>et</b> se présenter au guichet :
+          rapprochement sur nom + date de naissance, avec validation humaine.</li>
+      <li>« Il faut pouvoir avoir un dashboard dans la page admin et le voir sur
+          cet écran » — derrière chaque inscription, <b>imprimer un dossard et
+          l'apporter</b>.</li>
+    </ul>
+    <p>Aujourd'hui, la seule trace de HelloAsso dans le dépôt est une constante
+       jamais écrite : <code>SOURCE_HELLOASSO = "helloasso"</code>. Le geste réel,
+       en novembre 2025, était un export tableur recollé à la main dans l'onglet
+       <code>Listes</code>. Une fois. Ce qui arrive après l'export n'arrive jamais.</p>
+
+    <h2>Ce que l'API donne — vérifié le 03/09/2026</h2>
+    <div class="scroll"><table>
+      <thead><tr><th>Fait</th><th>Conséquence</th></tr></thead>
+      <tbody>
+        <tr><td>Clé d'API depuis le back-office du club. Rôle <code>OrganizationAdmin</code>,
+                privilège <code>AccessTransactions</code></td>
+            <td>Suffisant. <b>Aucun partenariat à demander</b></td></tr>
+        <tr><td><code>access_token</code> 30 min, <code>refresh_token</code> 30 jours.
+                Quotas d'authentification : <b>50/h</b></td>
+            <td>Le jeton vit en base, pas en mémoire vive</td></tr>
+        <tr><td>Le <code>refresh_token</code> <b>tourne</b> : réutiliser A révoque B</td>
+            <td>Deux workers qui rafraîchissent en même temps se cassent l'un l'autre → <b>verrou</b></td></tr>
+        <tr><td><code>GET .../items</code> : <b>un article = un inscrit</b>,
+                <code>item.id</code> stable</td>
+            <td>La clé d'idempotence, portée par une contrainte SQL</td></tr>
+        <tr><td><code>withDetails=true</code> → <code>customFields[]</code></td>
+            <td>C'est là que vivent le club et la date de naissance</td></tr>
+        <tr><td><code>sortField=UpdateDate</code> + <code>from=</code></td>
+            <td>Relevé incrémental, et une annulation ancienne <b>reste visible</b></td></tr>
+        <tr><td>Fin de pagination = <b>tableau vide</b>, pas absence de jeton.
+                <code>totalCount = -1</code></td>
+            <td>Boucle écrite d'après leur algorithme, pas d'après l'intuition</td></tr>
+        <tr><td><code>payer</code> ≠ <code>user</code> : le payeur est le parent</td>
+            <td>On inscrit <code>user</code>. Les confondre inscrirait les parents</td></tr>
+        <tr><td>Webhook : signature HMAC <b>réservée aux partenaires</b>, corps sans
+                <code>customFields</code></td>
+            <td>Il ne peut pas être une source de données → <b>D3</b></td></tr>
+      </tbody>
+    </table></div>
+
+    <h2>Le rapprochement</h2>
+    <div class="scroll"><table>
+      <thead><tr><th>Cas</th><th>Verdict</th></tr></thead>
+      <tbody>
+        <tr><td>Aucun homonyme</td><td><b>Nouveau</b> — participant créé, dossard attribué</td></tr>
+        <tr><td>Homonyme, dates de naissance <b>identiques</b></td><td><b>La même personne</b> — rattachement, champs vides complétés</td></tr>
+        <tr><td>Homonyme, dates <b>différentes</b></td><td><b>Deux personnes</b> — créé, et signalé une fois</td></tr>
+        <tr><td>Homonyme, une date manque</td><td><b>À trancher</b></td></tr>
+        <tr><td>Tarif sans catégorie</td><td><b>À trancher</b></td></tr>
+        <tr><td>Article annulé, jamais intégré</td><td>Rien</td></tr>
+        <tr><td>Article annulé, <b>déjà intégré</b></td><td><b>À trancher</b> — le participant n'est pas touché</td></tr>
+      </tbody>
+    </table></div>
+    <p>Une fusion automatique n'arrive <b>que</b> sur une date de naissance
+       identique. C'est la seule preuve dont on dispose.</p>
+
+    <h2>Données personnelles</h2>
+    <p>Les articles portent des noms de mineurs et les coordonnées des parents.
+       La règle 7 du <code>CLAUDE.md</code> est explicite.</p>
+    <div class="scroll"><table>
+      <thead><tr><th>Donnée</th><th>Gardée ?</th></tr></thead>
+      <tbody>
+        <tr><td>Nom, prénom, date de naissance de l'inscrit</td><td><b>oui</b></td></tr>
+        <tr><td>Club, catégorie, nom du tarif</td><td><b>oui</b></td></tr>
+        <tr><td>Courriel du payeur</td><td><b>oui</b>, un seul champ</td></tr>
+        <tr><td>Adresse, ville, téléphone, société du payeur</td><td><b>non</b></td></tr>
+        <tr><td>Montants, moyens de paiement, reçus</td><td><b>non</b></td></tr>
+        <tr><td>Le JSON brut</td><td><b>non</b> — copie élaguée</td></tr>
+      </tbody>
+    </table></div>
+    <p>Les inscriptions suivent leur compétition. Elles ne partent <b>pas</b> dans
+       l'archive : une archive sert à rejouer un classement, pas à conserver
+       l'état civil d'un enfant pendant dix ans.</p>
+
+    <h2>Ce qu'on ne fait pas</h2>
+    <ul>
+      <li><b>Écrire chez HelloAsso.</b> Lecture seule, sans exception.</li>
+      <li><b>Encaisser.</b> Le club encaisse déjà sur HelloAsso.</li>
+      <li><b>Recopier les inscriptions dans le classeur.</b> Le classeur reçoit
+          des réussites, pas des inscrits.</li>
+      <li><b>Deviner une catégorie.</b> On refuse et on demande.</li>
+    </ul>
+
+    <h2>Critères d'acceptation — les dix qui comptent</h2>
+    <ul>
+      <li>Une inscription en ligne apparaît <b>en moins de 90 s</b> pendant une
+          compétition, sans que personne n'ait cliqué</li>
+      <li>Le même article relevé dix fois ne crée <b>qu'un</b> participant</li>
+      <li>Un homonyme de même date de naissance n'en crée <b>pas</b> un second</li>
+      <li>Un tarif sans catégorie met l'inscription en attente <b>sans bloquer les autres</b></li>
+      <li>Un article annulé après coup remonte, et <b>ne supprime rien</b></li>
+      <li>Quatre workers gunicorn = <b>un seul</b> rafraîchissement de jeton</li>
+      <li>Aucune adresse, aucun téléphone, aucun montant n'entre en base</li>
+      <li>Le secret n'apparaît ni dans une réponse, ni dans un journal</li>
+      <li>Pas de clé posée = pas de menu, pas de fil, <b>aucun appel réseau</b></li>
+      <li>HelloAsso injoignable une heure : dit une fois, le reste marche</li>
+    </ul>
+  </div>
+</main>
+
+<!-- ═══════════════════════════ ARCHITECTURE ═══════════════════════════ -->
+<main id="vue-archi" hidden>
+  <div class="doc">
+    <h2>Le principe</h2>
+    <p><b>HelloAsso alimente une salle d'attente ; c'est la salle d'attente qui
+       décide si un participant est créé.</b> Rien de ce qui vient du réseau
+       n'écrit directement dans <code>participant</code> — même séparation que la
+       spec 002 entre la base et le classeur.</p>
+<pre>   HelloAsso                   climbcontest                      humain
+   ─────────                   ────────────                      ──────
+                        ┌──────────────────────────┐
+  /oauth2/token  ◄───── │ helloasso/client.py      │
+                        │  jeton en base, 1 verrou │
+                        └──────────┬───────────────┘
+  /v5/.../items         ┌──────────▼───────────────┐
+  ?from=…&amp;withDetails ─►│ helloasso/releve.py      │
+                        │  pagination, idempotence │
+                        └──────────┬───────────────┘
+                        ┌──────────▼───────────────┐
+                        │ helloasso/correspondance │  tarif → catégorie
+                        │  ce que veulent dire les │  champ → club
+                        │  champs du formulaire    │  champ → naissance
+                        └──────────┬───────────────┘
+                        ┌──────────▼───────────────┐
+                        │ helloasso/rapprochement  │
+                        │  homonyme ? même date ?  │
+                        └──────────┬───────────────┘
+                                   ▼
+                        ┌──────────────────────────┐     ┌──────────────┐
+                        │ table `inscription`      │────►│ vue          │
+                        │  a_trancher / a_imprimer │     │ Inscriptions │
+                        │  faite / ignoree         │◄────│ + pastille   │
+                        └──────────┬───────────────┘     └──────────────┘
+                                   │ sans ambiguïté (D2)
+                                   ▼
+                   contest.ajouter_participant_numerote()
+                   ← le MÊME chemin que le bouton « Ajouter »</pre>
+    <p>Le dernier encadré compte : l'inscription en ligne n'a <b>pas</b> son
+       propre chemin de création. Deux chemins divergeraient au premier correctif
+       — c'est ce qui est arrivé à <code>Competition.statut</code> (spec 018).</p>
+
+    <h2>La table <code>inscription</code></h2>
+    <p>Elle survit au participant qu'elle a créé : c'est la trace de ce que la
+       plateforme a dit, et la seule chose qui rende le relevé idempotent.</p>
+<pre>UniqueConstraint("competition_id", "article_id")   ← l'idempotence est ICI,
+                                                     pas dans le code du relevé
+
+article_id · commande_id · etat · motif · participant_id
+nom · prenom · date_naissance · club · categorie · tarif · courriel
+etat_helloasso · maj_le · recue_le · traitee_le · traitee_par · detail</pre>
+    <div class="scroll"><table>
+      <thead><tr><th><code>etat</code></th><th>Ce que ça veut dire</th><th>Ce qui le fait bouger</th></tr></thead>
+      <tbody>
+        <tr><td><code>a_trancher</code></td><td>Un humain doit dire quelque chose</td><td>Il clique</td></tr>
+        <tr><td><code>a_imprimer</code></td><td>Le participant existe, le papier n'est pas sorti</td><td>« Imprimer » / « Déjà remis »</td></tr>
+        <tr><td><code>faite</code></td><td>Le dossard est entre ses mains</td><td>—</td></tr>
+        <tr><td><code>ignoree</code></td><td>Mise de côté volontairement</td><td>Réouverture possible</td></tr>
+      </tbody>
+    </table></div>
+    <p>Les quatre états décrivent un <b>geste physique</b>, pas un état
+       informatique. <code>motif</code> dit pourquoi ça attend, et c'est ce que la
+       carte affiche.</p>
+
+    <h2>Les réglages, à deux étages</h2>
+    <p>Le club a <b>un</b> compte HelloAsso, mais <b>une</b> compétition par an.</p>
+    <div class="scroll"><table>
+      <thead><tr><th>Quoi</th><th>Où</th><th>Pourquoi là</th></tr></thead>
+      <tbody>
+        <tr><td>client_id, secret, refresh_token</td><td><code>shared/secrets/helloasso.json</code></td>
+            <td>Comme <code>token.json</code> : hors dépôt, hors release, hors sauvegarde</td></tr>
+        <tr><td>Environnement, organisation, dernier relevé, dernière erreur</td><td>table <code>reglage</code></td>
+            <td>Global au serveur, et en base — la sauvegarde ne recopie que la base</td></tr>
+        <tr><td>Formulaire + <b>correspondance</b></td><td><code>competition.options["helloasso"]</code></td>
+            <td>Par édition. Le formulaire change chaque année</td></tr>
+      </tbody>
+    </table></div>
+<pre>{
+  "form_type": "Event",
+  "form_slug": "bloc-party-2026",
+  "tarifs":  { "U11 filles": "U11 F", "U11 garçons": "U11 H", "Découverte": null },
+  "champs":  { "club": "Votre club", "naissance": "Date de naissance", "sexe": null }
+}</pre>
+    <p>Un tarif à <code>null</code> est un tarif <b>vu mais pas encore rangé</b> —
+       la différence entre « pas encore décidé » et « inconnu » est ce qui permet
+       de dire « 1 tarif sans catégorie » au lieu de ne rien dire.</p>
+
+    <h2>Le jeton, et pourquoi il vit en base</h2>
+    <p>La documentation HelloAsso est explicite : <i>« Si une nouvelle
+       utilisation du refresh token A est faite, alors un nouveau refresh_token C
+       est créé et <b>B est révoqué</b>. »</i></p>
+    <p>Avec quatre workers gunicorn et un jeton en mémoire vive, deux
+       rafraîchissements simultanés <b>se révoquent l'un l'autre</b>. Le symptôme
+       serait le pire qui soit : ça marche en développement, et ça tombe en
+       production au bout de trente minutes, un jour de compétition.</p>
+    <ul>
+      <li>Le couple <code>access</code>/<code>refresh</code> est lu et écrit <b>en base</b>.</li>
+      <li>Le rafraîchissement prend le verrou <code>helloasso_jeton</code> —
+          la table <code>verrou</code> existe déjà, le miroir s'en sert.</li>
+      <li>Celui qui n'obtient pas le verrou <b>relit</b> : le voisin vient d'y
+          déposer un jeton frais.</li>
+    </ul>
+    <p>Coût : <b>2 appels d'authentification par heure</b>, sur 50 autorisés.</p>
+
+    <h2>Le relevé</h2>
+<pre>GET /v5/organizations/{org}/forms/{type}/{slug}/items
+    ?from={dernier_vu - 5 min}   ← recouvrement : les horloges diffèrent
+    &amp;sortField=UpdateDate        ← sinon une annulation ancienne est invisible
+    &amp;sortOrder=Asc
+    &amp;withDetails=true            ← sans lui : ni club, ni date de naissance
+    &amp;pageSize=100</pre>
+    <p>Arrêt sur <b>tableau vide</b>, comme leur documentation l'impose — un
+       <code>continuationToken</code> peut être renvoyé alors qu'il n'y a plus
+       rien. Un <code>commit</code> par article : cent qui passent et un qui
+       échoue laissent cent inscriptions écrites, pas zéro.</p>
+    <p><code>formatage.py</code> est réutilisé tel quel. Sa réserve — « ce module
+       ne touche jamais à ce qui est importé du classeur » — ne s'applique pas
+       ici : HelloAsso n'est pas une source qui fait autorité sur sa mise en
+       forme, c'est <b>du texte tapé par un parent sur un téléphone</b>.</p>
+
+    <h2>Le fil</h2>
+    <p>Copie conforme de <code>sheets/planificateur.py</code>, avec ses deux
+       qualités payées cher : <b>il ne meurt jamais</b>, et <b>il ne répète pas sa
+       plainte</b> — une heure sans réseau produit une ligne, pas soixante.</p>
+    <div class="scroll"><table>
+      <thead><tr><th>Situation</th><th>Cadence</th></tr></thead>
+      <tbody>
+        <tr><td>Compétition <code>en_cours</code></td><td><b>60 s</b></td></tr>
+        <tr><td><code>preparation</code>, aujourd'hui ou demain</td><td>5 min</td></tr>
+        <tr><td>Le reste du temps</td><td>30 min</td></tr>
+        <tr><td>Pas de clé posée</td><td><b>le fil ne démarre pas</b></td></tr>
+      </tbody>
+    </table></div>
+
+    <h2>Les routes</h2>
+    <div class="scroll"><table>
+      <thead><tr><th>Route</th><th>Rôle</th><th>Quoi</th></tr></thead>
+      <tbody>
+        <tr><td><code>GET /admin/helloasso</code></td><td>admin</td><td>L'état. <b>Jamais le secret</b></td></tr>
+        <tr><td><code>POST · DELETE /admin/helloasso/cle</code></td><td>admin</td><td>Poser, débrancher</td></tr>
+        <tr><td><code>GET /admin/helloasso/formulaires</code></td><td>admin</td><td>Les formulaires du club</td></tr>
+        <tr><td><code>POST /admin/helloasso/formulaire</code></td><td>admin</td><td>Choisir, et <b>découvrir</b> tarifs et champs</td></tr>
+        <tr><td><code>GET · POST /admin/helloasso/correspondance</code></td><td>organisateur</td><td>La correspondance</td></tr>
+        <tr><td><code>POST /admin/helloasso/relever</code></td><td>organisateur</td><td>Relever maintenant</td></tr>
+        <tr><td><code>GET /admin/inscriptions</code></td><td>organisateur</td><td>Les trois piles</td></tr>
+        <tr><td><code>POST /admin/inscriptions/&lt;id&gt;/trancher</code></td><td>organisateur</td><td>Le choix humain</td></tr>
+        <tr><td><code>POST /admin/inscriptions/&lt;id&gt;/remise</code></td><td>organisateur</td><td>Dossard remis</td></tr>
+      </tbody>
+    </table></div>
+    <p>Le compteur de la pastille voyage dans <code>/admin/moi</code>, comme celui
+       des mises à jour : aucune requête supplémentaire.</p>
+
+    <h2>Ce qui ne bouge pas</h2>
+    <ul>
+      <li><b>Le miroir vers le classeur</b> — il envoie des réussites.</li>
+      <li><b>L'import du classeur</b> — les deux flux cohabitent et ne se
+          connaissent pas ; c'est le rapprochement qui les fait se rencontrer.</li>
+      <li><b>Le catalogue de l'app juge</b> — créer un participant incrémente déjà
+          <code>catalogue_version</code> : les vingt-cinq téléphones voient
+          l'inscrit en moins de vingt secondes, sans une ligne de code de plus.</li>
+      <li><b>Le classement</b> — il ne connaît que <code>participant</code>.</li>
+    </ul>
+  </div>
+</main>
+
+<!-- ═══════════════════════════ PLAN ═══════════════════════════ -->
+<main id="vue-plan" hidden>
+  <div class="doc">
+    <h2>Six lots</h2>
+    <ul class="etapes">
+      <li><span class="lot zero">Lot 0</span>
+        <span><b>Solder R13, et obtenir une clé</b> — <i>c'est toi</i>. Révoquer la
+        clé publiée dans le <code>README.md</code> de <code>climbBackEnd</code>,
+        nettoyer le fichier, créer une association et un formulaire de test sur
+        le bac à sable, générer la clé. <b>Rien ne commence avant.</b></span></li>
+      <li><span class="lot">Lot 1</span>
+        <span><b>Parler à HelloAsso</b> — <code>client.py</code> : OAuth, jeton en
+        base sous verrou, pagination, bascule production / bac à sable.
+        <code>tools/dump_helloasso.py</code> en lecture seule.
+        Motif <code>gitleaks</code>.<br>
+        <i>Fin du lot : le formulaire de test s'affiche depuis le Mac.</i></span></li>
+      <li><span class="lot">Lot 2</span>
+        <span><b>Le cœur</b> — table <code>inscription</code>, correspondance,
+        rapprochement (fonctions <b>pures</b>), relevé avec son rapport. Création
+        par <code>ajouter_participant_numerote()</code>.<br>
+        <i>Fin du lot : un relevé remplit les trois piles.</i></span></li>
+      <li><span class="lot">Lot 3</span>
+        <span><b>La console</b> — <i>ne commence qu'après validation de cette
+        maquette</i>. Vue Inscriptions, page HelloAsso, correspondance, pastille,
+        impression, rappel au guichet, les dix routes.</span></li>
+      <li><span class="lot">Lot 4</span>
+        <span><b>Le fil et le reste</b> — cadence variable, démarrage
+        conditionnel, arrêt net sur clé refusée, <code>/health</code>,
+        l'effacement des données emporte les inscriptions, l'archivage non.
+        Changelog et index.</span></li>
+      <li><span class="lot">Lot 5</span>
+        <span><b>La recette</b> — bac à sable, puis clé de production et relevé à
+        blanc. Vérifier sur la VM que quatre workers ne font <b>qu'un</b>
+        rafraîchissement.</span></li>
+    </ul>
+
+    <h2>Le plan de test — écrit avant le code</h2>
+
+    <h3>Fonctions pures — aucune base, aucun réseau</h3>
+    <div class="scroll"><table>
+      <thead><tr><th>Scénario</th><th>Attendu</th></tr></thead>
+      <tbody>
+        <tr><td>« Dupont Jean-Luc » vs « DUPONT jean luc »</td><td>Même clé</td></tr>
+        <tr><td>« Roc N'Potes » vs « Roc n'potes »</td><td>Même clé</td></tr>
+        <tr><td>Homonyme, dates identiques</td><td><code>MEME_PERSONNE</code></td></tr>
+        <tr><td>Homonyme, dates différentes</td><td><code>DEUX_PERSONNES</code></td></tr>
+        <tr><td>Homonyme, une date manque</td><td><code>A_TRANCHER</code></td></tr>
+        <tr><td>Trois homonymes, un seul de même date</td><td><code>MEME_PERSONNE</code> sur le bon</td></tr>
+      </tbody>
+    </table></div>
+
+    <h3>Le relevé — réseau doublé, données en fixtures</h3>
+    <div class="scroll"><table>
+      <thead><tr><th>Scénario</th><th>Attendu</th></tr></thead>
+      <tbody>
+        <tr><td><b>Le même article relevé dix fois</b></td><td><b>Une</b> inscription, <b>un</b> participant</td></tr>
+        <tr><td>Tarif hors correspondance</td><td><code>a_trancher</code>, catégorie vide</td></tr>
+        <tr><td>Article sans <code>user</code></td><td>Nom repris du payeur, motif <code>sans_nom</code></td></tr>
+        <tr><td>Annulé après intégration</td><td><code>a_trancher</code>, <b>participant intact</b></td></tr>
+        <tr><td>Commande à deux articles (fratrie)</td><td><b>Deux</b> participants</td></tr>
+        <tr><td>Adresse et téléphone du payeur présents</td><td><b>Absents de la base</b>, <code>detail</code> compris</td></tr>
+        <tr><td><code>continuationToken</code> toujours renvoyé, données vides</td><td>Arrêt — <b>pas de boucle infinie</b></td></tr>
+        <tr><td>Un article sur cent lève</td><td>99 écrits, l'erreur au rapport</td></tr>
+      </tbody>
+    </table></div>
+
+    <h3>Le jeton</h3>
+    <div class="scroll"><table>
+      <thead><tr><th>Scénario</th><th>Attendu</th></tr></thead>
+      <tbody>
+        <tr><td>Pas de clé posée</td><td><b>Zéro appel réseau</b></td></tr>
+        <tr><td>Jeton valide en base</td><td><b>Aucun</b> appel à <code>/oauth2/token</code></td></tr>
+        <tr><td><b>Deux appels concurrents sur un jeton expiré</b></td><td><b>Un seul</b> rafraîchissement</td></tr>
+        <tr><td><code>401</code> en cours de relevé</td><td>Un rafraîchissement, <b>un seul</b> réessai</td></tr>
+        <tr><td><code>401</code> sur le rafraîchissement</td><td>« Clé à reconnecter », le fil <b>s'arrête</b></td></tr>
+        <tr><td>Le secret dans un journal ou une réponse</td><td><b>Aucune occurrence</b> — test explicite</td></tr>
+      </tbody>
+    </table></div>
+
+    <h3>Fixtures</h3>
+    <p class="note"><b>Fabriquées à la main, jamais un export réel.</b> Un export
+       du vrai formulaire contiendrait des noms de mineurs et les coordonnées de
+       leurs parents — règle 7 du <code>CLAUDE.md</code>. La structure vient de la
+       documentation, pas d'un dump.</p>
+
+    <h3>Non-régression</h3>
+    <ul>
+      <li><code>pytest</code> complet vert — la suite existante ne bouge pas</li>
+      <li><code>tools/verify_ranking.py</code> sort toujours « 196 conformes, 0 écart »</li>
+      <li><code>gitleaks</code> passe</li>
+    </ul>
+
+    <h2>Risques</h2>
+    <div class="scroll"><table>
+      <thead><tr><th>Risque</th><th>Ce qu'on fait</th></tr></thead>
+      <tbody>
+        <tr><td><b>Le vrai formulaire ne ressemble pas au formulaire de test</b> —
+                les catégories ne sont pas des tarifs</td>
+            <td><code>dump_helloasso.py</code> le montre <b>avant</b> qu'on code.
+                C'est sa raison d'être. D1 bascule alors, et la correspondance
+                gagne une ligne</td></tr>
+        <tr><td>Le <code>refresh_token</code> meurt entre deux compétitions</td>
+            <td>État explicite « clé à reconnecter ». Un geste d'une minute, pas
+                un mystère</td></tr>
+        <tr><td><code>admin.html</code> est déjà disputé par trois autres sessions</td>
+            <td>Une <code>&lt;section class="vue"&gt;</code> de plus, en fin de
+                bloc : conflit additif, résolu à la main</td></tr>
+        <tr><td>Le relevé écrit pendant qu'un juge scanne</td>
+            <td>Un <code>commit</code> par article, SQLite en <b>WAL</b>.
+                Re-mesuré au lot 5</td></tr>
+      </tbody>
+    </table></div>
+  </div>
+</main>
+
+<script>
+// --- onglets ---------------------------------------------------------------
+const vues = ["ecrans", "decisions", "spec", "archi", "plan"];
+document.querySelectorAll(".onglets [data-vue]").forEach(b => {
+  b.addEventListener("click", () => {
+    vues.forEach(v => { document.getElementById("vue-" + v).hidden = (v !== b.dataset.vue); });
+    document.querySelectorAll(".onglets [data-vue]").forEach(o =>
+      o.setAttribute("aria-current", String(o === b)));
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  });
+});
+
+// --- thème -----------------------------------------------------------------
+document.querySelectorAll(".bascule [data-theme]").forEach(b => {
+  b.addEventListener("click", () => {
+    const t = b.dataset.theme;
+    if (t === "auto") document.documentElement.removeAttribute("data-theme");
+    else document.documentElement.setAttribute("data-theme", t);
+    document.querySelectorAll(".bascule [data-theme]").forEach(o =>
+      o.setAttribute("aria-pressed", String(o === b)));
+  });
+});
+
+// --- récapitulatif des décisions ------------------------------------------
+const LIBELLES = {
+  d1: ["D1 · catégorie", {tarif: "du tarif", naissance: "de la date de naissance", champ: "d'un champ du formulaire"}],
+  d2: ["D2 · création auto", {auto: "oui, quand il n'y a aucune ambiguïté", manuel: "non, tout passe par un humain"}],
+  d3: ["D3 · temps réel", {sondage: "sondage seul (60 s)", webhook: "sondage + webhook de réveil"}],
+  d4: ["D4 · clôture", {impression: "imprimer vaut « remis »", deux: "deux gestes distincts"}],
+  d5: ["D5 · données gardées", {elague: "copie élaguée", brut: "le JSON brut", minimal: "le strict minimum"}],
+  d6: ["D6 · environnement", {sandbox: "bac à sable", prod: "compte du club directement"}],
+  d7: ["D7 · risque R13", {avant: "révoqué et nettoyé avant de commencer", pendant: "en parallèle du développement"}],
+};
+const DEFAUTS = {d1:"tarif", d2:"auto", d3:"sondage", d4:"impression", d5:"elague", d6:"sandbox", d7:"avant"};
+
+function majRecap() {
+  const lignes = ["Spec 008 — décisions"];
+  let changees = 0;
+  for (const [nom, [titre, valeurs]] of Object.entries(LIBELLES)) {
+    const choisi = document.querySelector(`input[name="${nom}"]:checked`);
+    if (!choisi) continue;
+    const memeQueMoi = choisi.value === DEFAUTS[nom];
+    if (!memeQueMoi) changees++;
+    lignes.push(`${memeQueMoi ? "  " : "→ "}${titre} : ${valeurs[choisi.value]}`);
+  }
+  lignes.push("");
+  lignes.push(changees === 0
+    ? "Rien de changé — les sept propositions sont retenues."
+    : `${changees} décision(s) changée(s), marquée(s) d'une flèche.`);
+  document.getElementById("recapTexte").value = lignes.join("\n");
+  const compte = document.getElementById("compteD");
+  compte.textContent = changees === 0 ? "7" : `${changees} ≠`;
+  compte.classList.toggle("calme", changees === 0);
+}
+document.querySelectorAll('.choix input[type="radio"]').forEach(r =>
+  r.addEventListener("change", majRecap));
+majRecap();
+
+document.getElementById("btnCopier").addEventListener("click", async (e) => {
+  const zone = document.getElementById("recapTexte");
+  try { await navigator.clipboard.writeText(zone.value); }
+  catch { zone.select(); document.execCommand("copy"); }
+  const b = e.currentTarget, avant = b.textContent;
+  b.textContent = "Copié";
+  setTimeout(() => { b.textContent = avant; }, 1400);
+});
+</script>
+</div>
+</body>
+</html>
