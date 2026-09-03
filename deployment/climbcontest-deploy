@@ -25,9 +25,9 @@
 set -uo pipefail
 
 # --- UNE SEULE INSTANCE A LA FOIS --------------------------------------------
-# Le timer tourne toutes les 2 minutes ET le deploiement manuel est LA commande
-# du jour J (decision Q2 : pas de gel pendant une competition). Sans verrou, les
-# deux se croisent.
+# Le deploiement peut partir de deux endroits a la fois : le bouton de la console
+# (spec 031) et la ligne de commande, qui reste LA porte de secours du jour J.
+# Sans verrou, les deux se croisent.
 #
 # Constate le 2026-08-28 en recette : deux executions a 14 s d'intervalle. La
 # seconde a lu le lien `current` APRES que la premiere l'eut bascule, a donc

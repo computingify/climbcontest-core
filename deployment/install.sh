@@ -56,8 +56,13 @@ fi
 echo "== droit de redemarrage cible =="
 # L'agent de tirage tourne en tant que climbcontest et doit pouvoir redemarrer
 # LE SEUL service climbcontest. Rien d'autre : pas de sudo general.
+#
+# La quatrieme ligne est le bouton de la console (spec 031) : l'application
+# demarre l'agent de deploiement, elle ne l'execute pas elle-meme. Les arguments
+# sont listes en entier -- sudo compare la ligne de commande complete, donc
+# cette autorisation ne permet PAS de demarrer un autre service.
 cat > /etc/sudoers.d/climbcontest <<EOF
-$UTILISATEUR ALL=(root) NOPASSWD: /bin/systemctl restart climbcontest, /bin/systemctl stop climbcontest, /bin/systemctl start climbcontest
+$UTILISATEUR ALL=(root) NOPASSWD: /bin/systemctl restart climbcontest, /bin/systemctl stop climbcontest, /bin/systemctl start climbcontest, /bin/systemctl start --no-block climbcontest-deploy.service
 EOF
 chmod 0440 /etc/sudoers.d/climbcontest
 visudo -cf /etc/sudoers.d/climbcontest >/dev/null || { echo "sudoers invalide"; rm -f /etc/sudoers.d/climbcontest; exit 1; }
@@ -70,19 +75,21 @@ install -o root -g root -m 0755 "$ICI/climbcontest-sauvegarde" /usr/local/bin/
 echo "== unites systemd =="
 install -m 0644 "$ICI/climbcontest.service"        /etc/systemd/system/
 install -m 0644 "$ICI/climbcontest-deploy.service" /etc/systemd/system/
-install -m 0644 "$ICI/climbcontest-deploy.timer"   /etc/systemd/system/
 install -m 0644 "$ICI/climbcontest-sauvegarde.service" /etc/systemd/system/
 install -m 0644 "$ICI/climbcontest-sauvegarde.timer"   /etc/systemd/system/
 systemctl daemon-reload
 
 # Le service applicatif est active mais PAS demarre : il n'y a pas encore de
-# release. Le timer s'en chargera au premier tick.
+# release. climbcontest-deploy.service est un oneshot SANS minuteur : il est
+# declenche a la demande, depuis la console ou a la main (spec 031). Le tirage
+# automatique toutes les 2 min a ete retire le 2026-09-03 -- il consommait la
+# moitie du quota GitHub anonyme (60 requetes/h par adresse IP publique) et
+# deployait sans que personne ne l'ait demande.
 systemctl enable climbcontest.service >/dev/null
-systemctl enable --now climbcontest-deploy.timer >/dev/null
 systemctl enable --now climbcontest-sauvegarde.timer >/dev/null
 
 echo
 echo "Socle en place."
-echo "  Le timer verifiera la derniere release dans une minute."
+echo "  Premier deploiement :  sudo systemctl start climbcontest-deploy.service"
 echo "  Suivre :  journalctl -t climbcontest-deploy -f"
 echo "  Etat   :  systemctl status climbcontest"
