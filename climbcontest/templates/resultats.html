@@ -829,17 +829,17 @@
      sans lui. La place et le corps sont calcules par `plan.js` a partir de la
      lettre ; ici, il n'y a que des couleurs.
 
-     ⚠️ Une zone SANS bloc du circuit ne porte pas de compteur : le noeud existe
-     mais reste vide, et `a-compte` -- pose par `decorer` -- est ce qui le
-     montre. Cacher le vide en CSS evite de creer et supprimer des noeuds a
-     chaque repeinture. */
+     ⚠️ Une zone SANS bloc du circuit ne porte pas de compteur, et il n'y a
+     RIEN a ecrire ici pour ca : son noeud existe mais son texte est vide, donc
+     il ne peint rien. C'est ce qui evite de creer et supprimer des noeuds a
+     chaque repeinture. La classe `a-compte`, posee par `decorer`, dit l'etat
+     dans le DOM -- comme `z-rien` -- et ne sert pas a le cacher. */
   .plan .compte-zone { font-family: var(--titre); font-weight: 800;
                        font-variant-numeric: tabular-nums;
                        fill: var(--pl-lettre); text-anchor: middle;
                        dominant-baseline: central; paint-order: stroke fill;
                        stroke: var(--pl-halo); }
   .plan .compte-zone.compte-finie { fill: var(--ok); }
-  .plan g[data-zone]:not(.a-compte) .compte-zone { display: none; }
 
   .sf-anime .plan g[data-zone].visee {
     animation: sf-rebond 760ms cubic-bezier(.34,1.56,.64,1) both; }
