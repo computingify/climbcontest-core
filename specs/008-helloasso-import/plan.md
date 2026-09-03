@@ -22,6 +22,11 @@ Rien ne commence avant.
 - [ ] Générer la clé d'API du bac à sable, et me la donner **hors du dépôt**
 - [ ] *(plus tard, à la recette)* la clé d'API du vrai compte du club
 
+⚠️ Le formulaire de test doit porter un champ **Date de naissance** et un champ
+**Sexe** (ou des tarifs qui distinguent filles et garçons). Depuis la décision
+D1, c'est la date de naissance qui fait la catégorie : un formulaire de test
+sans elle validerait un chemin qui n'existe pas en vrai.
+
 > Je ne peux pas faire ces gestes : ils demandent d'être connecté au compte
 > HelloAsso du club. C'est la décision **D7**.
 
@@ -52,9 +57,11 @@ formulaire de test du bac à sable.
 
 Toujours aucune interface. C'est le lot qui se teste le mieux.
 
-- [ ] `models.py` : table `inscription`, constantes d'état et de motif
-- [ ] `helloasso/correspondance.py` : découverte des tarifs et des champs d'un
-      formulaire ; lecture / écriture dans `competition.options["helloasso"]`
+- [ ] `models.py` : table `inscription`, constantes d'état et de motif,
+      `Participant.date_naissance` + sa ligne dans `COLONNES_AJOUTEES`
+- [ ] `helloasso/correspondance.py` : découverte des tarifs, des champs et des
+      **réponses réellement vues** ; `proposer_bareme()`, `controler()` ;
+      lecture / écriture dans `competition.options["helloasso"]`
 - [ ] `helloasso/rapprochement.py` : `cle()`, `confronter()` — **fonctions
       pures**, aucune base
 - [ ] `helloasso/releve.py` : la boucle, la copie élaguée, un `commit` par
@@ -72,12 +79,15 @@ les trois piles, vérifié en `flask shell`.
 - [ ] Vue **Inscriptions** : les trois piles, la carte de doublon à deux
       colonnes, le rafraîchissement toutes les 30 s
 - [ ] Page **HelloAsso** dans *Administration* : clé, environnement, formulaire,
-      correspondance, « Relever maintenant »
+      **barème année → circuit** avec sa proposition et son contrôle, source du
+      genre, les deux champs, « Relever maintenant »
 - [ ] **Pastille** dans le bandeau, comptée dans `/admin/moi`
 - [ ] « Imprimer le dossard » → `/admin/dossards?dossard=…`, et la ligne passe
       en *faite*
 - [ ] Rappel dans *Ajouter un participant* quand une inscription en ligne porte
       le même nom
+- [ ] *(si D8 est retenu)* champ **Année de naissance** facultatif dans
+      *Ajouter un participant*, et la catégorie qui se propose toute seule
 - [ ] Les dix routes, avec leurs codes de refus
 
 **Fin du lot** : les écrans se comportent comme la maquette validée.
@@ -133,6 +143,23 @@ Aucune base, aucun réseau. Une table de cas.
 | Prénom composé d'un côté seulement | `A_TRANCHER`, jamais `NOUVEAU` en silence |
 | Nom avec espace final, casse mixte, accents | Même clé |
 
+### Le barème — `tests/test_helloasso_correspondance.py`
+
+Fonctions pures elles aussi. C'est le lot que D1 fait naître, et il se teste
+entièrement hors base.
+
+| Scénario | Attendu |
+| --- | --- |
+| Compétition du 15/11/2026, circuits U11→U17 | Proposition `U11` → 2016-2017, `U13` → 2014-2015 |
+| Compétition du 15/03/2027 (même saison) | **La même** proposition — la saison, pas l'année civile |
+| Une année dans deux circuits | Anomalie `recouvrement`, avec l'année nommée |
+| Une année entre deux circuits, sans circuit | Anomalie `trou` |
+| Un circuit dont `de > a` | Anomalie `circuit_vide` |
+| `Adulte` non marqué mixte, catégories sans « Adulte F » | Anomalie `categorie_inconnue` |
+| `Adulte` marqué mixte | Catégorie = `Adulte`, **sans suffixe**, aucune anomalie |
+| Barème vide | Le contrôle ne lève pas, il dit que tout est en attente |
+| Réponse de genre absente de `valeurs` | Genre **indéterminé** — jamais `H` par défaut |
+
 ### Correspondance et transformation — `tests/test_helloasso_releve.py`
 
 Le réseau est un **double** ; les données viennent de fixtures.
@@ -141,14 +168,19 @@ Le réseau est un **double** ; les données viennent de fixtures.
 | --- | --- |
 | Article `Processed` complet | Inscription `a_imprimer`, participant créé, dossard attribué |
 | **Le même article relevé dix fois** | **Une** inscription, **un** participant |
-| Article dont le tarif n'est dans aucune correspondance | `a_trancher`, motif `categorie_inconnue`, catégorie vide |
+| Date de naissance **absente** | `a_trancher`, catégorie vide |
+| Année **hors barème** | `a_trancher`, l'année affichée |
+| Genre indéterminé, circuit non mixte | `a_trancher` |
+| Genre indéterminé, circuit **mixte** | Intégré — le genre n'est pas demandé |
+| Le tarif ne correspond à aucune catégorie | **Sans effet** — le tarif ne décide plus de rien (D1) |
 | Article sans `user`, `payer` présent | `a_trancher`, motif `sans_nom`, nom repris du payeur |
 | Article `Canceled` jamais vu | Aucune inscription |
 | Article `Canceled` **déjà intégré** | `a_trancher`, motif `annulee_apres_coup`, **participant intact** |
 | Commande à deux articles (fratrie) | **Deux** inscriptions, deux participants |
-| `customFields` absent (`withDetails` oublié) | Club et date vides, l'inscription passe quand même |
+| `customFields` absent (`withDetails` oublié) | Club et date vides, l'inscription passe quand même en `a_trancher` |
 | Nom en capitales, club en minuscules | `formatage` appliqué, club en sigle préservé |
-| Adresse et téléphone du payeur présents | **Absents de la base**, y compris de `detail` |
+| Payeur complet dans la réponse | **Rien de lui n'est écrit** — ni nom, ni courriel, ni adresse (D5) |
+| Une inscription relue après correction du barème | Article **redemandé** à HelloAsso, aucune copie locale relue |
 | Pagination : 3 pages puis un tableau vide | 3 pages lues, arrêt sur le vide |
 | Pagination : `continuationToken` toujours renvoyé, données vides | Arrêt — **pas de boucle infinie** |
 | Un article sur cent lève une exception | 99 écrits, l'erreur au rapport |
@@ -228,7 +260,8 @@ python3 -m venv /tmp/venv-008 && /tmp/venv-008/bin/pip install -q \
 
 | Risque | Ce qu'on fait |
 | --- | --- |
-| **Le vrai formulaire ne ressemble pas au formulaire de test** — les catégories ne sont pas des tarifs mais un champ libre | `tools/dump_helloasso.py` le montre **avant** qu'on code la correspondance. C'est sa raison d'être. Si c'est le cas, D1 bascule sur « champ personnalisé » et la correspondance gagne une ligne |
+| 🔴 **Le formulaire du club ne demande pas la date de naissance.** D1 tombe entièrement | C'est le **premier** geste du lot 1 : `tools/dump_helloasso.py` le dit avant qu'une ligne de code de correspondance soit écrite. Si c'est le cas, soit le club ajoute le champ, soit D1 se rejoue |
+| Le genre n'est ni dans un champ ni dans le nom des tarifs | Toutes les inscriptions des circuits non mixtes passent en « à trancher ». Vu au lot 1, pas en recette |
 | **Le `refresh_token` meurt entre deux compétitions** | État explicite « clé à reconnecter » dans la console, et l'arrêt du fil. Un geste d'une minute, pas un mystère |
 | **`admin.html` est déjà disputé par trois sessions** | La vue est un `<section class="vue">` de plus, ajouté en fin de bloc : conflit additif, résolu à la main |
 | **Le relevé écrit pendant qu'un juge scanne** | Un `commit` par article, sur SQLite en mode WAL. Le banc de la spec 001 dit que la charge est ridicule ; on le re-mesure quand même au lot 5 |

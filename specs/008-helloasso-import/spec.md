@@ -1,9 +1,15 @@
 # Spec 008 — Les inscriptions en ligne arrivent toutes seules
 
-> **Statut : rédigée le 03/09/2026, en attente de validation (porte 2).**
+> **Statut : rédigée le 03/09/2026. Les sept décisions D1→D7 sont tranchées
+> (§7) ; deux nouvelles, D8 et D9, naissent de D1. Porte 2 non franchie.**
 > Aucune ligne de code n'est écrite. La maquette de tous les écrans est dans
 > [`maquettes/inscriptions.html`](maquettes/inscriptions.html) — c'est elle qui
 > se valide en premier.
+>
+> ⚠️ **D1 a été tranché à l'inverse de ma proposition** : la catégorie vient de
+> la **date de naissance**, pas du tarif. Ce document a été repris en
+> conséquence — §4 F2 est entièrement réécrit, et §7 porte les deux questions
+> que ce choix fait apparaître.
 >
 > Numéro **008** : réservé depuis le 28/08 dans
 > [`docs/specs-index.md`](../../docs/specs-index.md) sous le nom
@@ -64,7 +70,7 @@ l'architecture, ils sont donc ici et pas seulement dans `architecture.md`.
 | # | Quoi |
 | --- | --- |
 | **F1** | Relier le compte HelloAsso du club depuis la console, et choisir le formulaire de la compétition |
-| **F2** | Dire, une fois par édition, **ce que veulent dire les champs du formulaire** : quel tarif donne quelle catégorie, quel champ porte le club, lequel la date de naissance |
+| **F2** | Dire, une fois par édition, **ce que veulent dire les champs du formulaire** : quelles années de naissance font quel circuit, où se lit le genre, où se lisent la date de naissance et le club |
 | **F3** | Relever les inscriptions **en continu** pendant la compétition, et à la demande |
 | **F4** | Détecter les doublons — avec la liste, et entre inscriptions — et les faire **trancher par un humain** |
 | **F5** | Une vue **Inscriptions** dans la console : ce qui est arrivé, ce qui reste à faire, et rien d'autre |
@@ -106,16 +112,67 @@ Le secret n'est jamais réaffiché : une fois posé, l'écran dit `Clé posée
 C'est la pièce que rien ne peut deviner. Le formulaire HelloAsso du club change
 chaque année : les tarifs changent de nom, les champs personnalisés aussi.
 
-La console **lit le formulaire** et montre ce qu'elle y a trouvé :
+> **Décision D1 du 03/09 : la catégorie vient de la date de naissance**, pas du
+> tarif. C'est le barème qui fait autorité, et non le nom commercial que le club
+> a donné à sa billetterie.
 
-| Ce qu'elle a trouvé | Ce qu'on lui dit |
+Une catégorie de ce projet — `U13 F` — est faite de **deux morceaux** : un
+**circuit** (`U13`) et un **genre** (`F`). Le modèle le sait déjà :
+`Participant.circuit` retire le dernier mot. La correspondance suit cette
+découpe, parce que les deux morceaux ne viennent pas du même endroit.
+
+#### Le circuit vient de l'année de naissance
+
+La console **propose** un barème, calculé depuis la date de la compétition :
+pour une saison 2026-2027, `U11` prend 2016 et 2017, `U13` prend 2014 et 2015,
+et ainsi de suite. Une ligne par circuit de la compétition, deux années
+modifiables.
+
+**Proposé, jamais imposé.** Les catégories changent d'une édition à l'autre
+(`U10` → `U17` selon les années, dit `contraintes-metier.md` §4) et rien ne
+garantit des tranches de deux ans. Le barème se corrige à la main.
+
+Et il se **contrôle**, comme la cascade de couleurs contrôle ses phrases mortes :
+
+| Ce que la console attrape | Ce qu'elle dit |
 | --- | --- |
-| Les **tarifs** (`Poussin`, `U13`, `Adulte`…) | À quelle catégorie chacun correspond — dans la liste des catégories de la compétition |
-| Les **champs personnalisés** (`Club`, `Date de naissance`, `Sexe`, `Certificat médical`…) | Lequel est le club, lequel la date de naissance, lequel le sexe. Le reste est ignoré |
+| Une année couverte par **deux** circuits | *2015 est dans U13 et dans U15* |
+| Un **trou** entre deux circuits | *2018 et avant : aucun circuit* |
+| Un circuit **sans année** | *U17 ne prendra jamais personne* |
+| Une catégorie composée qui **n'existe pas** dans la compétition | *« U9 F » n'est pas une catégorie de cette édition* |
 
-Un tarif sans catégorie n'empêche pas le relevé : ses inscrits arrivent en
-**« à trancher »**, catégorie vide. C'est la règle de la maison — on signale, on
-ne perd pas.
+Un barème peut être cohérent et faux ; il ne peut pas être incohérent sans que
+ça se voie.
+
+#### Le genre vient d'un endroit qu'on désigne
+
+Une source, et une seule, choisie parmi deux :
+
+- un **champ du formulaire** (`Sexe`, `Genre`…) ;
+- ou le **nom du tarif**, quand le club vend « U11 filles » et « U11 garçons ».
+
+La console montre les **réponses réellement vues** et on les range en `F` ou
+`H`. « Fille », « F », « Féminin » sont trois écritures de la même chose, et
+aucune règle générale ne les couvrira toutes.
+
+Un circuit peut être marqué **mixte** — `Adulte`, `Loisir` : il ne reçoit alors
+pas de suffixe, et sa catégorie est son seul nom.
+
+#### Les deux champs qui restent
+
+| Champ | Rôle |
+| --- | --- |
+| **Date de naissance** | **Obligatoire.** Sans lui, aucune catégorie ne se calcule |
+| **Club** | Facultatif. Absent, le club reste vide et se saisit au guichet |
+
+C'est le point à vérifier **avant** d'écrire une ligne de code, et c'est la
+raison d'être de `tools/dump_helloasso.py` (F9) : si le formulaire du club ne
+demande pas la date de naissance, D1 ne peut pas s'appliquer et il faut le
+savoir tout de suite.
+
+Rien de tout ça n'empêche le relevé. Une année hors barème, un genre
+indéterminé, une date absente : l'inscription arrive en **« à trancher »**,
+catégorie vide. On signale, on ne perd pas.
 
 La correspondance est enregistrée **par compétition**, comme la cascade de
 couleurs et les options d'affichage.
@@ -150,12 +207,21 @@ côtés en ont une.
 | Homonyme, **dates de naissance identiques** | **La même personne.** L'inscription se rattache au participant existant, sans le dupliquer. Les champs vides du participant sont complétés, les autres jamais écrasés |
 | Homonyme, **dates de naissance différentes** | **Deux personnes.** Créé, et signalé une fois — deux Martin Dupont, ça existe |
 | Homonyme, **une date manque** | **À trancher.** Un humain voit les deux fiches côte à côte et dit |
-| Tarif sans catégorie, ou catégorie inconnue | **À trancher** |
+| Date de naissance absente, ou **hors barème** | **À trancher**, catégorie vide |
+| Genre indéterminé sur un circuit non mixte | **À trancher** |
 | Article `Canceled` / `Refused` / `Abandoned` / `Deleted` | Pas d'inscription. Si elle existait déjà : **annulée**, et ça se voit |
 
 Rien n'est fusionné dans le dos de personne : un rattachement automatique
 n'arrive **que** sur une date de naissance identique, qui est la seule preuve
 dont on dispose.
+
+> ⚠️ **Conséquence de D1 qu'il faut regarder en face.** Le formulaire d'ajout
+> manuel de la console ne demande **pas** la date de naissance aujourd'hui
+> (spec 013 : nom, prénom, club, catégorie). Un participant saisi au guichet
+> n'en a donc jamais, et toute rencontre entre une inscription en ligne et une
+> saisie au guichet tombera **systématiquement** en « à trancher » — le cas
+> exact que la contrainte métier §3 demande de traiter. C'est la décision
+> **D8** ci-dessous.
 
 ### F5 — La vue *Inscriptions*
 
@@ -213,15 +279,29 @@ Les articles HelloAsso portent des **noms de mineurs**, leur date de naissance,
 et l'adresse postale, le téléphone et le courriel du **payeur** — c'est-à-dire
 d'un parent. La règle 7 du `CLAUDE.md` est explicite.
 
+> **Décision D5 du 03/09 : le strict minimum.** Rien du payeur, pas même son
+> courriel.
+
 | Donnée | Gardée ? |
 | --- | --- |
 | Nom, prénom de l'inscrit | **oui** — c'est l'inscription |
-| Date de naissance | **oui** — c'est la clé du rapprochement |
+| Date de naissance | **oui** — elle fait la catégorie **et** le rapprochement |
 | Club, catégorie, nom du tarif | **oui** |
-| Courriel du payeur | **oui**, un seul champ — c'est par là qu'on rappelle quelqu'un qui a mis un mauvais prénom |
-| Adresse, ville, code postal, pays, société, téléphone du payeur | **non.** Jamais écrits en base |
+| Numéro de commande HelloAsso | **oui** — un entier. Il ne dit rien de personne, et c'est lui qui permet de retrouver la commande dans le back-office quand il faut joindre quelqu'un |
+| Courriel du payeur | **non** (D5) |
+| Nom, adresse, ville, code postal, pays, société, téléphone du payeur | **non.** Jamais écrits en base |
 | Montant, moyen de paiement, reçu, échéances | **non.** Ce n'est pas notre affaire |
-| Le JSON brut de la commande | **non.** On enregistre une copie **élaguée**, réduite aux champs ci-dessus |
+| Le JSON brut, ou une copie élaguée | **non.** Les colonnes de la table **sont** l'enregistrement |
+
+Ce que D5 coûte, et il faut le dire : quand quelqu'un s'est trompé de prénom, on
+ne peut plus le joindre **depuis la console**. On lit le numéro de commande à
+l'écran et on le retrouve dans le back-office HelloAsso, où le courriel est déjà,
+et où il a sa place.
+
+Ce que D5 simplifie : la relecture d'une inscription avec une correspondance
+corrigée ne se fait plus depuis une copie locale — elle **redemande** l'article à
+HelloAsso. C'est moins de données gardées *et* moins de code, parce que
+l'idempotence rend le re-relevé gratuit.
 
 Les inscriptions suivent leur compétition : effacées par « Effacer les données du
 serveur », emportées par la suppression de l'édition. Elles ne partent **pas**
@@ -249,20 +329,28 @@ Et ici, jamais deux fois la même erreur :
 - `.gitleaks.toml` reçoit un motif pour les clés HelloAsso, pour que la question
   ne se repose pas.
 
-## 7. Décisions à trancher
+## 7. Décisions
 
-Ces sept points changent ce qui est construit. Ils sont posés dans la maquette,
-avec un choix par défaut proposé.
+### Tranchées par Adrien le 03/09/2026
+
+| # | Question | **Tranché** |
+| --- | --- | --- |
+| **D1** | D'où vient la **catégorie** ? | **De la date de naissance.** Un barème année → circuit, proposé puis corrigé ; le genre lu à part. Le tarif ne fait plus autorité |
+| **D2** | Une inscription sans ambiguïté crée-t-elle le participant toute seule ? | **Oui** |
+| **D3** | Webhook, ou sondage seul ? | **Sondage seul**, 60 s en compétition |
+| **D4** | Imprimer le dossard vaut-il « remis » ? | **Oui**, avec un « déjà remis » pour le cas inverse |
+| **D5** | Que garde-t-on de la commande ? | **Le strict minimum.** Rien du payeur, pas même son courriel |
+| **D6** | Sur quoi développe-t-on ? | **Le bac à sable** |
+| **D7** | Qui crée la clé d'API ? | **Adrien**, et R13 est soldé avant qu'on commence |
+
+### Ce que D1 fait apparaître, et qui reste à trancher
+
+Ces deux questions n'existaient pas tant que la catégorie venait du tarif.
 
 | # | Question | Ce que je propose |
 | --- | --- | --- |
-| **D1** | D'où vient la **catégorie** ? | Du **tarif** — le club vend un tarif par catégorie. La date de naissance sert au rapprochement, pas au classement |
-| **D2** | Une inscription sans ambiguïté crée-t-elle le participant **toute seule** ? | **Oui.** Sinon on clique cent fois le matin de la compétition |
-| **D3** | Webhook, ou sondage seul ? | **Sondage seul.** Le webhook n'est pas signé pour une association et ne porte pas les champs utiles ; il ne ferait gagner que quelques dizaines de secondes |
-| **D4** | Imprimer le dossard vaut-il « remis » ? | **Oui**, avec un « déjà remis » pour le cas inverse |
-| **D5** | Que garde-t-on de la commande ? | La **copie élaguée** du §5 |
-| **D6** | Sur quoi développe-t-on ? | Le **bac à sable**, avec une association et un formulaire de test. La vraie clé n'arrive qu'à la recette |
-| **D7** | Qui crée la clé d'API ? | **Adrien**, dans le back-office du club. Je ne peux pas le faire à sa place |
+| **D8** | Le formulaire d'ajout manuel apprend-il l'**année de naissance** ? | **Oui, un champ facultatif.** Sans elle, une saisie au guichet et une inscription en ligne pour la même personne tombent **toujours** en « à trancher » — et la catégorie continue de se choisir à la main d'un côté pendant qu'elle se calcule de l'autre. C'est une retouche à l'écran de la spec 013 : elle est à valider, pas à faire en douce |
+| **D9** | Garde-t-on la **date complète**, ou l'**année seule** ? | **La date complète.** L'année suffit pour la catégorie, mais c'est la date qui autorise une fusion sans demander : avec l'année seule, deux homonymes nés la même année seraient fusionnés à tort. Si le « strict minimum » de D5 doit aller jusque-là, la règle de fusion se durcit — nom + prénom + année + **club**, et tout le reste en « à trancher » |
 
 ## 8. Critères d'acceptation
 
@@ -270,18 +358,21 @@ avec un choix par défaut proposé.
 - [ ] Une clé d'API valide se pose depuis la console et le secret n'est jamais réaffiché
 - [ ] Une clé invalide donne un message qui dit **quoi faire**, pas une trace
 - [ ] La liste des formulaires du club s'affiche et l'un d'eux se choisit
-- [ ] Les tarifs et les champs personnalisés du formulaire sont **découverts**, pas saisis
+- [ ] Les tarifs, les champs personnalisés et **les réponses réellement vues** sont **découverts**, pas saisis
+- [ ] Le barème année → circuit est **proposé** depuis la date de la compétition, et modifiable
+- [ ] Le contrôle du barème attrape un **recouvrement**, un **trou**, un circuit **sans année**, et une catégorie composée **inexistante**
 - [ ] Une inscription en ligne apparaît dans la console **en moins de 90 secondes** pendant une compétition, sans que personne n'ait cliqué
 - [ ] Le même article relevé dix fois ne crée **qu'un** participant
 - [ ] Un homonyme de même date de naissance ne crée **pas** de second participant
 - [ ] Un homonyme de date différente en crée deux, et le dit
 - [ ] Un homonyme sans date attend un humain
-- [ ] Un tarif non associé à une catégorie met l'inscription en attente, sans bloquer les autres
+- [ ] Une année hors barème, une date absente ou un genre indéterminé mettent l'inscription en attente, **sans bloquer les autres**
+- [ ] Un circuit **mixte** ne reçoit pas de suffixe de genre
 - [ ] Un article annulé après coup remonte dans *À trancher*, et **ne supprime rien**
 - [ ] La pastille compte juste, et disparaît quand la pile est vide
 - [ ] « Imprimer le dossard » ouvre la fiche du bon dossard et vide la ligne
 - [ ] Quatre workers gunicorn ne produisent **qu'un** rafraîchissement de jeton
-- [ ] Aucune adresse postale, aucun téléphone, aucun montant n'entre en base
+- [ ] Aucune adresse postale, aucun téléphone, aucun montant, **aucun courriel**, aucun nom de payeur n'entre en base
 - [ ] Les routes répondent **403** à un organisateur pour le réglage de la clé, **401** sans session
 - [ ] HelloAsso non configuré : aucune entrée de menu, aucun fil, **aucun appel réseau**
 - [ ] HelloAsso injoignable pendant une heure : la console le dit une fois, le reste marche
@@ -298,10 +389,26 @@ n'ouvre la console pendant des mois. Le jeton meurt. La console doit alors dire
 « clé à reconnecter », pas « erreur 401 » — et le fil doit **cesser d'essayer**
 plutôt que de brûler le quota d'authentification.
 
-**Le club change le formulaire en cours de compétition.** Un tarif ajouté à midi
-n'a pas de catégorie : ses inscrits arrivent en *À trancher*. La correspondance
-se complète depuis la console, et un bouton **rejoue** les inscriptions en
-attente avec la nouvelle correspondance.
+**Le formulaire ne demande pas la date de naissance.** C'est le cas qui fait
+tomber D1 tout entier, et il se découvre avec `tools/dump_helloasso.py`
+**avant** qu'une ligne de code soit écrite (lot 1). Si ça arrive : soit le club
+ajoute le champ à son formulaire, soit D1 se rejoue. La console, elle, refuse
+d'enregistrer une correspondance sans champ de date : elle dit *« aucun champ de
+date de naissance — aucune catégorie ne pourra se calculer »* plutôt que de
+laisser cent inscriptions s'empiler en attente.
+
+**Une année hors barème.** Un adulte accompagnateur, un enfant trop jeune, une
+faute de frappe sur l'année. L'inscription arrive en *À trancher* avec l'année
+affichée : c'est souvent la faute de frappe qu'on voit tout de suite.
+
+**Le barème change en cours de compétition.** On corrige une ligne, on
+enregistre, et un bouton **rejoue** les inscriptions en attente. Le rejeu
+**redemande** les articles à HelloAsso plutôt que de relire une copie locale
+(D5) ; l'idempotence rend l'opération gratuite.
+
+**Un circuit mixte.** `Adulte`, `Loisir` : pas de suffixe de genre, la catégorie
+est le nom du circuit. Sans cette case, la console composerait « Adulte F » —
+une catégorie qui n'existe nulle part, et un classement d'une personne.
 
 **Deux enfants d'une même famille dans une même commande.** Un article par
 enfant, deux `user` différents, un seul `payer`. C'est le cas nominal, pas un

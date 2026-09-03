@@ -176,6 +176,7 @@ input, select {
   font: inherit; width: 100%; padding: 9px 11px; border-radius: 9px;
   border: 1px solid var(--trait); background: var(--surface2); color: var(--encre);
 }
+input[type="checkbox"], input[type="radio"] { accent-color: var(--accent); padding: 0; }
 .grille { display: grid; gap: 14px; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); }
 
 /* état clé/valeur */
@@ -232,6 +233,16 @@ td.num { font-family: var(--chiffre); }
 .diff { color: var(--alerte); font-weight: 600; }
 .pareil { color: var(--ok); font-weight: 600; }
 
+/* un champ que je propose d'ajouter, pas encore validé */
+.propose-champ {
+  border: 1px dashed var(--accent); border-radius: 11px; padding: 9px 11px 11px;
+  background: color-mix(in srgb, var(--accent) 7%, transparent);
+}
+.propose-champ .drapeau {
+  display: block; font-size: .68rem; font-weight: 700; letter-spacing: .05em;
+  text-transform: uppercase; color: var(--accent-texte); margin-bottom: 5px;
+}
+
 /* --- décisions ----------------------------------------------------------- */
 .decision {
   background: var(--surface); border: 1px solid var(--trait);
@@ -255,8 +266,11 @@ td.num { font-family: var(--chiffre); }
 }
 .choix input { width: auto; margin: 3px 0 0; accent-color: var(--accent); flex: none; }
 .choix .quoi { display: block; }
-.choix .quoi b { display: block; font-size: .93rem; font-weight: 700; }
-.choix .quoi i { display: block; font-style: normal; font-size: .85rem; color: var(--encre2); margin-top: 2px; }
+/* `>` et pas un descendant quelconque : un <b> imbriqué dans le <i> de
+   description héritait du `display: block` et cassait la phrase en deux. */
+.choix .quoi > b { display: block; font-size: .93rem; font-weight: 700; }
+.choix .quoi > i { display: block; font-style: normal; font-size: .85rem; color: var(--encre2); margin-top: 2px; }
+.choix .quoi i b { color: var(--encre); }
 .propose {
   font-size: .68rem; font-weight: 700; letter-spacing: .05em; text-transform: uppercase;
   color: var(--ok); background: color-mix(in srgb, var(--ok) 14%, transparent);
@@ -264,7 +278,7 @@ td.num { font-family: var(--chiffre); }
 }
 #recap { border-color: var(--accent); }
 #recapTexte {
-  width: 100%; min-height: 250px; font-family: var(--chiffre); font-size: .8rem;
+  width: 100%; min-height: 130px; font-family: var(--chiffre); font-size: .8rem;
   padding: 12px; border-radius: 11px; border: 1px solid var(--trait);
   background: var(--surface2); color: var(--encre); resize: vertical; line-height: 1.5;
 }
@@ -321,14 +335,21 @@ td.num { font-family: var(--chiffre); }
      imprimer un dossard et l'apporter.</p>
   <div class="meta">
     <span class="tag">Porte 2 — rien n'est codé</span>
+    <span class="tag">D1→D7 tranchées le 03/09</span>
     <span class="tag">Branche <code>feat/008-helloasso-import</code></span>
     <span class="tag">API v5 relevée le 03/09/2026</span>
   </div>
+  <p class="note" style="margin-top:16px"><b>Reprise du 03/09, après tes deux
+     changements.</b> D1 — la catégorie vient de la <b>date de naissance</b>, plus
+     du tarif : l'écran <b>6</b> est entièrement refait. D5 — <b>strict
+     minimum</b> : plus de courriel du payeur, et le numéro de commande le
+     remplace là où il faut joindre quelqu'un. Deux questions naissent de D1,
+     <b>D8</b> et <b>D9</b>, dans l'onglet Décisions.</p>
 </header>
 
 <nav class="onglets" aria-label="Sections">
   <button type="button" data-vue="ecrans" aria-current="true">Écrans</button>
-  <button type="button" data-vue="decisions">Décisions <span class="compte calme" id="compteD">7</span></button>
+  <button type="button" data-vue="decisions">Décisions <span class="compte calme" id="compteD">2</span></button>
   <button type="button" data-vue="spec">Spec</button>
   <button type="button" data-vue="archi">Architecture</button>
   <button type="button" data-vue="plan">Plan</button>
@@ -397,16 +418,16 @@ td.num { font-family: var(--chiffre); }
                 <h3>HelloAsso</h3>
                 <dl>
                   <dt>Nom</dt><dd class="pareil">Brunel Léa</dd>
-                  <dt>Naissance</dt><dd class="diff">non renseignée</dd>
+                  <dt>Naissance</dt><dd class="diff">12/04/2014</dd>
                   <dt>Club</dt><dd>Annonay Escalade</dd>
                   <dt>Catégorie</dt><dd>U13 F</dd>
                 </dl>
               </div>
               <div class="colonne">
-                <h3>Déjà dans la liste — dossard 47</h3>
+                <h3>Déjà dans la liste — dossard 47, saisie au guichet</h3>
                 <dl>
                   <dt>Nom</dt><dd class="pareil">Brunel Léa</dd>
-                  <dt>Naissance</dt><dd class="diff">12/04/2014</dd>
+                  <dt>Naissance</dt><dd class="diff">non renseignée</dd>
                   <dt>Club</dt><dd>Annonay Escalade</dd>
                   <dt>Catégorie</dt><dd>U13 F</dd>
                 </dl>
@@ -418,25 +439,30 @@ td.num { font-family: var(--chiffre); }
               <button type="button" class="mini risque">Ignorer</button>
             </div>
           </div>
+          <p class="note" style="margin-bottom:12px">Ce cas-là sera le
+             <b>plus fréquent</b>, et pas par hasard : la saisie au guichet ne
+             demande pas la date de naissance, donc aucune rencontre entre les
+             deux origines ne peut se trancher toute seule. C'est la
+             décision <b>D8</b>.</p>
 
           <div class="cas">
             <div class="quoi">
               <b>Tom Vidal</b>
-              <span class="motif">Catégorie inconnue</span>
-              <span class="discret">tarif « Découverte »</span>
+              <span class="motif">Année hors barème</span>
+              <span class="discret">né le 04/07/2009 · commande 8 868 440</span>
             </div>
             <div class="grille" style="max-width:420px">
               <div>
                 <label for="catTom">Catégorie</label>
                 <select id="catTom">
                   <option>— choisir —</option>
-                  <option>U11 H</option><option>U13 H</option><option>U15 H</option>
+                  <option>U17 H</option><option>U19 H</option><option>Adulte</option>
                 </select>
               </div>
             </div>
             <div class="boutons">
               <button type="button" class="mini fort">Ranger</button>
-              <button type="button" class="mini">Régler la correspondance…</button>
+              <button type="button" class="mini">Régler le barème…</button>
               <button type="button" class="mini risque">Ignorer</button>
             </div>
           </div>
@@ -613,46 +639,85 @@ td.num { font-family: var(--chiffre); }
   </section>
 
   <section class="plaque">
-    <span class="puce"><b>6</b> · La correspondance — la seule chose qu'on ne peut pas deviner</span>
-    <p>La console lit le formulaire et montre ce qu'elle y a trouvé. Les tarifs et
-       les champs changent chaque année ; c'est le seul écran à remplir par édition.</p>
+    <span class="puce"><b>6</b> · Le barème — refait après D1</span>
+    <p>Une catégorie est faite de deux morceaux : un <b>circuit</b> (<code>U13</code>)
+       et un <b>genre</b> (<code>F</code>). Ils ne viennent pas du même endroit,
+       et l'écran suit cette découpe.</p>
     <div class="ecran"><div class="dedans">
       <p class="fil">HelloAsso · Bloc Party 2026</p>
 
       <div class="carte">
-        <h2>Les tarifs <span class="compte calme">5</span></h2>
-        <p class="aide">1 tarif sans catégorie — ses inscrits attendront.</p>
+        <h2>Les circuits, par année de naissance</h2>
+        <p class="aide">Proposé pour la saison 2026-2027. À corriger si le barème
+           du club diffère.</p>
         <div class="scroll"><table>
-          <thead><tr><th>Tarif HelloAsso</th><th>Catégorie</th><th></th></tr></thead>
+          <thead><tr><th>Circuit</th><th>De</th><th>À</th><th>Mixte</th><th>Inscrits</th></tr></thead>
           <tbody>
-            <tr><td>U11 filles</td>
-                <td><select><option selected>U11 F</option><option>U11 H</option></select></td>
-                <td class="discret">4 inscrits</td></tr>
-            <tr><td>U11 garçons</td>
-                <td><select><option selected>U11 H</option><option>U11 F</option></select></td>
-                <td class="discret">6 inscrits</td></tr>
-            <tr><td>U13 filles</td>
-                <td><select><option selected>U13 F</option></select></td>
-                <td class="discret">5 inscrits</td></tr>
-            <tr><td>U13 garçons</td>
-                <td><select><option selected>U13 H</option></select></td>
-                <td class="discret">3 inscrits</td></tr>
-            <tr><td>Découverte</td>
-                <td><select><option selected>— aucune —</option><option>U11 H</option><option>U13 H</option></select></td>
-                <td class="discret" style="color:var(--attention)">1 en attente</td></tr>
+            <tr><td>U11</td>
+                <td><input value="2016" style="width:88px" inputmode="numeric"></td>
+                <td><input value="2017" style="width:88px" inputmode="numeric"></td>
+                <td><input type="checkbox" style="width:auto"></td>
+                <td class="num discret">10</td></tr>
+            <tr><td>U13</td>
+                <td><input value="2014" style="width:88px" inputmode="numeric"></td>
+                <td><input value="2015" style="width:88px" inputmode="numeric"></td>
+                <td><input type="checkbox" style="width:auto"></td>
+                <td class="num discret">8</td></tr>
+            <tr><td>U15</td>
+                <td><input value="2012" style="width:88px" inputmode="numeric"></td>
+                <td><input value="2013" style="width:88px" inputmode="numeric"></td>
+                <td><input type="checkbox" style="width:auto"></td>
+                <td class="num discret">3</td></tr>
+            <tr><td>U17</td>
+                <td><input value="2010" style="width:88px" inputmode="numeric"></td>
+                <td><input value="2011" style="width:88px" inputmode="numeric"></td>
+                <td><input type="checkbox" style="width:auto"></td>
+                <td class="num discret">0</td></tr>
+            <tr><td>Adulte</td>
+                <td><input value="1950" style="width:88px" inputmode="numeric"></td>
+                <td><input value="2008" style="width:88px" inputmode="numeric"></td>
+                <td><input type="checkbox" checked style="width:auto"></td>
+                <td class="num discret">2</td></tr>
+          </tbody>
+        </table></div>
+        <p class="verdict est-attention"><span class="rond" aria-hidden="true"></span>2009 : aucun circuit — 1 inscrit en attente</p>
+        <div class="boutons">
+          <button type="button" class="secondaire">Reproposer pour 2026-2027</button>
+        </div>
+      </div>
+
+      <div class="carte">
+        <h2>Le genre</h2>
+        <fieldset class="choix" style="border:0;padding:0;margin:0 0 14px">
+          <label><input type="radio" name="mSrc" checked>
+            <span class="quoi"><b>Un champ du formulaire</b></span></label>
+          <label><input type="radio" name="mSrc">
+            <span class="quoi"><b>Le nom du tarif</b>
+              <i>« U11 filles », « U11 garçons »</i></span></label>
+        </fieldset>
+        <div class="grille" style="max-width:340px;margin-bottom:14px">
+          <div><label for="chGenre">Champ</label>
+            <select id="chGenre"><option selected>Sexe</option><option>Genre</option></select></div>
+        </div>
+        <div class="scroll"><table>
+          <thead><tr><th>Réponse vue</th><th>Range en</th><th></th></tr></thead>
+          <tbody>
+            <tr><td>Fille</td><td><select><option selected>F</option><option>H</option><option>— indéterminé —</option></select></td><td class="discret">12 fois</td></tr>
+            <tr><td>Garçon</td><td><select><option>F</option><option selected>H</option><option>— indéterminé —</option></select></td><td class="discret">9 fois</td></tr>
+            <tr><td>F</td><td><select><option selected>F</option><option>H</option></select></td><td class="discret">2 fois</td></tr>
           </tbody>
         </table></div>
       </div>
 
       <div class="carte">
-        <h2>Les champs du formulaire</h2>
+        <h2>Les deux champs qui restent</h2>
         <div class="scroll"><table>
-          <thead><tr><th>Champ HelloAsso</th><th>Sert à</th></tr></thead>
+          <thead><tr><th>Sert à</th><th>Champ HelloAsso</th></tr></thead>
           <tbody>
-            <tr><td>Votre club</td><td><select><option selected>Club</option><option>— ignoré —</option></select></td></tr>
-            <tr><td>Date de naissance</td><td><select><option selected>Date de naissance</option><option>— ignoré —</option></select></td></tr>
-            <tr><td>Numéro de licence</td><td><select><option selected>— ignoré —</option><option>Club</option></select></td></tr>
-            <tr><td>Certificat médical</td><td><select><option selected>— ignoré —</option></select></td></tr>
+            <tr><td><b>Date de naissance</b><br><span class="discret">obligatoire</span></td>
+                <td><select><option selected>Date de naissance</option><option>— aucun —</option></select></td></tr>
+            <tr><td>Club<br><span class="discret">facultatif</span></td>
+                <td><select><option selected>Votre club</option><option>— aucun —</option></select></td></tr>
           </tbody>
         </table></div>
         <div class="boutons">
@@ -661,15 +726,41 @@ td.num { font-family: var(--chiffre); }
         </div>
       </div>
     </div></div>
-    <p class="note"><b>La date de naissance ne sert pas au classement</b> — elle
-       sert à savoir si deux « Léa Brunel » sont la même personne. C'est la seule
-       preuve qui autorise une fusion sans demander. Voir décision <b>D1</b>.</p>
+    <p class="note">Le barème est <b>proposé, jamais imposé</b> — les catégories
+       changent d'une édition à l'autre et rien ne garantit des tranches de deux
+       ans. Et il est <b>contrôlé</b>, comme la cascade contrôle ses phrases
+       mortes : recouvrement, trou, circuit sans année, et catégorie composée qui
+       n'existe pas dans l'édition. C'est ce dernier contrôle qui attrape le
+       circuit « Adulte » qu'on aurait oublié de cocher <b>mixte</b> — il
+       composerait « Adulte F », une catégorie qui n'existe nulle part.</p>
+  </section>
+
+  <section class="plaque">
+    <span class="puce"><b>6 bis</b> · Ce que la console refuse d'enregistrer</span>
+    <p>Un seul refus, et c'est celui qui évite cent inscriptions bloquées sans
+       qu'on comprenne pourquoi.</p>
+    <div class="ecran"><div class="dedans">
+      <p class="fil">HelloAsso · Bloc Party 2026</p>
+      <div class="carte">
+        <h2>Les deux champs qui restent</h2>
+        <div class="scroll"><table>
+          <thead><tr><th>Sert à</th><th>Champ HelloAsso</th></tr></thead>
+          <tbody>
+            <tr><td><b>Date de naissance</b><br><span class="discret">obligatoire</span></td>
+                <td><select><option selected>— aucun —</option></select></td></tr>
+          </tbody>
+        </table></div>
+        <p class="verdict est-alerte"><span class="rond" aria-hidden="true"></span>Aucun champ de date de naissance — aucune catégorie ne se calculera</p>
+        <div class="boutons"><button type="button" class="action" disabled style="opacity:.5">Enregistrer</button></div>
+      </div>
+    </div></div>
   </section>
 
   <section class="plaque">
     <span class="puce"><b>7</b> · Le guichet, quand quelqu'un s'est déjà inscrit en ligne</span>
     <p>Le rapprochement marche dans les deux sens : la saisie manuelle prévient
-       avant de créer un doublon.</p>
+       avant de créer un doublon. Le champ encadré est un <b>ajout que je
+       propose</b> — c'est la décision <b>D8</b>, il n'est pas acquis.</p>
     <div class="ecran"><div class="dedans">
       <p class="fil">Participants</p>
       <div class="carte">
@@ -677,6 +768,10 @@ td.num { font-family: var(--chiffre); }
         <div class="grille">
           <div><label for="pn">Nom *</label><input id="pn" value="Brunel"></div>
           <div><label for="pp">Prénom</label><input id="pp" value="Léa"></div>
+          <div class="propose-champ">
+            <span class="drapeau">Ajout proposé · D8</span>
+            <label for="pa">Année de naissance</label><input id="pa" value="2014" inputmode="numeric">
+          </div>
           <div><label for="pc">Club</label><select id="pc"><option>Annonay Escalade</option></select></div>
           <div><label for="pk">Catégorie</label><select id="pk"><option>U13 F</option></select></div>
         </div>
@@ -689,112 +784,71 @@ td.num { font-family: var(--chiffre); }
         </div>
       </div>
     </div></div>
+    <p class="note">Sans ce champ, une saisie au guichet n'a <b>jamais</b> de date
+       de naissance — et toute rencontre avec une inscription en ligne tombe en
+       « à trancher ». Avec lui, la catégorie se propose aussi toute seule au
+       guichet, par le même barème : les deux origines se rangent de la même
+       façon, ce qui est tout l'intérêt de D1.</p>
   </section>
 
 </main>
 
 <!-- ═══════════════════════════ DÉCISIONS ═══════════════════════════ -->
 <main id="vue-decisions" hidden>
-  <p style="color:var(--encre2);margin:0 0 20px;max-width:68ch">
-    Sept points qui changent ce qui est construit. Mon choix est présélectionné.
-    Le récapitulatif en bas se met à jour tout seul — copie-le, ou dis-moi
-    simplement les numéros que tu changes.</p>
+  <div class="decision" style="border-color:var(--ok)">
+    <h3>Tranché le 03/09</h3>
+    <p>Tes sept réponses. Les deux que tu as changées sont en gras.</p>
+    <div class="scroll"><table>
+      <thead><tr><th>#</th><th>Question</th><th>Tranché</th></tr></thead>
+      <tbody>
+        <tr><td class="num">D1</td><td>D'où vient la catégorie ?</td>
+            <td><b>De la date de naissance</b> — un barème année → circuit, le genre lu à part</td></tr>
+        <tr><td class="num">D2</td><td>Création automatique sans ambiguïté ?</td><td>Oui</td></tr>
+        <tr><td class="num">D3</td><td>Webhook ou sondage ?</td><td>Sondage seul, 60 s</td></tr>
+        <tr><td class="num">D4</td><td>Ce qui clôt une inscription</td><td>Imprimer vaut « remis »</td></tr>
+        <tr><td class="num">D5</td><td>Données gardées</td>
+            <td><b>Le strict minimum</b> — rien du payeur, pas même son courriel</td></tr>
+        <tr><td class="num">D6</td><td>Environnement</td><td>Bac à sable</td></tr>
+        <tr><td class="num">D7</td><td>Risque R13</td><td>Révoqué et nettoyé avant de commencer</td></tr>
+      </tbody>
+    </table></div>
+  </div>
+
+  <p style="color:var(--encre2);margin:26px 0 20px;max-width:68ch">
+    <b>Deux questions naissent de D1</b> — elles n'existaient pas tant que la
+    catégorie venait du tarif. Mon choix est présélectionné ; le récapitulatif en
+    bas se met à jour tout seul.</p>
 
   <div class="decision">
-    <h3><span class="code">D1</span> D'où vient la catégorie ?</h3>
-    <p>Un grimpeur rangé dans la mauvaise catégorie fausse un classement entier.</p>
+    <h3><span class="code">D8</span> Le formulaire d'ajout manuel apprend-il l'année de naissance ?</h3>
+    <p>Aujourd'hui il demande nom, prénom, club, catégorie (spec 013). C'est une
+       retouche à un écran qui existe — à valider, pas à faire en douce.</p>
     <div class="choix">
-      <label><input type="radio" name="d1" value="tarif" checked>
-        <span class="quoi"><b>Du tarif<span class="propose">proposé</span></b>
-          <i>Le club vend un tarif par catégorie. Une ligne par tarif, découverte toute seule.</i></span></label>
-      <label><input type="radio" name="d1" value="naissance">
-        <span class="quoi"><b>De la date de naissance</b>
-          <i>Calculée par année. Il faut alors une table année → catégorie, et le sexe en plus.</i></span></label>
-      <label><input type="radio" name="d1" value="champ">
-        <span class="quoi"><b>D'un champ du formulaire</b>
-          <i>Si le club fait choisir la catégorie explicitement à l'inscription.</i></span></label>
+      <label><input type="radio" name="d8" value="oui" checked>
+        <span class="quoi"><b>Oui, un champ facultatif<span class="propose">proposé</span></b>
+          <i>Le rapprochement peut alors trancher tout seul, et la catégorie se propose
+             aussi au guichet — les deux origines se rangent de la même façon.</i></span></label>
+      <label><input type="radio" name="d8" value="non">
+        <span class="quoi"><b>Non, on ne touche pas à cet écran</b>
+          <i>Toute rencontre entre une inscription en ligne et une saisie au guichet
+             passera par « à trancher ». C'est un clic de plus par personne concernée.</i></span></label>
     </div>
   </div>
 
   <div class="decision">
-    <h3><span class="code">D2</span> Une inscription sans ambiguïté crée-t-elle le participant toute seule ?</h3>
-    <p>« Sans ambiguïté » = catégorie connue, aucun homonyme.</p>
+    <h3><span class="code">D9</span> Date de naissance complète, ou année seule ?</h3>
+    <p>L'année suffit pour la catégorie. C'est la <b>date</b> qui autorise une
+       fusion sans demander.</p>
     <div class="choix">
-      <label><input type="radio" name="d2" value="auto" checked>
-        <span class="quoi"><b>Oui, automatiquement<span class="propose">proposé</span></b>
-          <i>Elle arrive directement dans « à imprimer ». Sinon on clique cent fois le matin même.</i></span></label>
-      <label><input type="radio" name="d2" value="manuel">
-        <span class="quoi"><b>Non, tout passe par un humain</b>
-          <i>Chaque inscription est validée à la main. Plus sûr, beaucoup plus lent.</i></span></label>
-    </div>
-  </div>
-
-  <div class="decision">
-    <h3><span class="code">D3</span> Webhook, ou sondage seul ?</h3>
-    <p>Le webhook d'une association n'est <b>pas signé</b> (HMAC réservé aux
-       partenaires) et son corps ne porte <b>pas</b> les champs personnalisés.</p>
-    <div class="choix">
-      <label><input type="radio" name="d3" value="sondage" checked>
-        <span class="quoi"><b>Sondage seul<span class="propose">proposé</span></b>
-          <i>60 s pendant la compétition. Rien d'ouvert sur Internet.</i></span></label>
-      <label><input type="radio" name="d3" value="webhook">
-        <span class="quoi"><b>Sondage + webhook de réveil</b>
-          <i>Quelques dizaines de secondes gagnées, contre une route publique non authentifiée.</i></span></label>
-    </div>
-  </div>
-
-  <div class="decision">
-    <h3><span class="code">D4</span> Qu'est-ce qui clôt une inscription ?</h3>
-    <p>Le vrai geste est : imprimer le dossard et l'apporter.</p>
-    <div class="choix">
-      <label><input type="radio" name="d4" value="impression" checked>
-        <span class="quoi"><b>Imprimer vaut « remis »<span class="propose">proposé</span></b>
-          <i>Un clic. Avec un « déjà remis » pour le cas inverse.</i></span></label>
-      <label><input type="radio" name="d4" value="deux">
-        <span class="quoi"><b>Deux gestes distincts</b>
-          <i>Imprimer, puis cocher « remis ». Plus fidèle, un clic de plus par personne.</i></span></label>
-    </div>
-  </div>
-
-  <div class="decision">
-    <h3><span class="code">D5</span> Que garde-t-on de la commande HelloAsso ?</h3>
-    <p>Elle porte des <b>noms de mineurs</b> et les coordonnées de leurs parents.</p>
-    <div class="choix">
-      <label><input type="radio" name="d5" value="elague" checked>
-        <span class="quoi"><b>Une copie élaguée<span class="propose">proposé</span></b>
-          <i>Nom, prénom, naissance, club, catégorie, tarif, courriel du payeur. Rien d'autre.</i></span></label>
-      <label><input type="radio" name="d5" value="brut">
-        <span class="quoi"><b>Le JSON brut</b>
-          <i>Plus facile à rejouer si la correspondance change. Stocke adresses et téléphones.</i></span></label>
-      <label><input type="radio" name="d5" value="minimal">
-        <span class="quoi"><b>Le strict minimum</b>
-          <i>Pas même le courriel. On ne peut alors plus rappeler quelqu'un qui a fait une faute de saisie.</i></span></label>
-    </div>
-  </div>
-
-  <div class="decision">
-    <h3><span class="code">D6</span> Sur quoi développe-t-on ?</h3>
-    <div class="choix">
-      <label><input type="radio" name="d6" value="sandbox" checked>
-        <span class="quoi"><b>Le bac à sable<span class="propose">proposé</span></b>
-          <i>Une association et un formulaire de test. La vraie clé n'arrive qu'à la recette.</i></span></label>
-      <label><input type="radio" name="d6" value="prod">
-        <span class="quoi"><b>Directement le compte du club</b>
-          <i>En lecture seule, donc sans risque d'écriture — mais avec de vraies données personnelles dans mes tests.</i></span></label>
-    </div>
-  </div>
-
-  <div class="decision">
-    <h3><span class="code">D7</span> Le préalable R13</h3>
-    <p>Le <code>README.md</code> du dépôt <b>public</b> <code>climbBackEnd</code>
-       contient un <code>clientSecret</code> HelloAsso et deux jetons en clair.</p>
-    <div class="choix">
-      <label><input type="radio" name="d7" value="avant" checked>
-        <span class="quoi"><b>Révoquer et nettoyer avant de commencer<span class="propose">proposé</span></b>
-          <i>C'est toi qui le fais : il faut être connecté au compte du club.</i></span></label>
-      <label><input type="radio" name="d7" value="pendant">
-        <span class="quoi"><b>Le faire en parallèle</b>
-          <i>Le code avance pendant ce temps. La clé publiée reste vivante quelques jours de plus.</i></span></label>
+      <label><input type="radio" name="d9" value="date" checked>
+        <span class="quoi"><b>La date complète<span class="propose">proposé</span></b>
+          <i>Deux homonymes nés la même année restent distingués. C'est la donnée que
+             HelloAsso envoie de toute façon.</i></span></label>
+      <label><input type="radio" name="d9" value="annee">
+        <span class="quoi"><b>L'année seule</b>
+          <i>Moins de données sur un mineur, dans l'esprit de D5. La règle de fusion se
+             durcit alors : nom + prénom + année + <b>club</b>, et tout le reste en
+             « à trancher ».</i></span></label>
     </div>
   </div>
 
@@ -864,13 +918,18 @@ td.num { font-family: var(--chiffre); }
         <tr><td>Homonyme, dates de naissance <b>identiques</b></td><td><b>La même personne</b> — rattachement, champs vides complétés</td></tr>
         <tr><td>Homonyme, dates <b>différentes</b></td><td><b>Deux personnes</b> — créé, et signalé une fois</td></tr>
         <tr><td>Homonyme, une date manque</td><td><b>À trancher</b></td></tr>
-        <tr><td>Tarif sans catégorie</td><td><b>À trancher</b></td></tr>
+        <tr><td>Date absente, ou année <b>hors barème</b></td><td><b>À trancher</b>, catégorie vide</td></tr>
+        <tr><td>Genre indéterminé, circuit non mixte</td><td><b>À trancher</b></td></tr>
         <tr><td>Article annulé, jamais intégré</td><td>Rien</td></tr>
         <tr><td>Article annulé, <b>déjà intégré</b></td><td><b>À trancher</b> — le participant n'est pas touché</td></tr>
       </tbody>
     </table></div>
     <p>Une fusion automatique n'arrive <b>que</b> sur une date de naissance
        identique. C'est la seule preuve dont on dispose.</p>
+    <p class="note"><b>Conséquence de D1 à regarder en face :</b> la saisie au
+       guichet ne demande pas la date de naissance, donc une inscription en ligne
+       et une saisie au guichet pour la même personne tomberont
+       <b>systématiquement</b> en « à trancher ». C'est la décision <b>D8</b>.</p>
 
     <h2>Données personnelles</h2>
     <p>Les articles portent des noms de mineurs et les coordonnées des parents.
@@ -878,14 +937,22 @@ td.num { font-family: var(--chiffre); }
     <div class="scroll"><table>
       <thead><tr><th>Donnée</th><th>Gardée ?</th></tr></thead>
       <tbody>
-        <tr><td>Nom, prénom, date de naissance de l'inscrit</td><td><b>oui</b></td></tr>
+        <tr><td>Nom, prénom, date de naissance de l'inscrit</td><td><b>oui</b> — la date fait la catégorie <i>et</i> le rapprochement</td></tr>
         <tr><td>Club, catégorie, nom du tarif</td><td><b>oui</b></td></tr>
-        <tr><td>Courriel du payeur</td><td><b>oui</b>, un seul champ</td></tr>
-        <tr><td>Adresse, ville, téléphone, société du payeur</td><td><b>non</b></td></tr>
+        <tr><td>Numéro de commande</td><td><b>oui</b> — un entier, qui ne décrit personne</td></tr>
+        <tr><td>Courriel du payeur</td><td><b>non</b> (D5)</td></tr>
+        <tr><td>Nom, adresse, ville, téléphone du payeur</td><td><b>non</b></td></tr>
         <tr><td>Montants, moyens de paiement, reçus</td><td><b>non</b></td></tr>
-        <tr><td>Le JSON brut</td><td><b>non</b> — copie élaguée</td></tr>
+        <tr><td>Le JSON brut, ou une copie élaguée</td><td><b>non</b> — les colonnes <i>sont</i> l'enregistrement</td></tr>
       </tbody>
     </table></div>
+    <p class="note">Ce que D5 coûte : quand quelqu'un s'est trompé de prénom, on
+       ne peut plus le joindre <b>depuis la console</b>. On lit le numéro de
+       commande à l'écran et on le retrouve dans le back-office HelloAsso, où le
+       courriel est déjà, et où il a sa place.<br>
+       Ce que D5 simplifie : relire une inscription après correction du barème
+       <b>redemande</b> l'article à HelloAsso au lieu de rejouer une copie
+       locale. Moins de données gardées <i>et</i> moins de code.</p>
     <p>Les inscriptions suivent leur compétition. Elles ne partent <b>pas</b> dans
        l'archive : une archive sert à rejouer un classement, pas à conserver
        l'état civil d'un enfant pendant dix ans.</p>
@@ -905,7 +972,9 @@ td.num { font-family: var(--chiffre); }
           compétition, sans que personne n'ait cliqué</li>
       <li>Le même article relevé dix fois ne crée <b>qu'un</b> participant</li>
       <li>Un homonyme de même date de naissance n'en crée <b>pas</b> un second</li>
-      <li>Un tarif sans catégorie met l'inscription en attente <b>sans bloquer les autres</b></li>
+      <li>Le barème est <b>proposé</b> depuis la date de l'édition, et modifiable</li>
+      <li>Le contrôle attrape recouvrement, trou, circuit vide, catégorie composée inexistante</li>
+      <li>Une année hors barème met l'inscription en attente <b>sans bloquer les autres</b></li>
       <li>Un article annulé après coup remonte, et <b>ne supprime rien</b></li>
       <li>Quatre workers gunicorn = <b>un seul</b> rafraîchissement de jeton</li>
       <li>Aucune adresse, aucun téléphone, aucun montant n'entre en base</li>
@@ -935,9 +1004,9 @@ td.num { font-family: var(--chiffre); }
                         │  pagination, idempotence │
                         └──────────┬───────────────┘
                         ┌──────────▼───────────────┐
-                        │ helloasso/correspondance │  tarif → catégorie
-                        │  ce que veulent dire les │  champ → club
-                        │  champs du formulaire    │  champ → naissance
+                        │ helloasso/correspondance │  naissance → circuit
+                        │  le barème, le genre,    │  genre     → F / H
+                        │  les deux champs         │  champ     → club
                         └──────────┬───────────────┘
                         ┌──────────▼───────────────┐
                         │ helloasso/rapprochement  │
@@ -964,8 +1033,17 @@ td.num { font-family: var(--chiffre); }
                                                      pas dans le code du relevé
 
 article_id · commande_id · etat · motif · participant_id
-nom · prenom · date_naissance · club · categorie · tarif · courriel
-etat_helloasso · maj_le · recue_le · traitee_le · traitee_par · detail</pre>
+nom · prenom · date_naissance · club · categorie · tarif
+etat_helloasso · maj_le · recue_le · traitee_le · traitee_par
+
+pas de colonne `courriel`, pas de colonne `detail`     ← décision D5</pre>
+    <p>Il n'existe nulle part de copie du JSON reçu : les colonnes ci-dessus
+       <b>sont</b> l'enregistrement. Et une colonne s'ajoute à une table
+       existante — <code>participant.date_naissance</code>, nullable : sans elle,
+       un participant saisi au guichet n'aurait jamais de date, et le
+       rapprochement devrait aller la chercher par un chemin détourné. Le
+       mécanisme <code>COLONNES_AJOUTEES</code> de <code>schema.py</code> le fait
+       déjà, sous le verrou de démarrage.</p>
     <div class="scroll"><table>
       <thead><tr><th><code>etat</code></th><th>Ce que ça veut dire</th><th>Ce qui le fait bouger</th></tr></thead>
       <tbody>
@@ -995,12 +1073,44 @@ etat_helloasso · maj_le · recue_le · traitee_le · traitee_par · detail</pre
 <pre>{
   "form_type": "Event",
   "form_slug": "bloc-party-2026",
-  "tarifs":  { "U11 filles": "U11 F", "U11 garçons": "U11 H", "Découverte": null },
-  "champs":  { "club": "Votre club", "naissance": "Date de naissance", "sexe": null }
+
+  "champs": { "naissance": "Date de naissance", "club": "Votre club" },
+
+  "bareme": [
+    { "circuit": "U11",    "de": 2016, "a": 2017, "mixte": false },
+    { "circuit": "U13",    "de": 2014, "a": 2015, "mixte": false },
+    { "circuit": "Adulte", "de": 1950, "a": 2008, "mixte": true  }
+  ],
+
+  "genre": {
+    "source":  "champ",
+    "champ":   "Sexe",
+    "valeurs": { "Fille": "F", "Garçon": "H", "F": "F" }
+  }
 }</pre>
-    <p>Un tarif à <code>null</code> est un tarif <b>vu mais pas encore rangé</b> —
-       la différence entre « pas encore décidé » et « inconnu » est ce qui permet
-       de dire « 1 tarif sans catégorie » au lieu de ne rien dire.</p>
+    <p>Trois choses à ne pas confondre :</p>
+    <ul>
+      <li><b><code>bareme</code> est une liste, pas un dictionnaire.</b> Deux
+          circuits peuvent se recouvrir — c'est une erreur, mais elle doit
+          pouvoir être <i>enregistrée</i> pour être <i>montrée</i>. Un
+          dictionnaire indexé par année rendrait le recouvrement inexprimable,
+          donc invisible, donc impossible à corriger.</li>
+      <li><b><code>genre.source</code></b> vaut <code>champ</code> ou
+          <code>tarif</code>. Une seule source, choisie ; pas deux mécanismes qui
+          se marchent dessus.</li>
+      <li><b><code>genre.valeurs</code></b> range les réponses <i>réellement
+          vues</i>. Une valeur absente n'est pas <code>H</code> par défaut : elle
+          rend le genre <b>indéterminé</b>.</li>
+    </ul>
+    <p><code>proposer_bareme()</code> calcule la proposition — saison qui commence
+       en <code>A</code>, <code>U(n)</code> prend <code>A-n+1</code> et
+       <code>A-n+2</code>. <code>controler()</code> rend les anomalies, dans la
+       même forme que <code>cascade.controler()</code> : <code>recouvrement</code>,
+       <code>trou</code>, <code>circuit_vide</code>,
+       <code>categorie_inconnue</code>. Le dernier attrape le circuit
+       « Adulte » qu'on a oublié de marquer mixte et qui composerait
+       « Adulte F » — le défaut des « catégories orphelines » de la spec 019,
+       pris en amont.</p>
 
     <h2>Le jeton, et pourquoi il vit en base</h2>
     <p>La documentation HelloAsso est explicite : <i>« Si une nouvelle
@@ -1131,16 +1241,32 @@ etat_helloasso · maj_le · recue_le · traitee_le · traitee_par · detail</pre
       </tbody>
     </table></div>
 
+    <h3>Le barème — le lot que D1 fait naître, testable hors base</h3>
+    <div class="scroll"><table>
+      <thead><tr><th>Scénario</th><th>Attendu</th></tr></thead>
+      <tbody>
+        <tr><td>Compétition du 15/11/2026, circuits U11→U17</td><td>U11 → 2016-2017, U13 → 2014-2015</td></tr>
+        <tr><td>Compétition du 15/03/2027, <b>même saison</b></td><td><b>La même</b> proposition — la saison, pas l'année civile</td></tr>
+        <tr><td>Une année dans deux circuits</td><td><code>recouvrement</code>, avec l'année nommée</td></tr>
+        <tr><td>Une année sans circuit entre deux</td><td><code>trou</code></td></tr>
+        <tr><td>« Adulte » non marqué mixte</td><td><code>categorie_inconnue</code> — « Adulte F » n'existe pas</td></tr>
+        <tr><td>« Adulte » marqué mixte</td><td>Catégorie = <code>Adulte</code>, sans suffixe</td></tr>
+        <tr><td>Réponse de genre inconnue</td><td>Genre <b>indéterminé</b> — jamais <code>H</code> par défaut</td></tr>
+      </tbody>
+    </table></div>
+
     <h3>Le relevé — réseau doublé, données en fixtures</h3>
     <div class="scroll"><table>
       <thead><tr><th>Scénario</th><th>Attendu</th></tr></thead>
       <tbody>
         <tr><td><b>Le même article relevé dix fois</b></td><td><b>Une</b> inscription, <b>un</b> participant</td></tr>
-        <tr><td>Tarif hors correspondance</td><td><code>a_trancher</code>, catégorie vide</td></tr>
+        <tr><td>Date de naissance absente</td><td><code>a_trancher</code>, catégorie vide</td></tr>
+        <tr><td>Année hors barème</td><td><code>a_trancher</code>, l'année affichée</td></tr>
+        <tr><td>Le tarif ne correspond à aucune catégorie</td><td><b>Sans effet</b> — le tarif ne décide plus de rien (D1)</td></tr>
         <tr><td>Article sans <code>user</code></td><td>Nom repris du payeur, motif <code>sans_nom</code></td></tr>
         <tr><td>Annulé après intégration</td><td><code>a_trancher</code>, <b>participant intact</b></td></tr>
         <tr><td>Commande à deux articles (fratrie)</td><td><b>Deux</b> participants</td></tr>
-        <tr><td>Adresse et téléphone du payeur présents</td><td><b>Absents de la base</b>, <code>detail</code> compris</td></tr>
+        <tr><td>Payeur complet dans la réponse</td><td><b>Rien de lui n'est écrit</b> — ni nom, ni courriel, ni adresse</td></tr>
         <tr><td><code>continuationToken</code> toujours renvoyé, données vides</td><td>Arrêt — <b>pas de boucle infinie</b></td></tr>
         <tr><td>Un article sur cent lève</td><td>99 écrits, l'erreur au rapport</td></tr>
       </tbody>
@@ -1176,11 +1302,14 @@ etat_helloasso · maj_le · recue_le · traitee_le · traitee_par · detail</pre
     <div class="scroll"><table>
       <thead><tr><th>Risque</th><th>Ce qu'on fait</th></tr></thead>
       <tbody>
-        <tr><td><b>Le vrai formulaire ne ressemble pas au formulaire de test</b> —
-                les catégories ne sont pas des tarifs</td>
-            <td><code>dump_helloasso.py</code> le montre <b>avant</b> qu'on code.
-                C'est sa raison d'être. D1 bascule alors, et la correspondance
-                gagne une ligne</td></tr>
+        <tr><td>🔴 <b>Le formulaire du club ne demande pas la date de naissance.</b>
+                D1 tombe entièrement</td>
+            <td><b>Premier geste du lot 1</b> : <code>dump_helloasso.py</code> le
+                dit avant qu'une ligne de correspondance soit écrite. Si c'est le
+                cas, soit le club ajoute le champ, soit D1 se rejoue</td></tr>
+        <tr><td>Le genre n'est ni dans un champ, ni dans le nom des tarifs</td>
+            <td>Tous les circuits non mixtes passent en « à trancher ». Vu au
+                lot 1, pas en recette</td></tr>
         <tr><td>Le <code>refresh_token</code> meurt entre deux compétitions</td>
             <td>État explicite « clé à reconnecter ». Un geste d'une minute, pas
                 un mystère</td></tr>
@@ -1220,18 +1349,13 @@ document.querySelectorAll(".bascule [data-theme]").forEach(b => {
 
 // --- récapitulatif des décisions ------------------------------------------
 const LIBELLES = {
-  d1: ["D1 · catégorie", {tarif: "du tarif", naissance: "de la date de naissance", champ: "d'un champ du formulaire"}],
-  d2: ["D2 · création auto", {auto: "oui, quand il n'y a aucune ambiguïté", manuel: "non, tout passe par un humain"}],
-  d3: ["D3 · temps réel", {sondage: "sondage seul (60 s)", webhook: "sondage + webhook de réveil"}],
-  d4: ["D4 · clôture", {impression: "imprimer vaut « remis »", deux: "deux gestes distincts"}],
-  d5: ["D5 · données gardées", {elague: "copie élaguée", brut: "le JSON brut", minimal: "le strict minimum"}],
-  d6: ["D6 · environnement", {sandbox: "bac à sable", prod: "compte du club directement"}],
-  d7: ["D7 · risque R13", {avant: "révoqué et nettoyé avant de commencer", pendant: "en parallèle du développement"}],
+  d8: ["D8 · année de naissance au guichet", {oui: "oui, un champ facultatif", non: "non, on ne touche pas à cet écran"}],
+  d9: ["D9 · finesse de la date", {date: "la date complète", annee: "l'année seule, fusion durcie par le club"}],
 };
-const DEFAUTS = {d1:"tarif", d2:"auto", d3:"sondage", d4:"impression", d5:"elague", d6:"sandbox", d7:"avant"};
+const DEFAUTS = {d8: "oui", d9: "date"};
 
 function majRecap() {
-  const lignes = ["Spec 008 — décisions"];
+  const lignes = ["Spec 008 — décisions D8 et D9"];
   let changees = 0;
   for (const [nom, [titre, valeurs]] of Object.entries(LIBELLES)) {
     const choisi = document.querySelector(`input[name="${nom}"]:checked`);
@@ -1242,11 +1366,11 @@ function majRecap() {
   }
   lignes.push("");
   lignes.push(changees === 0
-    ? "Rien de changé — les sept propositions sont retenues."
+    ? "Les deux propositions sont retenues."
     : `${changees} décision(s) changée(s), marquée(s) d'une flèche.`);
   document.getElementById("recapTexte").value = lignes.join("\n");
   const compte = document.getElementById("compteD");
-  compte.textContent = changees === 0 ? "7" : `${changees} ≠`;
+  compte.textContent = changees === 0 ? "2" : `${changees} ≠`;
   compte.classList.toggle("calme", changees === 0);
 }
 document.querySelectorAll('.choix input[type="radio"]').forEach(r =>
