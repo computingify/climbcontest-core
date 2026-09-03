@@ -1,16 +1,17 @@
 # Architecture — spec 038
 
-> Rappel : cette spec attend une décision (D1→D4). Ce document décrit **comment
-> chaque variante se construirait**, pas ce qui est décidé.
+> Les décisions D1→D5 sont prises (voir [spec.md](spec.md), section 5). Ce
+> document décrit la construction **retenue** : plus aucun `merge=union`, plus
+> aucun fichier partagé écrit pendant le développement.
 
 ## 1. Ce qui existe déjà, et qu'on ne refait pas
 
 - `docs/specs-index.md`, **82 lignes**, trois sections : le tableau des specs
-  (une ligne par spec, 34 aujourd'hui), les « specs pressenties » (008 et 009,
+  (une ligne par spec, 35 avec la 038), les « specs pressenties » (008 et 009,
   réservées sans dossier), et « historique pré-specs » (de la prose stable).
   **Seule la première section bouge** — les deux autres n'ont pas conflité une
   seule fois aujourd'hui.
-- Le dépôt **n'a pas de `.gitattributes`**. Il serait créé par cette spec.
+- Le dépôt **n'a pas de `.gitattributes`**, et n'en aura pas : voir section 5.
 - Aucun test ne lit `docs/specs-index.md` aujourd'hui : rien ne garde ce
   fichier.
 - `tools/` contient déjà des outils Python autonomes en bibliothèque standard
@@ -21,34 +22,75 @@
   `fiches.PREFIXE_QR_POSTE`. Le test « l'index est bien ce que l'outil produit »
   est le même geste.
 
-## 2. Fichiers touchés, quand le code viendra
+## 2. Fichiers touchés, par lot
 
-### Variante A — `merge=union` plus un garde
-
-| Fichier | Ce qui s'y passe |
-| --- | --- |
-| `.gitattributes` | **créé** — deux lignes, `docs/specs-index.md` et `CHANGELOG.md` |
-| `tests/test_specs_index.py` | **créé** — numéros triés, uniques, et syntaxe du tableau |
-
-### Variante B — la ligne vit avec sa spec
+### Lot A — la numérotation (additif, mergeable à tout moment)
 
 | Fichier | Ce qui s'y passe |
 | --- | --- |
-| `specs/XXX-nom/resume.md` | **créés, 34 fois** — la ligne de chaque spec, extraite de l'index actuel |
+| `tools/numero_de_spec.py` | **créé** — alloue en lisant master, les branches **distantes et locales**, les PR ouvertes et les numéros réservés ; `--reserver <slug>` pousse aussitôt une branche vide `spec/NNN-slug` |
+| `tests/test_numerotation_specs.py` | **créé** — pas de doublon, numéro et slug concordent avec le dossier |
+| `docs/workflow.md` | **étendu** — réserver son numéro devient le premier geste, avant d'écrire la spec |
+
+### Lot B — les fragments (une seule PR, fenêtre sans PR ouverte)
+
+| Fichier | Ce qui s'y passe |
+| --- | --- |
+| `changelog.d/README.md` | **créé** — le format d'un fragment |
+| `scripts/assembler_changelog.py` | **créé** — groupe par rubrique, écrit la section de version, supprime les fragments |
+| `scripts/release.sh` | **étape 0 ajoutée** — refuse de taguer s'il reste des fragments |
+| `CHANGELOG.md` | `## [Non publié]` **retiré** ; tout l'historique publié reste intact |
+| `specs/NNN-*/resume.md` | **créés ×35**, par extraction automatique de l'index actuel |
 | `tools/index_specs.py` | **créé** — lit les `resume.md`, écrit l'index |
-| `docs/specs-index.md` | **devient un produit** — même contenu, même ordre, un en-tête qui dit qu'il se régénère |
-| `tests/test_specs_index.py` | **étendu** — l'index committé est exactement ce que l'outil produit |
+| `docs/specs-index.tpl.md` | **créé** — l'en-tête et les deux sections stables |
+| `docs/specs-index.md` | **devient un produit**, avec un en-tête qui le dit |
+| `.github/workflows/tests.yml` | **étendu** — le job `index`, plus le garde du fragment manquant |
+| `CLAUDE.md`, `docs/workflow.md` | le nouveau geste, des deux côtés |
 
-### Variante C — un fragment de changelog par PR
+### Lot C — le verrou sur l'index (juste après B)
 
 | Fichier | Ce qui s'y passe |
 | --- | --- |
-| `changelog.d/*.md` | **créés au fil des PR** — un fragment par PR, supprimés à la release |
-| `tools/assembler_changelog.py` | **créé** — assemble sous un titre de version, vide le dossier |
-| `.github/workflows/tests.yml` | **étendu** — une PR qui touche `climbcontest/` sans fragment est signalée |
-| `docs/workflow.md` | **étendu** — le geste de release gagne une commande |
+| `.github/workflows/tests.yml` | **étendu** — une PR dont le diff touche `docs/specs-index.md` est refusée |
 
-## 3. Le format de `resume.md` (variante B)
+⚠️ **Pourquoi C ne peut pas voyager dans B.** Le garde tourne sur la PR qui le
+porte. Or la PR du lot B réécrit l'index de bout en bout : elle échouerait sur
+son propre garde. C part donc juste après, et B est la **dernière** PR autorisée
+à toucher ce fichier à la main.
+
+## 3. Le job qui régénère l'index (D5)
+
+Un second job dans `tests.yml`, qui se déclenche déjà sur
+`push: branches: [master]` — pas de nouveau fichier de workflow.
+
+```yaml
+  index:
+    needs: tests
+    if: github.ref == 'refs/heads/master'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write        # au JOB, pas au workflow
+    steps:
+      - uses: actions/checkout@v4
+      - run: python3 tools/index_specs.py --ecrire
+      - name: Publier si l'index a bouge
+        run: |
+          git diff --quiet docs/specs-index.md && exit 0
+          git config user.name  "climbcontest-bot"
+          git config user.email "bot@users.noreply.github.com"
+          git commit -m "docs(specs): index regenere [skip ci]" docs/specs-index.md
+          git push
+```
+
+Trois points vérifiés le 03/09, pas supposés :
+
+| Question | Vérifié |
+| --- | --- |
+| La CI peut-elle pousser sur master ? | **Oui** — `master` n'est pas une branche protégée. Si elle le devient, il faudra une exception pour le robot. |
+| Le jeton peut-il écrire ? | Pas par défaut : le dépôt est réglé sur `read`. On le déclare **au job**, comme `release.yml` le fait déjà au workflow — le job des tests, lui, reste en lecture seule, y compris sur les PR. |
+| Le robot boucle-t-il ? | **Non** — un push fait avec le `GITHUB_TOKEN` ne déclenche pas de nouveau workflow. `[skip ci]` n'est qu'une ceinture de plus. |
+
+## 4. Le format de `resume.md`
 
 Un fichier court, lisible seul, sans dépendance à un analyseur YAML — la
 bibliothèque standard n'en a pas, et le dépôt s'interdit les installations pour
@@ -71,34 +113,36 @@ générateur les replie en une ligne de tableau, en échappant les `|`.
 concorder, et le test le vérifie : un dossier renommé sans son `resume.md`
 sortirait sinon un index qui ne pointe nulle part.
 
-## 4. Ce que `.gitattributes` doit nommer — et surtout ne pas nommer
+## 5. Ce qu'on ne fait PAS : `merge=union`
 
-```
-docs/specs-index.md merge=union
-CHANGELOG.md        merge=union
-```
+Il était la variante A, et il est écarté. Non pas parce qu'il ne marche pas —
+les mesures de [spec.md](spec.md) section 3 montrent qu'il aurait absorbé trois
+scénarios sur cinq — mais parce qu'il aurait laissé le scénario 5 comme piège
+dormant : deux branches qui modifient la même ligne produisent deux lignes, sans
+un mot.
 
-⚠️ **Deux fichiers, nommés un par un. Jamais de motif.** Un `*.md merge=union`
-couvrirait `specs/*/spec.md`, `docs/workflow.md` et une bonne part des 118
-fichiers `.md` du dépôt : deux branches qui réécrivent le même paragraphe le verraient
-alors sortir **en double**, sans conflit et sans un mot. Le critère C6 existe
-pour ça, et il se teste : un fichier de prose quelconque doit **toujours**
+⚠️ Et si l'idée revient un jour, la forme à ne **jamais** prendre est le motif :
+un `*.md merge=union` couvrirait `specs/*/spec.md`, `docs/workflow.md` et une
+bonne part des 118 fichiers `.md` du dépôt. Deux branches qui réécrivent le même
+paragraphe le verraient sortir **en double**, sans conflit et sans un mot. Le
+critère C7 le vérifie : un fichier de prose quelconque doit **toujours**
 conflire.
 
-Si la variante C est retenue, `CHANGELOG.md` sort de cette liste — il ne serait
-plus écrit que par la release, donc par une seule main à la fois.
+## 6. Ce qui ne doit pas casser
 
-## 5. Ce qui ne doit pas casser
-
-- **`CLAUDE.md` pointe sur `docs/specs-index.md`.** Le chemin ne bouge pas, quelle
-  que soit la variante. Un index généré reste committé, et lisible sur GitHub.
+- **`CLAUDE.md` pointe sur `docs/specs-index.md`.** Le chemin ne bouge pas, et
+  l'index reste committé — donc lisible sur GitHub sans outil. C'est la raison
+  d'être du job de CI (D5) : une session qui démarre ne doit jamais lire une
+  liste périmée.
 - **Les liens relatifs `../specs/XXX-nom/`** de chaque ligne : ils sont écrits
   depuis `docs/`, et le générateur doit les produire à l'identique. Le critère
-  C7 les compare texte à texte.
+  C8 les compare texte à texte.
 - **Les deux sections stables** (specs pressenties, historique) sont recopiées
   telles quelles par le générateur, depuis un gabarit — elles ne se déduisent
   d'aucun dossier.
-- **Le geste de release** (spec 031 : le corps de la release GitHub est la
-  section du changelog) ne change pas en A, change en C. C'est l'objet de D2.
+- **Le geste de release.** `release.sh` gagne une étape 0, mais son étape 4 et
+  `scripts/extract_changelog.py` ne bougent pas : `release.yml` et la carte
+  « Version du serveur » de la console (spec 031) ne voient aucune différence.
 - **La CI ne doit pas devenir bloquante sur un oubli de fragment** sans qu'Adrien
-  l'ait voulu : en C, le contrôle commence en **avertissement**.
+  l'ait voulu : le contrôle commence en **avertissement**, et ne passe bloquant
+  que sur sa demande.
