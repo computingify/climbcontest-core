@@ -17,6 +17,19 @@ qu'on ne met pas à jour le matin d'une compétition :
 - **MINEUR** — nouvelle fonctionnalité, compatible.
 - **CORRECTIF** — correction, compatible.
 
+## [Non publié]
+
+### Ajouté
+
+- **Un simulateur de juges** (`tools/simulateur_juges.py`). Un panneau local
+  ouvre une compétition entière depuis le Mac : nombre de juges, cadence,
+  répartition dans le temps, aléas du terrain, démarrage et arrêt en un clic.
+  Ce qui part sur le réseau est ce qu'envoie un téléphone — mêmes routes, même
+  politique d'envoi, recopiée de `static/juge/politique.js` — et le protocole
+  bascule entre les lots `v3` et les trois appels `v2` de l'application gelée.
+  Bibliothèque standard uniquement : aucune installation. Voir
+  [docs/tester-avec-l-emulateur.md](docs/tester-avec-l-emulateur.md).
+
 ## [0.17.0] — 2026-09-03
 
 MINEUR : le serveur se met à jour depuis la console. Le reste est du correctif,
