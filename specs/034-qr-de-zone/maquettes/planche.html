@@ -1,0 +1,450 @@
+<!-- APERÇU RÉEL — spec 034, la planche de QR de poste.
+
+     ⚠️ Ce fichier n'est pas dessiné à la main : c'est la SORTIE RÉELLE de
+     `/admin/postes` sur le plan d'usine (17 zones), figée ici pour qu'on
+     puisse la regarder sans lancer un serveur. Les QR sont ceux que
+     `qr.svg()` produit, et ils se scannent depuis ce fichier.
+
+     ⚠️ LA PREMIÈRE VERSION ÉTAIT FAUSSE, et c'est le regard à l'écran qui l'a
+     dit. Elle empilait en COLONNE — QR de 80 mm, puis le nom, puis le mode
+     d'emploi — sur une affiche de 136 mm, deux par page. Le contenu faisait
+     164 mm : le mode d'emploi sortait COUPÉ en bas de chaque affiche, et rien
+     dans les tests ne le voyait. La disposition est passée à l'horizontale
+     (QR à gauche, texte à droite), comme les étiquettes de blocs depuis la
+     spec 024 : elle tient en 90 mm, et les 17 zones passent de 9 feuilles à
+     moitié vides à 6 pleines.
+-->
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<title>QR de poste</title>
+<style>
+  /* Les affiches de poste, posées sur la table du juge — spec 034.
+
+     Le juge arrive à sa table, ouvre l'application, scanne le carton posé
+     devant lui : son téléphone s'appelle « Zone C ». Il n'a rien tapé.
+
+     ⚠️ Ce que l'affiche doit permettre, dans cet ordre :
+     1. se REPERER en arrivant -- le nom de la zone est donc l'élément le plus
+        gros de la page, lisible d'un mètre en marchant ;
+     2. se scanner d'une seule main, de biais, un téléphone dans l'autre --
+        d'où un QR de 70 mm, bien plus gros que les 42 mm d'une étiquette de
+        bloc collée au mur ;
+     3. dire QUOI FAIRE. Un bénévole qui n'a pas écouté le briefing doit
+        trouver le geste sans demander : la marche à suivre est écrite dessus.
+
+     ⚠️ DISPOSITION HORIZONTALE -- QR à gauche, texte à droite, comme les
+     étiquettes de blocs depuis la spec 024. La première version empilait en
+     colonne (QR, puis nom, puis mode d'emploi) sur une affiche de 136 mm : le
+     contenu en faisait 164, et le mode d'emploi sortait COUPÉ en bas.
+     Constaté À L'ÉCRAN, pas deviné. Un carton posé à plat est large et bas ;
+     empiler verticalement gaspille la largeur et manque de hauteur.
+
+     Tout est en MILLIMETRES, et AUCUNE dependance exterieure : on imprime la
+     veille au soir, parfois sans reseau. Le QR est genere localement par
+     `qr.svg()`. */
+
+  /* ⚠️ DIX MILLIMETRES DE MARGE, ET UNE FEUILLE PLUS PETITE QUE LA PAGE.
+     La leçon payée par la spec 032, reprise telle quelle : une feuille qui
+     occupe la surface utile EXACTE sort en DOUBLE de pages sur une vraie
+     imprimante, dont la zone imprimable est plus petite que la surface
+     théorique. Sept feuilles étaient sorties en quatorze pages.
+     La feuille tient ici dans 188 x 270 sur une page utile de 190 x 277. */
+  @page { size: A4 portrait; margin: 10mm; }
+
+  :root {
+    --affiche-largeur: 188mm;
+    --affiche-hauteur: 90mm;    /* 3 x 90 = 270, pour 277 utiles */
+    --feuille-largeur: 188mm;
+    --feuille-hauteur: 270mm;
+    --qr: 70mm;
+  }
+
+  * { box-sizing: border-box; }
+  /* ⚠️ LES APLATS DE COULEUR S'IMPRIMENT. Sans cette declaration, un
+     navigateur ne pose aucun fond a l'impression tant que « Graphismes
+     d'arriere-plan » n'est pas coche -- ce que personne ne coche. Le bandeau
+     du mode d'emploi sortirait en blanc sur blanc. */
+  * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+
+  body {
+    margin: 0; background: #fff; color: #111;
+    font-family: system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+  }
+
+  .entete { padding: 6mm 0 4mm; border-bottom: 0.4mm solid #000; margin-bottom: 5mm; }
+  .entete h1 { margin: 0; font-size: 5mm; font-weight: 700; }
+  .entete p { margin: 1mm 0 0; font-size: 3.4mm; color: #444; }
+
+  /* ⚠️ La pagination est faite en PYTHON (`fiches.en_feuilles`) et le saut de
+     page porte sur la FEUILLE, jamais sur un élément de grille : une grille
+     fragmentée « au mieux » coupait des étiquettes en deux (spec 032).
+     `break-inside: avoid` est la deuxième ligne de défense. */
+  .feuille { width: var(--feuille-largeur); height: var(--feuille-hauteur);
+             overflow: clip;
+             break-inside: avoid; page-break-inside: avoid;
+             display: grid;
+             grid-template-columns: var(--affiche-largeur);
+             align-content: start; }
+  .feuille + .feuille { break-before: page; page-break-before: always; }
+
+  .affiche {
+    height: var(--affiche-hauteur); padding: 5mm;
+    display: flex; align-items: center; gap: 6mm;
+    overflow: hidden;
+    break-inside: avoid; page-break-inside: avoid;
+    /* Le trait de coupe. En pointillé : on découpe dessus. */
+    border-bottom: 0.3mm dashed #aaa;
+  }
+
+  .qr { flex: none; }
+  .qr svg { display: block; width: var(--qr); height: var(--qr); }
+
+  .quoi { flex: 1; min-width: 0; }
+
+  /* LE plus gros élément : c'est ce qu'on lit en arrivant, à un mètre, pour
+     savoir qu'on est à la bonne table.
+     ⚠️ La taille vient du SERVEUR (`--taille`), pas d'une constante : « C »
+     a de la place pour 30 mm, « ABC » un peu moins, et une taille fixe ferait
+     déborder l'un ou ratatiner l'autre. Même mécanique que `--taille` sur les
+     étiquettes de blocs. */
+  .zone { line-height: 1; }
+  .zone .mot { font-size: 4.4mm; font-weight: 700; letter-spacing: 0.22em;
+               text-transform: uppercase; color: #666; }
+  .zone .nom { font-size: var(--taille, 30mm); font-weight: 800;
+               letter-spacing: -0.02em; white-space: nowrap; margin-top: 1.5mm; }
+
+  .mode-emploi { background: #F2EFE8; border-radius: 2mm; padding: 2.5mm 3.5mm;
+                 font-size: 3.6mm; color: #333; line-height: 1.4;
+                 margin-top: 3mm; }
+  .mode-emploi b { font-weight: 700; }
+
+  .vide { padding: 20mm 0; text-align: center; color: #666; font-size: 4mm;
+          line-height: 1.6; }
+  .vide a { color: #8A5A0F; }
+
+  @media print {
+    .entete { display: none; }   /* l'encre est pour les affiches */
+  }
+  @media screen {
+    body { background: #ECEAE5; padding: 6mm; }
+    .entete, .feuille, .vide { background: #fff; width: max-content; margin-inline: auto; }
+    .feuille { box-shadow: 0 1mm 3mm rgba(0, 0, 0, 0.12); margin-bottom: 6mm; }
+    .entete { padding-inline: 6mm; width: auto; max-width: 198mm; }
+    .vide { width: auto; max-width: 198mm; padding: 20mm; border-radius: 3mm; }
+  }
+</style>
+</head>
+<body>
+
+<div class="entete">
+  <h1>QR de poste</h1>
+  <p>17 à imprimer, <strong>trois par page</strong>, une par zone du
+     plan, à couper sur les pointillés. Vérifie l'échelle d'impression :
+     <strong>100 %</strong>, sans « ajuster à la page », sinon les QR sortiront
+     trop petits pour être lus.</p>
+</div>
+
+
+  
+  <div class="feuille">
+    
+    <div class="affiche" style="--taille:30.0mm">
+      <div class="qr"><svg width="70.0mm" height="70.0mm" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 29 29" class="segno"><path class="qrline" stroke="#000" d="M4 4.5h7m1 0h2m1 0h2m1 0h7m-21 1h1m5 0h1m2 0h2m1 0h1m1 0h1m5 0h1m-21 1h1m1 0h3m1 0h1m4 0h2m1 0h1m1 0h3m1 0h1m-21 1h1m1 0h3m1 0h1m1 0h1m1 0h3m1 0h1m1 0h3m1 0h1m-21 1h1m1 0h3m1 0h1m2 0h2m3 0h1m1 0h3m1 0h1m-21 1h1m5 0h1m2 0h1m2 0h1m1 0h1m5 0h1m-21 1h7m1 0h1m1 0h1m1 0h1m1 0h7m-12 1h1m-8 1h1m1 0h3m1 0h4m1 0h1m3 0h1m2 0h1m-21 1h2m2 0h1m2 0h1m2 0h1m1 0h1m2 0h1m1 0h3m-20 1h1m1 0h1m1 0h5m1 0h1m1 0h2m2 0h1m1 0h1m-19 1h4m1 0h1m3 0h1m2 0h4m2 0h3m-21 1h2m1 0h1m1 0h3m1 0h1m1 0h1m4 0h2m2 0h1m-13 1h1m1 0h2m2 0h2m1 0h4m-21 1h7m3 0h1m4 0h3m-18 1h1m5 0h1m1 0h1m1 0h3m1 0h1m4 0h1m-20 1h1m1 0h3m1 0h1m1 0h2m3 0h1m2 0h1m1 0h3m-21 1h1m1 0h3m1 0h1m2 0h2m2 0h2m2 0h1m1 0h1m-20 1h1m1 0h3m1 0h1m1 0h1m1 0h1m1 0h2m2 0h1m3 0h1m-21 1h1m5 0h1m2 0h6m4 0h2m-21 1h7m2 0h1m3 0h1m1 0h4m1 0h1"/></svg>
+</div>
+      <div class="quoi">
+        <div class="zone">
+          <div class="mot">Zone</div>
+          <div class="nom">A</div>
+        </div>
+        <div class="mode-emploi">
+          Sur ton téléphone : <b>⚙ Réglages</b> →
+          <b>Scanner le QR de mon poste</b>.<br>
+          Ce téléphone s'appellera « A » dans la console.
+        </div>
+      </div>
+    </div>
+    
+    <div class="affiche" style="--taille:30.0mm">
+      <div class="qr"><svg width="70.0mm" height="70.0mm" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 29 29" class="segno"><path class="qrline" stroke="#000" d="M4 4.5h7m2 0h1m1 0h1m2 0h7m-21 1h1m5 0h1m1 0h5m1 0h1m5 0h1m-21 1h1m1 0h3m1 0h1m1 0h3m1 0h1m1 0h1m1 0h3m1 0h1m-21 1h1m1 0h3m1 0h1m1 0h2m4 0h1m1 0h3m1 0h1m-21 1h1m1 0h3m1 0h1m1 0h4m2 0h1m1 0h3m1 0h1m-21 1h1m5 0h1m1 0h1m2 0h1m2 0h1m5 0h1m-21 1h7m1 0h1m1 0h1m1 0h1m1 0h7m-19 2h1m2 0h4m2 0h3m1 0h5m-20 1h2m1 0h1m1 0h1m1 0h1m1 0h1m4 0h1m3 0h1m-18 1h2m3 0h1m1 0h3m2 0h7m-17 1h1m1 0h1m1 0h1m2 0h3m4 0h2m1 0h1m-21 1h2m2 0h4m4 0h1m1 0h3m2 0h2m-13 1h1m2 0h2m1 0h1m1 0h1m1 0h1m1 0h1m-21 1h7m1 0h1m2 0h1m1 0h2m1 0h1m2 0h1m-20 1h1m5 0h1m1 0h1m2 0h5m1 0h1m-18 1h1m1 0h3m1 0h1m3 0h1m3 0h5m1 0h1m-21 1h1m1 0h3m1 0h1m2 0h4m2 0h1m-16 1h1m1 0h3m1 0h1m1 0h1m1 0h4m1 0h3m1 0h2m-21 1h1m5 0h1m5 0h2m1 0h1m1 0h1m2 0h1m-21 1h7m4 0h1m4 0h1m1 0h3"/></svg>
+</div>
+      <div class="quoi">
+        <div class="zone">
+          <div class="mot">Zone</div>
+          <div class="nom">B</div>
+        </div>
+        <div class="mode-emploi">
+          Sur ton téléphone : <b>⚙ Réglages</b> →
+          <b>Scanner le QR de mon poste</b>.<br>
+          Ce téléphone s'appellera « B » dans la console.
+        </div>
+      </div>
+    </div>
+    
+    <div class="affiche" style="--taille:30.0mm">
+      <div class="qr"><svg width="70.0mm" height="70.0mm" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 29 29" class="segno"><path class="qrline" stroke="#000" d="M4 4.5h7m1 0h5m1 0h7m-21 1h1m5 0h1m3 0h1m1 0h1m1 0h1m5 0h1m-21 1h1m1 0h3m1 0h1m1 0h4m2 0h1m1 0h3m1 0h1m-21 1h1m1 0h3m1 0h1m7 0h1m1 0h3m1 0h1m-21 1h1m1 0h3m1 0h1m1 0h1m1 0h1m1 0h1m1 0h1m1 0h3m1 0h1m-21 1h1m5 0h1m2 0h1m1 0h2m1 0h1m5 0h1m-21 1h7m1 0h1m1 0h1m1 0h1m1 0h7m-13 1h1m2 0h1m-7 1h2m2 0h1m2 0h1m1 0h1m1 0h1m1 0h1m1 0h1m-21 1h1m1 0h3m2 0h1m1 0h1m3 0h2m1 0h1m3 0h1m-18 1h1m1 0h4m2 0h3m1 0h1m2 0h1m1 0h1m-17 1h1m4 0h1m1 0h1m2 0h1m2 0h1m2 0h1m-20 1h1m1 0h4m1 0h3m2 0h1m1 0h2m2 0h2m-13 1h4m2 0h1m5 0h1m-21 1h7m3 0h2m1 0h5m2 0h1m-21 1h1m5 0h1m1 0h1m1 0h4m1 0h4m1 0h1m-21 1h1m1 0h3m1 0h1m4 0h2m1 0h2m2 0h2m-20 1h1m1 0h3m1 0h1m2 0h1m1 0h5m2 0h1m-19 1h1m1 0h3m1 0h1m2 0h2m3 0h4m1 0h2m-21 1h1m5 0h1m2 0h1m3 0h1m1 0h1m1 0h2m1 0h1m-21 1h7m2 0h2m6 0h2"/></svg>
+</div>
+      <div class="quoi">
+        <div class="zone">
+          <div class="mot">Zone</div>
+          <div class="nom">C</div>
+        </div>
+        <div class="mode-emploi">
+          Sur ton téléphone : <b>⚙ Réglages</b> →
+          <b>Scanner le QR de mon poste</b>.<br>
+          Ce téléphone s'appellera « C » dans la console.
+        </div>
+      </div>
+    </div>
+    
+  </div>
+  
+  <div class="feuille">
+    
+    <div class="affiche" style="--taille:30.0mm">
+      <div class="qr"><svg width="70.0mm" height="70.0mm" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 29 29" class="segno"><path class="qrline" stroke="#000" d="M4 4.5h7m1 0h1m1 0h1m3 0h7m-21 1h1m5 0h1m2 0h2m1 0h1m1 0h1m5 0h1m-21 1h1m1 0h3m1 0h1m1 0h2m1 0h1m2 0h1m1 0h3m1 0h1m-21 1h1m1 0h3m1 0h1m3 0h1m1 0h1m1 0h1m1 0h3m1 0h1m-21 1h1m1 0h3m1 0h1m1 0h3m1 0h1m1 0h1m1 0h3m1 0h1m-21 1h1m5 0h1m2 0h1m1 0h1m2 0h1m5 0h1m-21 1h7m1 0h1m1 0h1m1 0h1m1 0h7m-13 1h1m-4 1h2m2 0h3m2 0h1m1 0h1m1 0h1m1 0h1m-21 1h4m5 0h4m3 0h1m3 0h1m-21 1h1m3 0h5m5 0h2m2 0h1m1 0h1m-21 1h1m1 0h4m3 0h3m5 0h1m2 0h1m-18 1h1m2 0h5m1 0h1m1 0h3m2 0h2m-13 1h1m3 0h3m1 0h1m3 0h1m-21 1h7m2 0h1m1 0h1m1 0h1m1 0h3m2 0h1m-21 1h1m5 0h1m1 0h2m2 0h2m1 0h4m1 0h1m-21 1h1m1 0h3m1 0h1m3 0h1m1 0h1m2 0h1m2 0h2m-20 1h1m1 0h3m1 0h1m4 0h1m1 0h1m1 0h1m2 0h1m-19 1h1m1 0h3m1 0h1m3 0h1m2 0h5m1 0h2m-21 1h1m5 0h1m2 0h2m3 0h2m1 0h2m1 0h1m-21 1h7m2 0h2m6 0h2"/></svg>
+</div>
+      <div class="quoi">
+        <div class="zone">
+          <div class="mot">Zone</div>
+          <div class="nom">D</div>
+        </div>
+        <div class="mode-emploi">
+          Sur ton téléphone : <b>⚙ Réglages</b> →
+          <b>Scanner le QR de mon poste</b>.<br>
+          Ce téléphone s'appellera « D » dans la console.
+        </div>
+      </div>
+    </div>
+    
+    <div class="affiche" style="--taille:30.0mm">
+      <div class="qr"><svg width="70.0mm" height="70.0mm" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 29 29" class="segno"><path class="qrline" stroke="#000" d="M4 4.5h7m2 0h3m2 0h7m-21 1h1m5 0h1m2 0h1m1 0h2m1 0h1m5 0h1m-21 1h1m1 0h3m1 0h1m2 0h1m2 0h1m1 0h1m1 0h3m1 0h1m-21 1h1m1 0h3m1 0h1m2 0h2m3 0h1m1 0h3m1 0h1m-21 1h1m1 0h3m1 0h1m1 0h2m4 0h1m1 0h3m1 0h1m-21 1h1m5 0h1m2 0h2m1 0h1m1 0h1m5 0h1m-21 1h7m1 0h1m1 0h1m1 0h1m1 0h7m-13 1h2m-8 1h2m2 0h3m1 0h1m1 0h3m1 0h1m-17 1h1m4 0h1m1 0h1m2 0h3m1 0h2m-15 1h2m1 0h4m1 0h1m3 0h1m3 0h1m-18 1h5m2 0h1m3 0h3m2 0h5m-21 1h1m2 0h1m1 0h4m2 0h1m1 0h1m1 0h1m1 0h1m-10 1h1m4 0h2m2 0h2m-19 1h7m1 0h3m1 0h1m1 0h2m1 0h4m-21 1h1m5 0h1m2 0h1m1 0h1m2 0h1m2 0h2m-19 1h1m1 0h3m1 0h1m5 0h1m4 0h1m1 0h2m-21 1h1m1 0h3m1 0h1m1 0h2m1 0h1m2 0h3m2 0h1m-20 1h1m1 0h3m1 0h1m1 0h1m1 0h1m2 0h3m-16 1h1m5 0h1m2 0h1m1 0h2m1 0h2m-16 1h7m5 0h1m2 0h3m1 0h1"/></svg>
+</div>
+      <div class="quoi">
+        <div class="zone">
+          <div class="mot">Zone</div>
+          <div class="nom">E</div>
+        </div>
+        <div class="mode-emploi">
+          Sur ton téléphone : <b>⚙ Réglages</b> →
+          <b>Scanner le QR de mon poste</b>.<br>
+          Ce téléphone s'appellera « E » dans la console.
+        </div>
+      </div>
+    </div>
+    
+    <div class="affiche" style="--taille:30.0mm">
+      <div class="qr"><svg width="70.0mm" height="70.0mm" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 29 29" class="segno"><path class="qrline" stroke="#000" d="M4 4.5h7m2 0h2m1 0h1m1 0h7m-21 1h1m5 0h1m1 0h1m5 0h1m5 0h1m-21 1h1m1 0h3m1 0h1m3 0h3m1 0h1m1 0h3m1 0h1m-21 1h1m1 0h3m1 0h1m2 0h3m2 0h1m1 0h3m1 0h1m-21 1h1m1 0h3m1 0h1m4 0h2m1 0h1m1 0h3m1 0h1m-21 1h1m5 0h1m1 0h2m2 0h1m1 0h1m5 0h1m-21 1h7m1 0h1m1 0h1m1 0h1m1 0h7m-13 1h1m1 0h2m-8 1h4m2 0h3m1 0h2m3 0h1m-20 1h1m1 0h4m1 0h3m4 0h1m4 0h2m-21 1h2m2 0h5m1 0h3m2 0h3m2 0h1m-18 1h2m4 0h2m1 0h1m1 0h3m1 0h1m1 0h1m-21 1h1m1 0h1m1 0h1m1 0h2m1 0h1m1 0h3m3 0h1m1 0h2m-13 1h3m2 0h2m1 0h1m2 0h1m-20 1h7m1 0h2m1 0h3m4 0h1m1 0h1m-21 1h1m5 0h1m1 0h1m2 0h2m1 0h1m1 0h1m-17 1h1m1 0h3m1 0h1m1 0h1m1 0h1m2 0h2m3 0h1m1 0h1m-21 1h1m1 0h3m1 0h1m3 0h2m2 0h2m2 0h3m-21 1h1m1 0h3m1 0h1m2 0h1m1 0h2m1 0h5m-19 1h1m5 0h1m4 0h4m1 0h1m3 0h1m-21 1h7m3 0h1m3 0h2m1 0h4"/></svg>
+</div>
+      <div class="quoi">
+        <div class="zone">
+          <div class="mot">Zone</div>
+          <div class="nom">F</div>
+        </div>
+        <div class="mode-emploi">
+          Sur ton téléphone : <b>⚙ Réglages</b> →
+          <b>Scanner le QR de mon poste</b>.<br>
+          Ce téléphone s'appellera « F » dans la console.
+        </div>
+      </div>
+    </div>
+    
+  </div>
+  
+  <div class="feuille">
+    
+    <div class="affiche" style="--taille:30.0mm">
+      <div class="qr"><svg width="70.0mm" height="70.0mm" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 29 29" class="segno"><path class="qrline" stroke="#000" d="M4 4.5h7m2 0h1m4 0h7m-21 1h1m5 0h1m1 0h3m1 0h1m1 0h1m5 0h1m-21 1h1m1 0h3m1 0h1m5 0h1m1 0h1m1 0h3m1 0h1m-21 1h1m1 0h3m1 0h1m2 0h3m2 0h1m1 0h3m1 0h1m-21 1h1m1 0h3m1 0h1m3 0h1m1 0h1m1 0h1m1 0h3m1 0h1m-21 1h1m5 0h1m1 0h4m2 0h1m5 0h1m-21 1h7m1 0h1m1 0h1m1 0h1m1 0h7m-13 1h2m2 0h1m-9 1h4m1 0h3m2 0h2m3 0h1m-20 1h3m1 0h1m2 0h2m1 0h1m1 0h3m4 0h2m-20 1h1m2 0h1m1 0h1m3 0h1m2 0h1m1 0h3m2 0h1m-21 1h1m1 0h2m5 0h4m2 0h2m1 0h1m1 0h1m-21 1h1m2 0h1m1 0h4m1 0h2m2 0h1m2 0h1m1 0h2m-13 1h5m1 0h1m4 0h1m-20 1h7m1 0h1m1 0h1m2 0h4m1 0h1m1 0h1m-21 1h1m5 0h1m1 0h1m1 0h1m1 0h1m2 0h1m-16 1h1m1 0h3m1 0h1m1 0h1m1 0h2m1 0h1m4 0h1m1 0h1m-21 1h1m1 0h3m1 0h1m4 0h5m2 0h3m-21 1h1m1 0h3m1 0h1m2 0h1m3 0h6m-19 1h1m5 0h1m2 0h1m3 0h2m1 0h1m3 0h1m-21 1h7m8 0h1m1 0h4"/></svg>
+</div>
+      <div class="quoi">
+        <div class="zone">
+          <div class="mot">Zone</div>
+          <div class="nom">G</div>
+        </div>
+        <div class="mode-emploi">
+          Sur ton téléphone : <b>⚙ Réglages</b> →
+          <b>Scanner le QR de mon poste</b>.<br>
+          Ce téléphone s'appellera « G » dans la console.
+        </div>
+      </div>
+    </div>
+    
+    <div class="affiche" style="--taille:30.0mm">
+      <div class="qr"><svg width="70.0mm" height="70.0mm" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 29 29" class="segno"><path class="qrline" stroke="#000" d="M4 4.5h7m2 0h2m1 0h1m1 0h7m-21 1h1m5 0h1m1 0h1m1 0h1m3 0h1m5 0h1m-21 1h1m1 0h3m1 0h1m1 0h1m1 0h1m3 0h1m1 0h3m1 0h1m-21 1h1m1 0h3m1 0h1m1 0h1m1 0h1m1 0h1m1 0h1m1 0h3m1 0h1m-21 1h1m1 0h3m1 0h1m1 0h1m2 0h2m1 0h1m1 0h3m1 0h1m-21 1h1m5 0h1m1 0h4m2 0h1m5 0h1m-21 1h7m1 0h1m1 0h1m1 0h1m1 0h7m-11 1h1m1 0h1m-11 1h1m2 0h4m1 0h4m1 0h5m-19 1h1m5 0h1m3 0h4m3 0h1m-17 1h2m2 0h3m1 0h2m1 0h1m1 0h5m-17 1h2m5 0h1m1 0h1m1 0h1m2 0h2m1 0h1m-21 1h2m3 0h2m1 0h2m2 0h2m1 0h2m2 0h2m-13 1h1m3 0h1m3 0h1m1 0h1m1 0h1m-21 1h7m1 0h2m2 0h1m1 0h3m2 0h1m-20 1h1m5 0h1m1 0h1m1 0h1m1 0h1m3 0h2m-18 1h1m1 0h3m1 0h1m2 0h3m1 0h6m1 0h1m-21 1h1m1 0h3m1 0h1m2 0h1m1 0h2m1 0h2m-16 1h1m1 0h3m1 0h1m1 0h1m3 0h2m1 0h3m1 0h2m-21 1h1m5 0h1m4 0h1m3 0h1m1 0h1m2 0h1m-21 1h7m2 0h3m4 0h1m1 0h3"/></svg>
+</div>
+      <div class="quoi">
+        <div class="zone">
+          <div class="mot">Zone</div>
+          <div class="nom">H</div>
+        </div>
+        <div class="mode-emploi">
+          Sur ton téléphone : <b>⚙ Réglages</b> →
+          <b>Scanner le QR de mon poste</b>.<br>
+          Ce téléphone s'appellera « H » dans la console.
+        </div>
+      </div>
+    </div>
+    
+    <div class="affiche" style="--taille:30.0mm">
+      <div class="qr"><svg width="70.0mm" height="70.0mm" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 29 29" class="segno"><path class="qrline" stroke="#000" d="M4 4.5h7m5 0h1m1 0h7m-21 1h1m5 0h1m1 0h1m3 0h1m1 0h1m5 0h1m-21 1h1m1 0h3m1 0h1m1 0h2m1 0h1m2 0h1m1 0h3m1 0h1m-21 1h1m1 0h3m1 0h1m1 0h1m5 0h1m1 0h3m1 0h1m-21 1h1m1 0h3m1 0h1m1 0h3m1 0h1m1 0h1m1 0h3m1 0h1m-21 1h1m5 0h1m1 0h3m3 0h1m5 0h1m-21 1h7m1 0h1m1 0h1m1 0h1m1 0h7m-12 1h3m-10 1h1m2 0h4m3 0h2m1 0h5m-16 1h2m2 0h1m1 0h5m3 0h1m-18 1h2m2 0h4m1 0h1m1 0h1m2 0h5m-20 1h1m2 0h1m1 0h1m3 0h2m1 0h1m1 0h1m2 0h2m1 0h1m-19 1h1m1 0h4m5 0h1m1 0h2m2 0h2m-13 1h1m2 0h2m1 0h1m3 0h1m1 0h1m-21 1h7m1 0h1m2 0h2m3 0h1m2 0h1m-20 1h1m5 0h1m1 0h2m1 0h1m1 0h1m2 0h2m-18 1h1m1 0h3m1 0h1m5 0h2m1 0h4m1 0h1m-21 1h1m1 0h3m1 0h1m3 0h2m3 0h1m-16 1h1m1 0h3m1 0h1m1 0h1m1 0h3m1 0h4m1 0h2m-21 1h1m5 0h1m3 0h2m2 0h2m1 0h1m2 0h1m-21 1h7m2 0h3m1 0h1m2 0h1m1 0h3"/></svg>
+</div>
+      <div class="quoi">
+        <div class="zone">
+          <div class="mot">Zone</div>
+          <div class="nom">I</div>
+        </div>
+        <div class="mode-emploi">
+          Sur ton téléphone : <b>⚙ Réglages</b> →
+          <b>Scanner le QR de mon poste</b>.<br>
+          Ce téléphone s'appellera « I » dans la console.
+        </div>
+      </div>
+    </div>
+    
+  </div>
+  
+  <div class="feuille">
+    
+    <div class="affiche" style="--taille:30.0mm">
+      <div class="qr"><svg width="70.0mm" height="70.0mm" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 29 29" class="segno"><path class="qrline" stroke="#000" d="M4 4.5h7m2 0h1m1 0h1m2 0h7m-21 1h1m5 0h1m1 0h2m2 0h1m1 0h1m5 0h1m-21 1h1m1 0h3m1 0h1m1 0h4m2 0h1m1 0h3m1 0h1m-21 1h1m1 0h3m1 0h1m1 0h1m1 0h1m1 0h1m1 0h1m1 0h3m1 0h1m-21 1h1m1 0h3m1 0h1m1 0h1m1 0h1m1 0h1m1 0h1m1 0h3m1 0h1m-21 1h1m5 0h1m1 0h3m1 0h1m1 0h1m5 0h1m-21 1h7m1 0h1m1 0h1m1 0h1m1 0h7m-12 1h2m-9 1h1m2 0h4m1 0h2m1 0h1m1 0h5m-19 1h1m3 0h1m1 0h2m9 0h1m-19 1h9m1 0h2m1 0h7m-18 1h1m6 0h1m2 0h1m4 0h2m1 0h1m-20 1h2m3 0h1m5 0h1m1 0h3m2 0h2m-13 1h3m2 0h2m1 0h1m1 0h1m1 0h1m-21 1h7m1 0h5m1 0h1m1 0h1m2 0h1m-20 1h1m5 0h1m1 0h1m1 0h1m2 0h1m2 0h2m-18 1h1m1 0h3m1 0h1m3 0h9m1 0h1m-21 1h1m1 0h3m1 0h1m2 0h4m1 0h2m-16 1h1m1 0h3m1 0h1m1 0h10m1 0h2m-21 1h1m5 0h1m4 0h1m1 0h1m1 0h1m1 0h1m2 0h1m-21 1h7m2 0h3m1 0h1m2 0h1m1 0h3"/></svg>
+</div>
+      <div class="quoi">
+        <div class="zone">
+          <div class="mot">Zone</div>
+          <div class="nom">J</div>
+        </div>
+        <div class="mode-emploi">
+          Sur ton téléphone : <b>⚙ Réglages</b> →
+          <b>Scanner le QR de mon poste</b>.<br>
+          Ce téléphone s'appellera « J » dans la console.
+        </div>
+      </div>
+    </div>
+    
+    <div class="affiche" style="--taille:30.0mm">
+      <div class="qr"><svg width="70.0mm" height="70.0mm" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 29 29" class="segno"><path class="qrline" stroke="#000" d="M4 4.5h7m2 0h4m1 0h7m-21 1h1m5 0h1m1 0h1m2 0h1m2 0h1m5 0h1m-21 1h1m1 0h3m1 0h1m1 0h2m1 0h2m1 0h1m1 0h3m1 0h1m-21 1h1m1 0h3m1 0h1m1 0h2m4 0h1m1 0h3m1 0h1m-21 1h1m1 0h3m1 0h1m1 0h2m4 0h1m1 0h3m1 0h1m-21 1h1m5 0h1m1 0h1m1 0h1m1 0h1m1 0h1m5 0h1m-21 1h7m1 0h1m1 0h1m1 0h1m1 0h7m-12 1h4m-11 1h1m2 0h5m1 0h1m1 0h1m1 0h5m-20 1h1m6 0h1m2 0h1m1 0h3m3 0h1m-19 1h3m2 0h3m1 0h4m1 0h6m-20 1h1m1 0h4m1 0h1m2 0h1m1 0h1m1 0h1m2 0h2m1 0h1m-21 1h4m2 0h5m2 0h1m1 0h2m2 0h2m-13 1h1m4 0h2m3 0h1m1 0h1m-21 1h7m1 0h3m1 0h2m1 0h1m3 0h1m-20 1h1m5 0h1m1 0h1m1 0h1m1 0h2m2 0h2m-18 1h1m1 0h3m1 0h1m3 0h2m3 0h4m1 0h1m-21 1h1m1 0h3m1 0h1m2 0h1m1 0h1m1 0h1m1 0h1m-16 1h1m1 0h3m1 0h1m1 0h1m1 0h1m4 0h3m1 0h2m-21 1h1m5 0h1m2 0h1m1 0h1m1 0h1m1 0h1m1 0h1m2 0h1m-21 1h7m3 0h2m2 0h1m1 0h1m1 0h3"/></svg>
+</div>
+      <div class="quoi">
+        <div class="zone">
+          <div class="mot">Zone</div>
+          <div class="nom">K</div>
+        </div>
+        <div class="mode-emploi">
+          Sur ton téléphone : <b>⚙ Réglages</b> →
+          <b>Scanner le QR de mon poste</b>.<br>
+          Ce téléphone s'appellera « K » dans la console.
+        </div>
+      </div>
+    </div>
+    
+    <div class="affiche" style="--taille:30.0mm">
+      <div class="qr"><svg width="70.0mm" height="70.0mm" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 29 29" class="segno"><path class="qrline" stroke="#000" d="M4 4.5h7m3 0h1m3 0h7m-21 1h1m5 0h1m1 0h2m1 0h1m2 0h1m5 0h1m-21 1h1m1 0h3m1 0h1m1 0h5m1 0h1m1 0h3m1 0h1m-21 1h1m1 0h3m1 0h1m1 0h3m1 0h1m1 0h1m1 0h3m1 0h1m-21 1h1m1 0h3m1 0h1m1 0h1m5 0h1m1 0h3m1 0h1m-21 1h1m5 0h1m1 0h1m1 0h1m3 0h1m5 0h1m-21 1h7m1 0h1m1 0h1m1 0h1m1 0h7m-12 1h2m1 0h1m-11 1h1m2 0h6m1 0h2m1 0h5m-20 1h2m2 0h1m6 0h1m6 0h1m-18 1h7m1 0h2m2 0h1m1 0h5m-16 1h1m2 0h1m4 0h1m4 0h2m1 0h1m-21 1h1m1 0h5m1 0h3m1 0h1m1 0h3m2 0h2m-13 1h5m1 0h1m1 0h1m1 0h1m1 0h1m-21 1h7m1 0h1m3 0h4m3 0h1m-20 1h1m5 0h1m1 0h2m1 0h3m2 0h2m-18 1h1m1 0h3m1 0h1m7 0h5m1 0h1m-21 1h1m1 0h3m1 0h1m4 0h5m-16 1h1m1 0h3m1 0h1m1 0h3m2 0h1m1 0h3m1 0h2m-21 1h1m5 0h1m2 0h3m2 0h2m1 0h1m2 0h1m-21 1h7m3 0h2m2 0h1m1 0h1m1 0h3"/></svg>
+</div>
+      <div class="quoi">
+        <div class="zone">
+          <div class="mot">Zone</div>
+          <div class="nom">L</div>
+        </div>
+        <div class="mode-emploi">
+          Sur ton téléphone : <b>⚙ Réglages</b> →
+          <b>Scanner le QR de mon poste</b>.<br>
+          Ce téléphone s'appellera « L » dans la console.
+        </div>
+      </div>
+    </div>
+    
+  </div>
+  
+  <div class="feuille">
+    
+    <div class="affiche" style="--taille:30.0mm">
+      <div class="qr"><svg width="70.0mm" height="70.0mm" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 29 29" class="segno"><path class="qrline" stroke="#000" d="M4 4.5h7m2 0h1m4 0h7m-21 1h1m5 0h1m1 0h5m1 0h1m5 0h1m-21 1h1m1 0h3m1 0h1m1 0h1m3 0h1m1 0h1m1 0h3m1 0h1m-21 1h1m1 0h3m1 0h1m1 0h2m4 0h1m1 0h3m1 0h1m-21 1h1m1 0h3m1 0h1m1 0h4m2 0h1m1 0h3m1 0h1m-21 1h1m5 0h1m1 0h1m1 0h2m2 0h1m5 0h1m-21 1h7m1 0h1m1 0h1m1 0h1m1 0h7m-11 1h2m-10 1h1m2 0h5m1 0h3m1 0h5m-20 1h1m4 0h1m1 0h2m1 0h2m6 0h1m-17 1h1m1 0h1m1 0h2m1 0h4m2 0h5m-20 1h1m4 0h1m1 0h1m1 0h1m2 0h1m4 0h2m1 0h1m-20 1h1m1 0h1m1 0h3m2 0h1m3 0h3m2 0h2m-13 1h3m1 0h1m5 0h1m1 0h1m-21 1h7m1 0h2m1 0h3m5 0h1m-20 1h1m5 0h1m1 0h1m1 0h1m5 0h2m-18 1h1m1 0h3m1 0h1m2 0h4m2 0h4m1 0h1m-21 1h1m1 0h3m1 0h1m2 0h3m1 0h1m1 0h1m-16 1h1m1 0h3m1 0h1m1 0h2m1 0h1m2 0h4m1 0h2m-21 1h1m5 0h1m2 0h1m1 0h1m3 0h1m1 0h1m2 0h1m-21 1h7m3 0h2m1 0h2m1 0h1m1 0h3"/></svg>
+</div>
+      <div class="quoi">
+        <div class="zone">
+          <div class="mot">Zone</div>
+          <div class="nom">M</div>
+        </div>
+        <div class="mode-emploi">
+          Sur ton téléphone : <b>⚙ Réglages</b> →
+          <b>Scanner le QR de mon poste</b>.<br>
+          Ce téléphone s'appellera « M » dans la console.
+        </div>
+      </div>
+    </div>
+    
+    <div class="affiche" style="--taille:30.0mm">
+      <div class="qr"><svg width="70.0mm" height="70.0mm" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 29 29" class="segno"><path class="qrline" stroke="#000" d="M4 4.5h7m1 0h2m2 0h1m1 0h7m-21 1h1m5 0h1m1 0h2m2 0h1m1 0h1m5 0h1m-21 1h1m1 0h3m1 0h1m2 0h2m1 0h1m1 0h1m1 0h3m1 0h1m-21 1h1m1 0h3m1 0h1m1 0h1m1 0h3m1 0h1m1 0h3m1 0h1m-21 1h1m1 0h3m1 0h1m1 0h2m4 0h1m1 0h3m1 0h1m-21 1h1m5 0h1m1 0h5m1 0h1m5 0h1m-21 1h7m1 0h1m1 0h1m1 0h1m1 0h7m-12 1h1m1 0h1m-9 1h1m2 0h1m3 0h1m4 0h3m1 0h2m-21 1h1m2 0h2m2 0h3m1 0h2m1 0h2m1 0h3m-20 1h1m1 0h1m1 0h4m3 0h1m1 0h2m3 0h2m-19 1h1m6 0h1m1 0h1m1 0h2m1 0h1m1 0h3m-19 1h1m2 0h4m1 0h4m3 0h2m2 0h1m-13 1h3m2 0h1m1 0h1m1 0h2m1 0h1m-21 1h7m2 0h4m2 0h1m4 0h1m-21 1h1m5 0h1m6 0h1m1 0h2m2 0h1m-20 1h1m1 0h3m1 0h1m3 0h3m1 0h1m3 0h1m1 0h1m-21 1h1m1 0h3m1 0h1m1 0h5m6 0h2m-21 1h1m1 0h3m1 0h1m2 0h1m4 0h1m1 0h1m3 0h1m-21 1h1m5 0h1m6 0h2m1 0h1m3 0h1m-21 1h7m2 0h3m3 0h2m1 0h1"/></svg>
+</div>
+      <div class="quoi">
+        <div class="zone">
+          <div class="mot">Zone</div>
+          <div class="nom">N</div>
+        </div>
+        <div class="mode-emploi">
+          Sur ton téléphone : <b>⚙ Réglages</b> →
+          <b>Scanner le QR de mon poste</b>.<br>
+          Ce téléphone s'appellera « N » dans la console.
+        </div>
+      </div>
+    </div>
+    
+    <div class="affiche" style="--taille:30.0mm">
+      <div class="qr"><svg width="70.0mm" height="70.0mm" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 29 29" class="segno"><path class="qrline" stroke="#000" d="M4 4.5h7m3 0h3m1 0h7m-21 1h1m5 0h1m1 0h1m1 0h2m2 0h1m5 0h1m-21 1h1m1 0h3m1 0h1m1 0h5m1 0h1m1 0h3m1 0h1m-21 1h1m1 0h3m1 0h1m1 0h1m2 0h2m1 0h1m1 0h3m1 0h1m-21 1h1m1 0h3m1 0h1m1 0h3m3 0h1m1 0h3m1 0h1m-21 1h1m5 0h1m1 0h1m2 0h1m2 0h1m5 0h1m-21 1h7m1 0h1m1 0h1m1 0h1m1 0h7m-12 1h1m2 0h1m-11 1h1m2 0h4m1 0h4m1 0h5m-16 1h1m2 0h1m2 0h5m3 0h1m-18 1h1m1 0h4m2 0h1m1 0h2m2 0h5m-18 1h1m5 0h1m4 0h1m3 0h2m1 0h1m-21 1h1m1 0h2m2 0h1m2 0h1m2 0h1m2 0h2m2 0h2m-13 1h4m2 0h1m1 0h1m1 0h1m1 0h1m-21 1h7m1 0h3m2 0h1m1 0h2m2 0h1m-20 1h1m5 0h1m1 0h2m7 0h1m-18 1h1m1 0h3m1 0h1m3 0h1m1 0h2m2 0h3m1 0h1m-21 1h1m1 0h3m1 0h1m2 0h1m1 0h5m-16 1h1m1 0h3m1 0h1m1 0h1m1 0h1m1 0h1m2 0h3m1 0h2m-21 1h1m5 0h1m2 0h1m1 0h5m1 0h1m2 0h1m-21 1h7m2 0h1m3 0h2m1 0h1m1 0h3"/></svg>
+</div>
+      <div class="quoi">
+        <div class="zone">
+          <div class="mot">Zone</div>
+          <div class="nom">X</div>
+        </div>
+        <div class="mode-emploi">
+          Sur ton téléphone : <b>⚙ Réglages</b> →
+          <b>Scanner le QR de mon poste</b>.<br>
+          Ce téléphone s'appellera « X » dans la console.
+        </div>
+      </div>
+    </div>
+    
+  </div>
+  
+  <div class="feuille">
+    
+    <div class="affiche" style="--taille:30.0mm">
+      <div class="qr"><svg width="70.0mm" height="70.0mm" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 29 29" class="segno"><path class="qrline" stroke="#000" d="M4 4.5h7m1 0h1m3 0h1m1 0h7m-21 1h1m5 0h1m2 0h1m2 0h1m1 0h1m5 0h1m-21 1h1m1 0h3m1 0h1m2 0h1m1 0h2m1 0h1m1 0h3m1 0h1m-21 1h1m1 0h3m1 0h1m1 0h3m3 0h1m1 0h3m1 0h1m-21 1h1m1 0h3m1 0h1m2 0h1m4 0h1m1 0h3m1 0h1m-21 1h1m5 0h1m2 0h1m1 0h1m2 0h1m5 0h1m-21 1h7m1 0h1m1 0h1m1 0h1m1 0h7m-12 1h1m-8 1h1m1 0h3m1 0h2m1 0h3m3 0h1m2 0h1m-18 1h1m3 0h3m2 0h1m1 0h2m1 0h3m-19 1h1m1 0h5m3 0h1m4 0h1m1 0h1m-19 1h5m2 0h2m2 0h1m3 0h1m2 0h3m-17 1h3m1 0h2m1 0h1m1 0h1m2 0h2m2 0h1m-13 1h1m1 0h2m1 0h1m1 0h1m1 0h4m-21 1h7m2 0h2m3 0h4m-18 1h1m5 0h1m1 0h3m1 0h1m2 0h1m3 0h1m-20 1h1m1 0h3m1 0h1m1 0h1m5 0h3m1 0h3m-21 1h1m1 0h3m1 0h1m2 0h2m6 0h1m1 0h1m-20 1h1m1 0h3m1 0h1m1 0h2m2 0h1m1 0h1m1 0h1m3 0h1m-21 1h1m5 0h1m3 0h1m1 0h1m6 0h2m-21 1h7m4 0h1m1 0h6m1 0h1"/></svg>
+</div>
+      <div class="quoi">
+        <div class="zone">
+          <div class="mot">Zone</div>
+          <div class="nom">Y</div>
+        </div>
+        <div class="mode-emploi">
+          Sur ton téléphone : <b>⚙ Réglages</b> →
+          <b>Scanner le QR de mon poste</b>.<br>
+          Ce téléphone s'appellera « Y » dans la console.
+        </div>
+      </div>
+    </div>
+    
+    <div class="affiche" style="--taille:30.0mm">
+      <div class="qr"><svg width="70.0mm" height="70.0mm" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 29 29" class="segno"><path class="qrline" stroke="#000" d="M4 4.5h7m1 0h2m1 0h1m2 0h7m-21 1h1m5 0h1m1 0h1m1 0h1m1 0h1m1 0h1m5 0h1m-21 1h1m1 0h3m1 0h1m2 0h2m1 0h1m1 0h1m1 0h3m1 0h1m-21 1h1m1 0h3m1 0h1m1 0h2m2 0h1m1 0h1m1 0h3m1 0h1m-21 1h1m1 0h3m1 0h1m1 0h1m1 0h1m3 0h1m1 0h3m1 0h1m-21 1h1m5 0h1m1 0h2m2 0h1m1 0h1m5 0h1m-21 1h7m1 0h1m1 0h1m1 0h1m1 0h7m-12 1h3m-9 1h1m2 0h1m2 0h3m3 0h3m1 0h2m-20 1h1m1 0h2m3 0h4m1 0h1m1 0h1m1 0h3m-20 1h1m3 0h3m3 0h1m1 0h1m1 0h1m3 0h2m-19 1h2m1 0h1m2 0h1m2 0h1m4 0h1m1 0h3m-19 1h1m4 0h4m1 0h2m1 0h1m1 0h2m2 0h1m-13 1h3m1 0h2m1 0h1m1 0h2m1 0h1m-21 1h7m4 0h1m2 0h3m3 0h1m-21 1h1m5 0h1m4 0h2m2 0h1m3 0h1m-20 1h1m1 0h3m1 0h1m4 0h1m1 0h1m1 0h1m2 0h1m1 0h1m-21 1h1m1 0h3m1 0h1m1 0h1m1 0h3m6 0h2m-21 1h1m1 0h3m1 0h1m5 0h3m1 0h1m3 0h1m-21 1h1m5 0h1m3 0h1m1 0h1m1 0h1m1 0h1m3 0h1m-21 1h7m6 0h1m1 0h2m1 0h1"/></svg>
+</div>
+      <div class="quoi">
+        <div class="zone">
+          <div class="mot">Zone</div>
+          <div class="nom">Z</div>
+        </div>
+        <div class="mode-emploi">
+          Sur ton téléphone : <b>⚙ Réglages</b> →
+          <b>Scanner le QR de mon poste</b>.<br>
+          Ce téléphone s'appellera « Z » dans la console.
+        </div>
+      </div>
+    </div>
+    
+  </div>
+  
+
+
+</body>
+</html>

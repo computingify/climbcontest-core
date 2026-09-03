@@ -24,8 +24,11 @@
 // est ce qui fait qu'un iPhone deja installe jette l'ancienne coquille.
 // ⚠️ Le numero CHANGE des que la coquille change. Sans ca, les telephones
 // gardent l'ancienne : `activate` ne supprime que les caches dont le nom
-// differe. Passe a v3 le 02/09 -- ajout du logo de l'ecran d'accueil.
-const CACHE = "climbcontest-juge-v3";
+// differe. Passe a v3 le 02/09 -- ajout du logo de l'ecran d'accueil, puis a
+// v4 le 03/09 -- ajout de `poste.js` (spec 034). Sans ce changement de nom, un
+// iPhone deja installe garderait une coquille ou le module manque, et le
+// bouton « Scanner le QR de mon poste » planterait au premier appui.
+const CACHE = "climbcontest-juge-v4";
 
 /**
  * Ce qu'on garde pour pouvoir démarrer sans réseau.
@@ -57,6 +60,7 @@ const COQUILLE = [
   "/static/juge/verrou.js",
   "/static/juge/historique.js",
   "/static/juge/identite.js",
+  "/static/juge/poste.js",
   "/static/juge/icone-192.png",
   // ⚠️ `icone-512.png` n'y est PAS, volontairement : le manifeste ne la lit
   // qu'a l'installation, en ligne. La mettre dans la coquille ferait

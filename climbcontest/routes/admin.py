@@ -299,7 +299,7 @@ def changer_mon_mot_de_passe():
 @bp.get("/referentiels")
 @exige_role(ORGANISATEUR)
 def referentiels():
-    """Les categories et les clubs deja connus de la competition en cours.
+    """Les categories, les clubs, et les zones du plan.
 
     De quoi remplir les listes deroulantes de la console (spec 013). La liste
     est **derivee, pas stockee** : c'est l'ensemble des valeurs distinctes
@@ -307,17 +307,27 @@ def referentiels():
     fois dans « Autre… » -- elle rejoint la liste des l'enregistrement. Aucune
     table a tenir a jour, aucun ecran de gestion.
 
-    Un seul appel pour les deux listes : la console les charge ensemble, a
-    l'ouverture. Deux routes auraient fait deux allers-retours pour un geste.
+    Un seul appel pour toutes les listes : la console les charge ensemble, a
+    l'ouverture. Deux routes auraient fait deux allers-retours pour un geste --
+    c'est aussi pourquoi les ZONES sont ici (spec 034) et non sur une route a
+    elles. Elles ne sont PAS derivees des participants : elles viennent du plan
+    de la salle, et existent donc sans competition active.
 
     Sans competition active : deux listes vides et `success: true`, **pas une
     erreur**. Le formulaire doit rester utilisable -- « Autre… » suffit a creer
     le tout premier participant.
     """
+    # ⚠️ HORS du `try` : les zones viennent du PLAN, qui ne depend d'aucune
+    # competition (spec 034). Les calculer apres la garde priverait la console
+    # de sa liste de zones tant qu'aucune edition n'est active -- or c'est
+    # exactement le moment ou on imprime les QR de poste, la veille au soir.
+    zones = sorted(fiches.zones_du_plan(fiches.plan_courant()))
+
     try:
         comp = competition_active()
     except ErreurMetier:
-        return jsonify({"success": True, "categories": [], "clubs": []}), 200
+        return jsonify({"success": True, "categories": [], "clubs": [],
+                        "zones": zones}), 200
 
     def distinctes(colonne):
         return sorted(
@@ -331,6 +341,9 @@ def referentiels():
         "success": True,
         "categories": distinctes(Participant.categorie),
         "clubs": distinctes(Participant.club),
+        # Les zones du plan courant : de quoi remplir la liste deroulante des
+        # QR de poste sans une deuxieme route pour un seul geste (spec 034).
+        "zones": zones,
     }), 200
 
 
@@ -638,6 +651,33 @@ def page_etiquettes():
                                                        fiches.ETIQUETTES_PAR_FEUILLE),
                            total=len(planche), titre=titre, filtre=filtre,
                            taille_numero=fiches.TAILLE_NUMERO_MM)
+
+
+@bp.get("/postes")
+@exige_role(ORGANISATEUR)
+def page_postes():
+    """Les QR de poste a poser sur les tables des juges. `?zone=C` pour une seule.
+
+    Le juge arrive a sa table, ouvre l'application, scanne le carton pose
+    devant lui : son telephone s'appelle « Zone C ». Il n'a rien tape.
+
+    ⚠️ LES ZONES VIENNENT DU PLAN, jamais d'une liste tenue a la main (spec
+    034). Un mur ajoute dans `/admin/plan` sort son QR a l'impression suivante.
+
+    ⚠️ PAS DE `competition_active()`, donc PAS DE 409 : c'est la seule page
+    d'impression de la console qui marche sans competition, et c'est voulu. Le
+    plan de la salle ne depend d'aucune edition, et on imprime ces cartons la
+    veille au soir, avant meme d'avoir importe le classeur.
+    """
+    zone = (request.args.get("zone") or "").strip() or None
+    planche = fiches.postes(zone=zone)
+
+    logger.info("impression de %d QR de poste par %s (%s)",
+                len(planche), g.utilisateur.identifiant, zone or "toutes zones")
+    return render_template("postes.html",
+                           feuilles=fiches.en_feuilles(planche,
+                                                       fiches.POSTES_PAR_FEUILLE),
+                           total=len(planche), filtre=zone)
 
 
 def _corps_objet():
