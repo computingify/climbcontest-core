@@ -21,6 +21,15 @@ qu'on ne met pas à jour le matin d'une compétition :
 
 ### Ajouté
 
+- **L'avancement par zone, sur le plan du mur** de la fiche du grimpeur
+  (spec 036). Une zone où il a des blocs de son circuit porte « 1/4 » : blocs
+  validés sur blocs de son circuit qui s'y trouvent. Le mur ne disait que « il
+  t'en reste » — cinq zones allumées à l'identique se comparaient en cinq
+  gestes, en touchant chacune pour lire le compteur du panneau. Une zone sans
+  bloc de son circuit ne porte **rien** : l'absence est l'information, « 0/4 »
+  se dit, « 0/0 » non. Un bloc **crédité** par la cascade compte comme fait,
+  comme partout ailleurs sur cet écran.
+
 - **Un simulateur de juges** (`tools/simulateur_juges.py`). Un panneau local
   ouvre une compétition entière depuis le Mac : nombre de juges, cadence,
   répartition dans le temps, aléas du terrain, démarrage et arrêt en un clic.

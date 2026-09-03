@@ -134,6 +134,21 @@ function rendre(verdict) {
     note("profilPeint", profils.length
       ? vue.getComputedStyle(profils[0]).backgroundColor : "(aucune)");
     note("reperes", $$(".sf-legende .repere").length);
+    // 3 bis. L'avancement par zone (spec 036) : chaque zone du circuit porte
+    //        « faits/total », et les autres ne portent RIEN.
+    const compteDe = (racine, z) => {
+      const g = [...racine.querySelectorAll(".sf-feuille g[data-zone]")]
+        .find((n) => n.getAttribute("data-zone") === z);
+      const c = g && g.querySelector(".compte-zone");
+      if (!c) return "(absent)";
+      return c.textContent || "(vide)";
+    };
+    note("compteZ", compteDe(doc, "Z"));
+    note("compteA", compteDe(doc, "A"));
+    note("compteM", compteDe(doc, "M"));
+    note("compteD", compteDe(doc, "D"));
+    note("compteurs", $$(".sf-feuille .compte-zone")
+      .filter((n) => n.textContent).length);
 
     // 4. Changer de zone REMPLACE l'entree : un seul retour ramene a la fiche.
     const autre = $$(".sf-feuille g[data-zone]")
@@ -187,6 +202,17 @@ function rendre(verdict) {
       () => doc2.querySelectorAll(".sf-case.grimpe").length > avant);
     note("avantReussite", avant);
     note("apresReussite", doc2.querySelectorAll(".sf-case.grimpe").length);
+
+    // 8. Et le COMPTEUR DU PLAN suit la meme reussite. Le mur n'est pas
+    //    remonte entre-temps -- il est monte une fois par grimpeur -- donc si
+    //    le chiffre bougeait avec le dessin et non avec la decoration, il
+    //    resterait a « 1/2 » sous une zone qui vient d'etre terminee.
+    const caseA = [...doc2.querySelectorAll("button.sf-case")]
+      .find((n) => n.querySelector(".z").textContent === "A");
+    caseA.click();
+    await attendre("mur du direct", () => doc2.querySelector(".sf-pile.au-mur")
+      && doc2.querySelector(".sf-feuille svg.plan"));
+    note("compteApres", compteDe(doc2, "A"));
 
     await rendre("OK " + etapes.join(" "));
   } catch (e) {
@@ -408,6 +434,15 @@ class TestDansUnVraiNavigateur:
         # Les zones ou il n'a rien a faire s'effacent : ici, toutes sauf trois.
         assert int(mesures["effacees"]) == int(mesures["zones"]) - 3
 
+        # L'avancement par zone : « faits/total » des blocs de SON circuit.
+        assert mesures["compteZ"] == "2/2"      # terminee
+        assert mesures["compteA"] == "1/2"      # entamee
+        assert mesures["compteM"] == "0/1"      # intacte : le zero se dit
+        # Une zone sans bloc de son circuit ne porte AUCUN chiffre. Un « 0/0 »
+        # l'enverrait chercher du travail la ou il n'y en a pas.
+        assert mesures["compteD"] == "(vide)"
+        assert mesures["compteurs"] == "3"
+
         # Le clic atteint VRAIMENT la case : c'est ce qu'une regle
         # `pointer-events` mal placee casse, sans rien casser d'autre.
         assert mesures["pointage"] == "atteint"
@@ -448,3 +483,6 @@ class TestDansUnVraiNavigateur:
         peinte = mesures["profilPeint"]
         assert peinte not in ("rgba(0,_0,_0,_0)", "transparent", "(aucune)"), peinte
         assert peinte != "rgb(255,_255,_255)", peinte
+        # Et le compteur du plan avec elle : la zone A passe de « 1/2 » a
+        # « 2/2 » sans que le mur soit remonte.
+        assert mesures["compteApres"] == "2/2"

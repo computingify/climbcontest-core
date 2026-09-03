@@ -9,8 +9,8 @@ import assert from "node:assert/strict";
 
 import {
   A_FAIRE, CREDITE, FINIE, GRIMPE, RESTE,
-  blocsDeZone, classesDeZone, compteDeZone, ecrireDiese, estFait,
-  etatsDesZones, lireDiese, tousLesBlocs,
+  blocsDeZone, classesDeZone, compteDeZone, comptesDesZones, ecrireDiese,
+  estFait, etatsDesZones, libelleCompte, lireDiese, tousLesBlocs,
 } from "../../climbcontest/static/resultats/suivi.js";
 
 /** Une fiche comme le serveur la rend. */
@@ -73,9 +73,69 @@ test("un bloc sans zone n'invente pas de zone", () => {
 
 test("les blocs d'une zone, et son compte", () => {
   assert.deepEqual(blocsDeZone(GROUPES, "Z").map((b) => b.tag), ["ZJ1", "ZV4"]);
-  assert.deepEqual(compteDeZone(GROUPES, "Z"), { total: 2, faits: 2 });
-  assert.deepEqual(compteDeZone(GROUPES, "M"), { total: 1, faits: 0 });
-  assert.deepEqual(compteDeZone(GROUPES, "X"), { total: 0, faits: 0 });
+  assert.deepEqual(compteDeZone(GROUPES, "Z"),
+                   { total: 2, faits: 2, grimpes: 2, credites: 0 });
+  assert.deepEqual(compteDeZone(GROUPES, "M"),
+                   { total: 1, faits: 0, grimpes: 0, credites: 0 });
+  // Une zone sans bloc du circuit rend un compte A ZERO, pas `undefined` : le
+  // panneau a besoin d'un total pour ecrire « aucun bloc de ton circuit ».
+  assert.deepEqual(compteDeZone(GROUPES, "X"),
+                   { total: 0, faits: 0, grimpes: 0, credites: 0 });
+});
+
+// --- L'avancement par zone — spec 036 --------------------------------------
+
+test("chaque zone porte son compte, et le crédité y pèse comme le grimpé", () => {
+  // C'est LA décision de la spec 036 § 6 : « 1/1 » sur la zone B, où le seul
+  // bloc est crédité par la cascade. Le détail reste, à part.
+  assert.deepEqual(comptesDesZones(GROUPES), {
+    Z: { total: 2, faits: 2, grimpes: 2, credites: 0 },
+    B: { total: 1, faits: 1, grimpes: 0, credites: 1 },
+    M: { total: 1, faits: 0, grimpes: 0, credites: 0 },
+  });
+});
+
+test("une zone où le grimpeur n'a rien à faire est ABSENTE des comptes", () => {
+  // Pas `{ total: 0 }` : c'est l'absence qui empêche un « 0/0 » de se poser sur
+  // la moitié du plan.
+  assert.equal("X" in comptesDesZones(GROUPES), false);
+  assert.deepEqual(comptesDesZones([]), {});
+  assert.deepEqual(comptesDesZones(undefined), {});
+});
+
+test("un bloc sans zone n'entre dans aucun compte", () => {
+  assert.deepEqual(comptesDesZones([{ couleur: "Noir", blocs: [
+    { tag: "??", zone: null, etat: RESTE },
+  ] }]), {});
+});
+
+test("le libellé du compteur : « 1/4 », et le zéro se dit", () => {
+  assert.equal(libelleCompte({ total: 4, faits: 1 }), "1/4");
+  assert.equal(libelleCompte({ total: 4, faits: 0 }), "0/4");
+  assert.equal(libelleCompte({ total: 4, faits: 4 }), "4/4");
+});
+
+test("ce qui n'a rien à dire ne dit rien, plutôt que « 0/0 »", () => {
+  assert.equal(libelleCompte({ total: 0, faits: 0 }), "");
+  assert.equal(libelleCompte(undefined), "");
+  assert.equal(libelleCompte(null), "");
+});
+
+test("l'état d'une zone ne peut PAS contredire son compteur", () => {
+  // ⚠️ L'invariant du lot. Le plan montre les deux à la fois : un anneau vert
+  // « zone terminée » au-dessus d'un « 3/4 » ne se lirait pas comme « il y a un
+  // bloc crédité », mais comme « la page est cassée ». Les deux dérivent d'une
+  // seule fonction ; ce test le vérifie sur un jeu qui CONTIENT un crédité,
+  // parce que c'est précisément là que deux additions séparées divergeraient.
+  const comptes = comptesDesZones(GROUPES);
+  const etats = etatsDesZones(GROUPES);
+  assert.deepEqual(Object.keys(comptes).sort(), Object.keys(etats).sort());
+  for (const [zone, compte] of Object.entries(comptes)) {
+    assert.equal(etats[zone] === FINIE, compte.faits === compte.total,
+                 "la zone " + zone + " se contredit");
+    assert.deepEqual(compteDeZone(GROUPES, zone), compte,
+                     "les deux compteurs de la zone " + zone + " divergent");
+  }
 });
 
 test("les classes d'une zone suivent son état", () => {
