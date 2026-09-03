@@ -1123,3 +1123,70 @@ class TestLaRotationDesPodiums:
         corps = page.split("function programmerRotation()")[1].split("\n  }")[0]
         assert "if (etat.enPause) return;" in corps
         assert "!MUR || etat.enPause" not in corps
+
+
+class TestLaRouteLegereDesReglages:
+    """« J'active un interrupteur, par exemple scratch femme, et je regarde si à
+    côté mon scratch femme apparaît dans ma page résultat. Du coup, non. »
+    — Adrien, 03/09 (spec 033, R3).
+
+    Le réglage arrivait, mais au rythme de la relecture générale : quinze
+    secondes. Baisser ce rythme aurait multiplié par cinq le trafic d'une
+    charge de plusieurs dizaines de kilo-octets relue par soixante téléphones.
+    Cette route-ci ne calcule aucun classement, et peut donc être relue toutes
+    les trois secondes.
+    """
+
+    def test_elle_rend_les_reglages_de_la_competition_active(self, client, jeu):
+        r = client.get("/api/public/reglages")
+        assert r.status_code == 200
+        comp = r.get_json()["competition"]
+        assert comp["nom"] == "Test 2026"
+        assert comp["statut"] == "en_cours"
+        assert comp["groupes_masques"] == []
+
+    def test_elle_suit_le_reglage_de_la_console(self, client, app, competition, jeu):
+        from climbcontest import cycle
+        cycle.regler_affichage(competition, ["U11 F"])
+        comp = client.get("/api/public/reglages").get_json()["competition"]
+        assert comp["groupes_masques"] == ["U11 F"]
+
+    def test_elle_voit_le_reglage_changer_entre_deux_appels(
+            self, client, app, competition, jeu):
+        """C'est TOUT l'intérêt : elle est relue en boucle, elle doit rendre
+        l'état courant et pas celui du premier appel."""
+        from climbcontest import cycle
+        assert client.get("/api/public/reglages").get_json()[
+            "competition"]["groupes_masques"] == []
+        cycle.regler_affichage(competition, ["Scratch"])
+        assert client.get("/api/public/reglages").get_json()[
+            "competition"]["groupes_masques"] == ["Scratch"]
+        cycle.regler_affichage(competition, [])
+        assert client.get("/api/public/reglages").get_json()[
+            "competition"]["groupes_masques"] == []
+
+    def test_sans_competition_active_elle_echoue_comme_ses_voisines(self, client):
+        """Une seule façon d'échouer à connaître : la page n'a pas à traiter
+        deux formes d'erreur selon la route."""
+        r = client.get("/api/public/reglages")
+        classement = client.get("/api/public/classement")
+        assert r.status_code == classement.status_code
+        assert r.get_json()["success"] is False
+        assert r.get_json()["message"]
+
+    def test_elle_ne_calcule_AUCUN_classement(self, client, jeu, monkeypatch):
+        """La propriété qui autorise les trois secondes. Un jour où quelqu'un
+        ajoutera un champ ici, ce test dira ce que ça coûte."""
+        from climbcontest import classement_service
+
+        def interdit(*a, **k):
+            raise AssertionError("la route legere a calcule un classement")
+
+        monkeypatch.setattr(classement_service, "classements", interdit)
+        assert client.get("/api/public/reglages").status_code == 200
+
+    def test_elle_reste_beaucoup_plus_petite_que_la_charge_complete(self, client, jeu):
+        reglages = client.get("/api/public/reglages")
+        classement = client.get("/api/public/classement")
+        assert len(reglages.data) * 4 < len(classement.data), (
+            len(reglages.data), len(classement.data))
