@@ -896,15 +896,62 @@
      existent toujours : on ne cree ni ne supprime rien a chaque repeinture. */
   .plan .socle-compte { fill: var(--pl-halo); stroke: none;
                         pointer-events: none; }
-  .plan g[data-zone]:not(.a-compte) .socle-compte { display: none; }
+  .plan g[data-zone]:not(.a-compte) .socle-compte,
+  .plan g[data-zone]:not(.a-compte) .remplit-compte { display: none; }
+
+  /* ⚠️ LA PASTILLE EST LA JAUGE (spec 036, 03/09) : « je veux que seulement le
+     truc avec le nombre de blocs restant se remplisse de vert en fonction de
+     l'avancement ». Le vert est un rectangle franc DECOUPE dans la forme du
+     socle : il en epouse le bord arrondi a gauche et se coupe net a droite, ce
+     qui se lit comme un NIVEAU. Arrondi de son cote, il ferait une petite
+     pastille dans la grande, et on lirait deux objets.
+
+     Le cadre de la zone, lui, ne bouge pas : il garde son tout-ou-rien et dit
+     « terminee », rien d'autre. Un premier essai avait fait l'inverse -- le
+     cadre epaissi qui se remplissait -- et c'est ce qui a ete ecarte sur piece
+     le 03/09 (`specs/036-avancement-par-zone/maquettes/pastille.html`).
+
+     Le vert est FRANC (62 %) : c'est le reglage choisi, et le seul arbitrage du
+     lot -- le chiffre est pose dessus, donc plus le vert est fort, moins il se
+     detache. */
+  .plan .remplit-compte { fill: color-mix(in srgb, var(--ok) 62%, transparent);
+                          stroke: none; pointer-events: none; }
   .plan .compte-zone { font-family: var(--titre); font-weight: 800;
                        font-variant-numeric: tabular-nums;
                        fill: var(--pl-lettre); text-anchor: middle;
                        dominant-baseline: central; }
-  .plan .compte-zone.compte-finie { fill: var(--ok); }
+  /* ⚠️ LE CHIFFRE D'UNE ZONE TERMINEE NE VIRE PLUS AU VERT. Il le faisait
+     quand la pastille etait un fond neutre ; sur une pastille PLEINE de vert,
+     vert sur vert ne se lit pas -- deux signaux se disputeraient le meme pixel.
+     C'est la pastille pleine qui dit « terminee », et le chiffre reste a
+     l'encre pour rester lisible. */
+
+  /* ⚠️ LA COUCHE DES COMPTEURS PASSE DEVANT LES CADRES, et c'est la largeur de
+     la pastille qui l'impose : 14,4 unites dans un pan de 15, elle croise le
+     cadre « terminee » de 0,5 unite de chaque cote. Peinte dessous, elle se
+     ferait couper par lui a ses deux extremites -- justement la ou le vert dit
+     ou il s'arrete. Elle passe devant, et c'est le cadre qui porte l'encoche.
+
+     Elle ne prend AUCUN clic : c'est le pan qui est cliquable, et le compteur
+     est pose dessus. */
+  .plan .compteurs-zone { pointer-events: none; }
+  /* La lueur reste sur le PAN. Posee aussi sur le compteur, elle ferait une
+     seconde emphase autour d'un objet de trois pixels de haut. */
+  .plan .compteurs-zone g[data-zone].visee { filter: none; }
 
   .sf-anime .plan g[data-zone].visee {
     animation: sf-rebond 760ms cubic-bezier(.34,1.56,.64,1) both; }
+  /* Le compteur rebondit AVEC son pan — il en a le centre de rotation — mais
+     sans la lueur : deux animations, un seul mouvement. */
+  .sf-anime .plan .compteurs-zone g[data-zone].visee {
+    animation: sf-rebond-nu 760ms cubic-bezier(.34,1.56,.64,1) both; }
+  @keyframes sf-rebond-nu {
+    0%   { transform: scale(.74); }
+    45%  { transform: scale(1.20); }
+    68%  { transform: scale(.95); }
+    84%  { transform: scale(1.06); }
+    100% { transform: scale(1); }
+  }
   @keyframes sf-rebond {
     0%   { transform: scale(.74); filter: drop-shadow(0 0 0 var(--pl-lueur)); }
     45%  { transform: scale(1.20); filter: drop-shadow(0 0 10px var(--pl-lueur)); }
@@ -958,7 +1005,8 @@
 
   @media (prefers-reduced-motion: reduce) {
     .sf-pile { transition: none; }
-    .sf-anime .plan g[data-zone].visee { animation: none; }
+    .sf-anime .plan g[data-zone].visee,
+    .sf-anime .plan .compteurs-zone g[data-zone].visee { animation: none; }
   }
 </style>
 </head>
@@ -2852,7 +2900,11 @@ import { decorer, decrire, monter, peutDessiner, zonesDe }
       }
       // Toucher une zone la choisit. C'est la PAGE qui ecoute : le dessin, lui,
       // ne sait rien de ce qu'on fait de ses zones.
-      Array.prototype.forEach.call(dessin.querySelectorAll("g[data-zone]"),
+      // ⚠️ `:scope >` : SEULS LES PANS. La couche des compteurs porte elle
+      // aussi un `g[data-zone]` par zone (spec 036) — elle ne prend aucun clic
+      // (`pointer-events: none`), et lui accrocher un ecouteur mort donnerait a
+      // lire deux fois la meme intention.
+      Array.prototype.forEach.call(dessin.querySelectorAll(":scope > g[data-zone]"),
         function (n) {
           n.addEventListener("click", function () {
             versZone(n.getAttribute("data-zone"), false);
@@ -2955,12 +3007,16 @@ import { decorer, decrire, monter, peutDessiner, zonesDe }
     if (anime) {
       // Le dessin persiste : sans ce redemarrage, l'animation ne rejouerait
       // pas d'une zone a l'autre.
-      var visee = elVueMur.querySelector("g[data-zone].visee");
-      if (visee) {
-        visee.style.animation = "none";
-        void visee.getBoundingClientRect();
-        visee.style.animation = "";
-      }
+      // ⚠️ AU PLURIEL. La zone visee, c'est maintenant DEUX noeuds — le pan et
+      // son compteur (spec 036) — et ils rebondissent ensemble. Redemarrer le
+      // seul premier les desynchroniserait des la deuxieme visite d'une meme
+      // zone : le pan rejouerait, le chiffre non.
+      Array.prototype.forEach.call(
+        elVueMur.querySelectorAll("g[data-zone].visee"), function (visee) {
+          visee.style.animation = "none";
+          void visee.getBoundingClientRect();
+          visee.style.animation = "";
+        });
     }
   }
 
