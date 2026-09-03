@@ -143,6 +143,44 @@ class TestLeServiceWorker:
         assert ".catch(" in juge[juge.index("serviceWorker.register"):]
 
 
+class TestHiddenCacheVraiment:
+    """La regle de cascade qui a laisse un bouton mort sur l'ecran Reglages.
+
+    Une regle d'AUTEUR qui pose `display` bat le `[hidden] { display: none }`
+    de la feuille du NAVIGATEUR : l'origine auteur l'emporte sur l'origine
+    agent-utilisateur, quelle que soit la specificite. Sept rustines locales
+    corrigeaient le defaut element par element, et il en manquait toujours une
+    -- `.ligne { display: flex }` rendait `#ligneRefus` visible en permanence,
+    donc « 0 refusees » et un bouton « Renvoyer » qui ne fait rien.
+
+    Le COMPORTEMENT se verifie dans un vrai navigateur
+    (`test_navigateur_juge_reglages.py`) ; ce test-ci garde la regle, et tourne
+    meme sans navigateur installe.
+    """
+
+    def test_la_regle_globale_est_la(self, client_sans_cle):
+        page = client_sans_cle.get("/juge").get_data(as_text=True)
+        assert re.search(r"\[hidden\]\s*\{\s*display:\s*none\s*!important", page), (
+            "la regle globale `[hidden] { display: none !important }` a "
+            "disparu : n'importe quelle regle posant `display` rendra a "
+            "nouveau visible un element cache")
+
+    def test_aucune_rustine_locale_ne_revient(self, client_sans_cle):
+        """Une rustine par element, c'est le motif qui a produit le defaut.
+
+        Elle donne l'impression que le sujet est traite, et laisse le prochain
+        `display` sans garde. La regle globale les rend toutes inutiles ; si
+        l'une reapparait, c'est que quelqu'un a retrouve le defaut sans
+        retrouver sa cause.
+        """
+        page = client_sans_cle.get("/juge").get_data(as_text=True)
+        style = page.split("</style>")[0]
+        rustines = re.findall(r"^\s*([#.]?[\w.-]+)\[hidden\]\s*\{", style, re.M)
+        assert not rustines, (
+            f"rustines locales revenues : {rustines} — la regle globale "
+            "`[hidden]` les couvre deja")
+
+
 class TestRienNeFuit:
     """La page est publique. Tout ce qu'elle contient l'est aussi."""
 

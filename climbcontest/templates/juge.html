@@ -112,19 +112,35 @@
   /* Le trait n'apparait QUE sur « injoignable ». Pilote par le CSS et non par
      l'attribut `hidden` : dans un SVG, `hidden` ne cache pas de facon fiable --
      constate a l'ecran, le trait restait visible sur un voyant vert. */
+  /* ⚠️ `hidden` DOIT cacher, et il ne le faisait pas tout seul.
+
+     N'importe quelle regle d'AUTEUR qui pose `display` bat le
+     `[hidden] { display: none }` de la feuille du NAVIGATEUR : l'origine
+     auteur l'emporte sur l'origine agent-utilisateur, quelle que soit la
+     specificite. Six rustines locales corrigeaient le defaut element par
+     element (`main`, `#message`, `#viseur`, `#bandeFile`, `.pastille`,
+     `.ecran`, `#installer`) -- et il en manquait toujours une.
+
+     Celle qui manquait : `.ligne { display: flex }` rendait `#ligneRefus`
+     visible en permanence. L'ecran Reglages affichait donc « 0 refusees »
+     suivi d'un bouton « Renvoyer » bien bleu, sans l'explication qui va avec
+     (`.explication` ne pose aucun `display`, elle restait cachee). Un bouton
+     qui ne fait rien, sur le telephone d'un benevole, un jour de competition.
+
+     La regle globale ferme la classe entiere. `admin.html` et `plan.html` la
+     portent deja ; c'est la meme, au meme endroit.
+
+     ⚠️ `#barreVoyant` juste en dessous n'est PAS concerne : il ne porte pas
+     `hidden`, son affichage se pilote par une classe -- volontairement, parce
+     que `hidden` ne cache pas de facon fiable dans un SVG. */
+  [hidden] { display: none !important; }
+
   #barreVoyant { display: none; }
   #voyant.ko #barreVoyant { display: inline; }
   @keyframes battement { 0%,100% { opacity: 1 } 50% { opacity: .35 } }
   @media (prefers-reduced-motion: reduce) { #voyant.doute { animation: none } }
 
   main { padding: 12px 16px 28px; display: flex; flex-direction: column; gap: 14px; }
-  /* ⚠️ Sans cette ligne, l'attribut `hidden` ne cachait PAS le contenu
-     principal : la regle `main { display: flex }` est une regle d'AUTEUR, et
-     elle bat le `[hidden] { display: none }` de la feuille du navigateur, qui
-     n'est qu'une regle d'agent utilisateur. Les ecrans secondaires
-     s'affichaient donc SOUS l'ecran principal au lieu de le remplacer.
-     Constate a l'ecran. */
-  main[hidden] { display: none; }
 
   /* Trois etapes numerotees, UNE SEULE active a la fois — la structure de la
      refonte Android. L'etat « actif » n'est pas pose par le JS : il se deduit
@@ -243,7 +259,6 @@
     background: var(--carte-active); border-left: 4px solid var(--trait-actif);
     font-size: 0.95rem; box-shadow: 0 6px 24px rgba(0,0,0,.45);
   }
-  #message[hidden] { display: none; }
   #message.ok { border-left-color: var(--fait); }
   #message.erreur { border-left-color: var(--alerte); }
   #message.attention { border-left-color: var(--attention); }
@@ -252,7 +267,6 @@
      eclairee, avec des gens autour. */
   #viseur { position: fixed; inset: 0; background: #000; display: flex;
             flex-direction: column; z-index: 10; }
-  #viseur[hidden] { display: none; }
   #viseur video { flex: 1; width: 100%; object-fit: cover; }
   #viseur .barre { padding: 14px 16px calc(14px + env(safe-area-inset-bottom));
                    background: var(--carte-faite); display: flex; align-items: center; gap: 12px; }
@@ -266,7 +280,6 @@
      — l'ecran bougeait sous le pouce du juge. Meme lecon que sur Android.
      Toute la zone reste cliquable : elle declenche un envoi immediat. */
   #bandeFile { display: flex; gap: 8px; align-items: center; cursor: pointer; }
-  #bandeFile[hidden] { display: none; }
   /* ⚠️ Ces classes s'appelaient `.attente` et `.refus`. `.attente` entrait
      alors en collision avec `.carte .valeur.attente`, qui marque une carte NON
      SCANNEE : le fond ambre de la pastille se retrouvait derriere le texte
@@ -274,7 +287,6 @@
      relecture. Deux choses differentes, deux noms differents. */
   .pastille { font-size: 0.82rem; font-weight: 600; padding: 7px 11px;
               border-radius: 999px; }
-  .pastille[hidden] { display: none; }
   .pastilleAttente { color: var(--attention); background: rgba(229,180,74,.15); }
   /* Le rouge est reserve a ce qui demande une ACTION : une refusee ne repartira
      pas toute seule, contrairement a une reussite en file. */
@@ -283,7 +295,6 @@
   /* Les ecrans secondaires. Une seule page, trois vues : un juge n'a pas
      besoin d'un routeur pour trois ecrans, et une navigation par URL ferait
      sortir de la PWA installee sur certains iOS. */
-  .ecran[hidden] { display: none; }
   .barreEcran { display: flex; align-items: center; gap: 12px;
                 padding: 10px 16px; background: var(--carte-faite); }
   .barreEcran h2 { margin: 0; font-size: 1.15rem; font-weight: 700; flex: 1; }
@@ -342,7 +353,6 @@
   #installer { margin: 0 16px 12px; padding: 12px 14px; border-radius: 10px;
                background: var(--carte-active); color: var(--encre2); font-size: 0.88rem;
                line-height: 1.5; }
-  #installer[hidden] { display: none; }
 </style>
 </head>
 <body>

@@ -64,6 +64,24 @@
   }
 
   * { box-sizing: border-box; }
+
+  /* ⚠️ `hidden` DOIT cacher. Une regle d'AUTEUR qui pose `display` bat le
+     `[hidden] { display: none }` de la feuille du NAVIGATEUR : l'origine
+     auteur l'emporte sur l'origine agent-utilisateur, quelle que soit la
+     specificite.
+
+     Ici, `#barre { display: flex }`. Quand la competition n'a qu'UNE seule
+     categorie, le script vide la barre et la passe en `hidden` -- elle restait
+     une bande vide de 21 px, avec son filet, sous l'entete. Mesure : `display`
+     calcule `flex`, hauteur 21 px, `border-bottom` 1 px. Sur le
+     videoprojecteur de la salle, c'est une bande noire en travers de l'ecran.
+
+     `#attente`, l'autre element pilote par `hidden`, ne pose aucun `display`
+     et se cachait deja correctement -- c'est bien la regle d'affichage qui
+     fait la difference, pas l'attribut.
+
+     Meme regle, meme place, que `admin.html`, `juge.html` et `plan.html`. */
+  [hidden] { display: none !important; }
   html, body {
     margin: 0; height: 100%;
     background: var(--fond); color: var(--encre);
