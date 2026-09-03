@@ -28,6 +28,29 @@ COTE_QR_ETIQUETTE_MM = 45.0
 COTE_QR_MM = 24.0
 
 
+# --- Le QR de poste, pose sur la table du juge (spec 034) --------------------
+
+# ⚠️ CE PREFIXE EST ECRIT DEUX FOIS : ici, et dans
+# `climbcontest/static/juge/poste.js` qui le lit. Le jour ou les deux divergent,
+# TOUS les QR de poste imprimes cessent d'etre lus, sans qu'une seule ligne ait
+# l'air fausse -- et ca se decouvre le samedi matin, avec les cartons deja poses
+# sur les tables. `tests/test_postes.py::TestLePrefixePartage` lit le fichier JS
+# et compare : le piege n'est pas documente, il est DETECTABLE.
+#
+# Pourquoi un prefixe : trois familles de QR circulent le jour J et le meme
+# viseur les voit toutes -- le dossard (`42`), le bloc (`ZJ6`), le lien de
+# l'organisateur. Sans prefixe, un juge qui scanne un bloc par erreur depuis
+# cet ecran renommerait son poste « ZJ6 » sans s'en apercevoir.
+PREFIXE_QR_POSTE = "CCPOSTE:"
+
+# Le QR d'une affiche de poste. Nettement plus gros que celui d'une etiquette
+# de bloc (42 mm) : ce n'est pas un autocollant colle au mur, c'est un carton
+# pose sur une table, et le telephone le vise de biais, souvent d'une seule
+# main. A 70 mm, un « CCPOSTE:A » donne 2,4 mm par module -- pres de cinq fois
+# le plancher de `qr.MODULE_MINI_MM`.
+COTE_QR_POSTE_MM = 70.0
+
+
 # Les six profils de mur, ORDONNÉS du moins au plus déversant. L'ordre EST
 # l'information : la trame se densifie et le gris fonce à mesure qu'on descend
 # la liste, ce qui donne une seule règle à apprendre — plus ça déverse, plus ça
@@ -442,6 +465,20 @@ HAUTEUR_LIGNE_SUP_MM = HAUTEUR_LIGNE_MM + GOUTTIERE_CASE_MM
 # ici sans changer la geometrie laisserait des trous ou couperait une feuille.
 FICHES_PAR_FEUILLE = 6
 ETIQUETTES_PAR_FEUILLE = 8
+# Et TROIS affiches de poste : 3 x 90 = 270 mm, sur une page utile de 277.
+#
+# ⚠️ La premiere version en posait DEUX (188 x 136 mm), en colonne : QR au
+# milieu, nom dessous. Constate a l'ecran, pas devine -- le contenu faisait
+# 164 mm de haut dans une affiche de 136, et le mode d'emploi sortait COUPE en
+# bas. La disposition passe a l'horizontale (QR a gauche, texte a droite),
+# comme les etiquettes de blocs depuis la spec 024 et pour la meme raison : un
+# carton pose a plat est large et bas, empiler verticalement gaspille la
+# largeur et manque de hauteur.
+#
+# Le gain n'est pas que de place : 17 zones tenaient sur 9 feuilles a moitie
+# vides, elles tiennent sur 6 pleines. « Je me retrouve avec des pages vides »
+# etait le reproche du 02/09 sur les etiquettes ; il vaut ici aussi.
+POSTES_PAR_FEUILLE = 3
 
 
 def hauteur_mm(tailles: list[int], colonnes: int,
@@ -537,6 +574,52 @@ CHASSE_NUMERO = 0.72              # largeur d'un caractere, en em (mesure : 0,70
 # le filtre change le plus long numero de la planche. On recollerait au mur
 # des etiquettes qui ne se ressemblent pas.
 TAILLE_NUMERO_MM = 19.0
+
+# --- Et la taille du nom de zone d'une affiche de poste (spec 034) -----------
+#
+# ⚠️ Le nom de zone, LUI, reste dimensionne par son texte -- et ce n'est pas un
+# oubli de la R7 juste au-dessus. Les deux raisons qui ont fige le numero
+# d'etiquette ne mordent pas ici :
+#
+#  - une planche d'etiquettes en aligne huit cote a cote, et deux voisines de
+#    tailles differentes se voient. Une affiche de poste est un objet SEUL,
+#    scotche sur sa table ; les trois d'un meme A4 sont decoupees avant d'etre
+#    posees, et ne se revoient jamais.
+#  - la seconde raison -- imprimer toute la salle puis une seule zone donnerait
+#    deux tailles pour la MEME etiquette -- ne s'applique pas non plus : la
+#    taille ne depend que du texte, donc « TOIT » sort identique qu'on imprime
+#    une affiche ou vingt.
+#
+# Si un jour les affiches doivent se ressembler entre elles, c'est la meme
+# correction qu'en R7 : une constante, pas « la plus grande qui tient sur cette
+# planche » (le filtre changerait la taille).
+#
+# La colonne de texte fait 188 mm (l'affiche) moins 10 (le rembourrage) moins
+# 70 (le QR) moins 6 (la gouttiere) = 102 mm ; on en garde 100 pour l'arrondi.
+LARGEUR_NOM_POSTE_MM = 100.0
+CHASSE_NOM_POSTE = 0.72           # meme graisse (800) que le numero d'etiquette
+TAILLE_NOM_POSTE_MAXI_MM = 30.0   # au-dela, le nom mange le mode d'emploi
+
+
+def taille_nom_poste_mm(texte: str) -> float:
+    """La plus grande taille a laquelle ce nom de zone tient sur une ligne.
+
+    Arrondie au demi-millimetre inferieur, et sans plancher a dessein : un nom
+    tres long doit RETRECIR, pas deborder. Le gabarit pose `white-space:
+    nowrap`, donc ce qui ne tient pas serait coupe -- et un nom de zone coupe
+    ne sert plus a rien. Un texte vide rend le maximum.
+
+    ⚠️ Ce calcul etait partage avec celui du numero d'etiquette, par un
+    `_taille_qui_tient_mm` commun. La R7 a fige le numero : le partage n'a plus
+    d'objet, et un helper generique « la plus grande taille qui tient » serait
+    surtout une invitation a refaire ce qu'Adrien vient de defaire.
+    """
+    n = len(texte or "")
+    if n <= 0:
+        return TAILLE_NOM_POSTE_MAXI_MM
+    tient = LARGEUR_NOM_POSTE_MM / (n * CHASSE_NOM_POSTE)
+    return min(TAILLE_NOM_POSTE_MAXI_MM, int(tient * 2) / 2)
+
 
 
 def en_feuilles(elements: list, par_feuille: int) -> list[list]:
@@ -674,5 +757,54 @@ def etiquettes(comp, zone: str | None = None, tag: str | None = None) -> list[di
             # juge attend et ce que `bloc_par_tag()` sait relire. Pas un
             # caractère de plus.
             "qr": qr.svg(bloc.tag, cote_mm=COTE_QR_ETIQUETTE_MM),
+        })
+    return planche
+
+
+# --- Les affiches de poste, posées sur la table du juge (spec 034) -----------
+
+
+def texte_qr_poste(zone: str) -> str:
+    """Ce qu'on encode dans le QR d'une zone. Le pendant de `poste.nomDePoste`."""
+    return PREFIXE_QR_POSTE + str(zone or "").strip()
+
+
+def postes(zone: str | None = None, plan: dict | None = None) -> list[dict]:
+    """Une affiche par zone du plan, triée par nom de zone.
+
+    ⚠️ **Les zones se déduisent du plan, jamais d'une liste tenue à la main.**
+    Adrien, le 03/09 : « tu connais parfaitement grâce au plan le nombre des
+    zones, donc tu peux tout à fait le générer automatiquement ». Un mur ajouté
+    dans `/admin/plan` sort son QR à l'impression suivante, sans qu'on touche à
+    quoi que ce soit — et une liste qui divergerait du plan ferait imprimer un
+    carton pour une zone qui n'existe plus.
+
+    ⚠️ **Aucune requête sur `Bloc`, `Participant` ou `Competition`.** Une
+    planche de QR de poste ne dépend d'aucune compétition : c'est ce qui permet
+    de l'imprimer la veille au soir, avant même d'avoir importé le classeur.
+
+    L'ordre est **alphabétique**, pas celui du plan. Le plan range les murs dans
+    l'ordre où on les a dessinés — arbitraire pour qui cherche la zone « M »
+    dans une pile de neuf feuilles. Les étiquettes de blocs, elles, suivent le
+    `Plan` parce qu'on les colle mur par mur : ce n'est pas le même geste.
+
+    Deux murs portant la même zone ne donnent **qu'une** affiche :
+    `zones_du_plan` rend un ensemble.
+    """
+    zones = sorted(zones_du_plan(plan if plan is not None else plan_courant()))
+    if zone:
+        # Une zone absente du plan rend une liste VIDE, pas une exception : la
+        # page doit pouvoir la nommer et dire qu'elle n'existe pas.
+        zones = [z for z in zones if z == zone]
+
+    planche = []
+    for z in zones:
+        texte = texte_qr_poste(z)
+        planche.append({
+            "zone": z,
+            "texte": texte,
+            # La taille du nom suit sa LONGUEUR : voir `taille_nom_poste_mm`.
+            "taille_nom": taille_nom_poste_mm(z),
+            "qr": qr.svg(texte, cote_mm=COTE_QR_POSTE_MM),
         })
     return planche
