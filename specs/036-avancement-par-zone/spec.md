@@ -93,6 +93,27 @@ comme les états de zone, et pas par le dessin : un bloc validé pendant qu'on
 regarde le plan doit faire passer « 1/4 » à « 2/4 » sans reconstruire dix-sept
 polygones.
 
+## 2 bis. Ce que la maquette a tranché
+
+`maquettes/compteurs.html` — le vrai relevé d'Annonay, la vraie géométrie
+(polygones, place et taille des lettres sortis de `fiches.plan_pour(set())`), un
+circuit simulé de 27 blocs sur six zones : une zone intacte (0/2), une entamée
+(1/4), une terminée (3/3), une à bloc unique (1/1) et une à deux chiffres de
+chaque côté (10/12) — celle qui dit si le compteur rétrécit ou s'il déborde.
+Onze zones sans bloc du circuit, qui ne doivent rien porter.
+
+| Essai | Verdict |
+| --- | --- |
+| **A — le chiffre sous la lettre** | **Retenu.** Un nœud de plus, et rien d'autre ne bouge |
+| A2 — la lettre rend un cran au chiffre | Écarté. 13 % de corps gagnés, mais la lettre d'un pan changerait de taille **selon le circuit du grimpeur** : deux téléphones côte à côte ne montreraient plus la même salle. Et il faudrait poser une transformation sur la lettre, que la fiche **papier** dessine aussi |
+| B — la pastille (socle arrondi) | Écarté. Le socle a une largeur à lui, que rien ne borne : sur le relevé réel il mord la lettre au-dessus et sort du pan en dessous. Le dimensionner demanderait la boîte du pan, donc de recopier côté page une géométrie qui vit côté serveur |
+| C — l'anneau de progression | Écarté. L'anneau se confond avec le contour vert de « zone terminée » et avec l'anneau ocre de la zone visée : trois cercles pour trois choses différentes |
+
+Le chiffre retenu fait `0,46 × taille` de la lettre, posé à `0,59 × taille` sous
+elle, avec le halo de la lettre. Ce sont les deux plus grandes valeurs qui
+tiennent à la fois sous la lettre et dans le pan — le calcul est dans
+`architecture.md` § 3.
+
 ## 3. Périmètre
 
 **Dans** : le plan du mur de la fiche du grimpeur (`resultats.html`,

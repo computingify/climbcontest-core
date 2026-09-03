@@ -75,9 +75,21 @@ nombres, et à rien d'autre : il n'y a **aucune lecture de géométrie côté pa
 
 ```
 x        = etiquette[0]                      (meme axe que la lettre)
-y        = etiquette[1] + taille * 0.58      COMPTE_DESCENTE
-fontSize = taille * min(0.42, 1/(0.58 * n))  COMPTE_ECHELLE, n = longueur du libelle
+y        = etiquette[1] + taille * 0.59      COMPTE_DESCENTE
+fontSize = taille * min(0.46, 1/(0.58 * n))  COMPTE_ECHELLE, n = longueur du libelle
+halo     = fontSize * 0.24                   (stroke-width, comme la lettre)
 ```
+
+**D'où sortent 0,59 et 0,46.** Ce ne sont pas des valeurs « à l'œil » : ce sont
+les deux plus grandes qui tiennent. Avec `dominant-baseline: central`, une
+capitale grasse occupe environ ±0,36 × son corps, et le halo déborde de la
+moitié de son épaisseur. Il faut donc que le compteur passe **sous** la lettre
+(`descente − 0,48 × échelle ≥ 0,36`) et **au-dessus** du bord bas du pan
+(`descente + 0,48 × échelle ≤ 0,833`, la demi-hauteur d'un pan de 15 unités
+rapportée à une lettre plafonnée à 9). Les deux inégalités se croisent à
+`échelle ≤ 0,49` ; 0,46 laisse la marge, 0,59 la centre entre les deux bornes.
+Un chiffre plus gros mordrait la lettre ou sortirait du pan — la maquette montre
+les deux.
 
 **Pourquoi sous la lettre et pas ailleurs.** Le centroïde est le seul point que
 le serveur garantit à l'intérieur du pan ; s'en éloigner en diagonale (un coin,
@@ -86,25 +98,38 @@ page une géométrie qui vit côté serveur — et de la voir diverger le jour o
 pan cesse d'être un rectangle. Sous la lettre, la seule chose qu'on consomme,
 c'est la place que `taille` a **déjà** réservée.
 
-**Le rétrécissement.** `min(0.42, 1/(0.58·n))` borne la largeur du libellé à une
+**Le rétrécissement.** `min(0.46, 1/(0.58·n))` borne la largeur du libellé à une
 fois `taille`, quel que soit le nombre de chiffres : « 1/4 » sort à sa taille
 pleine, « 12/15 » rétrécit au lieu de déborder. Le 0,58 est la largeur d'un
 chiffre tabulaire en fraction de sa taille — la même famille de constante que
 `LARGEUR_CAPITALE` côté Python, et prise comme elle sur le pire glyphe.
 
 **La limite connue, et ce qui la surveille.** Le compteur descend jusqu'à
-`0,79 × taille` sous le centroïde. Comme `taille ≤ 0,97 × hauteur` du pan et
-qu'elle est plafonnée à 9, tout pan d'au moins ~9,3 unités de haut le contient :
-les dix-sept zones d'Annonay font 15 unités au minimum, la marge est de 0,4
-unité. Un plan futur dessiné avec des pans plus petits ferait déborder le
-chiffre sous son pan.
+`0,81 × taille` sous le centroïde, halo compris — soit 7,30 unités quand la
+lettre est à son plafond de 9. Il faut donc un pan d'au moins **14,6 unités de
+haut**. Les dix-sept zones d'Annonay en font 15 au minimum : la marge est de
+0,20 unité, soit un demi-pixel sur un téléphone. Elle est réelle, mais elle est
+mince, et il faut la dire : ce n'est pas une place qu'on peut reprendre pour
+grossir le chiffre.
 
 Ce n'est pas laissé à un commentaire : `tests/test_suivi.py` **relit les deux
 constantes dans `plan.js`** et vérifie, pan par pan, que la boîte du compteur
-tient dans le plan servi. Si quelqu'un change un ratio, redessine la salle avec
-des pans minuscules ou touche à `taille_lettre`, le test rougit et nomme la
-zone. C'est le même dispositif que `test_la_page_sait_dessiner_ce_que_le_serveur_envoie` :
-un accord entre deux langages que rien d'autre ne confronterait.
+tient dans le plan servi. Si quelqu'un change un ratio ou touche à
+`taille_lettre`, le test rougit et nomme la zone. C'est le même dispositif que
+`test_la_page_sait_dessiner_ce_que_le_serveur_envoie` : un accord entre deux
+langages que rien d'autre ne confronterait.
+
+**Ce que ce test ne couvre pas, et le vrai remède.** Il vérifie le plan **servi
+par le test**, donc le plan d'usine. Depuis la spec 029, Adrien peut en
+enregistrer un autre depuis la console ; s'il y dessine des pans de douze
+unités, le chiffre sortira sous son pan et aucun test ne le dira. Le remède
+propre n'est pas une constante mieux choisie — il n'en existe aucune qui tienne
+dans un pan arbitrairement bas — c'est de faire calculer la place du compteur
+**par le serveur**, là où la boîte du pan est connue, exactement comme
+`taille_lettre` calcule celle de la lettre. Ça change la forme de
+`plan_public()`, donc ça demande d'incrémenter `FORMAT_PLAN` : c'est un lot à
+part, pas une ligne à glisser dans celui-ci. En attendant, ce qui protège, c'est
+que le seul plan qui existe fait des pans de 15.
 
 ## 4. Le style
 
