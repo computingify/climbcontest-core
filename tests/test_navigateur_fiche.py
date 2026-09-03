@@ -149,6 +149,40 @@ function rendre(verdict) {
     note("compteD", compteDe(doc, "D"));
     note("compteurs", $$(".sf-feuille .compte-zone")
       .filter((n) => n.textContent).length);
+    // La PASTILLE (spec 036, pose B) : elle n'est peinte que sous un
+    // compteur. ⚠️ ON MESURE LE `display` CALCULE, pas la presence du noeud :
+    // le socle est decrit pour TOUTES les zones et retire par le CSS
+    // (`:not(.a-compte)`). Un test de balisage serait vert avec dix-sept
+    // socles blancs poses sur des zones ou le grimpeur n'a rien a faire.
+    const socleDe = (z) => {
+      const g = $$(".sf-feuille g[data-zone]")
+        .find((n) => n.getAttribute("data-zone") === z);
+      const s = g && g.querySelector(".socle-compte");
+      return s ? vue.getComputedStyle(s).display : "(absent)";
+    };
+    note("socleZ", socleDe("Z"));
+    note("socleD", socleDe("D"));
+    const socleBoite = (() => {
+      const g = $$(".sf-feuille g[data-zone]")
+        .find((n) => n.getAttribute("data-zone") === "Z");
+      const s = g.querySelector(".socle-compte");
+      const t = g.querySelector(".compte-zone");
+      const a = s.getBoundingClientRect(), b = t.getBoundingClientRect();
+      const corps = parseFloat(vue.getComputedStyle(t).fontSize);
+      // ⚠️ ON NE COMPARE PAS LES DEUX BOITES. La boite d'un `<text>` SVG est
+      // sa LIGNE, pas son encre : elle porte les jambages d'une police entiere
+      // et depasse le socle par le haut et par le bas sans qu'un seul pixel de
+      // chiffre en sorte. Ce qu'on verifie, c'est ce qui compte vraiment : le
+      // socle est plus large que le texte, les deux sont CONCENTRIQUES, et le
+      // socle est plus haut que l'encre d'une capitale (0,72 du corps).
+      const centre = (r) => [(r.left + r.right) / 2, (r.top + r.bottom) / 2];
+      const [xs, ys] = centre(a), [xt, yt] = centre(b);
+      return (a.left <= b.left + 0.5 && a.right >= b.right - 0.5
+              && Math.abs(xs - xt) <= 0.5 && Math.abs(ys - yt) <= 1.0
+              && a.height >= 0.72 * corps)
+        ? "porte" : "decale";
+    })();
+    note("socleBoite", socleBoite);
 
     // 4. Changer de zone REMPLACE l'entree : un seul retour ramene a la fiche.
     const autre = $$(".sf-feuille g[data-zone]")
@@ -442,6 +476,17 @@ class TestDansUnVraiNavigateur:
         # l'enverrait chercher du travail la ou il n'y en a pas.
         assert mesures["compteD"] == "(vide)"
         assert mesures["compteurs"] == "3"
+
+        # La pastille de la pose B : peinte sous les zones qui comptent, RETIREE
+        # ailleurs. Un socle sur une zone sans bloc serait un fond blanc pose
+        # pour ne rien porter.
+        # ⚠️ `display` d'un `<rect>` SVG vaut « inline », pas « block » : ce
+        # qu'on verifie est qu'il n'est pas RETIRE, pas qu'il vaut une valeur
+        # particuliere.
+        assert mesures["socleZ"] != "none"
+        assert mesures["socleD"] == "none"
+        # Et le chiffre est bien DANS son socle, pas a cote.
+        assert mesures["socleBoite"] == "porte"
 
         # Le clic atteint VRAIMENT la case : c'est ce qu'une regle
         # `pointer-events` mal placee casse, sans rien casser d'autre.

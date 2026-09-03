@@ -28,7 +28,11 @@ qu'on ne met pas à jour le matin d'une compétition :
   gestes, en touchant chacune pour lire le compteur du panneau. Une zone sans
   bloc de son circuit ne porte **rien** : l'absence est l'information, « 0/4 »
   se dit, « 0/0 » non. Un bloc **crédité** par la cascade compte comme fait,
-  comme partout ailleurs sur cet écran.
+  comme partout ailleurs sur cet écran. Le chiffre est posé sur une **pastille**
+  — un socle arrondi qui le détache des six aplats de profil du plan, choisi par
+  Adrien parmi quatre poses maquettées. La pastille se dimensionne sur la
+  **lettre** de la zone et jamais sur son texte : c'est ce qui la borne, un
+  libellé long rétrécit dedans au lieu de l'élargir.
 
 - **Un simulateur de juges** (`tools/simulateur_juges.py`). Un panneau local
   ouvre une compétition entière depuis le Mac : nombre de juges, cadence,

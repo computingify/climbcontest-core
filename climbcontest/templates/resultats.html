@@ -824,21 +824,25 @@
   .plan g[data-zone].visee { filter: drop-shadow(0 0 2.5px var(--pl-lueur)); }
 
   /* L'avancement du grimpeur DANS la zone (spec 036) : « 1/4 », blocs valides
-     sur blocs de son circuit qui s'y trouvent. Meme halo que la lettre, et pour
-     la meme raison -- un chiffre pose sur un aplat de profil devient illisible
-     sans lui. La place et le corps sont calcules par `plan.js` a partir de la
-     lettre ; ici, il n'y a que des couleurs.
+     sur blocs de son circuit qui s'y trouvent, pose sur une PASTILLE -- le
+     socle arrondi de la pose B, tranchee par Adrien le 03/09. La pastille
+     remplace le halo de la lettre, et le fait mieux : un halo est un contour
+     decoupe sur la forme des glyphes, une pastille est un fond, et c'est un
+     fond qu'il faut sur les six aplats de profil. La place et les tailles sont
+     calculees par `plan.js` a partir de la lettre ; ici, il n'y a que des
+     couleurs.
 
-     ⚠️ Une zone SANS bloc du circuit ne porte pas de compteur, et il n'y a
-     RIEN a ecrire ici pour ca : son noeud existe mais son texte est vide, donc
-     il ne peint rien. C'est ce qui evite de creer et supprimer des noeuds a
-     chaque repeinture. La classe `a-compte`, posee par `decorer`, dit l'etat
-     dans le DOM -- comme `z-rien` -- et ne sert pas a le cacher. */
+     ⚠️ Une zone SANS bloc du circuit ne porte pas de compteur. Le texte,
+     vide, ne peint deja rien ; la PASTILLE, elle, peindrait un socle vide, et
+     c'est `a-compte` -- posee par `decorer` -- qui la retire. Les deux noeuds
+     existent toujours : on ne cree ni ne supprime rien a chaque repeinture. */
+  .plan .socle-compte { fill: var(--pl-halo); stroke: none;
+                        pointer-events: none; }
+  .plan g[data-zone]:not(.a-compte) .socle-compte { display: none; }
   .plan .compte-zone { font-family: var(--titre); font-weight: 800;
                        font-variant-numeric: tabular-nums;
                        fill: var(--pl-lettre); text-anchor: middle;
-                       dominant-baseline: central; paint-order: stroke fill;
-                       stroke: var(--pl-halo); }
+                       dominant-baseline: central; }
   .plan .compte-zone.compte-finie { fill: var(--ok); }
 
   .sf-anime .plan g[data-zone].visee {

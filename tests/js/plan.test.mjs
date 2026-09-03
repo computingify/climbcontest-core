@@ -9,7 +9,8 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 
 import {
-  COMPTE_DESCENTE, COMPTE_ECHELLE, FORMATS_RENDUS, decorer, decrire, monter,
+  COMPTE_DESCENTE, COMPTE_ECHELLE, FORMATS_RENDUS, PASTILLE_HAUTEUR,
+  PASTILLE_LARGEUR, decorer, decrire, monter,
   peutDessiner, tailleDuCompte, zonesDe,
 } from "../../climbcontest/static/resultats/plan.js";
 
@@ -129,7 +130,7 @@ test("chaque zone est un groupe qui porte sa lettre", () => {
     assert.equal(g.tag, "g");
     assert.ok(g.attrs.style.includes("transform-origin"));
     assert.deepEqual(g.enfants.map((e) => e.attrs.class),
-                     ["mur", "trame", "lettre", "compte-zone"]);
+                     ["mur", "trame", "lettre", "socle-compte", "compte-zone"]);
   }
 });
 
@@ -279,6 +280,18 @@ const COMPTES = {
   M: { total: 2, faits: 2, grimpes: 1, credites: 1 },
 };
 
+/** La géométrie de la pastille d'une zone, dans un plan monté. */
+function socleMonte(racine, zone) {
+  for (const n of racine.querySelectorAll("[data-zone]")) {
+    if (n.getAttribute("data-zone") !== zone) continue;
+    const socle = n.querySelector(".socle-compte");
+    if (socle) {
+      return ["x", "y", "width", "height", "rx"].map((c) => socle.attributs[c]);
+    }
+  }
+  return null;
+}
+
 /** Le compteur d'une zone, dans un plan monté. */
 function compteAffiche(racine, zone) {
   for (const n of racine.querySelectorAll("[data-zone]")) {
@@ -300,6 +313,68 @@ test("chaque zone décrit son compteur, VIDE", () => {
   assert.equal(compte.attrs.x, 107.5);                       // l'axe de la lettre
   assert.equal(compte.attrs.y, 22.5 + 9 * COMPTE_DESCENTE);  // dessous
   assert.equal(Number(compte.attrs["data-corps"]), 9);       // le corps de la lettre
+});
+
+// --- La pastille — la pose B, tranchée par Adrien le 03/09 -----------------
+//
+// Ce que ces tests protègent : la pastille se dimensionne sur la LETTRE et
+// jamais sur son texte. C'est la seule chose qui la borne — le serveur a déjà
+// borné la lettre par la boîte du pan — et c'est précisément ce qui manquait à
+// la première version, où le socle sortait du pan. Un socle qui se remettrait
+// à suivre son libellé repasserait le bug sans qu'aucun autre test bronche.
+
+/** La pastille d'une zone, dans une description. */
+function socleDecrit(dessin, zone) {
+  const groupe = dessin.enfants.find((e) => e.attrs && e.attrs["data-zone"] === zone);
+  return groupe.enfants.find((e) => e.attrs.class === "socle-compte");
+}
+
+test("chaque zone décrit sa pastille, centrée sur l'axe de la lettre", () => {
+  const socle = socleDecrit(decrire(plan()), "Z");
+  const h = 9 * COMPTE_ECHELLE * PASTILLE_HAUTEUR;
+  const l = 9 * PASTILLE_LARGEUR;
+  assert.equal(Number(socle.attrs.width), Number(l.toFixed(2)));
+  assert.equal(Number(socle.attrs.height), Number(h.toFixed(2)));
+  // Centrée en x sur l'axe de la lettre, en y sur la descente du compteur.
+  assert.equal(Number(socle.attrs.x) + Number(socle.attrs.width) / 2, 107.5);
+  const cy = 22.5 + 9 * COMPTE_DESCENTE;
+  assert.ok(Math.abs(Number(socle.attrs.y) + h / 2 - cy) < 0.01);
+  // Un stade, pas un rectangle : le rayon vaut la demi-hauteur.
+  assert.equal(Number(socle.attrs.rx), Number((h / 2).toFixed(2)));
+});
+
+test("la pastille est peinte APRÈS la lettre et AVANT le chiffre", () => {
+  // L'ordre du document EST l'ordre de peinture : un socle décrit après le
+  // chiffre l'effacerait, décrit avant la lettre il ne couvrirait pas la queue
+  // de son halo.
+  const groupe = decrire(plan()).enfants
+    .find((e) => e.attrs && e.attrs["data-zone"] === "Z");
+  const classes = groupe.enfants.map((e) => e.attrs.class);
+  assert.ok(classes.indexOf("socle-compte") > classes.indexOf("lettre"));
+  assert.ok(classes.indexOf("socle-compte") < classes.indexOf("compte-zone"));
+});
+
+test("la pastille ne bouge PAS quand le libellé s'allonge", () => {
+  // ⚠️ LE TEST QUI PROTÈGE LA POSE B. Un socle calibré sur son texte a une
+  // largeur que rien ne borne : c'est ce qui le faisait sortir du pan à la
+  // première maquette. Ici « 10/12 » rétrécit le CHIFFRE et laisse le socle
+  // exactement où il est.
+  const racine = monter(decrire(plan()), faireDocument());
+  const avant = socleMonte(racine, "Z");
+  decorer(racine, { Z: "reste" }, null, { Z: { total: 12, faits: 10 } });
+  assert.deepEqual(socleMonte(racine, "Z"), avant);
+  // Et le chiffre, lui, a bien rétréci.
+  const chiffre = compteAffiche(racine, "Z");
+  assert.equal(chiffre.texte, "10/12");
+});
+
+test("le chiffre le plus large tient DANS la pastille", () => {
+  // « 1/4 » est le pire cas en largeur : les libellés plus longs rétrécissent.
+  // 3 caractères au pire glyphe tabulaire (0,58 du corps) contre la largeur du
+  // socle. Sans cette marge, le chiffre déborderait du fond censé le porter.
+  const largeurTexte = 3 * 0.58 * tailleDuCompte(9, "1/4");
+  assert.ok(largeurTexte <= 9 * PASTILLE_LARGEUR,
+            largeurTexte + " ne tient pas dans " + 9 * PASTILLE_LARGEUR);
 });
 
 test("un mur sans taille décrit quand même un compteur lisible", () => {
@@ -384,10 +459,26 @@ test("un compteur sans taille ni libellé reste un nombre positif", () => {
 });
 
 test("le compteur est écrit APRÈS la lettre", () => {
-  // En SVG l'ordre de peinture est l'ordre du document : le halo du compteur
-  // doit passer sur la lettre, jamais l'inverse.
+  // En SVG l'ordre de peinture est l'ordre du document : la pastille et son
+  // chiffre passent sur la lettre, jamais l'inverse.
   const groupe = decrire(plan()).enfants
     .find((e) => e.attrs && e.attrs["data-zone"] === "Z");
   const classes = groupe.enfants.map((e) => e.attrs.class);
   assert.ok(classes.indexOf("compte-zone") > classes.indexOf("lettre"));
+});
+
+test("le compteur ne porte plus de halo : la pastille le remplace", () => {
+  // Un halo est un contour découpé sur la forme des glyphes ; il se battait
+  // avec les six aplats de profil. La pastille est un FOND. Garder les deux
+  // ferait un liseré clair autour de chaque chiffre, sur le socle clair.
+  const groupe = decrire(plan()).enfants
+    .find((e) => e.attrs && e.attrs["data-zone"] === "Z");
+  const compte = groupe.enfants.find((e) => e.attrs.class === "compte-zone");
+  assert.equal(compte.attrs["stroke-width"], undefined);
+  const racine = monter(decrire(plan()), faireDocument());
+  decorer(racine, { Z: "reste" }, null, COMPTES);
+  for (const n of racine.querySelectorAll("[data-zone]")) {
+    const c = n.querySelector(".compte-zone");
+    if (c) assert.equal(c.attributs["stroke-width"], undefined);
+  }
 });

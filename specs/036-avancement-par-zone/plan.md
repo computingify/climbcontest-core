@@ -12,10 +12,13 @@
 - [ ] **3. Le compte, une seule fois.** `suivi.js` : `comptesDesZones` et
       `libelleCompte` ; `etatsDesZones` et `compteDeZone` en dérivent.
 - [ ] **4. Le nœud.** `plan.js` : `COMPTE_ECHELLE`, `COMPTE_DESCENTE`,
-      `tailleDuCompte`, le `<text class="compte-zone">` dans `decrire`, le
-      quatrième argument de `decorer`.
+      `PASTILLE_HAUTEUR`, `PASTILLE_LARGEUR`, `tailleDuCompte`, le
+      `<rect class="socle-compte">` et le `<text class="compte-zone">` dans
+      `decrire`, le quatrième argument de `decorer`.
 - [ ] **5. Le style et le branchement.** `resultats.html` : les règles
-      `.plan .compte-zone` (clair et sombre), l'appel `decorer(..., comptes)`,
+      `.plan .socle-compte` et `.plan .compte-zone` (clair et sombre), le
+      retrait de la pastille sur les zones sans compteur
+      (`:not(.a-compte)`), l'appel `decorer(..., comptes)`,
       et `estFait` à la place du `b.etat !== "reste"` écrit à la main.
 - [ ] **6. Les tests.** Un en face de chaque comportement — voir le tableau.
 - [ ] **7. La vérification à l'écran.** `tools/serveur_de_demo.py`, un vrai
@@ -48,8 +51,10 @@
 
 | Scénario | Attendu |
 | --- | --- |
-| `decrire` d'un plan sain | chaque groupe de zone porte `mur`, `trame`, `lettre`, `compte-zone` |
+| `decrire` d'un plan sain | chaque groupe de zone porte `mur`, `trame`, `lettre`, `socle-compte`, `compte-zone` |
 | Le nœud décrit | texte **vide**, `x` = étiquette, `y` = étiquette + `taille × COMPTE_DESCENTE` |
+| La pastille décrite | centrée sur l'axe de la lettre et sur la descente, `rx` = sa demi-hauteur |
+| Un libellé long | le **chiffre** rétrécit, la **pastille** ne bouge pas |
 | Mur sans `taille` | repli à 6, comme la lettre — la taille du compteur reste > 0 |
 | `decorer` avec des comptes | la zone porte `a-compte`, le texte vaut `"1/4"` |
 | Zone sans bloc du circuit | pas de `a-compte`, texte vide |
