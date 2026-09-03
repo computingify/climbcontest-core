@@ -19,6 +19,18 @@ qu'on ne met pas à jour le matin d'une compétition :
 
 ## [Non publié]
 
+### Modifié
+
+- **La recherche de la page de résultats se déploie** au lieu d'apparaître. Un
+  appui sur la loupe — qui **termine** désormais la rangée, la lecture passant
+  devant — ouvre le champ **par-dessus** les commandes, sur toute la largeur.
+  Un second appui, la croix ou **Échap** le referme et le vide. Sur grand écran,
+  le bandeau de droite s'efface le temps de la recherche.
+  ⚠️ Le réglage mémorisé « masquer la recherche » **disparaît** : le champ est
+  replié tant qu'on ne le demande pas, ce qui est « masquée par défaut » sans
+  rien avoir à retenir. Ouvrir la recherche est un geste, pas un réglage
+  (spec 037).
+
 ### Ajouté
 
 - **L'avancement par zone, sur le plan du mur** de la fiche du grimpeur

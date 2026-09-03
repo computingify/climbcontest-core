@@ -971,11 +971,21 @@ class TestReglagesDeLaPage:
                   if l.get("participant_id")]
         assert lignes and all("categorie" in l for l in lignes)
 
-    def test_la_recherche_se_masque_et_le_choix_est_retenu(self, client, jeu):
+    def test_la_recherche_se_deploie_au_lieu_de_se_masquer(self, client, jeu):
+        """⚠️ Ce test disait l'inverse jusqu'à la spec 037. Le champ était
+        montré ou caché par un réglage MÉMORISÉ ; il se **déploie** désormais
+        depuis la loupe, et l'ouverture est un GESTE — ça ne se mémorise pas,
+        sinon la page rouvre toute seule un champ que personne n'a demandé.
+
+        Le besoin de la spec 020 (« masquer la recherche au vidéoprojecteur »)
+        est toujours servi, et mieux : le champ est replié tant qu'on ne le
+        demande pas.
+        """
         page = client.get("/").data.decode()
-        assert 'id="masquerRecherche"' in page
-        assert "body.sans-recherche #recherche { display: none; }" in page
-        assert "climbcontest.affichage" in page
+        assert 'id="ouvrirRecherche"' in page
+        assert 'id="boiteRecherche"' in page
+        assert "body.sans-recherche" not in page, (
+            "le reglage memorise de la recherche devait disparaitre")
 
     def test_le_bouton_de_masquage_existe_HORS_du_mode_mur(self, client, jeu):
         """`.commande` est masquee par defaut et ne s'affiche qu'en mode mur --
@@ -986,12 +996,14 @@ class TestReglagesDeLaPage:
         assert ".commande.hors-mur { display: block; }" in page
         assert "body.mur .commande.hors-mur { display: none; }" in page
 
-    def test_masquer_vide_la_recherche_en_cours(self, client, jeu):
+    def test_replier_vide_la_recherche_en_cours(self, client, jeu):
         """Masquer un filtre encore actif laisserait une liste filtree sans
-        rien pour expliquer pourquoi."""
+        rien pour expliquer pourquoi. La regle vient de la spec 020 et survit
+        au changement de motif."""
         page = client.get("/").data.decode()
-        assert "if (masquee && el.recherche.value)" in page
-        assert "(MUR || etat.sansRecherche)" in page
+        corps = page.split("function deployerRecherche(ouverte)")[1].split("\n  }")[0]
+        assert "el.recherche.value = \"\";" in corps, corps
+        assert "(MUR || !etat.rechercheOuverte)" in page
 
     def test_la_page_filtre_les_classements_masques(self, client, jeu):
         page = client.get("/").data.decode()
@@ -1057,27 +1069,25 @@ class TestLesBasculesDeLEnTete:
     # chaque bouton — qui n'est pas le même pour les deux depuis la spec 033 :
     # la rotation part à l'arrêt (« non activé »), la recherche part masquée
     # (« activé », puisque le bouton la masque).
-    @pytest.mark.parametrize("bouton,attendu", [("pause", "false"),
-                                                ("masquerRecherche", "true")])
-    def test_l_etat_de_bascule_est_pose_des_le_depart(self, page, bouton, attendu):
-        balise = re.search(rf'<button[^>]*id="{bouton}"[^>]*>', page,
-                           re.S).group(0)
-        assert 'aria-pressed="%s"' % attendu in balise, balise
+    def test_la_rotation_dit_son_etat_des_le_depart(self, page):
+        balise = re.search(r'<button[^>]*id="pause"[^>]*>', page, re.S).group(0)
+        assert 'aria-pressed="false"' in balise, balise
 
-    @pytest.mark.parametrize("bouton", ["pause", "masquerRecherche"])
-    def test_l_etat_de_bascule_dit_LA_MEME_chose_que_l_etiquette(self, page, bouton):
-        """Un attribut et une étiquette qui se contredisent pendant le
-        chargement, c'est pire que pas d'attribut."""
-        balise = re.search(rf'<button[^>]*id="{bouton}"[^>]*>', page,
+    def test_la_loupe_annonce_un_DEPLOIEMENT_et_non_une_bascule(self, page):
+        """⚠️ Depuis la spec 037, la loupe n'est plus un interrupteur qui
+        masque : elle **déploie** un champ. `aria-expanded` dit exactement ça,
+        là où `aria-pressed` annonçait un état enfoncé — et `aria-controls`
+        nomme ce qui s'ouvre."""
+        balise = re.search(r'<button[^>]*id="ouvrirRecherche"[^>]*>', page,
                            re.S).group(0)
-        actif = 'aria-pressed="true"' in balise
-        etiquette = re.search(r'aria-label="([^"]*)"', balise).group(1)
-        # « Afficher… » / « Faire défiler… » = le bouton DÉFAIT l'état actif.
-        assert actif == etiquette.startswith(("Afficher", "Faire")), (balise,)
+        assert 'aria-expanded="false"' in balise, balise
+        assert 'aria-controls="boiteRecherche"' in balise, balise
+        assert "aria-pressed" not in balise, balise
 
-    @pytest.mark.parametrize("bouton", ["pause", "masquerRecherche"])
-    def test_chaque_bascule_se_nomme(self, page, bouton):
-        """Un pictogramme seul (⏸, ⌕) n'a pas de nom accessible."""
+    @pytest.mark.parametrize("bouton", ["pause", "ouvrirRecherche",
+                                        "fermerRecherche"])
+    def test_chaque_commande_se_nomme(self, page, bouton):
+        """Un pictogramme seul n'a pas de nom accessible."""
         balise = re.search(rf'<button[^>]*id="{bouton}"[^>]*>', page,
                            re.S).group(0)
         assert "aria-label=" in balise, balise
@@ -1234,14 +1244,19 @@ class TestLEcranRetientCeQuOnALaisse:
     def page(self, client, jeu):
         return client.get("/").data.decode()
 
-    def test_un_seul_enregistrement_pour_les_deux_choix(self, page):
-        """La recherche et la lecture vivent au même endroit : deux clés
-        séparées finiraient par se marcher dessus, l'une écrasant l'autre au
-        prochain `setItem`."""
+    def test_le_stockage_ne_garde_QUE_la_lecture(self, page):
+        """⚠️ Il en gardait deux jusqu'à la spec 037. Le réglage « la recherche
+        est-elle offerte » n'a plus d'objet depuis que le champ se déploie : il
+        est replié tant qu'on ne le demande pas, ce qui EST « masquée par
+        défaut » sans rien avoir à mémoriser.
+
+        Ouvrir la recherche est un **geste**. Le mémoriser rouvrirait, au
+        chargement suivant, un champ que personne n'a demandé.
+        """
         assert "function ecrireAffichage()" in page
         corps = page.split("function ecrireAffichage()")[1].split("\n  }")[0]
-        assert "sansRecherche: etat.sansRecherche," in corps
-        assert "enPause: etat.enPause," in corps
+        assert "enPause: etat.enPause" in corps
+        assert "sansRecherche" not in corps, corps
 
     def test_le_clic_sur_lecture_est_enregistre(self, page):
         corps = page.split('el.pause.addEventListener("click", function () {')[1] \
@@ -1264,37 +1279,68 @@ class TestLEcranRetientCeQuOnALaisse:
         assert 'typeof range === "object"' in corps
 
 
-class TestLaRechercheEstMasqueeParDefaut:
-    """« Par défaut sur la page résultat, je veux que la recherche soit
-    cachée. » — Adrien, 03/09 (spec 033, R6).
+class TestLaRechercheEstReplieeParDefaut:
+    """« Au clic sur le bouton recherche, c'est le bouton qui s'anime et qui
+    déploie horizontalement une zone de texte. » — Adrien, 03/09 (spec 037,
+    variante V3 retenue sur maquette).
 
-    ⚠️ Ce n'était pas un défaut : la spec 020 avait laissé le champ AFFICHÉ par
-    défaut, parce que c'est la seule façon pour un parent de retrouver son
-    enfant sans connaître sa catégorie. Adrien inverse le choix ; le bouton
-    reste, et la mémoire du choix aussi.
+    ⚠️ Cette classe remplace `TestLaRechercheEstMasqueeParDefaut`. Le besoin
+    n'a pas changé — le champ ne doit pas encombrer l'écran — mais le mécanisme,
+    si : un réglage mémorisé est devenu un geste. Le défaut « masquée » est
+    désormais **structurel** au lieu d'être une valeur.
     """
 
     @pytest.fixture()
     def page(self, client, jeu):
         return client.get("/").data.decode()
 
-    def test_le_defaut_est_MASQUEE(self, page):
-        corps = page.split("function lireSansRecherche()")[1].split("\n  }")[0]
-        assert 'typeof garde === "boolean" ? garde : true' in corps, corps
+    def test_le_champ_part_replie(self, page):
+        """`inert` DÈS LE GABARIT : sans lui, le champ est invisible mais
+        toujours atteignable au Tab — le piège classique de ce motif."""
+        assert re.search(r'<div id="boiteRecherche"[^>]*\binert\b', page), (
+            "la boite de recherche doit partir `inert`")
+        assert "rechercheOuverte: false," in page
 
-    def test_une_valeur_memorisee_l_emporte_dans_les_DEUX_sens(self, page):
-        """Celui qui ouvre la recherche une fois ne doit pas la rouvrir à
-        chaque visite — ni la voir revenir masquée."""
-        corps = page.split("function lireSansRecherche()")[1].split("\n  }")[0]
-        assert "lireAffichage().sansRecherche" in corps
+    def test_l_etat_n_est_PAS_memorise(self, page):
+        """Un geste ne se mémorise pas : la page rouvrirait un champ que
+        personne n'a demandé."""
+        corps = page.split("function deployerRecherche(ouverte)")[1].split("\n  }")[0]
+        assert "ecrireAffichage" not in corps, corps
 
-    def test_le_bouton_annonce_qu_il_AFFICHE_au_depart(self, page):
-        """Un bouton dont l'étiquette dit l'inverse de ce qu'il fait est pire
-        que pas d'étiquette."""
-        balise = re.search(r'<button[^>]*id="masquerRecherche"[^>]*>', page, re.S).group(0)
-        assert 'aria-label="Afficher la recherche"' in balise, balise
-        # Et l'attribut dit le meme etat que l'etiquette, des le gabarit.
-        assert 'aria-pressed="true"' in balise, balise
+    def test_le_champ_recouvre_la_rangee_des_commandes(self, page):
+        """La variante V3 : il glisse par-dessus les commandes, il ne les
+        pousse pas. C'est ce qui lui donne toute la largeur de la rangée."""
+        assert "#boiteRecherche {" in page
+        bloc = page.split("#boiteRecherche {")[1].split("}")[0]
+        assert "position: absolute" in bloc, bloc
+        assert "right: 0" in bloc, bloc
+        assert "clip-path: inset(0 0 0 calc(100% - 2.4em)" in bloc, bloc
+
+    def test_le_deploiement_se_fait_au_clip_et_non_a_la_largeur(self, page):
+        """Une largeur animée ferait sauter le champ à l'intérieur pendant
+        l'animation ; le découpage, non."""
+        assert ".commandes.ouverte #boiteRecherche {" in page
+        bloc = page.split(".commandes.ouverte #boiteRecherche {")[1].split("}")[0]
+        assert "clip-path: inset(0 0 0 0 round 999px)" in bloc, bloc
+
+    def test_echap_referme(self, page):
+        assert 'if (e.key === "Escape" && etat.rechercheOuverte)' in page
+
+    def test_le_focus_revient_sur_la_loupe(self, page):
+        """Sinon il retombe sur le corps du document et le clavier repart du
+        début de la page."""
+        corps = page.split("function deployerRecherche(ouverte)")[1].split("\n  }")[0]
+        assert "el.ouvrirRecherche.focus();" in corps, corps
+
+    def test_le_champ_replie_ne_filtre_plus_rien(self, page):
+        assert "(MUR || !etat.rechercheOuverte)" in page
+
+    def test_rien_de_tout_ca_sur_le_mur(self, page):
+        """Personne ne cherche sur un vidéoprojecteur, et rien ne s'y touche."""
+        assert "body.mur .commandes.ouverte #boiteRecherche { display: none; }" in page
+        balise = re.search(r'<button[^>]*id="ouvrirRecherche"[^>]*>', page,
+                           re.S).group(0)
+        assert "hors-mur" in balise, balise
 
 
 class TestLesDeuxGlyphesSontDuMemeDessin:
@@ -1313,9 +1359,9 @@ class TestLesDeuxGlyphesSontDuMemeDessin:
     def test_plus_aucun_glyphe_de_texte_dans_les_boutons(self, page):
         """Dans les BOUTONS : les commentaires, eux, citent les caractères
         qu'on a retirés, et c'est ce qui empêchera de les remettre."""
-        for identifiant in ("pause", "masquerRecherche"):
+        for identifiant in ("pause", "ouvrirRecherche", "fermerRecherche"):
             bouton = page.split('id="%s"' % identifiant)[1].split("</button>")[0]
-            for glyphe in ("▶", "⏸", "⌕"):
+            for glyphe in ("▶", "⏸", "⌕", "✕", "×"):
                 assert glyphe not in bouton, (identifiant, glyphe)
 
     def test_les_deux_icones_sont_dessinees_dans_la_meme_boite(self, page):
@@ -1351,11 +1397,12 @@ class TestLesDeuxGlyphesSontDuMemeDessin:
         assert "#pause.arretee .ico-lecture { display: block; }" in page
         assert "#pause.arretee .ico-pause { display: none; }" in page
 
-    def test_la_loupe_voisine_est_dessinee_elle_aussi(self, page):
+    def test_la_loupe_et_la_croix_sont_dessinees_elles_aussi(self, page):
         """Laisser un glyphe de texte à côté de deux icônes déplacerait
         l'incohérence d'un bouton, sans la corriger."""
-        bouton = page.split('id="masquerRecherche"')[1].split("</button>")[0]
-        assert "<svg" in bouton, bouton
+        for identifiant in ("ouvrirRecherche", "fermerRecherche"):
+            bouton = page.split('id="%s"' % identifiant)[1].split("</button>")[0]
+            assert "<svg" in bouton, (identifiant, bouton)
 
 
 class TestLaLegendeDuMurDitLesProfils:

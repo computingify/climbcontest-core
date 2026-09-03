@@ -166,6 +166,27 @@ encore assez, quand le geste est répété deux cents fois ?
 | **File d'attente et refus** | Pastilles dans l'en-tête, jamais en bandeau qui pousse la mise en page vers le bas (leçon D9 de l'inventaire). |
 | **La bande des six circuits à l'accueil** | Elle dit en une ligne ce que l'application fait de la couleur — et le ruban « Noir » a besoin d'un contour pour exister sur les fonds sombres, ce qui rejoue le même problème. |
 
+## 7 bis. Ce qu'Adrien a tranché, le 03/09
+
+Les cinq décisions du §7 ont leur réponse. Elles sont notées ici plutôt que
+dans le §7 pour que la question et la réponse restent lisibles côte à côte.
+
+| | Réponse | Ce que ça entraîne |
+| --- | --- | --- |
+| **D1** | **A — Plein Jour** | Papier sable, encre presque noire, la couleur du circuit en aplat cerclé, comme les étiquettes collées au mur. |
+| **D2** | **Clair**, par conséquence de D1 | L'argument « un écran clair éblouit quand on lève les yeux vers le mur » n'a jamais été mesuré en salle ; il reste à surveiller le jour J. |
+| **D3** | **Bordure et bouton** | La couleur du circuit reste un **accent**. Écarté : l'écran entier — le cas qui décide est le **rouge**, qui se lirait comme une erreur alors que tout va bien. |
+| **D4** | **Le circuit « Noir » redevient vraiment noir** | La craie était une rustine du fond sombre ; la direction A étant claire, elle n'a plus lieu d'être — et sur un fond clair, la craie deviendrait presque invisible. |
+| **D5** | **Non, l'Android ne suit pas** | Tranché le 03/09, hors de ce document : « on parle uniquement de la PWA, car l'app Android va être supprimée ». L'écart entre deux clients cesse d'être un risque puisqu'il n'y en aura plus qu'un. |
+
+⚠️ **L'implémentation reste à faire, et elle n'est pas dans cette spec.** Elle
+demande sa propre spec et sa propre PR, avec les quatre réponses ci-dessus en
+entrée. Deux trouvailles de la maquette l'attendent : `<meta name="theme-color">`
+vaut encore `#0B0D11`, une couleur disparue de la feuille depuis le 02/09 — déjà
+faux aujourd'hui, et très visible sur un fond clair ; et l'écran d'accueil
+hérite du fond par `background: inherit`, donc toute direction qui change le
+fond doit revérifier le logo dessus.
+
 ## 7. Ce qui reste à trancher — **c'est le but de cette PR**
 
 | # | Question | Ce qui en dépend |
