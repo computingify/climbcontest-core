@@ -15,9 +15,16 @@ soit revenue. Le verdict remonte donc par un `fetch`, et le test tue le
 navigateur dès qu'il l'a reçu.
 
 **2. `contentDocument` rend d'abord le `about:blank` initial**, dont le
-`readyState` vaut déjà « complete ». Attendre cet état ne prouve donc rien : on
-attend un contenu réel, et on relit `contentDocument` à **chaque** accès — la
-référence prise avant la navigation pointe ensuite sur un document mort.
+`readyState` vaut déjà « complete ». Attendre cet état seul ne prouve donc
+rien ; on demande **aussi** que l'adresse ne soit plus `about:blank`. Et on
+relit `contentDocument` à **chaque** accès — la référence prise avant la
+navigation pointe ensuite sur un document mort.
+
+Ce qu'on n'attend **plus** : « le document contient plus de vingt éléments ».
+C'était un pari sur la vitesse de l'analyseur. `admin.html` fait 1600 lignes,
+`#connexion` est à la 850ᵉ et `#console` à la 889ᵉ : une sonde qui attendait le
+premier lisait `null` sur le second dès que le runner ralentissait, et rendait
+un échec qui n'accusait personne.
 
 **3. `app.run` dans un fil démon survit au test** et garde son port, ce qui
 fait échouer sans rapport apparent le premier test suivant qui démarre un vrai
@@ -80,9 +87,18 @@ function attendre(quoi, cond, ms = 15000) {
     const $ = (s) => cadre.contentDocument.querySelector(s);
     const $$ = (s) => [...cadre.contentDocument.querySelectorAll(s)];
     const vue = () => cadre.contentWindow;
-    await attendre("vraie page",
-      () => cadre.contentDocument
-         && cadre.contentDocument.querySelectorAll("*").length > 20);
+    // ⚠️ « Le document est-il FINI ? », pas « y a-t-il deja du monde
+    // dedans ? ». Le compte d'elements etait un pari sur la vitesse de
+    // l'analyseur : `admin.html` fait 1600 lignes, `#connexion` est a la 850e
+    // et `#console` a la 889e -- sur un runner charge, une sonde qui attend le
+    // premier lisait `null` sur le second et rendait un ECHEC qui n'accusait
+    // personne. `readyState` seul ne suffit pas non plus : le `about:blank`
+    // initial vaut deja « complete », d'ou la question sur l'adresse.
+    await attendre("vraie page", () => {
+      const doc = cadre.contentDocument, fen = cadre.contentWindow;
+      return doc && fen && fen.location.href !== "about:blank"
+          && doc.readyState === "complete";
+    });
 """
 
 EPILOGUE = r"""

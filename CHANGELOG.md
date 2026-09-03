@@ -42,11 +42,17 @@ qu'on ne met pas à jour le matin d'une compétition :
 
   | test | avant | après |
   | --- | --- | --- |
+  | `TestUneZoneQueLePlanNeConnaitPlus` | 29,3 s\* | 0,9 s |
   | `TestLeMurSeMetAJouerToutSeul` | 16,5 s | 2,5 s |
   | `test_reprend_un_autre_port_si_le_sien_est_pris` | 15,9 s | 7,5 s |
   | `test_le_parcours_complet` (fiche) | 15,3 s | 0,9 s |
   | `TestVerrouOrphelinAuRedemarrage` | 10,7 s | 1,6 s |
   | rotation des sauvegardes (2 tests) | 7,8 s | 0,2 s |
+
+  \* celui-là ne coûtait **rien** sur le Mac : il attendait le même battement,
+  mais le premier chargement gagnait toujours la course en local et la perdait
+  sur un runner chargé. C'est lui qui a expiré à 120 s le 02/09. Le budget par
+  test l'a nommé au premier passage de CI ; sans lui il serait encore invisible.
 
   Aucun test n'a été supprimé ni affaibli : chacun a été vérifié en cassant ce
   qu'il surveille. Trois réglages apparaissent, **tous à défaut inchangé** :
@@ -61,6 +67,13 @@ qu'on ne met pas à jour le matin d'une compétition :
   - la sonde `/health` du banc d'essai E2E passe **court** (2 s au lieu de 15).
     Un port squatté par une socket qui écoute sans jamais répondre laisse la
     connexion s'établir, puis se tait : la sonde attendait ses 15 s pleines.
+
+  Et le harnais navigateur n'attend plus « que le document contienne plus de
+  vingt éléments » — un pari sur la vitesse de l'analyseur. `admin.html` fait
+  1600 lignes, `#connexion` est à la 850ᵉ et `#console` à la 889ᵉ : dès que le
+  runner ralentissait, la sonde qui attendait le premier lisait `null` sur le
+  second et rendait un échec qui n'accusait personne. Il attend maintenant un
+  document **fini**, sur une adresse qui n'est plus `about:blank`.
 
 ### Corrigé
 
