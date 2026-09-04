@@ -231,6 +231,25 @@ def piloter(url: str, verdict: dict, secondes: int = 60,
     machine chargée. Même idiome que `test_navigateur_fiche.py`, où la CI l'a
     fait tomber une fois.
     """
+    # ⚠️ ON POSE L'ETAT DONT ON DEPEND, au lieu de le supposer. La boucle
+    # ci-dessous attend que `verdict["texte"]` cesse d'etre `None` : elle tenait
+    # donc pour acquis qu'on lui remettait un verdict vierge, sans jamais
+    # l'ecrire nulle part. Tant que chaque appel recevait une fixture neuve, le
+    # pari etait gagne -- mais il ne tenait qu'a la portee des fixtures.
+    #
+    # Le jour ou une fixture qui monte le serveur passe en portee module et que
+    # plusieurs tests appellent `piloter`, le deuxieme appel trouve le verdict
+    # du PREMIER, rend instantanement, et ne lance meme pas de navigateur. Le
+    # test suivant passe alors au VERT sur les mesures du parcours precedent :
+    # un test qui ne mesure plus rien et qui ne le dit pas, le pire des deux
+    # modes d'echec.
+    #
+    # Trouve le 04/09 par deux sessions independamment, apres que la spec 041 a
+    # introduit les premieres fixtures en portee module. Une ligne ici rend le
+    # piege impossible ; aucun appelant existant ne change de comportement,
+    # puisqu'ils partaient tous d'un verdict vierge.
+    verdict["texte"] = None
+
     with tempfile.TemporaryDirectory(ignore_cleanup_errors=True) as profil:
         navigateur = subprocess.Popen(
             [CHROME, "--headless", "--disable-gpu", "--no-sandbox",
