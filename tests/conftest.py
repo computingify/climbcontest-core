@@ -431,3 +431,4 @@ def pytest_collection_modifyitems(session, config, items):
     # chauffe tourne pendant les mille huit cents tests qui n'ont pas besoin de
     # navigateur, et plus personne ne paie le demarrage.
     threading.Thread(target=_navigateur.chauffer, daemon=True).start()
+

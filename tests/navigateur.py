@@ -84,11 +84,25 @@ def trouver_chrome():
     candidats = [os.environ.get("CLIMBCONTEST_CHROME", "")]
     candidats += [str(c) for c in _playwright()]
     candidats += [
-        # `ubuntu-latest` le FOURNIT : ces tests tournent sur la CI, ils ne s'y
-        # sautent pas.
+        # ⚠️ **Google Chrome AVANT `/usr/bin/chromium`**, et c'est une mesure,
+        # pas une preference.
+        #
+        # Sur `ubuntu-latest`, `/usr/bin/chromium` est un paquet confine dont le
+        # PREMIER lancement coute de 9,6 a 22,2 s -- releve sur cinq passages de
+        # CI le 04/09, pour le meme geste. C'est un cinquieme de l'etape de
+        # test, et la variance a elle seule a fait echouer deux jobs sur le
+        # budget par test. Le Chrome de l'image, lui, est un paquet ordinaire.
+        #
+        # Les deux sont le meme moteur : ce qu'on mesure -- une cascade CSS, un
+        # `display` calcule, un `elementFromPoint` -- ne depend pas de
+        # l'emballage. Ce qui change, c'est le prix du demarrage.
+        #
+        # `ubuntu-latest` FOURNIT les deux : ces tests tournent sur la CI, ils
+        # ne s'y sautent pas.
+        "google-chrome-stable", "google-chrome",
         "/usr/bin/chromium",
         "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
-        "chromium", "chromium-browser", "google-chrome", "google-chrome-stable",
+        "chromium", "chromium-browser",
     ]
     for chemin in candidats:
         if not chemin:

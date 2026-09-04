@@ -34,6 +34,25 @@ jobs:
       # qui manquait pour les voir etait de les afficher. Le plafond par test,
       # lui, est dans tests/conftest.py -- il fait echouer la suite en nommant
       # le coupable.
+      # Une ligne, et elle a sa raison d'etre : le premier lancement du
+      # navigateur pese un cinquieme de l'etape suivante, et son cout depend du
+      # BINAIRE choisi. Quand un passage affiche 22 s de demarrage et le suivant
+      # 9 s, la premiere question est « lequel a-t-il pris ? » -- l'en-tete de
+      # pytest, lui, est masque par le `-q` de `addopts`.
+      - name: Quel navigateur, et que coute son premier lancement ?
+        run: |
+          python - <<'PY'
+          import time
+          from tests.navigateur import CHROME, trouver_chrome, NAVIGATEUR
+          print("retenu :", CHROME)
+          if CHROME:
+              debut = time.time()
+              NAVIGATEUR.demarrer()
+              print(f"premier lancement : {time.time() - debut:.1f} s")
+              print("version :", NAVIGATEUR.appeler("Browser.getVersion").get("product"))
+              NAVIGATEUR.arreter()
+          PY
+
       - name: Tests
         run: pytest -q --durations=10
 
