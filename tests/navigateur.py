@@ -167,10 +167,14 @@ function attendre(quoi, cond, ms = 15000) {
       // ses requetes en vol ne redescendront jamais a zero.
       _enVol = 0;
       _fenetreSuivie = fen;
-      const dorigine = fen.fetch;
+      // ⚠️ `.bind(fen)` et non `.apply(this, ...)`. Appele sans qualificateur
+      // -- `fetch(url)` -- `this` vaut `undefined` en mode strict, et chromium
+      // repond « Illegal invocation ». Toutes les requetes de la page
+      // echoueraient, et la sonde attendrait des donnees qui n'arrivent jamais.
+      const dorigine = fen.fetch.bind(fen);
       fen.fetch = function (...args) {
         _enVol++;
-        return dorigine.apply(this, args).finally(() => { _enVol--; });
+        return dorigine(...args).finally(() => { _enVol--; });
       };
       return fen;
     }
@@ -268,7 +272,7 @@ def servir(app):
 SEUIL_ALERTE_S = 5
 
 
-def _signaler_si_lent(rendu: str, secondes: float) -> str:
+def _signaler_si_lent(rendu: str, secondes: float, demarrage: float = 0.0) -> str:
     """Un verdict lent remonte en AVERTISSEMENT, avec ses attentes nommees.
 
     Un test navigateur qui passe ne montre rien de ce qu'il a fait. Celui de la
@@ -278,15 +282,24 @@ def _signaler_si_lent(rendu: str, secondes: float) -> str:
     apparaitre dans le resume des avertissements de pytest -- sans faire
     echouer quoi que ce soit.
     """
-    if secondes < SEUIL_ALERTE_S:
+    if secondes + demarrage < SEUIL_ALERTE_S:
         return rendu
     attentes = " ".join(m for m in rendu.split(" ") if m.startswith("attente_"))
     if not attentes:
-        attentes = ("(aucune -- le temps est passe AVANT le pilote : demarrage"
-                    " du navigateur, ou chargement de la page)")
+        attentes = "(aucune -- le temps est passe au chargement de la page)"
+    # ⚠️ Le DEMARRAGE du navigateur est compte a part, et il doit l'etre.
+    #
+    # Il se produit AVANT que le chronometre du pilote ne parte : un premier
+    # test navigateur qui paie 30 s de demarrage sur un runner froid affichait
+    # « 0,1 s pour un verdict » et aucun avertissement. Le budget par test le
+    # voyait -- il a fait echouer la CI, correctement -- mais rien ne disait
+    # OU etait passe le temps, et c'est precisement ce que le harnais existe
+    # pour dire.
+    debut = (f" Demarrage du navigateur : {demarrage:.1f} s."
+             if demarrage >= 0.5 else "")
     warnings.warn(
-        f"navigateur : {secondes:.1f} s pour un verdict."
-        f" Attentes de plus de 500 ms : {attentes}",
+        f"navigateur : {secondes + demarrage:.1f} s au total.{debut}"
+        f" Attentes de plus de 500 ms pendant le parcours : {attentes}",
         stacklevel=3)
     return rendu
 
@@ -540,14 +553,17 @@ def piloter(url: str, verdict: dict, secondes: int = 60,
     # que le navigateur est PARTAGE : c'est elle qui garantit qu'un parcours
     # attend bien son propre verdict, et pas celui du precedent.
     verdict["texte"] = None
+    avant_demarrage = time.time()
     NAVIGATEUR.demarrer()
+    demarrage = time.time() - avant_demarrage
     cible, contexte = NAVIGATEUR.ouvrir(url, taille)
     try:
         debut = time.time()
         fin = debut + secondes
         while time.time() < fin:
             if verdict["texte"] is not None:
-                return _signaler_si_lent(verdict["texte"], time.time() - debut)
+                return _signaler_si_lent(verdict["texte"], time.time() - debut,
+                                         demarrage)
             if NAVIGATEUR.processus.poll() is not None:
                 return ("ECHEC || le navigateur est mort pendant le parcours "
                         f"(code {NAVIGATEUR.processus.returncode})")

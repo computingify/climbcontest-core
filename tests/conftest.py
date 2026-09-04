@@ -346,10 +346,25 @@ def pytest_collection_modifyitems(session, config, items):
     if hasattr(config, "workerinput"):
         return                  # le worker du groupe demarrera le sien, seul
 
-    # Reste le processus qui coordonne. En serie, c'est LUI qui joue les tests :
-    # la chauffe demarre le navigateur de travail et le garde. En parallele, il
-    # ne joue rien -- il chauffe donc le cache du systeme puis referme, et le
-    # worker qui herite du groupe demarrera le sien sur un disque deja chaud.
-    en_parallele = bool(config.getoption("numprocesses", None))
-    threading.Thread(target=_navigateur.chauffer, args=(not en_parallele,),
-                     daemon=True).start()
+    # ⚠️ En PARALLELE, on ne chauffe pas -- et c'est un revirement, mesure en CI.
+    #
+    # L'idee etait que le processus coordinateur rechauffe le cache disque
+    # pendant que les workers travaillent. Sur un runner a quatre coeurs, il
+    # fait surtout autre chose : il lance un SECOND chromium a froid, en meme
+    # temps que celui du worker qui a herite du groupe. Deux demarrages a froid
+    # qui se disputent la machine coutent plus cher qu'un seul.
+    #
+    # Le premier test navigateur paie donc le demarrage, une fois. C'est
+    # exactement ce que la chauffe evitait AVANT le parallelisme -- mais alors,
+    # le processus qui chauffait etait celui qui allait s'en servir. Sous
+    # xdist, il ne l'est plus, et la chauffe ne s'amortit sur rien.
+    #
+    # Le cout, lui, ne se cache plus : `_signaler_si_lent` compte desormais le
+    # demarrage a part et le NOMME dans son avertissement.
+    if config.getoption("numprocesses", None):
+        return
+
+    # En serie, le processus qui chauffe est celui qui jouera les tests : la
+    # chauffe tourne pendant les mille huit cents tests qui n'ont pas besoin de
+    # navigateur, et plus personne ne paie le demarrage.
+    threading.Thread(target=_navigateur.chauffer, daemon=True).start()
