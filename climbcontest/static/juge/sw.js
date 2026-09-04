@@ -58,7 +58,12 @@
 // et ne verrait rien. Et `couleurs.js` gagne `estLeNoir`, que `juge.js` importe
 // desormais : une coquille qui melangerait l'ancien module et le nouveau
 // `juge.js` planterait au premier bloc scanne.
-const CACHE = "climbcontest-juge-v9";
+// v10 le 04/09 (spec 042) -- l'interrupteur des Reglages et le bouton de scan
+// qui change d'habit vivent ENTIEREMENT dans le CSS et le gabarit `/juge`, que
+// la coquille porte. Sans changement de nom, un telephone deja installe
+// rouvrirait l'ancienne page : il verrait toujours sa case a cocher et la
+// demande de scan sur un poste deja nomme, et rien ne dirait pourquoi.
+const CACHE = "climbcontest-juge-v10";
 
 /**
  * Ce qu'on garde pour pouvoir démarrer sans réseau.

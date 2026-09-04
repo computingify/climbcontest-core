@@ -603,3 +603,149 @@ class TestLaCategorieSurLaCarteDuGrimpeur:
         # Le circuit se DEDUIT : deux champs qui disent la meme chose finissent
         # par se contredire.
         assert "return circuitDe(this.categorie(dossard));" in cat
+
+
+class TestLaDemandeDeScanEtLeGeste:
+    """« Si le juge set manuellement le nom de son téléphone il faut retirer la
+    demande de scan du qrcode de paramétrage. » — Adrien, 03/09 (spec 042).
+
+    Ce qui s'en va, c'est la DEMANDE : l'aplat bleu pleine largeur et son
+    explication. Le GESTE reste, en lien discret, parce qu'un téléphone change
+    parfois de table en cours de journée.
+
+    ⚠️ Ces tests-ci gardent la STRUCTURE. Le comportement -- ce que le
+    navigateur calcule vraiment, cascade appliquée -- est dans
+    `test_navigateur_juge_reglages.py`, et c'est lui qui compte : le gabarit a
+    déjà dit la vérité pendant qu'un bouton mort trônait sur cet écran.
+    """
+
+    @pytest.fixture()
+    def page(self, client_sans_cle):
+        return client_sans_cle.get("/juge").data.decode()
+
+    def test_un_seul_noeud_porte_le_geste(self, page):
+        """Deux nœuds -- un bouton, un lien, l'un caché -- ce serait deux
+        gestionnaires de clic et deux libellés à garder identiques."""
+        reglages = page.split('id="ecranReglages"', 1)[1].split("</section>", 1)[0]
+        assert reglages.count('id="btnScannerPoste"') == 1
+        assert reglages.count("Scanner le QR de mon poste") == 1
+
+    def test_l_habit_de_depart_est_la_demande(self, page):
+        """Un téléphone qui n'a pas encore de nom voit l'aplat bleu."""
+        assert '<button class="action pleine" id="btnScannerPoste"' in page
+
+    def test_la_largeur_n_est_plus_ecrite_en_ligne(self, page):
+        """⚠️ Le piège que cette spec ferme. Un `width: 100%` posé en ligne
+        survivrait au changement de classe, et le lien discret ferait toute la
+        largeur de l'écran avec 12 px de marge au-dessus."""
+        bouton = re.search(r"<button[^>]*id=\"btnScannerPoste\"[^>]*>", page)
+        assert bouton, "le bouton de scan a disparu du gabarit"
+        assert "style=" not in bouton.group(0), bouton.group(0)
+        assert re.search(r"\.action\.pleine \{[^}]*width: 100%", page)
+
+    def test_l_explication_est_designable(self, page):
+        """Elle s'éteint avec la demande : sans `id`, personne ne peut
+        l'atteindre, et elle resterait seule sous un lien discret."""
+        assert 'id="expliquerScanPoste"' in page
+
+    def test_une_seule_fonction_decide_des_deux_surfaces(self):
+        """⚠️ L'écran d'accueil et les Réglages bougent ENSEMBLE.
+
+        Deux endroits qui poseraient l'état eux-mêmes finiraient par n'en
+        éteindre qu'un : la demande partirait de l'accueil et resterait dans les
+        Réglages, ou l'inverse.
+        """
+        js = (STATIQUE / "juge.js").read_text(encoding="utf-8")
+        corps = js.split("function proposerDeNommerLePoste()", 1)[1] \
+                  .split("\n}", 1)[0]
+        assert '$("poste").hidden' in corps
+        assert '$("btnScannerPoste").className' in corps
+        assert '$("expliquerScanPoste").hidden' in corps
+
+    def test_les_deux_habits_s_excluent(self):
+        """`className` et non `classList.toggle` : une bascule laisserait un
+        jour les deux classes posées, un lien sur un aplat bleu."""
+        js = (STATIQUE / "juge.js").read_text(encoding="utf-8")
+        corps = js.split("function proposerDeNommerLePoste()", 1)[1] \
+                  .split("\n}", 1)[0]
+        assert 'nomme ? "lien" : "action pleine"' in corps
+
+    def test_l_ouverture_des_reglages_pose_l_etat_de_depart(self):
+        """⚠️ Sans cet appel, un téléphone nommé au démarrage -- le cas de tous
+        les matins -- ouvrirait ses Réglages avec la demande encore allumée.
+        Elle ne s'éteignait qu'à la première frappe dans le champ."""
+        js = (STATIQUE / "juge.js").read_text(encoding="utf-8")
+        corps = js.split("async function ouvrirLesReglages()", 1)[1] \
+                  .split("\n}", 1)[0]
+        assert "proposerDeNommerLePoste()" in corps
+
+
+class TestPlusAucuneCaseACocherNue:
+    """« Toutes les coches pour le paramétrage que tu trouves tu les remplaces
+    par un interrupteur comme dans toutes les applications mobiles. » — Adrien,
+    03/09 (spec 042).
+
+    Le test est écrit sur « toutes », pas sur celle d'aujourd'hui : il n'y en
+    avait qu'une, et la prochaine doit naître interrupteur.
+    """
+
+    @pytest.fixture()
+    def reglages(self, client_sans_cle):
+        page = client_sans_cle.get("/juge").data.decode()
+        return page.split('id="ecranReglages"', 1)[1].split("</section>", 1)[0]
+
+    def test_chaque_case_est_habillee_en_interrupteur(self, reglages):
+        cases = re.findall(r'<input[^>]*type="checkbox"[^>]*>', reglages)
+        assert cases, "plus aucune case a cocher dans les Reglages ?"
+        for case in cases:
+            bloc = reglages.split(case, 1)[0]
+            ouvert = bloc.rfind('class="bascule"')
+            ferme = bloc.rfind("</label>")
+            assert ouvert > ferme, (
+                f"case a cocher nue dans les Reglages : {case}")
+
+    def test_l_ordre_des_freres_est_respecte(self, reglages):
+        """⚠️ `input:checked + .glissiere` est un sélecteur de frère ADJACENT.
+        Un élément glissé entre les deux éteindrait l'interrupteur sans qu'aucune
+        ligne n'ait l'air fausse."""
+        for bascule in re.findall(r'<label class="bascule">(.*?)</label>',
+                                  reglages, re.S):
+            case = re.search(r'<input[^>]*type="checkbox"[^>]*>', bascule)
+            assert case, bascule
+            suite = bascule[case.end():].lstrip()
+            assert suite.startswith('<span class="glissiere"'), suite[:80]
+
+    def test_la_case_native_est_conservee_et_annoncee(self, reglages):
+        """Rendue invisible, pas remplacée : elle garde le clavier, le focus,
+        l'état et le lecteur d'écran. `role="switch"` la fait annoncer
+        « interrupteur, activé » plutôt que « case à cocher, cochée »."""
+        assert re.search(r'<input type="checkbox" id="garderGrimpeur" '
+                         r'role="switch">', reglages)
+
+    def test_la_glissiere_est_invisible_au_lecteur_d_ecran(self, reglages):
+        """Elle ne porte aucune information : c'est l'`<input>` qui parle."""
+        assert '<span class="glissiere" aria-hidden="true"></span>' in reglages
+
+
+class TestLeNomDuCacheEtSaRaisonSePosentEnsemble:
+    """⚠️ La coquille porte `/juge`, donc tout le CSS et tout le gabarit.
+
+    Un changement d'écran qui ne change pas le NOM du cache ne parvient jamais
+    aux téléphones déjà installés : `activate` ne supprime que les caches dont
+    le nom diffère. C'est exactement ce que les v4, v5 et v6 ont corrigé, chaque
+    fois après coup.
+
+    Ce test ne peut pas deviner qu'un écran a changé. Il garde ce qu'il peut :
+    que le numéro du cache et la ligne qui dit pourquoi il a bougé ne partent
+    jamais l'un sans l'autre.
+    """
+
+    def test_le_numero_du_cache_est_celui_de_la_derniere_raison(self):
+        sw = (STATIQUE / "sw.js").read_text(encoding="utf-8")
+        constante = re.search(r'const CACHE = "climbcontest-juge-v(\d+)"', sw)
+        assert constante, "le nom du cache n'a plus la forme attendue"
+        raisons = re.findall(r"^// v(\d+) le ", sw, re.M)
+        assert raisons, "plus aucune ligne n'explique un changement de cache"
+        assert raisons[-1] == constante.group(1), (
+            f"le cache est en v{constante.group(1)} mais la derniere raison "
+            f"ecrite porte sur la v{raisons[-1]} : l'un des deux a ete oublie")
