@@ -158,31 +158,48 @@ l'application.
 - **Le circuit « Noir » garde sa carte en papier.** C'est le seul dont la teinte
   est déjà l'encre : sa carte teintée virait au gris quand toutes les autres
   prennent leur couleur, et le liseré de sa pastille se confondait avec l'aplat.
-- **La suite de tests passe de 2 min 17 à 17 s** — huit fois plus rapide, sans
-  qu'aucun test disparaisse ni change ce qu'il vérifie (1 817 tests, tous
-  verts). Le temps n'était pas concentré sur quelques tests lents — le plus long
-  tient en 7,5 s — mais réparti sur dix-huit cents tests courts, et c'est
-  exactement la forme qui se parallélise le mieux.
-  - **La suite tourne en parallèle par défaut** (`pytest-xdist`, `-n logical
-    --dist loadgroup` dans `pytest.ini`). 137 s → 17 s sur le Mac, 32 s sur
-    quatre cœurs comme un runner GitHub. `pytest -n 0` revient à l'exécution en
-    série pour déboguer.
-  - **Un seul chromium pour toute l'exécution**, au lieu d'un par fichier. Le
-    pilotage passe par CDP — en bibliothèque standard, aucune dépendance de
-    plus — et chaque parcours ouvre un **contexte isolé** : cookies,
-    `localStorage` et service workers propres, comme un profil neuf, mais en
-    **2 à 5 ms** au lieu de 300. Les tests navigateur sont regroupés sur un
-    même worker pour que ce « un seul » reste vrai en parallèle.
-  - `test_navigateur_fiche.py` **rejoint le harnais partagé** : il portait sa
-    propre copie de `piloter`, donc son propre chromium et un endroit de plus
-    où repayer chaque correction du harnais.
-  - **Les serveurs de test se fermaient en 0,5 s chacun.** `serve_forever`
-    sonde son drapeau d'arrêt à cet intervalle par défaut : une attente
-    d'horloge pure, logée dans le *teardown* où personne ne lit les durées.
-    5,4 s sur les seuls tests navigateur, ramenés à 0,6 s.
+- **La suite de tests passe de 2 min 26 à 16 s**, et — ce qui compte
+  davantage — de 2 min 26 à **47 s en série**, sans parallélisme. Aucun test
+  retiré, quinze ajoutés (1 870, tous verts). Le parallélisme est un
+  multiplicateur ; l'essentiel du gain vient du travail supprimé.
+  - **Un tiers de la suite dérivait des mots de passe.** `scrypt` est lent à
+    dessein (54 ms), et chaque fixture de connexion en payait deux — création
+    du compte, puis vérification — soit ~105 ms, quatre cents fois. La
+    configuration de test dérive désormais au minimum. **Le défaut reste
+    `scrypt` partout ailleurs**, et aucune variable d'environnement ne peut
+    l'affaiblir ; les deux tests dont le *coût* est le sujet redemandent la
+    vraie méthode. `tests/test_hachage.py` échoue si l'allégement déborde du
+    test.
+  - **Une application Flask était rebâtie à chaque test** (11,8 ms × 1 200) :
+    Werkzeug y recompilait ses soixante-sept règles de routage, ce qui pesait
+    78 % du coût. Elle est construite une fois ; la base, la configuration et
+    la classe de client sont remises à neuf avant chaque test. Deux gardes
+    tiennent l'isolement — un refus de sortie si un test modifie l'application
+    partagée, et `tests/test_isolation.py`, qui salit puis vérifie **dans
+    n'importe quel ordre**.
+  - **Le test le plus cher de la suite testait le harnais** : 7,5 s, dont 5 s
+    passées à regarder gunicorn renoncer à prendre un port occupé. Le harnais
+    vérifie maintenant que le port est libre *avant* de lancer gunicorn — un
+    vrai gain aussi hors des tests — et le test tombe à 0,6 s.
+  - **Une sonde navigateur dormait 2,4 s pour constater qu'il ne se passait
+    rien.** C'était lent *et* faux : sur une machine lente, la feuille aurait
+    pu s'ouvrir après le réveil sans que le test la voie. Le harnais attend
+    désormais une condition — plus aucune requête en vol, puis deux
+    rafraîchissements d'écran — et le test passe de 2,5 s à 0,13 s.
+  - **Deux serveurs de test se fermaient en 0,5 s chacun** : `serve_forever`
+    sonde son drapeau d'arrêt à cet intervalle par défaut, une attente logée
+    dans le *teardown* où personne ne lit les durées.
   - **Les tests E2E ne relancent plus un interpréteur Python par test** pour
-    peupler leur base : elle est bâtie une fois, puis copiée. 17 s de
-    préparation ramenées à 7 s.
+    peupler leur base : elle est bâtie une fois, puis copiée.
+  - **La suite tourne en parallèle par défaut** (`pytest-xdist`, `-n logical
+    --dist loadgroup`). `pytest -n 0` revient à l'exécution en série.
+  - **Un seul chromium pour toute l'exécution**, au lieu d'un par fichier.
+    Chaque parcours ouvre un **contexte isolé** — cookies, `localStorage` et
+    service workers propres, comme un profil neuf, mais en 2 à 5 ms au lieu de
+    300. Les tests navigateur sont regroupés sur un même worker pour que ce
+    « un seul » reste vrai en parallèle.
+  - `test_navigateur_fiche.py` **rejoint le harnais partagé** : il portait sa
+    propre copie de `piloter`, donc son propre chromium.
 
 ### Corrigé
 

@@ -22,75 +22,94 @@ exprès, et qui echouent, eux, si le nettoyage saute.
 Le pendant est dans `tests/conftest.py` : un garde de sortie qui refuse qu'un
 test ajoute une route ou un crochet a l'application partagee.
 
-⚠️ **L'ordre compte dans chaque classe** : le premier test salit, le second
-verifie. Les noms portent la lettre pour que ca reste vrai si quelqu'un les
-relit, et pytest joue les tests d'un fichier dans l'ordre ou ils sont ecrits.
+⚠️ **Aucun de ces tests ne depend de l'ordre**, et ce n'est pas un luxe. La
+premiere version salissait dans un test et verifiait dans le suivant. Lance
+avec `pytest-randomly`, l'ordre s'est inverse : les six tests sont passes en
+verifiant AVANT que quiconque ait sali -- ils ne prouvaient plus rien, et ils
+etaient verts. Exactement le mode de defaillance que ce fichier existe pour
+attraper, retourne contre lui.
+
+Chaque test VERIFIE d'abord, puis SALIT. Dans n'importe quel ordre, tous sauf
+le premier constatent donc l'etat laisse par un autre. On en met trois par
+dimension : deux verifications reelles au minimum, quelle que soit la
+permutation.
 """
 from datetime import date
+
+import pytest
 
 from climbcontest.extensions import db
 from climbcontest.models import EN_COURS, Competition, Utilisateur
 
 
-class TestLaBaseEstNeuveAChaqueTest:
-    def test_a_j_ecris_une_competition_et_un_compte(self, app):
-        db.session.add(Competition(nom="Salissure", date=date(2026, 11, 15),
-                                   statut=EN_COURS, active=True))
-        db.session.add(Utilisateur(identifiant="salisseur",
-                                   mot_de_passe_hache="x", actif=True))
-        db.session.commit()
-        assert Competition.query.count() == 1
-        assert Utilisateur.query.count() == 1
+def _salir_la_base(marque: str) -> None:
+    db.session.add(Competition(nom=marque, date=date(2026, 11, 15),
+                               statut=EN_COURS, active=True))
+    db.session.add(Utilisateur(identifiant=marque.lower(),
+                               mot_de_passe_hache="x", actif=True))
+    db.session.commit()
 
-    def test_b_le_test_suivant_ne_voit_rien(self, app):
+
+class TestLaBaseEstNeuveAChaqueTest:
+    @pytest.mark.parametrize("marque", ["Salissure1", "Salissure2", "Salissure3"])
+    def test_la_base_ne_porte_rien_du_test_precedent(self, app, marque):
         assert Competition.query.count() == 0, (
-            "la competition ecrite par le test precedent est encore la : la "
-            "base n'est plus remise a neuf entre deux tests, et TOUTE la suite "
-            "peut desormais passer sur les donnees du voisin")
+            "une competition ecrite par un autre test est encore la : la base "
+            "n'est plus remise a neuf entre deux tests, et TOUTE la suite peut "
+            "desormais passer sur les donnees du voisin")
         assert Utilisateur.query.count() == 0, (
-            "le compte du test precedent est encore la -- meme cause, et le "
-            "freinage des connexions (spec 015) garde son etat en base, donc "
-            "il fuirait lui aussi")
+            "un compte ecrit par un autre test est encore la -- meme cause, et "
+            "le freinage des connexions (spec 015) garde son etat en base, "
+            "donc il fuirait lui aussi")
+        _salir_la_base(marque)
 
 
 class TestLaConfigurationEstNeuveAChaqueTest:
-    def test_a_je_change_la_configuration(self, app):
-        app.config["SECRET_KEY"] = "une-cle-de-salissure"
-        app.config["API_KEY_STRICTE"] = False
-        app.config["UN_REGLAGE_QUI_N_EXISTE_PAS"] = 42
-
-    def test_b_le_test_suivant_repart_du_defaut(self, app):
+    @pytest.mark.parametrize("marque", ["cle1", "cle2", "cle3"])
+    def test_la_configuration_repart_du_defaut(self, app, marque):
         assert app.config["SECRET_KEY"] == "dev-non-secret", (
-            "la SECRET_KEY posee par le test precedent a survecu : cent neuf "
+            "une SECRET_KEY posee par un autre test a survecu : cent neuf "
             "endroits de la suite modifient la configuration, et ils se "
             "verraient tous entre eux")
         assert app.config["API_KEY_STRICTE"] is True
         assert "UN_REGLAGE_QUI_N_EXISTE_PAS" not in app.config, (
-            "une cle AJOUTEE par un test survit : reposer les valeurs connues "
-            "ne suffit pas, il faut vider la configuration d'abord")
+            "une cle AJOUTEE par un autre test survit : reposer les valeurs "
+            "connues ne suffit pas, il faut vider la configuration d'abord")
+
+        app.config["SECRET_KEY"] = marque
+        app.config["API_KEY_STRICTE"] = False
+        app.config["UN_REGLAGE_QUI_N_EXISTE_PAS"] = 42
 
 
 class TestLaClasseDeClientEstNeuveAChaqueTest:
-    """`client` et `client_sans_cle` posent chacun la leur sur l'application.
+    """`client` et `client_sans_cle` posent chacun LEUR classe sur
+    l'application, pas sur eux-memes.
 
     Sans remise a zero, un test qui appelle `app.test_client()` directement
-    heriterait de celle choisie par son voisin -- donc porterait la cle d'API
+    heriterait de celle choisie par un autre -- donc porterait la cle d'API
     sans le savoir, ou ne la porterait plus. Les deux se lisent comme un
     controle d'acces casse.
     """
 
-    def test_a_je_prends_le_client_qui_porte_la_cle(self, client):
-        """`client` pose `ClientAvecCle` SUR L'APPLICATION, pas sur lui-meme.
-
-        On ne regarde que la cle : 409 « aucune competition active » veut dire
-        que la requete est PASSEE l'authentification, ce qui est tout ce qu'on
-        demande ici.
-        """
-        assert client.get("/api/v2/catalog").status_code != 401
-
-    def test_b_le_client_nu_ne_porte_aucune_cle(self, app):
+    @pytest.mark.parametrize("_", [1, 2, 3])
+    def test_le_client_nu_ne_porte_aucune_cle(self, app, _):
         reponse = app.test_client().get("/api/v2/catalog")
         assert reponse.status_code == 401, (
-            "le client nu a repondu autre chose que 401 : il porte une cle "
-            "d'API, donc il a herite de la classe de client posee par un test "
-            "precedent")
+            f"le client nu a repondu {reponse.status_code} au lieu de 401 : il "
+            "porte une cle d'API, donc il a herite de la classe de client "
+            "posee par un autre test")
+
+        # Puis on salit, pour que les autres tests aient quelque chose a
+        # constater -- quel que soit l'ordre dans lequel ils passent.
+        app.test_client_class = _ClientQuiPorteUneCle
+
+
+class _ClientQuiPorteUneCle(__import__("flask").testing.FlaskClient):
+    """La meme idee que `ClientAvecCle` du conftest, en plus court."""
+
+    def open(self, *args, **kwargs):
+        from werkzeug.datastructures import Headers
+        entetes = Headers(kwargs.get("headers") or {})
+        entetes.setdefault("X-Api-Key", "cle-de-test")
+        kwargs["headers"] = entetes
+        return super().open(*args, **kwargs)
