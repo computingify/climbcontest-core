@@ -391,20 +391,39 @@ async function scannerMonPoste({ depuisLAccueil = false } = {}) {
 }
 
 /**
- * Le bloc « scanne le QR de ton poste » de l'écran d'accueil, montré ou caché.
+ * Le téléphone a-t-il un nom, et que montre-t-on en conséquence.
  *
- * ⚠️ UNE SEULE fonction décide de cette visibilité. Elle est appelée au
- * démarrage, après un scan de poste réussi, et à chaque frappe dans le champ
- * du nom : trois endroits qui poseraient `hidden` eux-mêmes finiraient par
- * laisser le bloc affiché sur un téléphone déjà nommé.
+ * ⚠️ UNE SEULE fonction décide, sur les DEUX surfaces. Elle est appelée à
+ * l'ouverture des Réglages, après un scan de poste réussi, et à chaque frappe
+ * dans le champ du nom : les trois moments où le nom peut changer. Des
+ * endroits qui poseraient `hidden` eux-mêmes finiraient par montrer la demande
+ * sur un téléphone déjà nommé — ou pire, par ne l'éteindre qu'à moitié, une
+ * surface obéissant et l'autre non.
  *
- * ⚠️ Il DISPARAÎT dès que le poste est nommé. Le juge scanne son carton une
- * fois le matin ; un bandeau qui resterait toute la journée au-dessus des
- * cartes de scan volerait de la place à ce qu'on touche cent fois. Le geste
- * reste dans les Réglages, où il était déjà.
+ * **L'écran d'accueil** (spec 034) : le bloc DISPARAÎT dès que le poste est
+ * nommé. Le juge scanne son carton une fois le matin ; un bandeau qui resterait
+ * toute la journée au-dessus des cartes de scan volerait de la place à ce qu'on
+ * touche cent fois.
+ *
+ * **Les Réglages** (spec 042) : le bouton change d'habit, il ne s'en va pas.
+ * Adrien, le 03/09 : « si le juge set manuellement le nom de son téléphone il
+ * faut retirer la demande de scan ». La DEMANDE — l'aplat bleu pleine largeur
+ * et son explication — s'en va ; le GESTE reste, en lien discret, parce qu'un
+ * téléphone change parfois de table en cours de journée et qu'il faut alors
+ * pouvoir rescanner sans vider le champ d'abord.
+ *
+ * ⚠️ Le déclencheur est le NOM, pas la façon dont il est arrivé : un nom posé
+ * par scan éteint la demande exactement comme un nom tapé. Deux règles pour
+ * deux chemins finiraient par diverger.
  */
 function proposerDeNommerLePoste() {
-  $("poste").hidden = Boolean(identite && identite.nom);
+  const nomme = Boolean(identite && identite.nom);
+  // L'écran d'accueil.
+  $("poste").hidden = nomme;
+  // Les Réglages. `className` et non `classList.toggle` : les deux habits
+  // s'excluent, et une bascule laisserait un jour les deux classes posées.
+  $("btnScannerPoste").className = nomme ? "lien" : "action pleine";
+  $("expliquerScanPoste").hidden = nomme;
 }
 
 // --- Scanner ----------------------------------------------------------------
@@ -683,6 +702,11 @@ function afficherLeNomDuPoste() {
 
 async function ouvrirLesReglages() {
   $("nomTelephone").value = identite.nom || "";
+  // ⚠️ L'ETAT DE DEPART de l'écran (spec 042). Sans cet appel, un téléphone
+  // nommé au démarrage — le cas de tous les matins après le premier scan —
+  // ouvrirait ses Réglages avec la demande encore allumée : elle ne s'éteignait
+  // qu'à la première frappe dans le champ.
+  proposerDeNommerLePoste();
   $("identifiantTelephone").textContent =
     `Identifiant : ${String(identite.id || "").slice(0, 8)}`;
   $("garderGrimpeur").checked = etat.garderGrimpeur;

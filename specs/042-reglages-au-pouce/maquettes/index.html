@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Spec 042 — les Réglages au pouce</title>
+<style>
+  :root { color-scheme: light; }
+  body { margin: 0; padding: 32px 28px 48px;
+         font: 15px/1.55 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+         background: #F3EEE3; color: #17140F; }
+  h1 { font-size: 1.5rem; margin: 0 0 6px; }
+  .chapo { color: #6C6353; max-width: 68ch; margin: 0 0 30px; }
+  section { margin: 0 0 34px; }
+  h2 { font-size: 1.1rem; margin: 0 0 4px; }
+  h3 { font-size: 1rem; margin: 0 0 2px; }
+  section > p, .variante > p { color: #6C6353; margin: 0 0 12px; max-width: 76ch; }
+  code { font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: .88em;
+         background: #EAE3D5; padding: .1em .35em; border-radius: 4px; }
+  .rangee { display: flex; gap: 18px; flex-wrap: wrap; align-items: flex-start;
+            margin-bottom: 14px; }
+  figure { margin: 0; }
+  img.tel { width: 230px; display: block; border-radius: 16px;
+            border: 1px solid #DDD3C0; box-shadow: 0 6px 20px rgba(27,26,23,.14); }
+  img.panneau { width: 300px; display: block; border-radius: 12px;
+               border: 1px solid #DDD3C0; box-shadow: 0 6px 20px rgba(27,26,23,.14); }
+  img.gros { width: 340px; display: block; border-radius: 10px;
+             border: 1px solid #DDD3C0; box-shadow: 0 4px 14px rgba(27,26,23,.12); }
+  figcaption { font-size: .8rem; color: #77705F; margin-top: 6px; text-align: center; }
+  .variante { border-top: 1px solid #E3DACA; padding-top: 16px; margin-top: 18px; }
+  .variante.livree { border-left: 3px solid #1F7A45; border-top: 0;
+                     padding: 4px 0 4px 16px; margin-left: -19px; }
+  h3 em { font-style: normal; color: #1F7A45; font-weight: 600; }
+  .preuve { border-top: 1px solid #DDD3C0; padding-top: 24px; }
+</style>
+</head>
+<body>
+<h1>Spec 042 — les Réglages au pouce</h1>
+<p class="chapo">L'application juge <b>réelle</b>, servie par le gabarit en 390 × 844, pilotée par les <b>vrais gestes</b> : les Réglages s'ouvrent d'un clic sur le bouton, le nom se tape dans le champ. Aucune de ces images n'est un redessin, et aucune ne montre un état que le code ne produit pas.</p>
+<section><h2>1. « La demande de scan » désignait deux objets</h2><p>Le bloc de l'<b>écran d'accueil</b> s'éteignait <b>déjà</b> dès que le téléphone portait un nom (spec 034) — cette spec-ci n'y touche pas. Celui des <b>Réglages</b> restait affiché quoi qu'il arrive : c'est lui qu'on traite.</p><div class="rangee"><figure><img class="tel" src="captures/clair-accueil.png" alt="l’accueil, clair"><figcaption>l’accueil, clair</figcaption></figure><figure><img class="tel" src="captures/sombre-accueil.png" alt="l’accueil, sombre"><figcaption>l’accueil, sombre</figcaption></figure><figure><img class="tel" src="captures/clair-avant-vide.png" alt="les Réglages, clair"><figcaption>les Réglages, clair</figcaption></figure><figure><img class="tel" src="captures/sombre-avant-vide.png" alt="les Réglages, sombre"><figcaption>les Réglages, sombre</figcaption></figure></div></section>
+<section><h2>2. Le téléphone nommé à la main</h2><p>Le juge a tapé « Zone C » au clavier. Trois façons de traiter la demande ; Adrien a retenu la <b>B</b> le 03/09.</p>
+<div class="variante"><h3>Aujourd’hui</h3><p>La demande reste : un bouton bleu pleine largeur et son explication, sur un téléphone qui porte déjà un nom. Servi par le gabarit de <code>master</code> — celui d'aujourd'hui, specs 040 et 030 comprises.</p><div class="rangee"><figure><img class="tel" src="captures/clair-avant-nomme.png" alt="clair"><figcaption>clair</figcaption></figure><figure><img class="tel" src="captures/sombre-avant-nomme.png" alt="sombre"><figcaption>sombre</figcaption></figure></div></div>
+<div class="variante"><h3>A — la demande s’en va</h3><p>Le bouton et son explication disparaissent tous les deux. Vider le champ devient le <b>seul</b> chemin pour rescanner un carton. <b>Écartée</b> — capture d’un prototype, ce code n’existe pas.</p><div class="rangee"><figure><img class="tel" src="captures/clair-nomme-A.png" alt="clair"><figcaption>clair</figcaption></figure><figure><img class="tel" src="captures/sombre-nomme-A.png" alt="sombre"><figcaption>sombre</figcaption></figure></div></div>
+<div class="variante livree"><h3>B — la demande devient un geste <em>— livrée</em></h3><p>Plus de bouton bleu ni d’explication : la <b>demande</b> s’en va, le <b>geste</b> reste, à la même place que « Voir mes scans ». Un téléphone qui change de table se rescanne sans vider le champ d’abord. Servi par le code de la branche.</p><div class="rangee"><figure><img class="tel" src="captures/clair-nomme.png" alt="clair"><figcaption>clair</figcaption></figure><figure><img class="tel" src="captures/sombre-nomme.png" alt="sombre"><figcaption>sombre</figcaption></figure></div></div>
+</section>
+<section class="preuve"><h2>3. La case à cocher devient un interrupteur</h2><p>La seule case à cocher de l’application. Elle prend les cotes de l’interrupteur d’iOS et d’Android — 51 × 31, pastille de 27 — et le bleu des actions. La case <b>native</b> reste dessous, rendue invisible : le clavier, le focus et le lecteur d’écran ne perdent rien, et <code>role="switch"</code> la fait annoncer « interrupteur, activé ».</p><div class="rangee"><figure><img class="gros" src="captures/clair-saisie-case.png" alt="aujourd’hui, clair"><figcaption>aujourd’hui, clair</figcaption></figure><figure><img class="gros" src="captures/clair-saisie-interrupteur.png" alt="après, clair"><figcaption>après, clair</figcaption></figure></div><div class="rangee"><figure><img class="gros" src="captures/sombre-saisie-case.png" alt="aujourd’hui, sombre"><figcaption>aujourd’hui, sombre</figcaption></figure><figure><img class="gros" src="captures/sombre-saisie-interrupteur.png" alt="après, sombre"><figcaption>après, sombre</figcaption></figure></div></section>
+<section class="preuve"><h2>4. Ce que la fusion donne</h2><p>La branche rebasee sur <code>master</code>, qui a recu entre-temps la spec 040 (« Theme »), la spec 030 (« Catalogue », « Application ») et la spec 041 (la matiere : lisere d'encre, ombre du bouton). <b>Quatre specs se sont posees dans le meme ecran sans un seul conflit git</b> : c'est exactement le cas ou il faut regarder plutot que faire confiance. L'ecran Reglages entier, deroule.</p><div class="rangee"><figure><img class="panneau" src="captures/clair-panneau.png" alt="la fusion, clair"><figcaption>la fusion, clair</figcaption></figure><figure><img class="panneau" src="captures/sombre-panneau.png" alt="la fusion, sombre"><figcaption>la fusion, sombre</figcaption></figure></div></section>
+</body>
+</html>

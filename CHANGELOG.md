@@ -78,6 +78,26 @@ l'application.
 
 ### Modifié
 
+- **Les Réglages de l'application juge, au pouce** (spec 042) — deux retouches
+  du même écran.
+  - **La demande de scan s'éteint quand elle n'a plus lieu d'être.** Un
+    téléphone qui porte déjà un nom affichait toujours « Scanner le QR de mon
+    poste » en aplat bleu pleine largeur, avec son explication dessous. La
+    demande s'en va ; le **geste reste**, en lien discret à la place de « Voir
+    mes scans » — un téléphone change parfois de table en cours de journée, et
+    il faut pouvoir rescanner sans vider le champ d'abord. Vider le nom ramène
+    la demande. Le déclencheur est le **nom**, pas la façon dont il est arrivé :
+    un nom scanné éteint la demande comme un nom tapé.
+  - **La case à cocher « Garder le grimpeur entre deux blocs » devient un
+    interrupteur**, aux cotes de celui d'iOS et d'Android. C'était la seule de
+    l'application. La case native est conservée sous le visuel : le clavier, le
+    focus et le lecteur d'écran ne perdent rien, et `role="switch"` la fait
+    annoncer « interrupteur, activé ».
+
+  Le cache du service worker passe en **v10** : la coquille porte le gabarit
+  `/juge`, donc tout le CSS. Sans ce changement de nom, un téléphone déjà
+  installé aurait rouvert l'ancienne page sans que rien ne le dise.
+
 - **La documentation dit l'état réel** — trois textes décrivaient encore un
   système qui n'existe plus.
   - Le **runbook de compétition** faisait allumer puis éteindre la VM, et
