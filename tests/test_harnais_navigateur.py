@@ -30,6 +30,8 @@ from pathlib import Path
 
 import pytest
 
+from tests.navigateur import CHROME, piloter
+
 TESTS = Path(__file__).resolve().parent
 FICHIERS = sorted(TESTS.glob("test_navigateur_*.py"))
 
@@ -78,6 +80,51 @@ def test_une_fixture_qui_pilote_declare_sa_portee(fichier):
         "partagee, comme le fait test_navigateur_reglages_resultats.py")
 
 
+def _appels_a_piloter(arbre: ast.Module):
+    """Chaque appel a `piloter`, rendu sous une forme comparable.
+
+    ⚠️ On compare la SOURCE des arguments, pas leur valeur : `ast.unparse`
+    rend `f"{url}/__harnais?quoi=lecture"` et `f"{url}/__harnais"` differents,
+    ce qui est exactement ce qu'on veut. Deux appels dont la source est
+    identique jouent forcement le meme parcours.
+    """
+    for n in ast.walk(arbre):
+        if isinstance(n, ast.Call) and isinstance(n.func, ast.Name) \
+                and n.func.id == "piloter":
+            # `secondes` ne change pas le parcours, seulement la patience :
+            # deux appels qui ne different que par lui sont bien identiques.
+            args = [ast.unparse(a) for a in n.args]
+            mots = sorted(f"{k.arg}={ast.unparse(k.value)}" for k in n.keywords
+                          if k.arg != "secondes")
+            yield ", ".join(args + mots)
+
+
+@pytest.mark.parametrize("fichier", FICHIERS, ids=lambda f: f.name)
+def test_aucun_parcours_n_est_rejoue_a_l_identique(fichier):
+    """Le second controle, et celui qui demande le plus de discernement.
+
+    ⚠️ La regle NAIVE serait « plusieurs tests appellent `piloter`, donc c'est
+    du gaspillage ». Elle est fausse : `test_navigateur_reglages_resultats.py`
+    appelle `piloter` cinq fois, avec cinq parcours REELLEMENT differents
+    (`?src=/__vue`, `?quoi=lecture`, `?quoi=recherche`...), et chacun merite son
+    navigateur. Un garde incapable de les distinguer demanderait une exemption
+    declaree -- qui finirait posee par reflexe, et ne protegerait plus rien.
+
+    La regle retenue est donc STRUCTURELLE et sans faux positif : deux appels
+    dont les arguments sont ecrits a l'identique rejouent le meme parcours, il
+    n'y a pas d'autre lecture possible. Les cinq appels de
+    `reglages_resultats` s'exemptent tout seuls, sans qu'on ait rien a declarer.
+    """
+    appels = list(_appels_a_piloter(ast.parse(fichier.read_text(encoding="utf-8"))))
+    rejoues = sorted({a for a in appels if appels.count(a) > 1})
+    assert rejoues == [], (
+        f"dans {fichier.name}, le meme parcours est joue plusieurs fois : "
+        f"{rejoues}. Chaque appel coute un demarrage de chromium pour un releve "
+        "identique. Faire UN passage qui mesure tout, et le partager par une "
+        'fixture en scope="module" -- ou, si les parcours doivent differer, '
+        "les faire differer pour de bon")
+
+
 def test_le_garde_regarde_bien_quelque_chose():
     """Un garde qui ne trouve aucun fichier passerait pour toujours vert."""
     assert len(FICHIERS) >= 5, (
@@ -89,3 +136,33 @@ def test_le_garde_regarde_bien_quelque_chose():
     assert pilotantes, (
         "aucune fixture ne pilote plus de navigateur : soit le harnais a "
         "change de forme, soit ce garde ne sait plus le reconnaitre")
+
+
+@pytest.mark.skipif(CHROME is None,
+                    reason="aucun navigateur : ce test se saute, il n'echoue pas")
+def test_piloter_ne_rend_jamais_un_verdict_deja_la():
+    """Le piege que `piloter` ferme desormais, verifie par le comportement.
+
+    ⚠️ Ce test COUTE un demarrage de chromium, et c'est assume : c'est le seul
+    moyen de prouver la chose plutot que de la relire. Il est borne a une
+    seconde de patience -- on ne verifie pas la duree, on verifie que le
+    navigateur a bien ete lance au lieu d'etre court-circuite.
+
+    Sans la remise a zero, `piloter` trouve le verdict deja pose, le rend
+    instantanement et NE LANCE RIEN. C'est ce qui ferait passer au vert un test
+    mutualise sur les mesures du parcours precedent.
+    """
+    # Un verdict deja rempli : exactement ce que laisse un appel precedent
+    # quand la fixture qui porte le dictionnaire est partagee.
+    verdict = {"texte": "OK perime=1"}
+
+    # Une adresse ou personne ne repond : le pilote ne peut RIEN poster. Le
+    # seul verdict possible est donc un echec -- sauf s'il rend le perime.
+    rendu = piloter("http://127.0.0.1:9/", verdict, secondes=1)
+
+    assert not rendu.startswith("OK "), (
+        "`piloter` a rendu un verdict qu'il n'a pas produit : "
+        f"{rendu!r}. La remise a zero de `verdict['texte']` a saute, et un "
+        "test mutualise passerait au vert sur le parcours precedent")
+    assert "perime" not in rendu, (
+        f"le verdict perime a survecu a l'appel : {rendu!r}")

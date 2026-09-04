@@ -19,6 +19,18 @@ qu'on ne met pas à jour le matin d'une compétition :
 
 ## [Non publié]
 
+### Corrigé
+
+- **Le harnais des tests navigateur pouvait rendre un verdict qu'il n'avait pas
+  produit.** `piloter` attend que le pilote poste son relevé, mais il tenait
+  pour acquis qu'on lui remettait un verdict vierge sans jamais l'écrire : le
+  pari ne tenait qu'à la portée des fixtures. Le jour où une fixture partagée
+  aurait servi deux appels, le second aurait trouvé le relevé du premier, rendu
+  aussitôt, et **n'aurait lancé aucun navigateur** — les tests suivants passant
+  au vert sur les mesures du parcours précédent. Un test qui ne mesure plus rien
+  et qui ne le dit pas. `piloter` pose désormais lui-même l'état dont il dépend,
+  et un test le prouve en le lui reprenant.
+
 ### Ajouté
 
 - **L'application juge choisit son thème** (spec 040). Trois pastilles dans les
