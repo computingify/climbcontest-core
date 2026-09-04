@@ -1851,6 +1851,15 @@
     // Avant d'afficher la premiere vue : la pastille du bandeau doit pouvoir
     // paraitre sans qu'on soit passe par les Reglages.
     chargerMaj(false);
+    // ⚠️ MEME RAISON, pour le pied du tiroir (spec 030, critere A9). Le numero
+    // de catalogue vient de `/admin/versions`, que seul l'ecran « Telephones »
+    // appelait : un organisateur qui ouvrait la console et restait sur
+    // « Participants » lisait un pied a moitie rempli -- la version sans le
+    // catalogue -- sans que rien ne lui dise ou aller le chercher. Une requete
+    // de plus par ouverture, ~200 octets, et la promesse « sur tous les
+    // ecrans » devient vraie. L'ecran « Telephones » continue de la
+    // rafraichir : le numero ne vieillit pas.
+    chargerVersions();
     montrerVue("participants");
   }
 

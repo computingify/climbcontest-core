@@ -158,6 +158,13 @@
     /* posees par juge.js quand un bloc est scanne ; les valeurs de repos
        gardent l'ecran lisible sans couleur de circuit connue. */
     --circuit: var(--encre); --encre-circuit: var(--fond);
+    /* La pastille de l'interrupteur (spec 042). Elle est claire dans les DEUX
+       themes, comme celle d'iOS : allumee elle est posee sur l'aplat bleu,
+       eteinte sur le creux d'une carte -- deux fonds sombres en theme sombre,
+       deux fonds moyens en clair. Une pastille qui suivrait le theme
+       disparaitrait dans l'un des quatre cas. */
+    --pastille-bascule: var(--sur-action);
+    --ombre-bascule: 0 1px 3px rgba(0, 0, 0, .28);
     --police: "Archivo", system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
   }
   /* Archivo, la police de l'application Android — une variable font, un seul
@@ -530,13 +537,79 @@
   }
   .bloc label { display: block; font-size: 0.8rem; color: var(--encre2);
                 margin-bottom: 6px; }
-  /* La case a cocher NATIVE saute aux yeux plus que le reste de l'ecran,
-     pour un reglage secondaire : on lui donne le bleu des actions. */
-  .bloc input[type=checkbox] { accent-color: var(--action); }
+
+  /* L'INTERRUPTEUR d'un reglage (spec 042). Le MEME motif que la console
+     (spec 021) : une case a cocher dit « je consens », un reglage dit « c'est
+     allume ou c'est eteint », et ce n'est pas la meme question. Adrien, le
+     03/09 : « un interrupteur comme dans toutes les applications mobiles ».
+
+     La case a cocher NATIVE est conservee, juste rendue invisible : elle garde
+     le clavier, le focus, l'etat et le lecteur d'ecran -- `role="switch"` la
+     fait annoncer « interrupteur, active » au lieu de « case a cocher,
+     cochee », le navigateur derivant `aria-checked` de `checked` tout seul.
+
+     ⚠️ La glissiere est un FRERE de l'<input>, jamais un pseudo-element pose
+     dessus : un `::after` sur un element remplace tient de la tolerance des
+     navigateurs, et cette application tourne sur les telephones que les
+     benevoles apportent. C'est aussi pourquoi l'ORDRE des trois enfants du
+     <label> est le mecanisme lui-meme -- `input:checked + .glissiere` est un
+     selecteur de frere ADJACENT, et un <span> glisse entre les deux eteindrait
+     la glissiere sans qu'aucune ligne n'ait l'air fausse.
+
+     ⚠️ `.bloc label` juste au-dessus pose `display: block` avec la MEME
+     specificite (0,1,1) : c'est l'ordre dans ce fichier qui tranche, et rien
+     ici ne le dit. Meme classe de defaut que `#ligneRefus`, ou une regle
+     d'auteur battait le `[hidden]` du navigateur. C'est pour ca que le test
+     mesure le `display` CALCULE dans un navigateur et refuse `block` --
+     `tests/test_navigateur_juge_reglages.py`.
+
+     Les cotes (51 x 31, pastille de 27) sont ceux de l'interrupteur d'iOS et
+     d'Android : c'est l'objet que le benevole a deja sous le pouce toute la
+     journee dans ses propres reglages. */
+  label.bascule {
+    position: relative; display: flex; align-items: center; gap: 12px;
+    margin-bottom: 0; cursor: pointer;
+    font-size: 1rem; color: var(--encre); line-height: 1.35;
+  }
+  label.bascule input { position: absolute; opacity: 0; width: 0; height: 0; }
+  label.bascule .quoi { flex: 1; min-width: 0; }
+  .glissiere {
+    position: relative; flex: none; width: 51px; height: 31px;
+    border-radius: 999px; background: var(--carte-attente);
+    border: 1px solid var(--trait-fait);
+    transition: background-color .2s ease, border-color .2s ease;
+  }
+  .glissiere::after {
+    content: ""; position: absolute; top: 2px; left: 2px;
+    width: 27px; height: 27px; border-radius: 50%;
+    /* ⚠️ Par des JETONS, pas des litteraux. La spec 039 refuse toute couleur
+       ecrite dans une regle -- elle ne suivrait pas le theme, et rien ne le
+       dirait. Ces deux-la valent la meme chose dans les deux themes, et c'est
+       le bloc « ce qui ne depend pas du theme » qui le dit. */
+    background: var(--pastille-bascule); box-shadow: var(--ombre-bascule);
+    transition: transform .2s ease;
+  }
+  label.bascule input:checked + .glissiere {
+    background: var(--action); border-color: var(--action);
+  }
+  label.bascule input:checked + .glissiere::after { transform: translateX(20px); }
+  /* Le focus se pose sur l'<input> invisible : sans ca, naviguer au clavier ne
+     montrerait RIEN. */
+  label.bascule input:focus-visible + .glissiere {
+    outline: 2px solid var(--action); outline-offset: 2px;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .glissiere, .glissiere::after { transition: none; }
+  }
   .action { font: inherit; font-size: 0.95rem; font-weight: 600; color: var(--sur-action);
             background: var(--action); border: 0; border-radius: 10px;
             padding: 11px 18px; cursor: pointer; white-space: nowrap; }
   .action:disabled { opacity: .45; cursor: default; }
+  /* ⚠️ Une CLASSE, et non plus un `style=` en ligne (spec 042). Le bouton de
+     scan change d'habit quand le telephone porte un nom : un `width: 100%`
+     ecrit en ligne survivrait au changement de classe, et le lien discret
+     ferait toute la largeur avec 12 px de marge au-dessus. */
+  .action.pleine { width: 100%; margin-top: 12px; }
   .mono { font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
           font-size: 0.8rem; color: var(--encre2); }
   .lien { background: none; border: 0; color: var(--action-texte); font: inherit;
@@ -780,10 +853,19 @@
            tapé, c'est tapé n'importe comment (« Zone C », « zone c », « C »),
            si bien que deux téléphones du même mur portent deux noms. Le carton
            posé sur la table remplit le champ ci-dessus, à l'identique. -->
-      <button class="action" id="btnScannerPoste" type="button"
-              style="width:100%;margin-top:12px">Scanner le QR de mon poste</button>
-      <p class="explication">Le carton posé sur ta table, avec le nom de la zone
-         écrit en gros. Il remplit le nom ci-dessus.</p>
+      <!-- ⚠️ UN SEUL nœud porte le geste, et il change d'habit (spec 042).
+           Téléphone sans nom : `action pleine`, un aplat bleu sur toute la
+           largeur, la DEMANDE. Téléphone nommé — tapé ou scanné, c'est le même
+           état : `lien`, un texte discret, le GESTE seul, pour le carton
+           changé de table en cours de journée.
+
+           Deux nœuds — un bouton et un lien, l'un caché, l'autre montré —
+           auraient demandé deux gestionnaires de clic et deux libellés à garder
+           identiques. `proposerDeNommerLePoste()` décide, et elle est la
+           SEULE. -->
+      <button class="action pleine" id="btnScannerPoste" type="button">Scanner le QR de mon poste</button>
+      <p class="explication" id="expliquerScanPoste">Le carton posé sur ta table,
+         avec le nom de la zone écrit en gros. Il remplit le nom ci-dessus.</p>
       <p class="mono" id="identifiantTelephone"></p>
       <button class="lien" id="voirMesScans">Voir mes scans</button>
     </div>
@@ -792,10 +874,15 @@
   <div class="section">
     <h3>Saisie</h3>
     <div class="bloc">
-      <div class="ligne">
-        <span>Garder le grimpeur entre deux blocs</span>
-        <input type="checkbox" id="garderGrimpeur" style="width:22px;height:22px">
-      </div>
+      <!-- ⚠️ L'ORDRE des trois enfants EST le mécanisme : `input:checked +
+           .glissiere` est un sélecteur de frère ADJACENT. Un élément glissé
+           entre l'<input> et la glissière éteindrait l'interrupteur sans
+           qu'aucune ligne n'ait l'air fausse. -->
+      <label class="bascule">
+        <span class="quoi">Garder le grimpeur entre deux blocs</span>
+        <input type="checkbox" id="garderGrimpeur" role="switch">
+        <span class="glissiere" aria-hidden="true"></span>
+      </label>
       <p class="explication">Pratique quand un grimpeur enchaîne plusieurs blocs :
          seul le bloc est remis à zéro après un envoi.</p>
     </div>

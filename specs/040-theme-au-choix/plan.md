@@ -62,7 +62,13 @@ Les tests ont été vérifiés **par mutation**, pas seulement écrits :
    elle est tenable.
 2. **L'application installée** sur l'écran d'accueil, pas seulement l'onglet.
 3. **Après déploiement, fermer et rouvrir** sur un téléphone déjà installé : la
-   coquille `v7` n'est prise qu'au lancement suivant (spec 007).
+   coquille **`v8`** n'est prise qu'au lancement suivant (spec 007).
+
+   ⚠️ Cette spec avait livré la coquille en `v7`. La [030](../030-versions-visibles/),
+   fusionnée juste après, y ajoute `versions.js` et la fait passer en **`v8`** —
+   c'est ce numéro-là qu'un téléphone doit prendre. Le détail de la bévue que
+   cette fusion a failli produire est dans le commentaire de `sw.js` : la liste
+   des fichiers fusionne ligne à ligne, le nom du cache est une seule ligne.
 
 ## Ce qui reste ouvert
 

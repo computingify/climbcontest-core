@@ -79,6 +79,25 @@ qu'on ne met pas à jour le matin d'une compétition :
 
 ### Corrigé
 
+- **Le pied du tiroir de la console disait la version sans le catalogue** tant
+  qu'on n'avait pas ouvert l'écran « Téléphones » (spec 030, critère A9). Le
+  numéro vient de `/admin/versions`, et cette route n'était appelée que par cet
+  écran-là : un organisateur qui ouvrait la console et restait sur
+  « Participants » lisait un pied à moitié rempli, sans que rien ne lui dise où
+  aller chercher le reste. La console la demande maintenant **à l'ouverture** —
+  une requête de plus, ~200 octets — et l'écran « Téléphones » continue de la
+  rafraîchir, donc le numéro ne vieillit pas.
+
+  Trouvé en reprenant les dix-huit critères d'acceptation de la spec un par un
+  avant de publier. Les dix-sept autres étaient tenus ; **sept ne l'étaient que
+  par un relevé fait à la main**, sans qu'aucun test ne touche les écrans
+  concernés. Ils en ont un désormais : les deux sections des Réglages du juge,
+  ce que le bouton « Retélécharger maintenant » envoie **vraiment** (observé
+  côté serveur : ni `If-None-Match`, ni chaîne de requête), son refus propre
+  hors ligne, le bouton de mise à jour qui n'apparaît que si la coquille est en
+  retard, le pied du tiroir, et la phrase du rattrapage qui doit **nommer le
+  geste** plutôt que promettre que ça se répare tout seul.
+
 - Le circuit **« Noir »** suivait le thème du téléphone et non celui qui est
   réellement affiché : un juge qui imposait le sombre sur un téléphone en clair
   aurait vu un aplat presque noir sur un fond presque noir, sans savoir s'il
@@ -89,6 +108,26 @@ installé, le réglage n'apparaît qu'après avoir **fermé et rouvert**
 l'application.
 
 ### Modifié
+
+- **Les Réglages de l'application juge, au pouce** (spec 042) — deux retouches
+  du même écran.
+  - **La demande de scan s'éteint quand elle n'a plus lieu d'être.** Un
+    téléphone qui porte déjà un nom affichait toujours « Scanner le QR de mon
+    poste » en aplat bleu pleine largeur, avec son explication dessous. La
+    demande s'en va ; le **geste reste**, en lien discret à la place de « Voir
+    mes scans » — un téléphone change parfois de table en cours de journée, et
+    il faut pouvoir rescanner sans vider le champ d'abord. Vider le nom ramène
+    la demande. Le déclencheur est le **nom**, pas la façon dont il est arrivé :
+    un nom scanné éteint la demande comme un nom tapé.
+  - **La case à cocher « Garder le grimpeur entre deux blocs » devient un
+    interrupteur**, aux cotes de celui d'iOS et d'Android. C'était la seule de
+    l'application. La case native est conservée sous le visuel : le clavier, le
+    focus et le lecteur d'écran ne perdent rien, et `role="switch"` la fait
+    annoncer « interrupteur, activé ».
+
+  Le cache du service worker passe en **v10** : la coquille porte le gabarit
+  `/juge`, donc tout le CSS. Sans ce changement de nom, un téléphone déjà
+  installé aurait rouvert l'ancienne page sans que rien ne le dise.
 
 - **La documentation dit l'état réel** — trois textes décrivaient encore un
   système qui n'existe plus.
