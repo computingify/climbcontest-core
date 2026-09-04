@@ -112,7 +112,9 @@ Elle dit, en français simple et court :
   nombre de blocs des participants classés ;
 - **pourquoi** : l'intérêt légitime à publier les résultats d'une compétition
   sportive (art. 6.1.f) ;
-- **comment s'y opposer** — l'ancre `#opposition`, cible du second lien ;
+- **comment s'y opposer** — l'ancre `#opposition`, cible du second lien, avec
+  l'adresse de contact **`adrien.jouve@adn-dev.fr`** (choix d'Adrien du 04/09 :
+  « pour le moment laisse la mienne ») ;
 - **les droits** (accès, rectification, effacement, opposition), le fait que
   l'effacement des données collectées pendant la **minorité** se traite « dans
   les meilleurs délais » et que la réponse est due sous **un mois**, et la
@@ -124,22 +126,83 @@ personnelle liée à l'utilisateur de l'Application n'est collectée ». C'est e
 pour le juge et faux pour le système. Sa réécriture est **hors périmètre de
 cette spec** mais reste à faire ; elle est notée dans la section 6.
 
-### D5 — Le droit d'opposition est annoncé et son chemin est écrit
+### D5 — Le droit d'opposition est annoncé, et il est **exerçable**
 
 Le lien « Retirer un nom des résultats » mène à `/confidentialite#opposition`,
 qui dit à qui écrire et ce qui se passe ensuite.
 
-⚠️ **Point ouvert, et il décide si le droit est réel.** L'article 21 dit que le
-résultat n'est pas publié, ou qu'il est retiré. Aujourd'hui, satisfaire un
-parent qui appelle le samedi matin suppose de **supprimer le grimpeur**, ce qui
-décale le rang de tous ceux qui le suivent. Le geste minimal qui rendrait le
-droit exerçable est un interrupteur par grimpeur dans la console — la ligne
-s'affiche « Dossard 42 », le rang et le score ne bougent pas. **Il n'est pas
-dans le périmètre arrêté** ; la spec le note pour qu'il soit tranché sciemment,
-pas oublié.
+**Décidé le 04/09**, après que la spec l'ait signalé comme point ouvert :
 
-En attendant, la page dit la vérité sur le délai : la demande est traitée
-manuellement, sous un mois au plus, et immédiatement pendant la compétition.
+> « Oui je suis d'accord pour avoir une sorte d'interrupteur dans la liste des
+> participants pour anonymiser un participant. »
+
+Un droit qu'on annonce sans pouvoir le servir ne vaut rien : sans cet
+interrupteur, satisfaire un parent qui appelle supposait de **supprimer le
+grimpeur**, ce qui décale le rang de tous ceux qui le suivent.
+
+#### La colonne
+
+`participant.publication_refusee` — booléen, **faux par défaut**.
+
+⚠️ **Le nom dit le sens de la case, et le sens décide de ce que vaut le vide.**
+L'article 21 est un droit d'*opposition*, pas un consentement : **on publie sauf
+refus**. Un champ `diffusion_autorisee` inverserait la charge et rendrait muet
+tout inscrit qui n'a rien exprimé — c'est-à-dire presque tous. Un champ qu'on ne
+peut pas lire à l'envers est un champ qui ne se retourne pas dans six mois.
+
+#### Dans la console — colonne « Anonymisé »
+
+Deux formes ont été capturées sur la console réelle
+(`maquettes/index.html`, §3). **La variante A est proposée** : une colonne
+« Anonymisé », interrupteur **allumé = anonymisé**.
+
+| | | Verdict |
+| --- | --- | --- |
+| **A** | « Anonymisé », allumé = anonymisé. La liste reste calme, l'exception saute aux yeux, et la colonne lit `publication_refusee` **sans l'inverser** | **proposée** |
+| B | « Nom publié », allumé = publié. Cent interrupteurs ocre allumés, et c'est l'*éteint* qu'il faut repérer : la couleur souligne la règle au lieu de l'exception | écartée |
+
+⚠️ **La console continue d'afficher le vrai nom.** C'est elle qui sert à
+retrouver la personne ; un organisateur qui ne peut plus lire un nom ne peut
+plus travailler. Une pastille discrète dit à côté ce que le public voit :
+« publié : Dossard 3 ».
+
+L'interrupteur reprend `label.bascule` + `.glissiere` de la spec 021, avec sa
+case native conservée sous le visuel et `role="switch"` — le motif de la
+spec 042, repris tel quel.
+
+#### Côté public — « Dossard 42 », et le rang ne bouge pas
+
+Deux rendus ont été capturés sur la vraie page (`maquettes/index.html`, §4) :
+
+| | | Verdict |
+| --- | --- | --- |
+| **« Dossard 42 »** | Le rang, le score et la place sont inchangés. Tient dans la largeur d'un téléphone | **proposé** |
+| « Participant anonyme » | Ne dit rien du dossard, mais **ne tient pas** : la colonne le coupe en « Participant an… ». Défaut invisible sur une maquette dessinée | écarté |
+
+⚠️ **On anonymise une ligne, on ne la retire jamais.** Un rang qui saute de 3 à
+5 est une information sur celui qui manque.
+
+⚠️ **La sous-ligne garde le club et la catégorie.** Le dossard étant imprimé sur
+le bracelet, quelqu'un présent dans la salle peut recouper — c'est-à-dire
+exactement le public que couvre déjà l'argument « annoncé au micro ». Les
+retirer rendrait le classement moins lisible pour tout le monde, contre un gain
+qui ne vaut que hors de la salle, là où le nom a précisément disparu. Ce choix
+est **écrit dans la page de confidentialité** plutôt que passé sous silence.
+
+#### Les trois surfaces qui doivent suivre
+
+1. `charge_publique()` — le nom de la ligne devient « Dossard N » ;
+2. `suivi.fiche()` — la fiche du grimpeur porte le même nom, sinon le réglage se
+   contourne en un clic depuis le classement ;
+3. la **recherche** de la page de résultats porte sur le nom de la charge : un
+   grimpeur anonymisé cesse donc d'être trouvable par son nom, sans code de
+   plus.
+
+⚠️ **L'archive fige le nom réel.** `cycle.archiver` appelle `charge_publique` ;
+il l'appellera avec `anonymiser=False`. L'archive est servie derrière la session
+organisateur (`@exige_role`) — c'est un usage interne légitime, et une archive
+amputée serait irréparable. La règle est celle de l'étude : **on fige complet,
+on rend anonymisé.**
 
 ### D6 — Le registre des traitements
 
@@ -157,6 +220,7 @@ durée de conservation, mesures de sécurité. Document, aucun code.
 | Purge des noms dans les archives à un an | Idem. Les archives restent derrière la session organisateur. |
 | Jeton dans le lien de la page publique | Écarté : la page reste ouverte à qui a l'adresse. |
 | Verrou par liste blanche de la charge publique | Écarté du périmètre. ⚠️ C'est ce qui empêcherait `annee_naissance` (spec 008) d'atteindre la page publique le jour où quelqu'un élargit la jointure de `charge_publique`. |
+| Case d'opposition au formulaire HelloAsso | Le champ existe (type `YesNo` de l'API v5, posé par participant) mais il appartient à la spec 008. Elle saura remplir `publication_refusee` dès que cette spec l'a déclarée. |
 | Réécriture de la politique du Play Store | Autre dépôt, autre PR. |
 
 ## 5. Critères d'acceptation
@@ -175,6 +239,14 @@ durée de conservation, mesures de sécurité. Document, aucun code.
 | A10 | La mention ne décale ni ne masque aucune ligne de classement : le nombre de lignes affichées est le même avec et sans elle |
 | A11 | `docs/registre-des-traitements.md` existe et décrit les trois traitements |
 | A12 | Aucune donnée personnelle nouvelle ne sort de `/api/public/*` : la charge est identique, champ pour champ, à celle d'avant la spec |
+| A13 | La colonne `publication_refusee` existe, vaut faux pour tout participant existant après migration, et la migration se rejoue sans effet |
+| A14 | La liste des participants de la console affiche la colonne « Anonymisé » et son interrupteur reflète l'état en base |
+| A15 | Basculer l'interrupteur appelle le serveur et l'état survit à un rechargement |
+| A16 | Un participant anonymisé sort de `/api/public/classement` avec `nom = "Dossard N"`, **et son rang, son score et son dossard inchangés** |
+| A17 | Le même participant sort de `/api/public/grimpeur/<id>` avec le même nom anonymisé |
+| A18 | La recherche de la page de résultats ne trouve plus ce participant par son vrai nom |
+| A19 | `cycle.archiver` fige le **nom réel** : l'archive relue par `/admin/archives/<id>/classement` porte le patronyme |
+| A20 | La console, elle, affiche toujours le vrai nom, avec la pastille « publié : Dossard N » |
 
 ## 6. Cas limites
 

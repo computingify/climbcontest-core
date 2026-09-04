@@ -1,11 +1,28 @@
 # Spec 043 — architecture
 
-## 1. Rien ne bouge côté données
+## 1. Une seule colonne, et rien d'autre côté données
 
-Aucune colonne, aucune migration, aucun champ de plus dans une réponse JSON. La
-charge de `/api/public/classement` est **identique champ pour champ** à celle
-d'avant la spec (critère A12). C'est le point qui rend cette spec sûre : elle
-n'ajoute que des en-têtes, un pied de page et deux documents.
+```sql
+-- migrations/001_publication_refusee.sql
+ALTER TABLE participant ADD COLUMN publication_refusee BOOLEAN NOT NULL DEFAULT 0;
+```
+
+SQLite ajoute une colonne avec `DEFAULT` sans réécrire la table : les
+participants existants passent à `0`, c'est-à-dire « pas d'opposition ». La
+migration est jouée par `schema.py`, en ordre et une seule fois, sous verrou.
+
+⚠️ **`NOT NULL DEFAULT 0` et non `NULL`.** Un booléen à trois états
+(`vrai`/`faux`/`inconnu`) obligerait chaque lecture à décider ce que vaut
+`NULL` — et deux lectures finiraient par en décider différemment. Le vide n'est
+pas un doute ici : ne pas s'être opposé, c'est ne pas s'être opposé.
+
+⚠️ **`001_` est réservé pour cette spec.** Le dossier `migrations/` ne contient
+aujourd'hui qu'un `README.md`; la spec 008, en cours sur une autre branche,
+ajoute elle aussi des colonnes. Elle prendra `002_`.
+
+**La forme de la charge publique ne change pas** : aucun champ de plus, aucun
+champ de moins (critère A12). Seule la *valeur* de `nom` change, pour les
+participants concernés.
 
 ## 2. La non-indexation, en trois poses
 
@@ -75,7 +92,56 @@ body.mur #mentions { display: none; }
 La classe `hors-mur` existe déjà dans ce gabarit pour les commandes ; la règle
 `body.mur … { display: none }` est le motif en place, repris tel quel.
 
-## 4. La page de confidentialité
+## 4. L'anonymisation, en un seul endroit
+
+```python
+# classement_service.py
+def charge_publique(comp, forcer=False, anonymiser=True):
+    ...
+    noms = {
+        p.id: {
+            "nom": f"Dossard {p.dossard}" if (anonymiser and p.publication_refusee)
+                   else p.nom_complet,
+            "club": p.club, "categorie": p.categorie,
+        }
+        for p in Participant.query.filter_by(competition_id=comp.id).all()
+    }
+```
+
+⚠️ **`anonymiser=True` par défaut, et `cycle.archiver` passe `False`.** Le défaut
+protège : le paramètre n'a qu'un seul appelant qui l'inverse, et il est nommé.
+L'inverse — un défaut permissif qu'il faut penser à restreindre — se serait
+oublié au premier nouvel appelant.
+
+⚠️ **Un participant sans dossard** (`dossard is None`, cas prévu par le modèle :
+inscrit absent) ne peut pas s'afficher « Dossard None ». Il n'apparaît de toute
+façon au classement que s'il a des réussites, donc un dossard ; le repli est
+« Participant » tout court, et un test le couvre.
+
+`suivi.fiche()` applique la **même règle** — la fiche du grimpeur porte `nom`,
+et sans ça le réglage se contourne en touchant une ligne du classement.
+
+La **recherche** de la page de résultats n'a besoin d'aucun code : elle filtre
+sur le `nom` de la charge, qui est désormais « Dossard 42 ».
+
+## 5. L'interrupteur dans la console
+
+| Côté | Quoi |
+| --- | --- |
+| API | `POST /admin/participants/<id>/publication` — corps `{"refusee": true}`, rôle organisateur, journalisé |
+| Lecture | `GET /admin/participants` porte `publication_refusee` en plus |
+| Rendu | une cellule de plus dans `dessinerParticipants()`, `label.bascule` + `.glissiere` (spec 021), case native conservée sous le visuel avec `role="switch"` (spec 042) |
+
+⚠️ **La console affiche toujours le vrai nom** — c'est elle qui sert à retrouver
+la personne. La pastille « publié : Dossard N » dit ce que le public voit.
+
+⚠️ **Le geste invalide le cache du classement** : `classement_service.invalider()`,
+comme le fait déjà la réaffectation de dossard. Sans ça, l'anonymisation
+n'apparaîtrait qu'au bout de 5 s côté serveur et 5 s de plus côté Caddy — et
+l'organisateur, qui vient de raccrocher avec un parent, verrait un écran qui
+n'obéit pas.
+
+## 6. La page de confidentialité
 
 - Route : `GET /confidentialite` dans `routes/pages.py`, sans session — comme
   `/` et `/console`.
@@ -85,26 +151,38 @@ La classe `hors-mur` existe déjà dans ce gabarit pour les commandes ; la règl
 - Elle porte elle aussi la balise `noindex` : c'est une page de service, pas un
   contenu à référencer.
 
-## 5. Le registre
+## 7. Le registre
 
 `docs/registre-des-traitements.md`, un tableau par traitement. Aucun code, aucun
 test — c'est un document, et le seul contrôle utile est qu'il existe et qu'il
 est à jour (critère A11).
 
-## 6. Fichiers touchés
+## 8. Fichiers touchés
 
 | Fichier | Nature |
 | --- | --- |
+| `migrations/001_publication_refusee.sql` | **nouveau** — la colonne |
+| `climbcontest/models.py` | la colonne sur `Participant` |
+| `climbcontest/classement_service.py` | `anonymiser=` dans `charge_publique` |
+| `climbcontest/suivi.py` | même règle sur la fiche |
+| `climbcontest/cycle.py` | `archiver` fige le nom réel |
+| `climbcontest/routes/admin.py` | la route de bascule, et le champ en lecture |
 | `climbcontest/routes/public.py` | `after_request` d'en-tête |
 | `climbcontest/routes/pages.py` | routes `/robots.txt` et `/confidentialite` |
 | `climbcontest/templates/resultats.html` | balise `noindex` + pied `#mentions` + CSS |
 | `climbcontest/templates/admin.html`, `juge.html` | balise `noindex` |
 | `climbcontest/templates/confidentialite.html` | **nouveau** |
 | `docs/registre-des-traitements.md` | **nouveau** |
+| `climbcontest/templates/admin.html` | colonne « Anonymisé » dans la liste |
 | `tests/test_non_indexation.py` | **nouveau** |
+| `tests/test_opposition.py` | **nouveau** |
 | `CHANGELOG.md` / `changelog.d/` | section « Non publié » |
 
-Aucun de ces fichiers n'est touché par les deux autres sessions en cours
-(spec 008 sur `models.py` et l'import HelloAsso ; PR #122 sur `tests/`). Le
-seul point de contact possible est `docs/specs-index.md`, où la ligne 043 sera
-ajoutée au dernier moment.
+⚠️ **`models.py` et `migrations/` sont partagés avec la spec 008**, en cours sur
+une autre branche. Les deux ajouts sont additifs et sur des lignes différentes —
+mais git fusionne sans conflit deux ajouts voisins, et c'est précisément le cas
+où l'on découvre le problème après le merge. Les deux branches seront testées
+**ensemble** avant la porte 7, pas seulement chacune de son côté. `002_` est
+laissé à la 008.
+
+Reste `docs/specs-index.md`, où la ligne 043 sera ajoutée au dernier moment.
