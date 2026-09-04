@@ -237,15 +237,50 @@ BUDGET_S = float(os.environ.get("CLIMBCONTEST_BUDGET_TEST_S", "20"))
 
 _duree_par_test: dict[str, float] = {}
 
+# Les rares tests qui declarent LEUR plafond, par `@pytest.mark.budget(n)`.
+#
+# ⚠️ Une exception nommee, et pas un plafond global releve. Passer BUDGET_S a
+# 45 s pour un seul test aveuglerait le garde sur les mille huit cent
+# soixante-onze autres, et personne ne le remarquerait. Ici l'exception se lit
+# dans le fichier ou elle s'applique, avec sa raison a cote, et elle a elle
+# aussi un plafond.
+_budget_par_test: dict[str, float] = {}
+
+
+def pytest_runtest_setup(item):
+    """Fait voyager le plafond declare AVEC le test.
+
+    ⚠️ Il ne peut pas passer par la collecte. Sous `pytest-xdist`, ce sont les
+    WORKERS qui collectent ; le processus qui additionne les durees et rend le
+    verdict, lui, ne collecte rien. Une table remplie a la collecte reste donc
+    vide la ou on la lit, et le plafond declare n'existe pas -- constate le
+    04/09 : le garde accusait en parallele un test qui avait pourtant dit son
+    prix, et il le faisait en silence, puisque le message etait le meme.
+
+    `user_properties` est serialise avec le rapport : c'est le seul canal qui
+    traverse la frontiere.
+    """
+    marque = item.get_closest_marker("budget")
+    if marque is not None:
+        item.user_properties.append(("budget", float(marque.args[0])))
+
 
 def pytest_runtest_logreport(report):
     """On somme les trois phases : une attente logee dans une fixture compte."""
     _duree_par_test[report.nodeid] = (
         _duree_par_test.get(report.nodeid, 0.0) + report.duration)
+    for cle, valeur in getattr(report, "user_properties", ()):
+        if cle == "budget":
+            _budget_par_test[report.nodeid] = float(valeur)
+
+
+def _plafond(nodeid: str) -> float:
+    return _budget_par_test.get(nodeid, BUDGET_S)
 
 
 def _hors_budget():
-    return sorted(((n, d) for n, d in _duree_par_test.items() if d > BUDGET_S),
+    return sorted(((n, d) for n, d in _duree_par_test.items()
+                   if d > _plafond(n)),
                   key=lambda paire: -paire[1])
 
 
@@ -255,14 +290,26 @@ def pytest_terminal_summary(terminalreporter):
         return
     terminalreporter.section("des tests attendent quelque chose", red=True)
     for nodeid, duree in trop_lents:
-        terminalreporter.line(f"{duree:6.1f} s  {nodeid}")
+        terminalreporter.line(
+            f"{duree:6.1f} s  (plafond {_plafond(nodeid):.0f} s)  {nodeid}")
     terminalreporter.line(
         f"\nBudget : {BUDGET_S:.0f} s par test, fixtures comprises. Au-dela, un "
         "test n'est pas lent : il attend. Une minuterie, un delai reseau, un "
         "sleep. Rendre l'attente REGLABLE plutot que la subir -- c'est ce que "
         "font `?periode=` et CLIMBCONTEST_ATTENTE_VERROU_S. Si l'attente est "
-        "vraiment incompressible, CLIMBCONTEST_BUDGET_TEST_S releve le "
-        "plafond, et le commit dit pourquoi.")
+        "vraiment incompressible et propre a UN test, "
+        "`@pytest.mark.budget(secondes)` lui donne son plafond -- avec sa "
+        "raison a cote, dans le fichier ou on la lira. "
+        "CLIMBCONTEST_BUDGET_TEST_S, lui, deplace le plafond de TOUS les "
+        "tests : c'est presque toujours le mauvais geste.")
+
+
+def pytest_configure(config):
+    config.addinivalue_line(
+        "markers",
+        "budget(secondes): le plafond de CE test, quand son cout est reel et "
+        "incompressible -- un demarrage de navigateur a froid, par exemple. "
+        "La raison s'ecrit dans le test, pas ici.")
 
 
 def pytest_sessionfinish(session, exitstatus):

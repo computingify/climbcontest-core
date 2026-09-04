@@ -46,6 +46,19 @@ from tests.navigateur import CHROME, GROUPE, NAVIGATEUR, piloter
 DEMARRE_LE_NAVIGATEUR = "test_le_navigateur_demarre_et_repond"
 
 
+# ⚠️ 45 s, et c'est le SEUL test du depot qui declare son plafond.
+#
+# Le budget ordinaire est de 20 s, et il vise les tests qui ATTENDENT une
+# horloge. Celui-ci n'attend rien : il paie un travail reel et incompressible,
+# le premier lancement de chromium. Mesure sur trois passages de CI le 04/09 :
+# **12,7 s, 17,1 s et 22,2 s** -- le meme geste, du simple au double, selon ce
+# que le runner a d'autre a faire. 45 s laisse de la marge sans devenir un
+# plafond qui ne se declenche jamais.
+#
+# Le geste a NE PAS faire est de relever CLIMBCONTEST_BUDGET_TEST_S : il
+# aveuglerait le garde sur les mille huit cent soixante-onze autres tests, et
+# personne ne s'en apercevrait.
+@pytest.mark.budget(45)
 @pytest.mark.skipif(CHROME is None,
                     reason="aucun navigateur : ce test se saute, il n'echoue pas")
 def test_le_navigateur_demarre_et_repond():
@@ -343,3 +356,26 @@ def test_le_test_qui_chauffe_existe_bien():
         f"« {DEMARRE_LE_NAVIGATEUR} » n'existe plus dans ce fichier, alors que "
         "tests/conftest.py le cherche pour le mettre en tete du groupe "
         "navigateur")
+
+
+@pytest.mark.budget(45)
+def test_le_plafond_declare_arrive_jusqu_au_verdict(request):
+    """`@pytest.mark.budget(n)` doit atteindre le processus qui rend le verdict.
+
+    ⚠️ Il ne peut pas passer par la collecte. Sous `pytest-xdist`, ce sont les
+    WORKERS qui collectent, et le processus qui additionne les durees ne
+    collecte rien : une table remplie a la collecte reste vide la ou on la lit.
+    Le 04/09, le garde accusait donc en parallele un test qui avait pourtant
+    declare son plafond -- et il le faisait en SILENCE, puisque le message
+    etait exactement le meme que pour un test fautif.
+
+    `tests/conftest.py` pose la valeur dans `user_properties`, le seul canal
+    serialise avec le rapport. Ce test verifie ce geste-la ; le reste du
+    chemin appartient a pytest.
+    """
+    poses = [v for c, v in request.node.user_properties if c == "budget"]
+    assert poses == [45.0], (
+        f"ce test declare `@pytest.mark.budget(45)` mais ses user_properties "
+        f"portent {poses!r} : le plafond ne traversera pas jusqu'au verdict, "
+        "et le garde de budget accusera des tests qui ont dit leur prix. Voir "
+        "`pytest_runtest_setup` dans tests/conftest.py")
