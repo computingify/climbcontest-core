@@ -5,6 +5,17 @@
 pytest==9.1.1
 pytest-timeout==2.4.0
 
+# La suite en parallele. Elle passe de 2 min a une vingtaine de secondes sur le
+# Mac, et de 4 min a environ une minute sur un runner GitHub -- c'est le seul
+# levier qui vaille, le temps etant reparti sur dix-huit cents tests courts et
+# non concentre sur quelques lents.
+#
+# ⚠️ Le mode de repartition n'est pas libre : `--dist loadgroup` est ce qui
+# permet a `tests/conftest.py` de renvoyer TOUS les tests navigateur sur un
+# meme worker, donc de n'y demarrer qu'un chromium. Il est fixe dans
+# `pytest.ini`, pas laisse a la ligne de commande.
+pytest-xdist==3.8.0
+
 # Uniquement pour VERIFIER que les QR imprimes sont vraiment lisibles.
 # Un encodeur qui produit une matrice d'allure correcte mais indechiffrable
 # est exactement ce qui se decouvre le jour J, avec 120 dossards deja

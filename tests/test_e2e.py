@@ -34,6 +34,7 @@ import urllib.request
 from pathlib import Path
 
 import pytest
+from sqlalchemy import text
 
 RACINE = Path(__file__).resolve().parent.parent
 
@@ -216,39 +217,116 @@ class ServeurReel:
 
 
 def peupler(dossier: Path) -> None:
-    """Crée une compétition minimale, hors serveur."""
-    env = {**os.environ, "CLIMBCONTEST_DATA_DIR": str(dossier),
-           "CLIMBCONTEST_SHEETS_ACTIF": "0", "PYTHONPATH": str(RACINE)}
-    env.pop("CLIMBCONTEST_TEST", None)
-    code = """
-from climbcontest import creer_app
-from climbcontest.extensions import db
-from climbcontest.models import Competition, Participant, Bloc, Circuit, BlocCircuit, EN_COURS
-app = creer_app()
-with app.app_context():
-    c = Competition(nom="E2E", statut=EN_COURS, active=True, spreadsheet_id="x")
-    db.session.add(c); db.session.commit()
-    circuit = Circuit(competition_id=c.id, nom="U11")
-    db.session.add(circuit); db.session.flush()
-    for i in range(1, 21):
-        b = Bloc(competition_id=c.id, tag=f"B{i}", numero=i, zone="Z", couleur="Jaune")
-        db.session.add(b); db.session.flush()
-        db.session.add(BlocCircuit(bloc_id=b.id, circuit_id=circuit.id))
-    for i in range(1, 41):
-        db.session.add(Participant(competition_id=c.id, nom=f"Nom{i}", prenom=f"Prenom{i}",
-                                   club="Club", categorie="U11 F", dossard=i, present=True))
-    db.session.commit()
-"""
-    r = subprocess.run([sys.executable, "-c", code], cwd=RACINE, env=env,
-                       capture_output=True, timeout=90)
-    if r.returncode:
-        raise RuntimeError(f"peuplement echoue :\n{r.stderr.decode()[-800:]}")
+    """Crée une compétition minimale, hors serveur.
+
+    ⚠️ **Dans CE processus, et non plus dans un interpréteur à part.** Le
+    peuplement passait par un `subprocess.run` qui réimportait Flask,
+    SQLAlchemy et toute l'application : **0,5 s**, payés vingt et une fois. La
+    raison d'être du sous-processus était d'échapper au `CLIMBCONTEST_TEST=1`
+    que `tests/conftest.py` pose à l'import — sans quoi `creer_app()` sans
+    argument choisit la base EN MÉMOIRE, et le peuplement n'atterrit nulle part.
+
+    Une classe de configuration explicite dit la même chose sans payer un
+    démarrage : la base est nommée, elle est sur le disque, et c'est
+    exactement celle que gunicorn ouvrira ensuite. Même idiome que
+    `test_navigateur_juge_claire.py`.
+    """
+    from climbcontest import creer_app
+    from climbcontest.config import Config
+    from climbcontest.extensions import db
+    from climbcontest.models import (
+        Bloc, BlocCircuit, Circuit, Competition, EN_COURS, Participant)
+
+    class ConfigE2E(Config):
+        SQLALCHEMY_DATABASE_URI = f"sqlite:///{dossier / 'climbcontest.db'}"
+        SHEETS_ACTIF = False          # aucun acces reseau
+        DOSSIER_DONNEES = dossier
+
+    app = creer_app(ConfigE2E)
+    with app.app_context():
+        c = Competition(nom="E2E", statut=EN_COURS, active=True, spreadsheet_id="x")
+        db.session.add(c)
+        db.session.commit()
+        circuit = Circuit(competition_id=c.id, nom="U11")
+        db.session.add(circuit)
+        db.session.flush()
+        for i in range(1, 21):
+            b = Bloc(competition_id=c.id, tag=f"B{i}", numero=i, zone="Z",
+                     couleur="Jaune")
+            db.session.add(b)
+            db.session.flush()
+            db.session.add(BlocCircuit(bloc_id=b.id, circuit_id=circuit.id))
+        for i in range(1, 41):
+            db.session.add(Participant(
+                competition_id=c.id, nom=f"Nom{i}", prenom=f"Prenom{i}",
+                club="Club", categorie="U11 F", dossard=i, present=True))
+        db.session.commit()
+
+        # ⚠️ **Le rabattement du journal, sans quoi la base est un fichier
+        # vide.** L'application ouvre SQLite en mode WAL (voir
+        # `climbcontest/sqlite_reglages.py`, et le banc qui le justifie) : ce
+        # qui vient d'etre commite vit dans `climbcontest.db-wal`, PAS dans
+        # `climbcontest.db`. Copier le seul `.db` donnait donc une base
+        # techniquement valide et vide de tout -- et les tests echouaient sur
+        # « 409 », loin de la cause.
+        db.session.execute(text("PRAGMA wal_checkpoint(TRUNCATE)"))
+        db.session.remove()
+        db.engine.dispose()
+
+
+@pytest.fixture(scope="session")
+def base_modele(tmp_path_factory) -> Path:
+    """La base peuplée, construite **une seule fois** pour toute la session.
+
+    Les vingt et un tests E2E veulent tous la même compétition de départ. La
+    construire à chaque fois était un travail refait à l'identique : ici on la
+    bâtit une fois, et chaque test en reçoit une **copie**. Un fichier SQLite de
+    cette taille se copie en une milliseconde, contre une cinquantaine pour le
+    bâtir — et chaque test garde sa base bien à lui, donc son isolement.
+    """
+    dossier = tmp_path_factory.mktemp("e2e-modele")
+    peupler(dossier)
+    modele = dossier / "climbcontest.db"
+
+    # Le modele est copie vingt et une fois : s'il est vide, VINGT ET UN tests
+    # echouent sur un « 409 » qui n'accuse personne. On le verifie ici, une
+    # fois, ou l'echec nomme le peuplement.
+    #
+    # ⚠️ Sur une COPIE, et surtout pas sur le modele en place. En mode WAL, un
+    # second lecteur ouvert dans le meme dossier voit aussi `climbcontest.db-wal`
+    # et compte donc les quarante participants — meme quand le `.db` seul est
+    # vide. Une sonde posee sur le modele passait au vert pendant que les tests
+    # tombaient : elle prouvait le contraire de ce qu'on lui demandait. Ce que
+    # les tests recoivent, c'est UNE COPIE DU SEUL `.db`, et c'est donc cela
+    # qu'il faut lire.
+    sonde = modele.with_name("sonde-du-modele.db")
+    shutil.copy(modele, sonde)
+    try:
+        cx = sqlite3.connect(sonde)
+        try:
+            compte = cx.execute("SELECT COUNT(*) FROM participant").fetchone()[0]
+        except sqlite3.Error as erreur:
+            # Journal pas rabattu du tout : le `.db` ne contient meme pas le
+            # schema. Sans cette branche, le message brut est « no such table:
+            # participant » -- vrai, mais il n'indique ni la cause ni ou
+            # corriger.
+            compte = f"une base illisible ({erreur})"
+        finally:
+            cx.close()
+    finally:
+        sonde.unlink(missing_ok=True)
+    assert compte == 40, (
+        f"une copie de la base modele donne {compte} au lieu de 40 "
+        "participants : le peuplement n'a pas ete rabattu dans "
+        "climbcontest.db, il dort encore dans le journal WAL. Voir `peupler` "
+        "-- c'est ce que font son `wal_checkpoint` et son `engine.dispose()`")
+    return modele
 
 
 @pytest.fixture()
-def dossier():
+def dossier(base_modele):
     d = Path(tempfile.mkdtemp(prefix="climbcontest-e2e-"))
-    peupler(d)
+    shutil.copy(base_modele, d / "climbcontest.db")
     yield d
     shutil.rmtree(d, ignore_errors=True)
 

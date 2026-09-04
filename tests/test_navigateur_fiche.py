@@ -20,7 +20,6 @@ pouvoir la piloter, et on ne veut d'aucun crochet de test dans le code livré.
 """
 import os
 import shutil
-import subprocess
 import tempfile
 import threading
 import time
@@ -36,7 +35,8 @@ RACINE = Path(__file__).resolve().parent.parent
 # motif au lieu d'un numero de build fige. Le module partage est aussi ce qui
 # declenche la CHAUFFE : un fichier qui redecouvrait chromium dans son coin
 # payait les sept secondes du premier lancement sans que personne ne le sache.
-from tests.navigateur import CHROME, port_libre                    # noqa: E402
+from tests.navigateur import (                                    # noqa: E402
+    CHROME, piloter as _piloter_partage, port_libre)
 
 pytestmark = pytest.mark.skipif(
     CHROME is None, reason="aucun navigateur : ce test se saute, il n'echoue pas")
@@ -436,7 +436,11 @@ def serveur():
 
     port = port_libre()
     serveur = make_server("127.0.0.1", port, app, threaded=True)
-    fil = threading.Thread(target=serveur.serve_forever, daemon=True)
+    # `poll_interval` vaut **0,5 s** par defaut, et c'est le temps que
+    # `shutdown()` passe a attendre que la boucle regarde son drapeau. Une
+    # attente d'horloge logee dans le teardown, ou personne ne lit les durees.
+    fil = threading.Thread(target=serveur.serve_forever, args=(0.02,),
+                           daemon=True)
     fil.start()
 
     import urllib.request
@@ -459,41 +463,21 @@ def serveur():
 
 
 def piloter(url: str, verdict: dict, secondes: int = 150) -> str:
-    """Ouvre le harnais dans un vrai navigateur et attend son verdict.
+    """Le pilote PARTAGE, avec la fenetre que veut ce harnais.
 
-    Le navigateur tourne en arriere-plan et on le TUE des que le verdict est
-    arrive : on ne depend ni de `--dump-dom`, ni du temps virtuel, ni du moment
-    ou la page decide qu'elle a fini de charger. Ce sont trois comportements
-    qui different entre le shell headless de Playwright et le chromium complet
-    d'une CI, et les trois ont fait echouer ce test sans rien apprendre.
+    ⚠️ Ce fichier portait sa propre copie de `piloter` : elle lancait un
+    chromium a elle, avec son profil jetable et son menage. La copie n'etait pas
+    un doublon inoffensif -- c'etait un SEPTIEME demarrage de navigateur, et
+    surtout un endroit de plus ou les corrections du harnais (le masque du
+    verdict, la fenetre, la mort du navigateur) devaient etre repayees. Le
+    module partage le dit en toutes lettres depuis le debut : ce qu'on met en
+    commun, ce sont des corrections, pas de la factorisation.
+
+    Le cadre de ce harnais fait 900x1400 ; on garde la meme marge qu'avant, donc
+    une fenetre de 1000x1500.
     """
-    # `ignore_cleanup_errors` parce que Chromium ne meurt pas seul : `kill()`
-    # abat le processus pere, ses fils (zygote, rendu) finissent d'ecrire dans
-    # le profil pendant qu'on efface le dossier. La suite est alors tombee sur
-    # « Directory not empty », sur la CI, APRES un verdict OK -- un test qui a
-    # reussi faisait echouer la release. Le profil est jetable : ce que le
-    # menage ne prend pas, /tmp le prendra.
-    with tempfile.TemporaryDirectory(ignore_cleanup_errors=True) as profil:
-        navigateur = subprocess.Popen(
-            [CHROME, "--headless", "--disable-gpu", "--no-sandbox",
-             "--no-first-run", "--disable-dev-shm-usage",
-             f"--user-data-dir={profil}", "--window-size=1000,1500",
-             url + "/__harnais"],
-            stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-        try:
-            fin = time.time() + secondes
-            while time.time() < fin:
-                if "texte" in verdict:
-                    return verdict["texte"]
-                if navigateur.poll() is not None:
-                    break
-                time.sleep(0.2)
-        finally:
-            navigateur.kill()
-            navigateur.wait(timeout=30)
-    pytest.fail(
-        f"le navigateur n'a rien renvoye en {secondes} s "
-        f"(sorti={navigateur.returncode})")
+    return _piloter_partage(url + "/__harnais", verdict, secondes=secondes,
+                            taille=(960, 1380))
 
 
 class TestDansUnVraiNavigateur:

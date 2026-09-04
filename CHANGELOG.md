@@ -158,9 +158,45 @@ l'application.
 - **Le circuit « Noir » garde sa carte en papier.** C'est le seul dont la teinte
   est déjà l'encre : sa carte teintée virait au gris quand toutes les autres
   prennent leur couleur, et le liseré de sa pastille se confondait avec l'aplat.
+- **La suite de tests passe de 2 min 17 à 17 s** — huit fois plus rapide, sans
+  qu'aucun test disparaisse ni change ce qu'il vérifie (1 817 tests, tous
+  verts). Le temps n'était pas concentré sur quelques tests lents — le plus long
+  tient en 7,5 s — mais réparti sur dix-huit cents tests courts, et c'est
+  exactement la forme qui se parallélise le mieux.
+  - **La suite tourne en parallèle par défaut** (`pytest-xdist`, `-n logical
+    --dist loadgroup` dans `pytest.ini`). 137 s → 17 s sur le Mac, 32 s sur
+    quatre cœurs comme un runner GitHub. `pytest -n 0` revient à l'exécution en
+    série pour déboguer.
+  - **Un seul chromium pour toute l'exécution**, au lieu d'un par fichier. Le
+    pilotage passe par CDP — en bibliothèque standard, aucune dépendance de
+    plus — et chaque parcours ouvre un **contexte isolé** : cookies,
+    `localStorage` et service workers propres, comme un profil neuf, mais en
+    **2 à 5 ms** au lieu de 300. Les tests navigateur sont regroupés sur un
+    même worker pour que ce « un seul » reste vrai en parallèle.
+  - `test_navigateur_fiche.py` **rejoint le harnais partagé** : il portait sa
+    propre copie de `piloter`, donc son propre chromium et un endroit de plus
+    où repayer chaque correction du harnais.
+  - **Les serveurs de test se fermaient en 0,5 s chacun.** `serve_forever`
+    sonde son drapeau d'arrêt à cet intervalle par défaut : une attente
+    d'horloge pure, logée dans le *teardown* où personne ne lit les durées.
+    5,4 s sur les seuls tests navigateur, ramenés à 0,6 s.
+  - **Les tests E2E ne relancent plus un interpréteur Python par test** pour
+    peupler leur base : elle est bâtie une fois, puis copiée. 17 s de
+    préparation ramenées à 7 s.
 
 ### Corrigé
 
+- **Un test passait en héritant du voisin.**
+  `test_la_garde_et_la_confirmation_sont_partagees_avec_relier` ne demandait
+  pas la fixture `classeur` : il lisait le registre laissé par un test
+  précédent. Lancé seul, il échouait déjà sur `master` — le parallélisme n'a
+  fait que le montrer. La fixture remet désormais le registre à `None` en
+  sortant, si bien que l'oubli échoue **toujours**, au lieu de dépendre de
+  l'ordre de passage.
+- **`piloter` remet le verdict à zéro** avant chaque parcours. Sans ça, un
+  second appel sur le même dictionnaire trouvait la valeur du premier, rendait
+  un verdict périmé, n'ouvrait aucun navigateur — et le test passait au vert
+  sur les mesures du parcours précédent, sans rien dire.
 - **La pulsation du bouton « Envoyer » effaçait son ombre** deux fois par
   seconde : `box-shadow` est une propriété unique, et les images-clés du souffle
   la réécrivaient entièrement. Elles reportent désormais l'ombre et ne font

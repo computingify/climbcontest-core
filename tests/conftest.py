@@ -174,21 +174,86 @@ def pytest_sessionfinish(session, exitstatus):
         session.exitstatus = 1
 
 
-def pytest_collection_modifyitems(session, config, items):
-    """Chauffe le navigateur en fond si la selection en contient.
+# --- Le navigateur, et un seul ----------------------------------------------
+#
+# Les fichiers qui pilotent un vrai chromium. `piloter` ne demarre plus un
+# processus par parcours : il ouvre un CONTEXTE isole dans un navigateur deja
+# la (voir `tests/navigateur.py`). Encore faut-il que tous ces tests tournent
+# dans le MEME processus pytest -- sinon `pytest-xdist` les eparpille sur dix
+# workers, et on repaie dix demarrages pour n'en economiser qu'un.
+#
+# ⚠️ Le regroupement est verifie par `tests/test_harnais_navigateur.py`, a deux
+# endroits : qu'aucun fichier n'y echappe, et que la marque arrive bien jusqu'a
+# xdist. Sans ces gardes, un septieme fichier arriverait un jour, serait
+# distribue ailleurs, et personne ne verrait le demarrage supplementaire --
+# exactement le defaut qui s'est deja produit deux fois sous une autre forme.
+from tests import navigateur as _navigateur                  # noqa: E402
+from tests.navigateur import GROUPE as GROUPE_NAVIGATEUR    # noqa: E402
 
-    La collecte importe les modules de test : si `tests.navigateur` est dans
-    `sys.modules`, c'est qu'au moins un test navigateur a ete collecte. On ne
-    lance donc pas un chromium pour un `pytest tests/test_modele.py`.
+
+def _pilote_un_navigateur(item) -> bool:
+    """Le module de ce test expose-t-il `piloter` ?
+
+    On le lit sur le MODULE plutot que sur un nom de fichier : un fichier qui
+    ne s'appelle pas `test_navigateur_*` mais qui pilote quand meme --
+    `test_coherence_console_ecran.py` est dans ce cas -- doit etre regroupe lui
+    aussi. C'est le fait de piloter qui compte, pas le nom.
+    """
+    module = getattr(item, "module", None)
+    return module is not None and getattr(module, "piloter", None) is not None
+
+
+# ⚠️ `tryfirst` n'est PAS decoratif. `pytest-xdist` encode le nom du groupe
+# dans l'identifiant du test (`...py::test_x@navigateur`) depuis SON propre
+# `pytest_collection_modifyitems`, et c'est ce suffixe -- pas la marque -- que
+# lit le repartiteur. Une marque posee APRES lui n'est donc jamais vue : les
+# tests navigateur se retrouvaient repartis sur les quatorze workers, chacun
+# demarrant son chromium. Constate le 04/09 : quinze processus peres au lieu
+# d'un, et le garde de portee des fixtures, lui, restait vert -- il ne regarde
+# pas la repartition. C'est `test_harnais_navigateur.py` qui ferme ce trou-la.
+@pytest.hookimpl(tryfirst=True)
+def pytest_collection_modifyitems(session, config, items):
+    """Regroupe les tests navigateur, puis chauffe le navigateur en fond.
+
+    **Le regroupement.** `--dist loadgroup` envoie sur un MEME worker tous les
+    tests portant la meme marque `xdist_group`. On la pose ici plutot que dans
+    chaque fichier : un fichier navigateur de plus n'a rien a declarer, et le
+    regroupement ne peut pas etre oublie.
+
+    **La chauffe.** Elle ne part que si la selection contient VRAIMENT un test
+    navigateur : `pytest tests/test_modele.py` ne doit lancer aucun chromium.
+    C'est la liste `pilotes` qui le dit -- et non plus la presence de
+    `tests.navigateur` dans `sys.modules`, qui etait vraie des que ce conftest
+    lui-meme importait le harnais.
 
     En fond, et sans jamais attendre le resultat : la chauffe tourne pendant
-    les quinze cents tests qui n'ont pas besoin de navigateur. Voir
+    les quinze cents tests qui n'ont pas besoin de navigateur. Elle demarre
+    desormais le navigateur DE TRAVAIL, pas un chromium jetable -- voir
     `tests.navigateur.chauffer`.
     """
-    import sys
     import threading
 
-    navigateur = sys.modules.get("tests.navigateur")
-    if navigateur is None or navigateur.CHROME is None:
+    if _navigateur.CHROME is None:
+        return                  # pas de navigateur : les tests se sautent seuls
+
+    pilotes = [i for i in items if _pilote_un_navigateur(i)]
+    for item in pilotes:
+        item.add_marker(pytest.mark.xdist_group(GROUPE_NAVIGATEUR))
+
+    if not pilotes:
         return
-    threading.Thread(target=navigateur.chauffer, daemon=True).start()
+
+    # ⚠️ Sous xdist, chaque WORKER collecte TOUTE la suite avant qu'on lui donne
+    # sa part : chauffer ici lancerait un chromium par worker -- quatorze, dont
+    # treize pour rien. Mesure du 04/09, avant de s'en apercevoir : quinze
+    # processus chromium peres en pleine execution, la ou on en voulait UN.
+    if hasattr(config, "workerinput"):
+        return                  # le worker du groupe demarrera le sien, seul
+
+    # Reste le processus qui coordonne. En serie, c'est LUI qui joue les tests :
+    # la chauffe demarre le navigateur de travail et le garde. En parallele, il
+    # ne joue rien -- il chauffe donc le cache du systeme puis referme, et le
+    # worker qui herite du groupe demarrera le sien sur un disque deja chaud.
+    en_parallele = bool(config.getoption("numprocesses", None))
+    threading.Thread(target=_navigateur.chauffer, args=(not en_parallele,),
+                     daemon=True).start()
