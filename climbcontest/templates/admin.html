@@ -57,6 +57,14 @@
     --sur-alerte: #FFFFFF;
 
     --ok: #2E7D4F; --alerte: #B3392A; --attention: #9A6B0B;
+
+    /* Les trois sources d'un participant (spec 008). Le bleu est celui de
+       Google, le vert celui de HelloAsso ; la saisie manuelle prend l'ocre de
+       la console, parce que c'est NOTRE source. Ce sont des jetons parce que
+       le contraste s'inverse entre les deux themes : du blanc sur un fond
+       sature en clair, de l'encre sombre sur un fond clair en sombre. */
+    --src-g: #1A73E8; --src-g-txt: #FFFFFF;
+    --src-h: #00875A; --src-h-txt: #FFFFFF;
     --titre: system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
     --chiffre: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
     --ombre: 0 10px 30px rgba(27, 26, 23, 0.10);
@@ -84,6 +92,8 @@
       --sur-accent: #1B1A17;
       --sur-alerte: #1B1A17;
       --ok: #6FC08A; --alerte: #F08A78; --attention: #E5B44A;
+      --src-g: #5B9BF8; --src-g-txt: #10233F;
+      --src-h: #3FD9A0; --src-h-txt: #06281C;
       --ombre: 0 18px 48px rgba(0, 0, 0, 0.5);
     }
   }
@@ -353,6 +363,85 @@
     margin: 0 0 4px; font-size: 1.02rem; font-weight: 700; letter-spacing: -0.01em;
   }
   .carte > h2 + .aide { margin-top: 0; }
+  /* --- Les sources, la selection d'impression, l'edition en ligne (spec 008) */
+
+  .src {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 21px; height: 21px; border-radius: 6px; flex: none;
+    font-size: 0.72rem; font-weight: 800; line-height: 1;
+  }
+  .src.g { background: var(--src-g); color: var(--src-g-txt); }
+  .src.h { background: var(--src-h); color: var(--src-h-txt); }
+  .src.m { background: var(--accent); color: var(--sur-accent); }
+  .sources { display: inline-flex; gap: 5px; }
+  .legende {
+    display: flex; align-items: center; gap: 7px; flex-wrap: wrap;
+    margin: 14px 0 0; font-size: 0.8rem; color: var(--encre2);
+  }
+  .legende .src { margin-left: 9px; }
+  .legende .src:first-child { margin-left: 0; }
+
+  .outils { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin-bottom: 14px; }
+  .outils input { max-width: 260px; }
+  .outils select { max-width: 210px; }
+  .pousse { flex: 1 1 auto; }
+  .ico { width: 15px; height: 15px; vertical-align: -2px; margin-right: 6px; }
+
+  /* ⚠️ C'est cette bande qui dit qu'on est en train de CHOISIR quoi imprimer,
+     avec la colonne de cases et les lignes teintees. Aucune phrase ne
+     l'explique : un mode se montre, il ne se raconte pas. */
+  .bande-selection {
+    display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+    margin: 0 0 14px; padding: 10px 13px; border-radius: 11px;
+    background: color-mix(in srgb, var(--accent) 13%, transparent);
+    border: 1px solid color-mix(in srgb, var(--accent) 42%, transparent);
+    font-size: 0.88rem;
+  }
+  .bande-selection .tout {
+    display: inline-flex; align-items: center; gap: 7px; margin: 0;
+    font-weight: 600; color: var(--encre); font-size: 0.87rem; cursor: pointer;
+  }
+  .bande-selection .tout input { width: auto; }
+  .bande-selection b { color: var(--accent-texte); }
+  th.coche, td.coche { width: 34px; padding-right: 0; }
+  td.coche input { width: auto; }
+  tr.prise td { background: color-mix(in srgb, var(--accent) 8%, transparent); }
+  td.fin { text-align: right; white-space: nowrap; }
+  .paire { display: inline-flex; gap: 7px; }
+
+  .crayon {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 30px; height: 30px; border-radius: 8px; cursor: pointer;
+    border: 1px solid transparent; background: none; color: var(--encre3);
+  }
+  .crayon:hover { background: var(--surface2); color: var(--accent-texte); border-color: var(--trait); }
+  .crayon svg { width: 15px; height: 15px; }
+
+  /* La ligne ouverte porte un liseré ocre à gauche : de loin, on voit
+     laquelle est en train d'être modifiée. */
+  tr.edition td {
+    background: color-mix(in srgb, var(--accent) 8%, transparent);
+    padding-top: 7px; padding-bottom: 7px;
+  }
+  tr.edition td:first-child { box-shadow: inset 3px 0 0 var(--accent); }
+  /* Une largeur PLANCHER : sans elle, la cellule comprime le champ jusqu'a ce
+     qu'un nom de famille n'y tienne plus, et on modifie a l'aveugle. Le
+     tableau deborde alors sur les petits ecrans -- c'est voulu, `.scroll` est
+     la pour ca. */
+  .mini-champ { padding: 6px 9px; font-size: 0.86rem; border-radius: 7px; min-width: 130px; }
+  .mini-champ.num { max-width: 92px; min-width: 72px; font-family: var(--chiffre); }
+  .apercu { margin: 6px 0 0; font-size: 0.8rem; color: var(--accent-texte); }
+  .apercu b { color: var(--encre); }
+
+  .mini {
+    font: inherit; font-weight: 600; cursor: pointer; border-radius: 8px;
+    padding: 5px 11px; font-size: 0.81rem;
+    background: var(--surface); color: var(--encre); border: 1px solid var(--trait);
+  }
+  .mini.fort { background: var(--accent); color: var(--sur-accent); border-color: var(--accent); }
+
+  button[disabled] { opacity: 0.45; cursor: not-allowed; }
+
   .aide { color: var(--encre2); font-size: 0.87rem; line-height: 1.55; margin: 0 0 16px; max-width: 64ch; }
   .aide:last-child { margin-bottom: 0; }
 
@@ -972,6 +1061,10 @@
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
         <span class="quoi"><b>Participants</b><i>Inscrire, chercher, imprimer</i></span>
       </button>
+      <button data-vue="categories">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="M7 16V9"/><path d="M12 16v-5"/><path d="M17 16v-9"/></svg>
+        <span class="quoi"><b>Catégories</b><i>Le barème, et l'appliquer</i></span>
+      </button>
       <button data-vue="circuits">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2 4 7v10l8 5 8-5V7Z"/><path d="M12 22V12"/><path d="m20 7-8 5-8-5"/></svg>
         <span class="quoi"><b>Circuits</b><i>Les blocs, et ce qui cloche</i></span>
@@ -1055,11 +1148,19 @@
       <div class="carte">
         <h2>Ajouter un participant</h2>
         <p class="aide"><strong>Le dossard est attribué automatiquement</strong>
-           — le premier numéro libre. Il s'affiche après l'ajout : c'est
-           celui-là qu'il faut imprimer.</p>
+           — le premier numéro libre. Il s'affiche après l'ajout.</p>
         <div class="grille">
           <div><label for="pNom">Nom *</label><input id="pNom"></div>
           <div><label for="pPrenom">Prénom</label><input id="pPrenom"></div>
+          <!-- L'annee et la categorie se repondent (spec 008, decision D8).
+               L'une OU l'autre : taper l'annee propose la categorie, choisir la
+               categorie dit quelles annees on attend. Une categorie couvre deux
+               annees, donc le sens categorie -> annee ne peut qu'annoncer. -->
+          <div>
+            <label for="pAnnee">Année de naissance</label>
+            <input id="pAnnee" inputmode="numeric" maxlength="4" placeholder="2016">
+            <p class="apercu" id="pAnneeAide" hidden></p>
+          </div>
           <div>
             <label for="pClub">Club</label>
             <select id="pClub" data-autre="pClubAutre"></select>
@@ -1071,6 +1172,7 @@
             <select id="pCategorie" data-autre="pCategorieAutre"></select>
             <input id="pCategorieAutre" hidden placeholder="U13 F" style="margin-top:6px"
                    aria-label="Nouvelle catégorie">
+            <p class="apercu" id="pCategorieAide" hidden></p>
           </div>
         </div>
         <button class="action" id="btnAjouter">Ajouter</button>
@@ -1078,26 +1180,67 @@
 
       <div class="carte">
         <h2>La liste</h2>
-        <p class="aide">Le dossard se réaffecte à chaud — utile quand un
-           bracelet est perdu ou échangé.</p>
-        <input id="recherche" placeholder="Chercher un nom ou un dossard…" style="max-width:340px">
+        <div class="outils">
+          <input id="recherche" placeholder="Chercher un nom ou un dossard…">
+          <select id="filtreCategorie" aria-label="Filtrer par catégorie"></select>
+          <span class="pousse"></span>
+          <button class="secondaire" id="btnSelection">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"
+                 stroke-linecap="round" stroke-linejoin="round" class="ico" aria-hidden="true">
+              <path d="M9 11l3 3L22 4"/>
+              <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/>
+            </svg>
+            Sélectionner pour impression</button>
+        </div>
+
+        <!-- La bande dit qu'on est en train de CHOISIR quoi imprimer. C'est sa
+             teinte et la colonne de cases qui le disent, pas une phrase. -->
+        <div class="bande-selection" id="bandeSelection" hidden>
+          <label class="tout"><input type="checkbox" id="toutSelectionner"> Tout sélectionner</label>
+          <b id="compteSelection">0 sélectionné</b>
+          <span class="pousse"></span>
+          <button class="action" id="btnImprimerSelection" disabled>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"
+                 stroke-linecap="round" stroke-linejoin="round" class="ico" aria-hidden="true">
+              <path d="M6 9V2h12v7"/>
+              <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/>
+              <path d="M6 14h12v8H6z"/>
+            </svg>
+            Imprimer</button>
+          <button class="secondaire" id="btnAnnulerSelection">Annuler</button>
+        </div>
+
         <div class="scroll"><table>
-          <thead><tr><th>Dossard</th><th>Nom</th><th>Club</th><th>Catégorie</th><th></th></tr></thead>
+          <thead><tr id="enteteParticipants"></tr></thead>
           <tbody id="listeParticipants"></tbody>
         </table></div>
+        <p class="legende">
+          <span class="src g">G</span> classeur Google
+          <span class="src h">H</span> HelloAsso
+          <span class="src m">M</span> saisie manuelle
+        </p>
+      </div>
+    </section>
+
+    <!-- ================= Catégories (spec 008) ================= -->
+    <section class="vue" id="vueCategories" hidden>
+      <div class="titre-vue">
+        <h1>Catégories</h1>
+        <p>Le barème n'est pas saisi : il se calcule. « U » veut dire <em>under</em>,
+           et c'est le plus petit qui l'emporte.</p>
       </div>
 
       <div class="carte">
-        <h2>Imprimer les fiches</h2>
-        <p class="aide">Numéro, QR, tous les blocs de son circuit et le plan de
-           la salle. <strong>Six par page.</strong> Imprime à l'échelle
-           <strong>100 %</strong>, sans « ajuster à la page » — sinon les QR
-           sortent trop petits pour être lus.</p>
-        <div class="grille" style="max-width:420px">
-          <div><label for="dCategorie">Une catégorie (vide = toutes)</label><select id="dCategorie"></select></div>
-          <div><label for="dUnSeul">Ou une seule fiche (dossard)</label><input id="dUnSeul" inputmode="numeric"></div>
+        <h2>Les catégories, par année de naissance</h2>
+        <dl class="etat" id="etatBareme"></dl>
+        <div class="scroll"><table>
+          <thead><tr><th>Catégorie</th><th>Années de naissance</th><th>Âge</th><th>Inscrits</th></tr></thead>
+          <tbody id="listeBareme"></tbody>
+        </table></div>
+        <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:16px">
+          <button class="action" id="btnApercuBareme">Appliquer à tous les inscrits</button>
         </div>
-        <button class="action" id="btnImprimer">Ouvrir les fiches</button>
+        <div id="apercuBareme" hidden></div>
       </div>
     </section>
 
@@ -1886,6 +2029,7 @@
 
   var VUES = {
     participants: { titre: "Participants",         charge: chargerParticipants },
+    categories:   { titre: "Catégories",           charge: chargerBareme },
     circuits:     { titre: "Circuits",             charge: chargerCircuits },
     reussites:    { titre: "Réussites",            charge: ouvrirReussites,
                     quitte: fermerReussites },
@@ -2175,9 +2319,6 @@
     return appeler("/admin/referentiels").then(function (d) {
       remplir($("pClub"), d.clubs || [], "\u2014 aucun \u2014", true);
       remplir($("pCategorie"), d.categories || [], "\u2014 aucune \u2014", true);
-      // Pas d'« Autre… » a l'impression : on imprime pour une categorie QUI
-      // EXISTE, pas pour une qu'on vient d'inventer.
-      remplir($("dCategorie"), d.categories || [], "Toutes les cat\u00e9gories", false);
       // Les zones du PLAN, pas celles des blocs : un QR de poste existe pour
       // une zone meme si aucun bloc n'y est encore importe (spec 034).
       remplir($("pZone"), d.zones || [], "Toutes les zones", false);
@@ -2185,75 +2326,360 @@
       // Listes indisponibles : « Autre… » reste le chemin, le formulaire marche.
       remplir($("pClub"), [], "\u2014 aucun \u2014", true);
       remplir($("pCategorie"), [], "\u2014 aucune \u2014", true);
-      remplir($("dCategorie"), [], "Toutes les cat\u00e9gories", false);
       remplir($("pZone"), [], "Toutes les zones", false);
     });
   }
 
+  // --- Participants : la liste, la selection, l'edition en ligne ------------
+  //
+  // Trois gestes cohabitent dans le meme tableau, et un seul est actif a la
+  // fois : consulter, choisir quoi imprimer, modifier une ligne. Les melanger
+  // -- une case a cocher ET un crayon ET une ligne ouverte -- donnerait un
+  // ecran ou l'on ne sait plus ce qu'un clic va faire.
+
+  var selection = { active: false, dossards: {} };
+  var enEdition = null;                     // l'id du participant ouvert
+
   function chargerParticipants() {
     appeler("/admin/participants").then(function (d) {
       etat.participants = d.participants || [];
+      remplir($("filtreCategorie"), categoriesVues(), "Toutes les catégories", false);
       dessinerParticipants();
     }).catch(signaler);
   }
 
-  function dessinerParticipants() {
+  function categoriesVues() {
+    var vues = {};
+    etat.participants.forEach(function (p) { if (p.categorie) vues[p.categorie] = 1; });
+    return Object.keys(vues).sort();
+  }
+
+  function participantsAffiches() {
     var q = $("recherche").value.trim().toLowerCase();
-    var liste = etat.participants.filter(function (p) {
+    var cat = $("filtreCategorie").value;
+    return etat.participants.filter(function (p) {
+      if (cat && p.categorie !== cat) return false;
       return !q || (p.nom || "").toLowerCase().indexOf(q) !== -1
                 || String(p.dossard || "").indexOf(q) !== -1;
     });
+  }
 
+  function pastillesSource(sources) {
+    var span = document.createElement("span");
+    span.className = "sources";
+    // ⚠️ La classe est ECRITE, pas deduite de la premiere lettre du nom de la
+    // source : « classeur » commence par un c et donnerait `.src.c`, qui
+    // n'existe pas -- la pastille perdait son fond, en silence.
+    var vues = {
+      classeur:  { lettre: "G", classe: "g", infobulle: "Classeur Google" },
+      helloasso: { lettre: "H", classe: "h", infobulle: "HelloAsso" },
+      manuel:    { lettre: "M", classe: "m", infobulle: "Saisie manuelle" }
+    };
+    (sources || []).forEach(function (s) {
+      if (!vues[s]) return;
+      var b = document.createElement("span");
+      b.className = "src " + vues[s].classe;
+      b.textContent = vues[s].lettre;
+      b.title = vues[s].infobulle;
+      span.appendChild(b);
+    });
+    return span;
+  }
+
+  var COLONNES = ["Dossard", "Nom", "Année", "Club", "Catégorie", "Source", ""];
+
+  function dessinerParticipants() {
+    var entete = $("enteteParticipants");
+    entete.innerHTML = "";
+    if (selection.active) {
+      var th0 = document.createElement("th");
+      th0.className = "coche";
+      entete.appendChild(th0);
+    }
+    COLONNES.forEach(function (nom) {
+      var th = document.createElement("th");
+      th.textContent = nom;
+      entete.appendChild(th);
+    });
+
+    var liste = participantsAffiches();
     var corps = $("listeParticipants");
     corps.innerHTML = "";
     liste.forEach(function (p) {
-      var tr = document.createElement("tr");
-
-      var td = document.createElement("td");
-      td.className = "num";
-      if (p.dossard === null) {
-        td.className = "sans";
-        td.textContent = "aucun";
-      } else {
-        td.textContent = p.dossard;
-      }
-      tr.appendChild(td);
-
-      ["nom", "club", "categorie"].forEach(function (champ) {
-        var c = document.createElement("td");
-        c.textContent = p[champ] || "—";
-        tr.appendChild(c);
-      });
-
-      var actions = document.createElement("td");
-      var b = document.createElement("button");
-      b.className = "discret";
-      b.textContent = p.dossard === null ? "Donner un dossard" : "Changer le dossard";
-      b.style.color = "var(--encre2)";
-      b.addEventListener("click", function () { reaffecter(p); });
-      actions.appendChild(b);
-      tr.appendChild(actions);
-
-      corps.appendChild(tr);
+      corps.appendChild(enEdition === p.id ? ligneEditable(p) : ligneNormale(p));
     });
+    majSelection();
   }
 
-  function reaffecter(p) {
-    var valeur = prompt(
-      "Quel dossard donner à " + p.nom + " ?\n\n" +
-      "Rappel : un dossard qui porte déjà des réussites ne peut pas changer " +
-      "de main — il faudra en imprimer un neuf.",
-      p.dossard || "");
-    if (valeur === null || !valeur.trim()) return;
-    appeler("/admin/participants/" + p.id + "/dossard", {
-      methode: "POST", corps: { dossard: valeur.trim() },
-    }).then(function () {
-      dire("Dossard " + valeur.trim() + " attribué à " + p.nom + ".", "ok");
-      chargerParticipants();
-    }).catch(signaler);
+  function ligneNormale(p) {
+    var tr = document.createElement("tr");
+
+    if (selection.active) {
+      var tdc = document.createElement("td");
+      tdc.className = "coche";
+      if (p.dossard !== null) {
+        var case_ = document.createElement("input");
+        case_.type = "checkbox";
+        case_.checked = !!selection.dossards[p.dossard];
+        case_.addEventListener("change", function () {
+          if (case_.checked) selection.dossards[p.dossard] = 1;
+          else delete selection.dossards[p.dossard];
+          tr.classList.toggle("prise", case_.checked);
+          majSelection();
+        });
+        tdc.appendChild(case_);
+      }
+      tr.appendChild(tdc);
+      if (selection.dossards[p.dossard]) tr.className = "prise";
+    }
+
+    var td = document.createElement("td");
+    if (p.dossard === null) { td.className = "sans"; td.textContent = "aucun"; }
+    else { td.className = "num"; td.textContent = p.dossard; }
+    tr.appendChild(td);
+
+    ["nom", "annee_naissance", "club", "categorie"].forEach(function (champ) {
+      var c = document.createElement("td");
+      if (champ === "annee_naissance") c.className = "num";
+      c.textContent = p[champ] || "—";
+      tr.appendChild(c);
+    });
+
+    var src = document.createElement("td");
+    src.appendChild(pastillesSource(p.sources));
+    tr.appendChild(src);
+
+    var actions = document.createElement("td");
+    actions.className = "fin";
+    if (!selection.active) {
+      var b = document.createElement("button");
+      b.className = "crayon";
+      b.type = "button";
+      b.setAttribute("aria-label", "Modifier " + (p.nom || ""));
+      b.title = "Modifier";
+      b.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" ' +
+        'stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">' +
+        '<path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>';
+      b.addEventListener("click", function () {
+        enEdition = p.id;
+        dessinerParticipants();
+      });
+      actions.appendChild(b);
+    }
+    tr.appendChild(actions);
+    return tr;
   }
+
+  // La ligne s'ouvre SUR PLACE, jamais dans une fenetre : on garde sous les
+  // yeux les voisins, et c'est souvent eux qui disent quelle est la bonne
+  // valeur -- le club d'un frere, la categorie d'un camarade.
+  function ligneEditable(p) {
+    var tr = document.createElement("tr");
+    tr.className = "edition";
+    var champs = {};
+
+    function cellule(construire) {
+      var td = document.createElement("td");
+      td.appendChild(construire());
+      tr.appendChild(td);
+      return td;
+    }
+
+    if (selection.active) tr.appendChild(document.createElement("td"));
+
+    cellule(function () {
+      champs.dossard = document.createElement("input");
+      champs.dossard.className = "mini-champ num";
+      champs.dossard.value = p.dossard === null ? "" : p.dossard;
+      champs.dossard.inputMode = "numeric";
+      return champs.dossard;
+    });
+    cellule(function () {
+      champs.nom = document.createElement("input");
+      champs.nom.className = "mini-champ";
+      champs.nom.value = p.nom || "";
+      return champs.nom;
+    });
+    cellule(function () {
+      champs.annee = document.createElement("input");
+      champs.annee.className = "mini-champ num";
+      champs.annee.value = p.annee_naissance || "";
+      champs.annee.inputMode = "numeric";
+      champs.annee.maxLength = 4;
+      return champs.annee;
+    });
+    cellule(function () {
+      champs.club = listeQuiCree(etat.clubs, p.club, "Nouveau club");
+      return champs.club;
+    });
+    cellule(function () {
+      champs.categorie = listeQuiCree(categoriesVues(), p.categorie,
+                                      "Nouvelle catégorie");
+      return champs.categorie;
+    });
+
+    var src = document.createElement("td");
+    src.appendChild(pastillesSource(p.sources));
+    tr.appendChild(src);
+
+    var actions = document.createElement("td");
+    actions.className = "fin";
+    var paire = document.createElement("span");
+    paire.className = "paire";
+
+    var ok = document.createElement("button");
+    ok.className = "mini fort";
+    ok.type = "button";
+    ok.textContent = "Enregistrer";
+    ok.addEventListener("click", function () { enregistrerLigne(p, champs); });
+
+    var non = document.createElement("button");
+    non.className = "mini";
+    non.type = "button";
+    non.textContent = "Annuler";
+    non.addEventListener("click", function () {
+      enEdition = null;
+      dessinerParticipants();
+    });
+
+    paire.appendChild(ok);
+    paire.appendChild(non);
+    actions.appendChild(paire);
+    tr.appendChild(actions);
+    return tr;
+  }
+
+  // Une liste deroulante qui sait CREER. Le meme geste que « Autre… » du
+  // formulaire d'ajout, ramasse en un seul element pour tenir dans une cellule.
+  // Ce qui est cree passe par le formatage du serveur : « u13f » revient
+  // « U13 F », et c'est ce qui empeche « U13 M » de cohabiter avec « U13 H ».
+  function listeQuiCree(valeurs, courante, invite) {
+    var enveloppe = document.createElement("span");
+    var select = document.createElement("select");
+    select.className = "mini-champ";
+    var vues = (valeurs || []).slice();
+    if (courante && vues.indexOf(courante) === -1) vues.push(courante);
+    vues.sort();
+    vues.forEach(function (v) {
+      var o = document.createElement("option");
+      o.value = v; o.textContent = v;
+      if (v === courante) o.selected = true;
+      select.appendChild(o);
+    });
+    var vide = document.createElement("option");
+    vide.value = ""; vide.textContent = "—";
+    if (!courante) vide.selected = true;
+    select.insertBefore(vide, select.firstChild);
+
+    var creer = document.createElement("option");
+    creer.value = "__creer__";
+    creer.textContent = "+ " + invite + "…";
+    select.appendChild(creer);
+
+    var saisie = document.createElement("input");
+    saisie.className = "mini-champ";
+    saisie.placeholder = invite;
+    saisie.hidden = true;
+    saisie.style.marginTop = "6px";
+
+    select.addEventListener("change", function () {
+      saisie.hidden = select.value !== "__creer__";
+      if (!saisie.hidden) saisie.focus();
+    });
+
+    enveloppe.appendChild(select);
+    enveloppe.appendChild(saisie);
+    enveloppe.valeur = function () {
+      return select.value === "__creer__" ? saisie.value.trim() : select.value;
+    };
+    return enveloppe;
+  }
+
+  function enregistrerLigne(p, champs) {
+    var corps = {};
+    var nom = champs.nom.value.trim();
+    if (nom !== (p.nom || "")) corps.nom = nom;
+
+    var annee = champs.annee.value.trim();
+    if (annee !== String(p.annee_naissance || "")) corps.annee_naissance = annee;
+
+    var club = champs.club.valeur();
+    if (club !== (p.club || "")) corps.club = club;
+
+    var cat = champs.categorie.valeur();
+    if (cat !== (p.categorie || "")) corps.categorie = cat;
+
+    var dossard = champs.dossard.value.trim();
+    if (dossard && dossard !== String(p.dossard || "")) corps.dossard = dossard;
+
+    if (!Object.keys(corps).length) {
+      enEdition = null;
+      dessinerParticipants();
+      return;
+    }
+
+    appeler("/admin/participants/" + p.id, { methode: "PATCH", corps: corps })
+      .then(function () {
+        enEdition = null;
+        dire("Modifié.", "ok");
+        chargerReferentiels();
+        chargerParticipants();
+      })
+      .catch(signaler);
+  }
+
+  // --- Choisir quoi imprimer ------------------------------------------------
+
+  function majSelection() {
+    var n = Object.keys(selection.dossards).length;
+    $("compteSelection").textContent =
+      n + " sélectionné" + (n > 1 ? "s" : "");
+    $("btnImprimerSelection").disabled = n === 0;
+    $("btnImprimerSelection").lastChild.nodeValue = n ? " Imprimer " + n + " fiche" + (n > 1 ? "s" : "") : " Imprimer";
+    var affiches = participantsAffiches().filter(function (p) { return p.dossard !== null; });
+    var tous = affiches.length > 0 && affiches.every(function (p) {
+      return selection.dossards[p.dossard];
+    });
+    $("toutSelectionner").checked = tous;
+    $("toutSelectionner").indeterminate = !tous && n > 0;
+  }
+
+  $("btnSelection").addEventListener("click", function () {
+    selection.active = true;
+    enEdition = null;
+    $("bandeSelection").hidden = false;
+    $("btnSelection").hidden = true;
+    dessinerParticipants();
+  });
+
+  $("btnAnnulerSelection").addEventListener("click", function () {
+    selection.active = false;
+    selection.dossards = {};
+    $("bandeSelection").hidden = true;
+    $("btnSelection").hidden = false;
+    dessinerParticipants();
+  });
+
+  // « Tout » veut dire tout CE QUI EST AFFICHE, filtre compris. C'est ce qui
+  // remplace le champ « une categorie (vide = toutes) » de la tuile retiree :
+  // on filtre, on coche tout, on imprime.
+  $("toutSelectionner").addEventListener("change", function () {
+    var affiches = participantsAffiches().filter(function (p) { return p.dossard !== null; });
+    affiches.forEach(function (p) {
+      if ($("toutSelectionner").checked) selection.dossards[p.dossard] = 1;
+      else delete selection.dossards[p.dossard];
+    });
+    dessinerParticipants();
+  });
+
+  $("btnImprimerSelection").addEventListener("click", function () {
+    var choisis = Object.keys(selection.dossards);
+    if (!choisis.length) return;
+    window.open("/admin/dossards?dossards=" + choisis.join(","), "_blank");
+  });
 
   $("recherche").addEventListener("input", dessinerParticipants);
+  $("filtreCategorie").addEventListener("change", dessinerParticipants);
 
   $("btnAjouter").addEventListener("click", function () {
     // Aucun dossard n'est envoye : le serveur attribue le premier numero libre
@@ -2265,12 +2691,14 @@
         nom: $("pNom").value, prenom: $("pPrenom").value,
         club: valeurChoisie($("pClub")),
         categorie: valeurChoisie($("pCategorie")),
+        annee_naissance: $("pAnnee").value.trim(),
       },
     }).then(function (d) {
       dire(d.participant.nom + " ajouté avec le dossard " +
-           d.participant.dossard + ". C'est celui-là qu'il faut imprimer — " +
-           "les téléphones le verront dans quelques secondes.", "ok");
-      ["pNom", "pPrenom"].forEach(function (i) { $(i).value = ""; });
+           d.participant.dossard + ".", "ok");
+      ["pNom", "pPrenom", "pAnnee"].forEach(function (i) { $(i).value = ""; });
+      $("pAnneeAide").hidden = true;
+      $("pCategorieAide").hidden = true;
       ["pClubAutre", "pCategorieAutre"].forEach(function (i) {
         $(i).value = ""; $(i).hidden = true;
       });
@@ -2286,6 +2714,182 @@
       chargerParticipants();
     }).catch(signaler);
   });
+
+  // --- L'annee et la categorie se repondent (spec 008, decision D8) ---------
+  //
+  // Taper l'annee PROPOSE la categorie. Choisir la categorie ne peut
+  // qu'annoncer les annees attendues : une categorie en couvre deux, elle ne
+  // designe pas une annee.
+  //
+  // Le calcul se fait ici, avec le bareme que le serveur a deja envoye. Une
+  // requete par frappe pour ranger un nombre dans un intervalle serait du
+  // reseau pour rien, le matin ou il sert le plus.
+
+  function baremeCourant() { return (etat.bareme && etat.bareme.tranches) || []; }
+
+  function trancheDeLAnnee(annee) {
+    var n = parseInt(annee, 10);
+    if (!n) return null;
+    var trouvee = null;
+    baremeCourant().forEach(function (t) {
+      if (t.hors_bareme) return;
+      if (n >= t.annee_min && (t.annee_max === null || n <= t.annee_max)) trouvee = t;
+    });
+    return trouvee;
+  }
+
+  $("pAnnee").addEventListener("input", function () {
+    var aide = $("pAnneeAide");
+    var t = trancheDeLAnnee($("pAnnee").value.trim());
+    if (!t) { aide.hidden = true; return; }
+    aide.hidden = false;
+    aide.innerHTML = "Proposé — <b>" + t.circuit + "</b>";
+
+    // On preselectionne quand la categorie est encore vide, jamais par-dessus
+    // un choix deja fait : une frappe dans l'annee ne doit pas defaire ce que
+    // quelqu'un vient de choisir dans la liste.
+    var select = $("pCategorie");
+    if (select.value) return;
+    for (var k = 0; k < select.options.length; k++) {
+      if ((select.options[k].value || "").indexOf(t.circuit + " ") === 0) {
+        select.value = select.options[k].value;
+        break;
+      }
+    }
+  });
+
+  $("pCategorie").addEventListener("change", function () {
+    var aide = $("pCategorieAide");
+    var choisie = valeurChoisie($("pCategorie"));
+    var trouvee = null;
+    baremeCourant().forEach(function (t) {
+      if (!t.hors_bareme && (t.categories || []).indexOf(choisie) !== -1) trouvee = t;
+    });
+    if (!trouvee) { aide.hidden = true; return; }
+    aide.hidden = false;
+    aide.innerHTML = "Attendu — <b>" +
+      (trouvee.annee_max === null
+        ? trouvee.annee_min + " ou après"
+        : trouvee.annee_min + " ou " + trouvee.annee_max) + "</b>";
+    if (!$("pAnnee").value.trim()) {
+      $("pAnnee").placeholder = trouvee.annee_min;
+    }
+  });
+
+  // --- Catégories : le barème (spec 008) ------------------------------------
+
+  function chargerBareme() {
+    return appeler("/admin/categories").then(function (d) {
+      etat.bareme = d;
+      dessinerBareme();
+      return d;
+    }).catch(function () { /* pas de competition active : l'ecran reste vide */ });
+  }
+
+  function dessinerBareme() {
+    var d = etat.bareme || {};
+    $("etatBareme").innerHTML =
+      "<dt>Saison</dt><dd>" + (d.saison || "—") +
+      " · référence <b>" + (d.reference || "—") + "</b></dd>";
+
+    var corps = $("listeBareme");
+    corps.innerHTML = "";
+    (d.tranches || []).forEach(function (t) {
+      var tr = document.createElement("tr");
+      var annees = t.hors_bareme ? "—"
+        : (t.annee_max === null ? t.annee_min + " et après"
+                                : t.annee_min + " – " + t.annee_max);
+      var ages = t.hors_bareme ? "hors barème"
+        : (t.age_min === null ? "jusqu'à " + t.age_max + " ans"
+                              : t.age_min + " – " + t.age_max + " ans");
+      [t.categories.join(", ") || t.circuit, annees, ages, t.inscrits]
+        .forEach(function (v, k) {
+          var td = document.createElement("td");
+          if (k === 1 || k === 3) td.className = "num";
+          if (k === 2) td.className = "discret";
+          td.textContent = v;
+          tr.appendChild(td);
+        });
+      corps.appendChild(tr);
+    });
+  }
+
+  // Appliquer reecrit des categories : on montre l'avant / apres AVANT
+  // d'ecrire, et le bouton de confirmation se maintient (spec 027).
+  $("btnApercuBareme").addEventListener("click", function () {
+    appeler("/admin/categories/appliquer", { methode: "POST", corps: { apercu: true } })
+      .then(dessinerApercuBareme).catch(signaler);
+  });
+
+  function dessinerApercuBareme(d) {
+    var zone = $("apercuBareme");
+    zone.hidden = false;
+    zone.innerHTML = "";
+
+    if (!d.changements.length) {
+      var rien = document.createElement("p");
+      rien.className = "verdict est-ok";
+      rien.innerHTML = '<span class="rond"></span>Toutes les catégories sont à jour';
+      zone.appendChild(rien);
+      return;
+    }
+
+    var resume = document.createElement("dl");
+    resume.className = "etat";
+    var ig = d.ignores || {};
+    resume.innerHTML =
+      "<dt>Recalculés</dt><dd><b>" + d.changements.length + "</b></dd>" +
+      "<dt>Inchangés</dt><dd>" + d.inchanges + "</dd>" +
+      (ig.sans_annee ? "<dt>Sans année</dt><dd>" + ig.sans_annee +
+        " <span class='discret'>non touchés</span></dd>" : "") +
+      (ig.corrigees_a_la_main ? "<dt>Corrigées à la main</dt><dd>" +
+        ig.corrigees_a_la_main + " <span class='discret'>non touchées</span></dd>" : "") +
+      (ig.hors_bareme ? "<dt>Hors barème</dt><dd>" + ig.hors_bareme + "</dd>" : "");
+    zone.appendChild(resume);
+
+    var table = document.createElement("table");
+    table.innerHTML = "<thead><tr><th>Dossard</th><th>Nom</th>" +
+      "<th>Avant</th><th>Après</th></tr></thead>";
+    var tbody = document.createElement("tbody");
+    d.changements.forEach(function (c) {
+      var tr = document.createElement("tr");
+      tr.innerHTML = '<td class="num">' + (c.dossard === null ? "—" : c.dossard) +
+        "</td><td></td>" +
+        '<td class="discret"></td><td><b></b></td>';
+      tr.children[1].textContent = c.nom;
+      tr.children[2].textContent = c.avant || "—";
+      tr.children[3].firstChild.textContent = c.apres;
+      tbody.appendChild(tr);
+    });
+    table.appendChild(tbody);
+    var enveloppe = document.createElement("div");
+    enveloppe.className = "scroll";
+    enveloppe.style.marginTop = "14px";
+    enveloppe.appendChild(table);
+    zone.appendChild(enveloppe);
+
+    var boutons = document.createElement("div");
+    boutons.style.cssText = "display:flex;gap:10px;flex-wrap:wrap;margin-top:16px";
+    var valider = document.createElement("button");
+    valider.className = "action";
+    valider.textContent = "Appliquer à " + d.changements.length + " inscrit" +
+      (d.changements.length > 1 ? "s" : "");
+    valider.addEventListener("click", function () {
+      appeler("/admin/categories/appliquer", { methode: "POST", corps: {} })
+        .then(function (r) {
+          dire(r.changements.length + " catégorie(s) recalculée(s).", "ok");
+          zone.hidden = true;
+          chargerBareme();
+        }).catch(signaler);
+    });
+    var annuler = document.createElement("button");
+    annuler.className = "secondaire";
+    annuler.textContent = "Annuler";
+    annuler.addEventListener("click", function () { zone.hidden = true; });
+    boutons.appendChild(valider);
+    boutons.appendChild(annuler);
+    zone.appendChild(boutons);
+  }
 
   // --- Saisie manuelle ------------------------------------------------------
 
@@ -2349,15 +2953,6 @@
     var url = "/admin/etiquettes";
     if (bloc) url += "?bloc=" + encodeURIComponent(bloc);
     else if (zone) url += "?zone=" + encodeURIComponent(zone);
-    window.open(url, "_blank");
-  });
-
-  $("btnImprimer").addEventListener("click", function () {
-    var un = $("dUnSeul").value.trim();
-    var cat = $("dCategorie").value.trim();
-    var url = "/admin/dossards";
-    if (un) url += "?dossard=" + encodeURIComponent(un);
-    else if (cat) url += "?categorie=" + encodeURIComponent(cat);
     window.open(url, "_blank");
   });
 

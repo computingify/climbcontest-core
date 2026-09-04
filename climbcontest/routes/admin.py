@@ -716,7 +716,21 @@ def page_dossards():
 
     un_seul = request.args.get("dossard", type=int)
     categorie = (request.args.get("categorie") or "").strip()
-    if un_seul is not None:
+    # `?dossards=12,47,128` : la SELECTION PAR CASES de la console (spec 008).
+    # Elle remplace la tuile « Imprimer les fiches » et son champ « une
+    # categorie (vide = toutes) » -- on filtre la liste, on coche, on imprime.
+    #
+    # Un numero illisible est ignore plutot que de faire echouer la planche :
+    # le geste se fait debout, la file attend, et une planche de dix-neuf
+    # fiches vaut mieux qu'une page d'erreur.
+    choisis = [n for n in ((request.args.get("dossards") or "").split(","))
+               if n.strip().isdigit()]
+
+    if choisis:
+        voulus = {int(n) for n in choisis}
+        participants = [p for p in participants if p.dossard in voulus]
+        titre = f"{len(participants)} fiche(s)"
+    elif un_seul is not None:
         participants = [p for p in participants if p.dossard == un_seul]
         titre = f"dossard {un_seul}"
     elif categorie:
