@@ -136,6 +136,30 @@ et les réponses vues.
 
 ---
 
+## Lot 9 — Un seul formatage, aucun doublon *(livré le 04/09)*
+
+Ajouté après les sept premiers lots, sur demande d'Adrien.
+
+- [x] `formatage.identite()` et `identite_club()` : **une seule** clé dans tout
+      le projet, et un test qui vérifie que `rapprochement` pointe dessus
+- [x] `sheets/importer.py` passe par le formatage — changement de doctrine
+- [x] `contest.club_canonique()` : la première orthographe fait référence
+- [x] Garde anti-doublon à l'ajout, avec `autoriser_homonyme` pour le forcer
+- [x] `ErreurMetier.doublon`, pour que la boucle d'attribution ne l'avale pas
+- [x] `GET /admin/doublons` et `POST /admin/doublons/fusionner`
+- [x] La carte **Doublons**, et le rappel d'homonyme sous le formulaire d'ajout
+
+## Lot 10 — L'import devine *(livré le 04/09)*
+
+- [x] `helloasso/correspondance.py`, pur : reconnaissance par le nom **et** par
+      les réponses
+- [x] `GENRES_CONNUS` — la table intégrée, que celle de l'édition surpasse
+- [x] `POST /admin/helloasso/formulaire` reconnaît et pré-remplit, sans écraser
+      ce qui a été réglé à la main
+- [x] La réponse porte `trouves` et `genres_inconnus` : **rien en silence**
+
+---
+
 ## Plan de test
 
 ### La règle FFME — `tests/test_categories.py`
@@ -249,6 +273,66 @@ La règle, et sa raison :
 `test_matiere_imprimee.py`, l'autre garde arrivé le même jour, ne nous concerne
 pas : il porte sur les variables CSS de `juge.html`, que cette spec ne touche
 pas.
+
+### Le formatage et les doublons — `tests/test_doublons.py`
+
+| Scénario | Attendu |
+| --- | --- |
+| « DUPONT Jean-Luc » et « dupont jean luc » | Même clé |
+| `rapprochement.cle` et `formatage.identite` | **La même fonction**, pas deux copies |
+| Classeur en capitales, guichet en minuscules | **Un seul** club en base |
+| Sigle déjà en capitales | Préservé |
+| Première occurrence en minuscules, puis deux autres écritures | **Une seule** orthographe |
+| Même nom, même club | **Refusé**, 409, avec la fiche existante |
+| Même nom, club différent | **Créé** — le risque R5 |
+| Même nom, club absent | **Créé** — deviner sur un vide fusionnerait deux personnes |
+| Forçage explicite | Créé |
+| Deux fiches du même club | Vues par `/admin/doublons` |
+| Fusion | Réussites **déplacées**, champs vides complétés, dossard conservé |
+| Fusion, réussite déjà présente chez l'autre | Supprimée, comptée, pas d'échec |
+
+### La reconnaissance — `tests/test_helloasso_correspondance.py`
+
+| Scénario | Attendu |
+| --- | --- |
+| « Date de naissance », « Sexe », « Votre club » | Les trois reconnus par leur nom |
+| « Votre enfant est » avec *Fille* / *Garçon* | Reconnu **par ses réponses** |
+| « Fille », « Garçon », « Je ne sais pas » | **Rien** — un intrus suffit à disqualifier |
+| Huit valeurs distinctes | Pas un champ de genre |
+| Champ nommé « Sexe » mais vide | Reconnu quand même — le nom l'emporte |
+| Réponses non reconnues | Listées dans `genres_inconnus` |
+| `genre_de("Fille", {})` | « F » par la table intégrée |
+| `genre_de("Fille", {"Fille": "H"})` | « H » — la table de l'édition gagne |
+
+### Le formatage et les doublons — `tests/test_doublons.py`
+
+| Scénario | Attendu |
+| --- | --- |
+| « DUPONT Jean-Luc » et « dupont jean luc » | Même clé |
+| `rapprochement.cle` et `formatage.identite` | **La même fonction**, pas deux copies |
+| Classeur en capitales, guichet en minuscules | **Un seul** club en base |
+| Sigle déjà en capitales | Préservé |
+| Première occurrence en minuscules, puis deux autres écritures | **Une seule** orthographe |
+| Même nom, même club | **Refusé**, 409, avec la fiche existante |
+| Même nom, club différent | **Créé** — le risque R5 |
+| Même nom, club absent | **Créé** — deviner sur un vide fusionnerait deux personnes |
+| Forçage explicite | Créé |
+| Deux fiches du même club | Vues par `/admin/doublons` |
+| Fusion | Réussites **déplacées**, champs vides complétés, dossard conservé |
+| Fusion, réussite déjà présente chez l'autre | Supprimée, comptée, pas d'échec |
+
+### La reconnaissance — `tests/test_helloasso_correspondance.py`
+
+| Scénario | Attendu |
+| --- | --- |
+| « Date de naissance », « Sexe », « Votre club » | Les trois reconnus par leur nom |
+| « Votre enfant est » avec *Fille* / *Garçon* | Reconnu **par ses réponses** |
+| « Fille », « Garçon », « Je ne sais pas » | **Rien** — un intrus suffit à disqualifier |
+| Huit valeurs distinctes | Pas un champ de genre |
+| Champ nommé « Sexe » mais vide | Reconnu quand même — le nom l'emporte |
+| Réponses non reconnues | Listées dans `genres_inconnus` |
+| `genre_de("Fille", {})` | « F » par la table intégrée |
+| `genre_de("Fille", {"Fille": "H"})` | « H » — la table de l'édition gagne |
 
 ### Fixtures
 

@@ -437,12 +437,17 @@ button[disabled] { opacity: .45; cursor: not-allowed; }
      si un participant est créé. Derrière chaque ligne, un geste physique :
      imprimer un dossard et l'apporter.</p>
   <div class="meta">
-    <span class="tag">Porte 2 — rien n'est codé</span>
+    <span class="tag">✅ Livré le 04/09 — lots 1 à 10</span>
     <span class="tag">D1→D9 tranchées</span>
-    <span class="tag">Barème FFME relevé le 04/09</span>
+    <span class="tag">Reste la recette, qui demande une clé</span>
     <span class="tag">Branche <code>feat/008-helloasso-import</code></span>
   </div>
-  <p class="note" style="margin-top:16px"><b>Reprise du 04/09.</b> Les sources
+  <p class="note" style="margin-top:16px"><b>Maquette validée, puis livrée le
+     04/09.</b> Les écrans ci-dessous sont ceux qui tournent. Trois s'y sont
+     ajoutés après la livraison — <b>11</b>, <b>12</b> et <b>13</b> — sur la
+     demande « uniformise le formatage, je ne veux pas de doublon, et lors des
+     imports je veux un maximum d'automatisation ».<br><br>
+     <b>Reprise du 04/09.</b> Les sources
      <span class="src g">G</span> <span class="src h">H</span>
      <span class="src m">M</span> sur chaque ligne · la sélection par cases pour
      l'impression, qui <b>remplace</b> la tuile du bas · le crayon qui ouvre la
@@ -958,6 +963,144 @@ button[disabled] { opacity: .45; cursor: not-allowed; }
         <div class="boutons"><button type="button" class="action" disabled>Enregistrer</button></div>
       </div>
     </div></div>
+  </section>
+
+
+  <h2 class="groupe-titre">D · Un seul formatage, aucun doublon</h2>
+
+  <section class="plaque">
+    <span class="puce"><b>11</b> · Le guichet prévient avant de créer</span>
+    <p>Même nom <b>et</b> même club : refusé, avec la fiche de celui qui est
+       déjà là. Même nom mais club différent : créé, et signalé — deux
+       « Martin Lea » existent vraiment.</p>
+    <div class="ecran"><div class="dedans">
+      <p class="fil">Participants</p>
+      <div class="carte">
+        <h2>Ajouter un participant</h2>
+        <div class="grille">
+          <div><label for="dNom">Nom *</label><input id="dNom" value="BRUNEL"></div>
+          <div><label for="dPrenom">Prénom</label><input id="dPrenom" value="léa"></div>
+          <div><label for="dAnnee">Année de naissance</label><input id="dAnnee" placeholder="2016"></div>
+          <div><label for="dClub">Club</label>
+               <select id="dClub"><option selected>Annonay Escalade</option></select></div>
+        </div>
+        <p class="verdict est-attention" style="margin-top:16px">
+          <span class="rond" aria-hidden="true"></span>Cette personne est déjà inscrite
+        </p>
+        <div class="scroll" style="margin-top:10px"><table>
+          <thead><tr><th>Dossard</th><th>Nom</th><th>Club</th><th>Catégorie</th></tr></thead>
+          <tbody>
+            <tr><td class="num">47</td><td>Brunel Lea</td><td>Annonay Escalade</td><td>U13 F</td></tr>
+          </tbody>
+        </table></div>
+        <div class="boutons">
+          <button type="button" class="mini">Ce sont deux personnes différentes — ajouter quand même</button>
+        </div>
+        <div class="boutons"><button type="button" class="action">Ajouter</button></div>
+      </div>
+    </div></div>
+    <p class="note">Le refus <b>porte</b> la fiche : la console n'a pas à
+       redemander au serveur ce qu'il vient de lui dire. Le bouton de forçage
+       existe parce que deux cousins homonymes au même club, ça se voit une
+       fois — et ce jour-là il ne faut pas avoir à modifier la base.</p>
+  </section>
+
+  <section class="plaque">
+    <span class="puce"><b>12</b> · Ce qui est déjà là</span>
+    <p>La carte ne paraît <b>que</b> s'il y a quelque chose à fusionner. Une
+       carte « aucun doublon » en permanence serait une ligne de plus à lire tous
+       les jours pour une information qui n'arrive presque jamais.</p>
+    <div class="ecran"><div class="dedans">
+      <p class="fil">Participants</p>
+      <div class="carte">
+        <h2>Doublons <span class="compte">1</span></h2>
+        <p class="aide">Même nom, même club. Choisis la fiche qui garde son
+           dossard — c'est celui qui est déjà imprimé.</p>
+        <div class="cas">
+          <div class="quoi">
+            <b>Brunel Lea</b>
+            <span class="motif">Même nom, même club</span>
+          </div>
+          <div class="face-a-face">
+            <div class="colonne">
+              <h3>Dossard 47</h3>
+              <dl>
+                <dt>Club</dt><dd>Annonay Escalade</dd>
+                <dt>Catégorie</dt><dd>U13 F</dd>
+                <dt>Année</dt><dd>2015</dd>
+                <dt>Réussites</dt><dd>4</dd>
+              </dl>
+            </div>
+            <div class="colonne">
+              <h3>Dossard 88</h3>
+              <dl>
+                <dt>Club</dt><dd class="diff">annonay escalade</dd>
+                <dt>Catégorie</dt><dd>U13 F</dd>
+                <dt>Année</dt><dd>—</dd>
+                <dt>Réussites</dt><dd>1</dd>
+              </dl>
+            </div>
+          </div>
+          <div class="boutons">
+            <button type="button" class="mini fort">Garder le dossard 47</button>
+            <button type="button" class="mini fort">Garder le dossard 88</button>
+          </div>
+        </div>
+      </div>
+    </div></div>
+    <p class="note">Le serveur <b>ne choisit pas</b> lequel garder : le dossard
+       survivant est celui qui est déjà imprimé et distribué, et rien en base ne
+       le dit. La fusion déplace les réussites, complète les champs vides et
+       rattache les inscriptions.<br>
+       Ce doublon-là — « Annonay Escalade » contre « annonay escalade » — est
+       exactement celui que le formatage unifié rend désormais impossible à
+       créer.</p>
+  </section>
+
+  <h2 class="groupe-titre">E · L'import devine</h2>
+
+  <section class="plaque">
+    <span class="puce"><b>13</b> · Choisir le formulaire le reconnaît</span>
+    <p>Plus rien à saisir : la console lit un échantillon et propose. Elle dit ce
+       qu'elle a trouvé, et surtout ce qu'elle <b>n'a pas</b> su ranger.</p>
+    <div class="ecran"><div class="dedans">
+      <p class="fil">HelloAsso · Bloc Party 2026</p>
+      <div class="carte">
+        <h2>Les champs du formulaire</h2>
+        <p class="verdict est-ok"><span class="rond" aria-hidden="true"></span>Année, genre et club reconnus</p>
+        <div class="scroll" style="margin-top:12px"><table>
+          <thead><tr><th>Sert à</th><th>Champ reconnu</th></tr></thead>
+          <tbody>
+            <tr><td><b>Année de naissance</b><br><span class="discret">obligatoire</span></td>
+                <td><select><option selected>Date de naissance</option><option>— aucun —</option></select></td></tr>
+            <tr><td><b>Genre</b></td>
+                <td><select><option selected>Votre enfant est</option><option>— aucun —</option></select></td></tr>
+            <tr><td>Club<br><span class="discret">facultatif</span></td>
+                <td><select><option selected>Votre club</option></select></td></tr>
+          </tbody>
+        </table></div>
+        <p class="sous-titre">Réponses de genre</p>
+        <div class="scroll"><table>
+          <thead><tr><th>Réponse</th><th>Rangée en</th><th></th></tr></thead>
+          <tbody>
+            <tr><td>Fille</td><td><select><option selected>F</option></select></td><td class="discret">reconnue</td></tr>
+            <tr><td>Garçon</td><td><select><option selected>H</option></select></td><td class="discret">reconnue</td></tr>
+            <tr><td>Ne se prononce pas</td>
+                <td><select><option selected>— à ranger —</option><option>F</option><option>H</option></select></td>
+                <td class="discret" style="color:var(--attention)">à ranger</td></tr>
+          </tbody>
+        </table></div>
+        <div class="boutons"><button type="button" class="action">Enregistrer</button></div>
+      </div>
+    </div></div>
+    <p class="note">« Votre enfant est » n'est dans aucune liste de mots-clés :
+       il est reconnu <b>par ses réponses</b>. C'est le filet qui sert le plus,
+       parce que les formulaires écrits à la main ne s'appellent jamais
+       « Sexe ».<br>
+       Deux garde-fous : <b>un intrus suffit à disqualifier</b> — « la plupart
+       ressemblent à des genres » ne vaut jamais reconnaissance — et <b>rien
+       n'est deviné en silence</b>. « Ne se prononce pas » n'est pas rangé
+       d'office : c'est la seule ligne qui demande encore un geste.</p>
   </section>
 
 </main>

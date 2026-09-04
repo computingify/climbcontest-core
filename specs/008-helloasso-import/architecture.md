@@ -27,6 +27,8 @@ classeur : une source extérieure est une **entrée**, jamais une autorité.
                         └──────────┬───────────────┘
                         ┌──────────▼───────────────┐
                         │ helloasso/rapprochement  │  nom + prénom + club
+                        │  la clé vient de         │  ← formatage.identite()
+                        │  formatage.py            │
                         └──────────┬───────────────┘
                                    ▼
                         ┌──────────────────────────┐     ┌──────────────┐
@@ -325,6 +327,95 @@ catégories diffèrent se fait quand même, et se signale. Refuser sur ce critè
 bloquerait le cas le plus banal — un classeur importé avant que le barème ne
 soit appliqué.
 
+
+## 6 bis. Un seul formatage — le 04/09
+
+> « Débrouille-toi pour uniformiser le formatage, je ne veux pas de doublon. »
+
+### La clé d'identité a déménagé
+
+`formatage.identite()` et `formatage.identite_club()` vivent dans
+`formatage.py`, avec les règles de mise en forme qui les rendent vraies — et
+non plus dans `helloasso/rapprochement.py`, qui les importe désormais.
+
+Ce n'est pas un rangement. Un doublon naît toujours d'un écart entre **la
+forme** qu'on écrit et **la clé** qu'on compare ; les tenir dans deux fichiers,
+c'est garantir qu'ils divergeront — l'un gagnera une règle que l'autre n'a pas,
+et le doublon reviendra par la porte qu'on n'a pas refermée. Un test vérifie
+que les deux modules pointent sur **la même fonction**, pas sur deux copies.
+
+### Trois portes d'entrée, un seul formatage
+
+| Entrée | Avant le 04/09 | Depuis |
+| --- | --- | --- |
+| `sheets/importer.py` | brut, volontairement | `formatage.*` + `club_canonique()` |
+| `contest.ajouter_participant` | `formatage.*` | idem, + garde anti-doublon |
+| `PATCH /admin/participants/<id>` | `formatage.*` | idem |
+| `helloasso/releve.py` | `formatage.*` | inchangé |
+
+### `club_canonique()` — la première orthographe fait référence
+
+`formatage.club()` ne préserve un sigle que s'il est **déjà** en capitales :
+« caf vivarais » devient « Caf Vivarais », à côté du « CAF Vivarais » du
+classeur. C'est la dernière porte par laquelle un doublon revenait, et elle a
+été trouvée par un test, pas par relecture.
+
+Une liste de sigles connus serait à tenir à jour pour chaque club de la région.
+La règle retenue ne demande rien : **le club existe déjà sous une forme, on
+reprend la sienne**. Elle vit dans `contest.py` parce qu'elle a besoin de la
+base — c'est ce qui la distingue de `formatage.py`, qui reste pur.
+
+### La garde, et pourquoi elle porte un marqueur
+
+`ErreurMetier` gagne un attribut `doublon`. Sans lui,
+`ajouter_participant_numerote` prend **tout** 409 pour une course sur le
+dossard : il réessaie cinq fois et rend « trop de saisies simultanées », qui n'a
+aucun rapport avec ce qui s'est passé — et le message le plus utile est perdu.
+
+### La fusion déplace par une mise à jour
+
+`Participant.reussites` porte `cascade="all, delete-orphan"`. Tant qu'un objet
+est dans la collection, supprimer le participant l'emporte — **même si sa clé
+étrangère vient d'être changée**. Les réussites disparaissaient donc au lieu de
+changer de main, ce qui est exactement le contraire de ce que « fusionner »
+promet. Elles se déplacent par `UPDATE`, et la session est expirée ensuite.
+
+## 6 ter. `helloasso/correspondance.py` — l'import devine
+
+> « Lors des imports je veux un maximum d'automatisation. »
+
+Module **pur** : ni base, ni Flask, ni réseau. Deux mécanismes de
+reconnaissance, et le second est celui qui sert le plus.
+
+| Mécanisme | Ce qu'il attrape |
+| --- | --- |
+| Par le **nom** du champ | *date de naissance*, *né(e) le*, *sexe*, *genre*, *club*, *association*… |
+| Par ses **réponses** | Un champ dont **toutes** les réponses sont des écritures de genre connues — quel que soit son intitulé |
+
+Le second rattrape « Votre enfant est », « Il/Elle », et tous les libellés
+qu'aucune liste de mots-clés ne prévoira. L'ordre compte : le nom d'abord, les
+réponses ensuite — un champ nommé « Sexe » est un champ de genre même si
+personne n'y a encore répondu.
+
+### Deux garde-fous, aussi importants que l'automatisation
+
+**Un intrus suffit à disqualifier.** `_ressemble_a_des_genres()` exige que
+*tout* soit reconnu. « La plupart ressemblent à des genres » ne vaut jamais
+reconnaissance : une erreur de colonne rangerait un formulaire entier de
+travers, et personne ne saurait où regarder.
+
+**Rien n'est deviné en silence.** `POST /admin/helloasso/formulaire` rend
+`trouves` — ce qui a été reconnu — et `genres_inconnus` — les réponses qu'on n'a
+pas su ranger. Ce sont les seules lignes qui demandent encore un geste.
+
+### La table intégrée, et qui gagne
+
+`GENRES_CONNUS` reconnaît « Fille », « F », « Féminin », « Girl »… quatre
+écritures de la même chose, qu'il serait absurde de faire saisir à chaque
+édition. `releve.genre_de()` consulte **d'abord** la table de l'édition — c'est
+un humain qui l'a écrite, elle l'emporte — puis la table intégrée. Ce qui n'est
+dans ni l'une ni l'autre rend `None`, **jamais** « H » par défaut.
+
 ## 7. `helloasso/planificateur.py`
 
 Copie conforme de `sheets/planificateur.py`, avec ses deux qualités payées cher :
@@ -354,6 +445,10 @@ SSH pour apprendre pourquoi 714 réussites attendaient.
 | `GET` | `/admin/inscriptions` | organisateur | Les trois piles |
 | `POST` | `/admin/inscriptions/<id>/trancher` | organisateur | Le choix humain |
 | `POST` | `/admin/inscriptions/<id>/remise` | organisateur | Dossard remis |
+| `GET` | `/admin/doublons` | organisateur | Les fiches de même identité **et même club** |
+| `POST` | `/admin/doublons/fusionner` | organisateur | `{"garder", "absorber"}`. C'est l'humain qui dit lequel garde son dossard |
+| `GET` | `/admin/doublons` | organisateur | Les fiches de même identité **et même club** |
+| `POST` | `/admin/doublons/fusionner` | organisateur | `{"garder", "absorber"}`. C'est l'humain qui dit lequel garde son dossard |
 
 Le compteur de la pastille voyage dans `/admin/moi`, comme celui des mises à
 jour : la console l'a déjà sous la main à chaque écran.
@@ -382,7 +477,11 @@ il ne peut donc pas mentir.
 | Fichier | Nature |
 | --- | --- |
 | `climbcontest/categories.py` | **nouveau** — la règle FFME, pure |
-| `climbcontest/helloasso/{__init__,client,releve,rapprochement,planificateur}.py` | **nouveaux** |
+| `climbcontest/helloasso/{__init__,client,releve,rapprochement,salle,planificateur}.py` | **nouveaux** |
+| `climbcontest/helloasso/correspondance.py` | **nouveau** — la reconnaissance automatique, pure |
+| `climbcontest/formatage.py` | +`identite()`, +`identite_club()` ; l'en-tête change de doctrine |
+| `climbcontest/sheets/importer.py` | Passe par le formatage — **changement de doctrine** |
+| `climbcontest/bareme.py` | **nouveau** — la règle branchée sur une édition |
 | `climbcontest/models.py` | +`Inscription`, +2 colonnes sur `Participant` |
 | `climbcontest/schema.py` | +2 lignes dans `COLONNES_AJOUTEES` |
 | `climbcontest/routes/admin.py` | +12 routes ; `/admin/moi` porte le compteur |
