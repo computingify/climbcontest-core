@@ -1,0 +1,109 @@
+<!doctype html>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>041 — Deux réglages à trancher</title>
+<!--
+  Comme la planche avant/après : ces huit vignettes sont des captures du VRAI
+  `juge.html` servi tel quel, à 390 × 844, recadrées sur le haut de l'écran.
+  Rien n'est redessiné.
+-->
+<style>
+  :root { --fond:#12141A; --carte:#1B1E26; --trait:#2C313D;
+          --encre:#EEF1F6; --encre2:#9AA3B2; --ocre:#E0A94A; --vert:#3DBE72; }
+  * { box-sizing: border-box; }
+  body { margin:0; background:var(--fond); color:var(--encre);
+         font:15px/1.6 -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif; }
+  header { padding:28px 24px 20px; border-bottom:1px solid var(--trait); }
+  h1 { margin:0 0 6px; font-size:1.5rem; }
+  h2 { font-size:1.15rem; margin:0 0 4px; }
+  .sous { margin:0; color:var(--encre2); max-width:74ch; }
+  section { padding:30px 24px; border-bottom:1px solid var(--trait); }
+  .planche { display:flex; flex-wrap:wrap; gap:22px; margin-top:22px; }
+  figure { margin:0; width:300px; }
+  figure img { display:block; width:300px; border-radius:14px 14px 0 0;
+               border:1px solid var(--trait); border-bottom:0; }
+  figcaption { border:1px solid var(--trait); border-top:0; border-radius:0 0 14px 14px;
+               background:var(--carte); padding:12px 14px; font-size:.88rem; }
+  figcaption b { display:block; color:var(--ocre); font-size:.95rem; margin-bottom:3px; }
+  figure.temoin figcaption b { color:var(--encre2); }
+  figcaption .code { display:block; margin-top:7px; color:var(--encre2);
+                     font-family:ui-monospace, SFMono-Regular, Menlo, monospace;
+                     font-size:.73rem; line-height:1.45; word-break:break-word; }
+  .note { margin-top:22px; border-left:3px solid var(--ocre);
+          background:rgba(224,169,74,.08); padding:13px 17px; border-radius:0 8px 8px 0;
+          max-width:74ch; font-size:.93rem; }
+</style>
+
+<header>
+  <h1>Deux réglages à trancher</h1>
+  <p class="sous">Tu as validé la matière imprimée, avec deux réserves :
+  l’ombre du bouton trop franche, et le circuit « Noir » à revoir sur un aperçu
+  dédié. Les voici, sur le vrai écran.</p>
+</header>
+
+<section>
+  <h2>1. L’ombre du bouton « Envoyer »</h2>
+  <p class="sous">La première vignette est celle que tu as jugée trop franche.
+  Elle reste là comme témoin : sans elle, « plus doux » ne se compare à rien.</p>
+  <div class="planche">
+    <figure class="temoin">
+      <img src="captures2/ombre-S0.png" alt="ombre franche d'encre pleine">
+      <figcaption><b>S0 — celle que tu as vue</b>Encre pleine, arête nette.
+        <span class="code">0 5px 0 var(--encre)</span></figcaption>
+    </figure>
+    <figure>
+      <img src="captures2/ombre-S1.png" alt="ombre d'encre diluée">
+      <figcaption><b>S1 — la même, diluée</b>Même décalage, même arête, mais
+        l’encre à 42 % : l’étiquette reste posée, l’ombre cesse de peser.
+        <span class="code">0 5px 0 encre 42 %</span></figcaption>
+    </figure>
+    <figure>
+      <img src="captures2/ombre-S2.png" alt="ombre floue portée">
+      <figcaption><b>S2 — floue</b>Plus d’arête du tout : une ombre portée
+        classique. Le bouton flotte au lieu d’être imprimé.
+        <span class="code">0 6px 16px -4px encre 45 %</span></figcaption>
+    </figure>
+    <figure>
+      <img src="captures2/ombre-S3.png" alt="ombre courte et douce">
+      <figcaption><b>S3 — courte, puis floue</b>Une arête de 3 px très pâle,
+        posée sur un halo. La plus discrète des trois douces.
+        <span class="code">0 3px 0 encre 26 % + 0 9px 20px -8px encre 50 %</span></figcaption>
+    </figure>
+    <figure>
+      <img src="captures2/ombre-S4.png" alt="ombre teintée du circuit">
+      <figcaption><b>S4 — l’ombre prend le circuit</b>Plus de noir du tout :
+        l’ombre est un jaune assombri. Elle change de teinte avec le bloc.
+        <span class="code">0 5px 0 circuit 55 % + encre</span></figcaption>
+    </figure>
+  </div>
+</section>
+
+<section>
+  <h2>2. Le circuit « Noir »</h2>
+  <p class="sous">C’est le seul circuit dont l’encre <i>est</i> la couleur : le
+  liseré se confond avec l’aplat, et la carte teintée à 13 % de noir vire au gris.</p>
+  <div class="planche">
+    <figure class="temoin">
+      <img src="captures2/noir-N1.png" alt="le noir tel quel, carte grise">
+      <figcaption><b>N1 — tel quel</b>La carte prend 13 % de noir, comme tous
+        les autres circuits. Aucune règle particulière à écrire — mais la carte
+        est grise là où les autres sont teintées de leur couleur.</figcaption>
+    </figure>
+    <figure>
+      <img src="captures2/noir-N2.png" alt="carte non teintée, liseré de papier">
+      <figcaption><b>N2 — la carte reste papier</b>Sur le seul Noir, la carte
+        cesse d’être teintée et le liseré de la pastille passe au papier. Plus
+        de gris ; l’aplat noir porte seul la couleur du circuit.</figcaption>
+    </figure>
+    <figure>
+      <img src="captures2/noir-N3.png" alt="carte teintée à 6 pour cent">
+      <figcaption><b>N3 — teinte de moitié</b>6 % au lieu de 13 % : la carte
+        garde un souffle de gris, assez pour dire « ce n’est pas une carte
+        neutre », pas assez pour la faire passer pour éteinte.</figcaption>
+    </figure>
+  </div>
+  <p class="note">Un quatrième cas, écarté d’office : mettre un liseré d’encre
+  sur un aplat noir. Je l’ai capturé, il est <b>indiscernable</b> de N2 — un
+  contour noir autour d’un aplat noir ne se voit pas plus qu’un contour blanc.
+  C’est pour ça qu’il n’est pas dans la planche.</p>
+</section>

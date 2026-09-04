@@ -52,7 +52,13 @@
 // ligne, et git garde celle d'un des deux cotes. Reste a v7, et un telephone
 // deja installe garde une coquille sans `versions.js` : les boutons des
 // nouvelles sections plantent au premier appui, hors ligne.
-const CACHE = "climbcontest-juge-v8";
+// v9 le 04/09 (spec 041) -- la MATIERE imprimee : lisere d'encre et ombre du
+// bouton. Tout est dans le CSS du gabarit `/juge`, que la coquille porte : sans
+// changement de nom, un telephone deja installe rouvrirait l'ancienne feuille
+// et ne verrait rien. Et `couleurs.js` gagne `estLeNoir`, que `juge.js` importe
+// desormais : une coquille qui melangerait l'ancien module et le nouveau
+// `juge.js` planterait au premier bloc scanne.
+const CACHE = "climbcontest-juge-v9";
 
 /**
  * Ce qu'on garde pour pouvoir démarrer sans réseau.

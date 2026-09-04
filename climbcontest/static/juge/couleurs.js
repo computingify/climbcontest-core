@@ -80,6 +80,24 @@ export function couleurDeCircuit(nom, sombre = enSombre()) {
 }
 
 /**
+ * Est-ce le circuit « Noir » ? — la question que le CSS ne peut pas poser.
+ *
+ * Depuis la spec 041, la carte du bloc scanné est teintée de son circuit et
+ * cerclée d'encre. Sur « Noir », la teinte EST l'encre : la carte vire au gris
+ * et le liseré se confond avec l'aplat. Le CSS ne sait pas comparer deux
+ * couleurs, il lui faut donc un marqueur — et ce marqueur se déduit du NOM,
+ * jamais de la valeur : `NOIR.clair` et `--encre` sont deux constantes
+ * distinctes, qui peuvent diverger d'un point sans cesser de désigner
+ * la même chose.
+ *
+ * Mêmes règles de lecture que `couleurDeCircuit` : la casse et les espaces
+ * restent sans effet, un nom qui n'est pas une chaîne rend `false`.
+ */
+export function estLeNoir(nom) {
+  return typeof nom === "string" && nom.trim().toLowerCase() === "noir";
+}
+
+/**
  * Du texte lisible sur n'importe quelle couleur de circuit — la luminance
  * décide, comme côté Android. Jaune et craie demandent de l'encre sombre.
  */

@@ -105,9 +105,14 @@ SONDE = r"""
 """
 
 
-@pytest.fixture()
+@pytest.fixture(scope="module")
 def serveur():
-    """L'application juge, sans cle d'API ni classeur — comme la spec 039."""
+    """L'application juge, sans cle d'API ni classeur — comme la spec 039.
+
+    ⚠️ PORTEE MODULE, meme raison que dans `test_navigateur_juge_claire.py` :
+    ce serveur n'a aucune donnee et aucun test n'ecrit dedans. Le laisser en
+    portee fonction faisait creer une base et un serveur par test.
+    """
     from flask import Response, request
 
     dossier = tempfile.mkdtemp(prefix="climbcontest-theme-")
@@ -142,8 +147,21 @@ def serveur():
         shutil.rmtree(dossier, ignore_errors=True)
 
 
-@pytest.fixture()
+@pytest.fixture(scope="module")
 def mesures(serveur):
+    """Le parcours du reglage, joue UNE FOIS pour tout le fichier.
+
+    ⚠️ Corrige le 04/09, en meme temps que le meme defaut dans
+    `test_navigateur_juge_claire.py`. Ce fichier compte treize tests, et la
+    sonde ne fait qu'UN seul parcours : en portee fonction, chacun relancait un
+    chromium avec un profil neuf pour rejouer exactement le meme parcours.
+    Treize demarrages de navigateur pour un releve unique, chacun facture entre
+    0,3 s a chaud et 7,2 s a froid sur un runner -- davantage encore sur une
+    machine chargee, ou c'est le demarrage qui depasse le delai et fait passer
+    le test pour un contraste en faute.
+
+    Le releve est en LECTURE SEULE : aucun test ne le modifie.
+    """
     url, verdict = serveur
     rendu = piloter(f"{url}/__harnais", verdict)
     assert rendu.startswith("OK "), rendu
