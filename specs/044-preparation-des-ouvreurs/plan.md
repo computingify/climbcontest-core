@@ -6,9 +6,10 @@
 ## 1. Les étapes
 
 ### Étape 0 — la porte 2
-- [ ] Adrien valide la spec, la maquette, et les **trois points de la §6**
-      (miroir suspendu, écriture réservée à `preparation`, plan non
-      redessinable par l'ouvreur)
+- [x] Les **trois points de la §6** tranchés le 05/09 : miroir **filtré voie par
+      voie**, écriture réservée à `preparation`, plan non redessinable par
+      l'ouvreur
+- [ ] Adrien valide la spec et la maquette dans leur version corrigée
 
 ### Étape 1 — le socle, sans écran
 - [ ] `Bloc.numero_couleur` et `Bloc.source` dans `models.py`
@@ -97,7 +98,11 @@ le nommer dans `exige_role`.
 | Compétition neuve | `source_blocs` = `classeur` |
 | Import en mode `classeur` | comportement **identique** à aujourd'hui (test de non-régression sur le rapport) |
 | Import en mode `console` | participants importés, **zéro bloc créé ou modifié**, avertissement présent |
-| `synchroniser` en mode `console` | `ignoree = True`, rien d'écrit, compteur d'attente **juste** |
+| `synchroniser` avec des voies des deux origines | les réussites des voies **importées** partent, celles des voies **console** ne partent pas |
+| Blocs d'avant ce lot (`source` à `NULL`) | **ils partent** — la clause `is_(None)` est testée pour elle-même |
+| `non_reportables` | compte exactement les réussites sautées ; `en_attente` ne les compte pas |
+| Une voie importée dont un ouvreur change la couleur | elle reste reportable (`source` inchangé) |
+| Le compteur d'attente après un envoi complet | tombe à zéro, même s'il reste des non-reportables |
 | Bascule `classeur` → `console` | les blocs déjà importés sont toujours là |
 | Bascule par un `ouvreur` | 403 — c'est une décision d'organisateur |
 
@@ -128,6 +133,7 @@ le nommer dans `exige_role`.
 | **Collision silencieuse dans `admin.html`** avec les branches 008 et 043 | préfixes `ouvreurs*`, section insérée dans le bloc des vues, fusion à blanc avant merge |
 | **`uq_bloc_tag` pendant une renumérotation** | écriture des tags en deux passes, testée sur une permutation circulaire |
 | **Un import lancé par réflexe efface le travail des ouvreurs** | le garde de F1, et un avertissement dans le rapport plutôt qu'un silence |
-| **Le miroir écrit sur les mauvaises lignes du classeur** | suspendu en mode `console` (F9), à confirmer porte 2 |
+| **Le miroir écrit sur les mauvaises lignes du classeur** | filtre voie par voie sur `bloc.source` (F9), avec la clause `is_(None)` pour les blocs d'avant le lot |
+| **Le compteur d'attente se fige sur des réussites inenvoyables** | une seule requête pour l'envoi et le compteur, et un second compteur **nommé** pour ce qui ne partira pas |
 | **Une couleur hors des six arrive du classeur** | affichée, non modifiable sans choisir parmi les six ; test dédié |
 | **Le plan change entre deux séances d'ouverture** | les voies d'une zone disparue remontent dans `hors_plan`, jamais supprimées |

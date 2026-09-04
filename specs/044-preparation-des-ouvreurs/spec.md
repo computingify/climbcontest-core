@@ -261,24 +261,63 @@ nom, vingt caractères) et d'en **supprimer un qui ne porte aucune voie**. Rien
 de plus : renommer un circuit déplacerait des blocs d'une catégorie à l'autre
 sans le dire.
 
-### F9 — Le miroir du classeur, quand la source est la console
+### F9 — Le miroir du classeur écrit ce qu'il peut placer
+
+> **Arbitrage du 05/09** : voie par voie, plutôt que tout ou rien.
 
 C'est le point le moins visible du lot, et il faut le poser noir sur blanc.
 
 Le miroir (`sheets/mirror.py`) écrit chaque réussite dans l'onglet `Import` du
-classeur à la ligne `bloc.numero` — le numéro de ligne que l'onglet `Plan`
-donnait. En mode `console`, ce numéro n'est plus qu'un ordinal interne : il ne
-désigne aucune ligne réelle du classeur, et les réussites tomberaient **à côté**.
+classeur à une adresse **calculée** :
 
-Position retenue : **en mode `console`, le miroir des réussites est suspendu**,
-et la console le dit là où on le lit — sur l'interrupteur, et sur l'indicateur
-« réussites en attente ». La redondance gratuite du classeur disparaît ; la
-sauvegarde de la base toutes les dix minutes (`docs/runbook-competition.md`)
-reste, et c'est elle qui protège la journée.
+```
+colonne = dossard + 3        ligne = bloc.numero + 1
+```
 
-⚠️ Le cas ne se pose déjà plus quand aucun classeur n'est relié : `synchroniser`
-sort en `ignoree` et compte les réussites en attente sans rien écrire. Le mode
-`console` prend la même sortie, pour la même raison.
+`bloc.numero` vient de la **colonne Y de l'onglet `Plan`**, et cette colonne ne
+porte pas un identifiant : elle porte **le numéro de la ligne que ce bloc occupe
+dans l'onglet `Import`**. C'est le classeur qui la calcule, par formule, quand on
+remplit `Plan`. Le backend ne fait que la relire comme une adresse postale.
+
+En mode `console`, personne ne remplit `Plan`, donc personne ne calcule cette
+colonne. Le `numero` d'une voie créée dans la console est un simple ordinal
+interne — il ne désigne **aucune ligne réelle** du classeur.
+
+⚠️ **Et l'écriture réussirait quand même.** `agrandir_si_besoin` agrandit la
+grille pour que le lot passe : un « A » atterrirait sur la ligne d'un autre bloc,
+ou sur une ligne créée pour l'occasion. Aucune erreur, aucun journal, aucun
+voyant. Le classeur ne serait pas vide, il serait **faux** — et c'est le filet de
+repli de la journée.
+
+**La règle retenue : le miroir filtre voie par voie.**
+
+| La voie vient… | Son `numero` désigne… | Le miroir |
+| --- | --- | --- |
+| d'un import du classeur (`source = classeur`) | une vraie ligne de `Import` | **écrit**, comme aujourd'hui |
+| de la console (`source = console`) | rien | **saute**, et le dit |
+
+Ce qui se gagne : une édition importée puis basculée en `console` — le cas
+d'usage réel, « on repart de l'édition précédente » — garde la redondance du
+classeur pour la quasi-totalité de ses réussites, et n'écrit jamais une case
+fausse.
+
+⚠️ **Modifier une voie importée ne la fait PAS passer en `source = console`.**
+Changer sa couleur, ses prises ou ses catégories ne touche pas son `numero` :
+son adresse dans le classeur reste bonne, elle reste reportable. Seule la
+**création** pose `source = console`. Confondre les deux ferait perdre le miroir
+sur toute édition qu'un ouvreur aurait simplement relue.
+
+**Ce qui ne part pas se compte, à part et en clair.** La leçon du 03/09 est que
+le compteur « réussites en attente » et l'envoi doivent partager la **même**
+requête, sinon l'écran affiche 714 en attente que le miroir ne peut pas envoyer.
+On garde donc un filtre unique pour les deux, et on ajoute un **second compteur
+nommé** :
+
+> 12 réussites ne partiront pas au classeur — elles portent des voies créées
+> dans la console.
+
+Il s'affiche à côté de l'interrupteur. Une réussite qui n'ira jamais nulle part
+doit être **visible**, pas silencieuse.
 
 ---
 
@@ -329,14 +368,18 @@ sort en `ignoree` et compte les réussites en attente sans rien écrire. Le mode
 
 ---
 
-## 6. Ce qui reste à confirmer (porte 2)
+## 6. Les décisions de la porte 2
 
-1. **F9 — la suspension du miroir en mode `console`.** C'est la seule décision
-   du lot qui retire quelque chose qui marche aujourd'hui. Si tu préfères
-   garder le miroir et vivre avec des lignes fausses dans l'onglet `Import`, il
-   faut le dire ici et pas après.
-2. **F7.1 — l'écriture réservée à `preparation`.** C'est strict : une couleur
-   corrigée le matin même, compétition déjà lancée, sera refusée. Le contournement
-   existe (repasser l'édition en préparation), mais il est explicite.
-3. **F2 — l'ouvreur ne redessine pas le plan.** Si tu veux qu'il le puisse, la
-   ligne est à bouger maintenant, pas après.
+Les trois points ouverts à la rédaction ont été tranchés par Adrien le
+**05/09/2026** :
+
+1. **F9 — le miroir.** ✅ *Il écrit ce qu'il peut placer.* Voie par voie, sur
+   `bloc.source` : les voies importées partent, celles créées en console sont
+   sautées et comptées à part. Écarté : la suspension totale (perte de la
+   redondance sur toute l'édition) et le statu quo (des cases fausses dans
+   l'onglet `Import`, sans avertissement).
+2. **F7.1 — l'écriture réservée aux compétitions en `preparation`.** ✅
+   *Confirmé.* Une correction sur une compétition déjà lancée passe par un
+   retour explicite en préparation.
+3. **F2 — l'ouvreur ne redessine pas le plan.** ✅ *Confirmé.* « L'ouvreur ne
+   peut pas redessiner le plan. » Il le lit, il ne l'écrit pas.

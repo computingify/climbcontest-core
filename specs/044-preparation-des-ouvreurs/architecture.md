@@ -195,10 +195,46 @@ s'applique.
 
 ### 4.2 Ce qui change dans le miroir
 
-`sheets/mirror.synchroniser()` sort en `ignoree` quand la source est `console`,
-avec `erreur = "cette edition prend ses voies dans la console"` — la même
-mécanique que « aucun classeur relié », qui existe et qui est déjà comptée
-correctement par `/health`.
+Le filtre partagé `mirror._envoyables()` gagne **une clause**, et rien d'autre :
+
+```python
+.filter(or_(Bloc.source.is_(None), Bloc.source != SOURCE_CONSOLE))
+```
+
+⚠️ `Bloc.source.is_(None)` **fait partie de la clause**. Les blocs d'avant ce lot
+valent `NULL` — ils viennent tous du classeur, et un `!=` seul les exclurait
+tous : en SQL, `NULL != 'console'` ne vaut pas vrai. Le miroir s'arrêterait net
+sur toutes les éditions existantes, et le compteur d'attente resterait figé.
+
+⚠️ **Une seule et même requête pour l'envoi et pour le compteur.** C'est la
+leçon du 03/09 : `/health` comptait 714 réussites en attente que le miroir ne
+pouvait pas envoyer. `_envoyables` reste le point unique, et
+`contest.reussites_en_attente` continue de l'appeler.
+
+Ce qui ne partira jamais se compte **à part**, par une fonction nommée :
+
+```python
+def non_reportables(competition_id: int) -> int:
+    """Les reussites qui portent une voie creee dans la console.
+
+    Elles n'ont pas d'adresse dans l'onglet `Import` : leur `numero` est un
+    ordinal interne, pas un numero de ligne. Les compter avec les autres ferait
+    afficher une attente qui ne se resorberait jamais ; ne pas les compter du
+    tout les rendrait invisibles. On les compte, et on les nomme.
+    """
+```
+
+Ce chiffre s'affiche à côté de l'interrupteur, dans la vue Général.
+
+⚠️ **`modifier()` ne touche jamais `source`.** Une voie importée que l'on relit
+garde `source = classeur` et son `numero` : elle reste reportable. Seul
+`creer()` pose `source = console`. C'est la ligne qui décide si le miroir
+survit à une édition simplement relue par un ouvreur.
+
+⚠️ **`renumeroter()` ne touche pas `numero` non plus** (architecture §2.2). Le
+tag d'un bloc importé peut donc différer de ce que dit l'onglet `Plan` du
+classeur : sans conséquence, puisque `Import` est adressé par **ligne**, jamais
+par tag.
 
 ---
 
