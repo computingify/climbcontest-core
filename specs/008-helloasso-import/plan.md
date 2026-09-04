@@ -226,6 +226,30 @@ Réseau doublé, données en fixtures.
 | Sources d'un participant rapproché | **Deux** pastilles |
 | Aucune clé HelloAsso | Aucune pastille `H`, aucune entrée de menu |
 
+### Les tests navigateur — une règle posée le 04/09 par la spec 041
+
+Trois des écrans de cette spec se vérifient **à l'œil et au clic**, pas par une
+requête : le mode sélection, la ligne qui s'ouvre sous le crayon, et les
+pastilles de source. Il y aura donc un `tests/test_navigateur_participants.py`,
+et il tombe sous le garde `tests/test_harnais_navigateur.py` arrivé sur `master`
+avec la spec 041 (`df2835e`).
+
+La règle, et sa raison :
+
+- une fixture qui appelle `piloter` **ne doit pas être en portée fonction** —
+  elle relancerait un chromium par test. Mesuré sur deux fichiers le 04/09 :
+  30 et 13 démarrages pour un relevé unique, et des rouges qu'on classait
+  « aléa de runner » alors que c'était un dépassement de délai ;
+- notre parcours est **le même pour tous les cas** — ouvrir la liste, basculer
+  en sélection, ouvrir une ligne. Donc `scope="module"` ;
+- si un cas demande un parcours vraiment différent, `piloter` s'appelle **dans
+  le test**, comme le fait `test_navigateur_reglages_resultats.py`. Le garde
+  l'épargne, et c'est voulu.
+
+`test_matiere_imprimee.py`, l'autre garde arrivé le même jour, ne nous concerne
+pas : il porte sur les variables CSS de `juge.html`, que cette spec ne touche
+pas.
+
 ### Fixtures
 
 `fixtures/helloasso/` — des réponses **fabriquées à la main**.
@@ -272,5 +296,6 @@ python3 -m venv /tmp/venv-008 && /tmp/venv-008/bin/pip install -q \
 | **La FFME change ses tranches** | Le barème se recalcule, et « Corriger à la main » existe pour ne pas attendre une release |
 | **« Appliquer à tous » défait le travail de quelqu'un** | C'est **D10**. Aperçu obligatoire, bouton à maintenir, et protection des corrections manuelles |
 | **`admin.html` est disputé par les autres sessions** | Les ajouts sont additifs ; le **retrait** de la tuile d'impression est la seule suppression, et elle se verra au conflit |
+| **`docs/specs-index.md` a été réécrit en entier** par les PR #115 et #118 — les 37 lignes portent maintenant la version qui a livré chaque spec | La ligne 008 ne s'écrit qu'**à la validation de la spec**, et sur un rebase récent. À la résolution : prendre le bloc de `master` **en entier** et n'y réinsérer que notre ligne — jamais garder notre côté |
 | **Le relevé écrit pendant qu'un juge scanne** | Un `commit` par article, SQLite en **WAL**. Re-mesuré au lot 8 |
 | **Le quota d'authentification** | 2 appels/h contre 50 autorisés. Mesuré dans le journal au lot 8 |
