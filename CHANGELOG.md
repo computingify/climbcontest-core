@@ -158,10 +158,10 @@ l'application.
 - **Le circuit « Noir » garde sa carte en papier.** C'est le seul dont la teinte
   est déjà l'encre : sa carte teintée virait au gris quand toutes les autres
   prennent leur couleur, et le liseré de sa pastille se confondait avec l'aplat.
-- **La suite de tests passe de 2 min 26 à 16 s**, et — ce qui compte
-  davantage — de 2 min 26 à **47 s en série**, sans parallélisme. Aucun test
+- **La suite de tests passe de 2 min 26 à 13 s**, et — ce qui compte
+  davantage — de 2 min 26 à **45 s en série**, sans parallélisme. Aucun test
   retiré, quinze ajoutés (1 870, tous verts). Le parallélisme est un
-  multiplicateur ; l'essentiel du gain vient du travail supprimé.
+  multiplicateur ; les deux tiers du gain viennent du travail supprimé.
   - **Un tiers de la suite dérivait des mots de passe.** `scrypt` est lent à
     dessein (54 ms), et chaque fixture de connexion en payait deux — création
     du compte, puis vérification — soit ~105 ms, quatre cents fois. La
@@ -191,6 +191,12 @@ l'application.
     dans le *teardown* où personne ne lit les durées.
   - **Les tests E2E ne relancent plus un interpréteur Python par test** pour
     peupler leur base : elle est bâtie une fois, puis copiée.
+  - **Quatre parcours navigateur pour quatre sondes** de l'écran Réglages du
+    juge : quatre démarrages de l'application pour rejouer chaque fois la même
+    ouverture. Un seul parcours, 4,8 s → 2,3 s. Les sondes restent quatre
+    textes séparés — deux PR qui en touchent deux différentes ne se disputent
+    toujours rien — et chacune tourne dans son propre `try` : une sonde qui
+    casse ne fait pas tomber les trois autres.
   - **La suite tourne en parallèle par défaut** (`pytest-xdist`, `-n logical
     --dist loadgroup`). `pytest -n 0` revient à l'exécution en série.
   - **Un seul chromium pour toute l'exécution**, au lieu d'un par fichier.
