@@ -89,6 +89,8 @@ class Competition(db.Model):
 
     participants = relationship("Participant", back_populates="competition",
                                 cascade="all, delete-orphan")
+    inscriptions = relationship("Inscription", back_populates="competition",
+                                cascade="all, delete-orphan")
     blocs = relationship("Bloc", back_populates="competition",
                          cascade="all, delete-orphan")
     circuits = relationship("Circuit", back_populates="competition",
@@ -148,11 +150,39 @@ class Participant(db.Model):
     present = Column(Boolean, nullable=False, default=False)
     source = Column(String(20), nullable=False, default=SOURCE_CLASSEUR)
 
+    # L'ANNÉE de naissance, et rien de plus — décision D9 du 03/09.
+    #
+    # C'est tout ce que la règle FFME demande (`categories.py`) : la catégorie
+    # se calcule sur l'année, jamais sur la date, et personne ne change de
+    # catégorie le jour de son anniversaire. Garder le jour et le mois serait
+    # donc conserver la date de naissance d'un mineur sans qu'aucun calcul ne
+    # s'en serve — exactement ce que la règle 7 du CLAUDE.md demande d'éviter.
+    #
+    # Nullable, et le restera : les participants venus du classeur n'en ont pas,
+    # et un import de classeur ne doit pas se mettre à échouer pour ça.
+    annee_naissance = Column(Integer)
+
+    # Quelqu'un a rangé cette personne à la main, contre ce que le barème
+    # calcule. C'est la trace d'un GESTE, pas un état du monde — même raison
+    # d'être que `Success.hors_circuit_force`.
+    #
+    # Sans elle, « Appliquer le barème à tous les inscrits » défait
+    # silencieusement le travail de quelqu'un qui connaissait le cas
+    # particulier. Avec elle, l'aperçu les compte à part et il faut forcer
+    # explicitement.
+    categorie_forcee = Column(Boolean)
+
     cree_le = Column(DateTime, nullable=False, default=func.now())
 
     competition = relationship("Competition", back_populates="participants")
     reussites = relationship("Success", back_populates="participant",
                              cascade="all, delete-orphan")
+    # ⚠️ SANS cascade, volontairement. Une inscription est la trace de ce que
+    # HelloAsso a dit ; supprimer le participant qu'elle a créé ne doit pas
+    # l'effacer, sinon le relevé suivant le recréerait aussitôt — l'article
+    # serait redevenu inconnu. Elle se détache (`participant_id = NULL`) et
+    # retourne dans la pile « à trancher ».
+    inscriptions = relationship("Inscription", back_populates="participant")
 
     @property
     def nom_complet(self) -> str:
@@ -166,12 +196,57 @@ class Participant(db.Model):
         return self.categorie.rsplit(" ", 1)[0] if " " in self.categorie else self.categorie
 
     def to_dict(self) -> dict:
+        """Ce que voient les téléphones des juges.
+
+        ⚠️ **Ne rien ajouter ici sans y penser à deux fois.** Cette méthode
+        alimente `/api/v2/contest/catalogue`, donc les vingt-cinq téléphones de
+        la salle. Deux raisons de la garder maigre :
+
+        1. **La taille.** 98 participants font 6 à 8 ko compressés ; le
+           catalogue est retéléchargé à chaque changement de version.
+        2. **Les données personnelles.** `annee_naissance` est délibérément
+           ABSENTE : l'année de naissance d'un mineur n'a aucune raison de
+           voyager sur vingt-cinq téléphones que le club ne contrôle pas. Le
+           juge a besoin d'un nom pour vérifier son scan, pas d'un état civil.
+
+        La console, elle, lit `pour_la_console()`.
+        """
         return {
             "id": self.id,
             "dossard": self.dossard,
             "nom": self.nom_complet,
             "club": self.club,
             "categorie": self.categorie,
+        }
+
+    @property
+    def sources(self) -> list[str]:
+        """D'où vient ce participant — parfois de deux endroits (spec 008).
+
+        `source` dit l'ORIGINE : qui l'a créé. Une inscription HelloAsso
+        rattachée après coup à quelqu'un qui venait du classeur ne change pas
+        cette origine — mais elle ajoute une provenance, et c'est précisément
+        ce qu'on veut montrer : le rapprochement a fait son travail, cette
+        personne n'a pas été dupliquée.
+
+        Aucune colonne nouvelle : c'est `source`, plus l'existence d'une
+        inscription liée.
+        """
+        vues = [self.source]
+        if any(i.participant_id == self.id for i in (self.inscriptions or [])):
+            if SOURCE_HELLOASSO not in vues:
+                vues.append(SOURCE_HELLOASSO)
+        return vues
+
+    def pour_la_console(self) -> dict:
+        """Ce que voit la console d'administration. Jamais servi aux juges."""
+        return {
+            **self.to_dict(),
+            "prenom": self.prenom,
+            "present": self.present,
+            "annee_naissance": self.annee_naissance,
+            "categorie_forcee": bool(self.categorie_forcee),
+            "sources": self.sources,
         }
 
     def __repr__(self) -> str:
@@ -366,6 +441,127 @@ class ReaffectationDossard(db.Model):
     def __repr__(self) -> str:
         return (f"<Reaffectation dossard={self.dossard} "
                 f"{self.ancien_participant_id} -> {self.nouveau_participant_id}>")
+
+
+# --- Inscriptions en ligne (spec 008) ---------------------------------------
+
+#: Les quatre états d'une inscription. Ils décrivent un **geste physique**, pas
+#: un état informatique : derrière chaque ligne il y a un dossard à imprimer et
+#: à porter à quelqu'un.
+A_TRANCHER, A_IMPRIMER, FAITE, IGNOREE = (
+    "a_trancher", "a_imprimer", "faite", "ignoree")
+ETATS_INSCRIPTION = (A_TRANCHER, A_IMPRIMER, FAITE, IGNOREE)
+
+#: Pourquoi une inscription attend. C'est ce que la carte affiche.
+MOTIF_CLUB_DIFFERENT = "club_different"
+MOTIF_ANNEE_ABSENTE = "annee_absente"
+#: Le champ portait une reponse, mais on n'en a pas tire d'annee.
+#: Distinct de l'absence : dire « annee absente » a quelqu'un qui a
+#: tape « 2916 » lui ferait chercher au mauvais endroit.
+MOTIF_ANNEE_ILLISIBLE = "annee_illisible"
+MOTIF_ANNEE_HORS_BAREME = "annee_hors_bareme"
+MOTIF_GENRE_INDETERMINE = "genre_indetermine"
+MOTIF_SANS_NOM = "sans_nom"
+MOTIF_ANNULEE = "annulee_apres_coup"
+
+
+class Inscription(db.Model):
+    """Une ligne venue de HelloAsso, et ce qu'on en a fait — spec 008.
+
+    **La salle d'attente.** Rien de ce qui vient du réseau n'écrit directement
+    dans `participant` : c'est cette table qui décide si un participant est
+    créé. Même séparation que la spec 002 entre la base et le classeur — une
+    source extérieure est une *entrée*, jamais une autorité.
+
+    Elle survit au participant qu'elle a créé : c'est la trace de ce que la
+    plateforme a dit, et la seule chose qui rende le relevé idempotent.
+
+    ⚠️ **Ce qui n'est PAS ici, et c'est délibéré** (décision D5 du 03/09, « le
+    strict minimum ») :
+
+    - rien du payeur — ni nom, ni courriel, ni adresse, ni téléphone. Le payeur
+      est un parent, et on n'a aucun usage de ses coordonnées ;
+    - aucun montant, aucun moyen de paiement, aucun reçu ;
+    - **aucune copie du JSON reçu.** Les colonnes ci-dessous *sont*
+      l'enregistrement. Pour relire une inscription après correction du barème,
+      on redemande l'article à HelloAsso — l'idempotence rend l'opération
+      gratuite, et c'est moins de code qu'un rejeu depuis une copie ;
+    - le nom du tarif : « pour la compétition tout le monde paye le même »
+      (Adrien, 04/09). Il ne discrimine rien.
+
+    `commande_id` reste, parce qu'un entier ne décrit personne. Il sert à deux
+    choses réelles : retrouver la fratrie — une commande porte souvent deux
+    enfants — et retrouver la commande dans le back-office HelloAsso quand il
+    faut joindre quelqu'un, puisqu'on ne garde pas le courriel.
+    """
+
+    __tablename__ = "inscription"
+    __table_args__ = (
+        # ⚠️ L'ANTI-RÉIMPORT TIENT ICI, pas dans le code du relevé.
+        #
+        # Le fil repasse sur les mêmes articles toutes les soixante secondes —
+        # c'est même volontaire, la fenêtre `from=` a un recouvrement de cinq
+        # minutes. Sans cette contrainte, chaque tour créerait des doublons.
+        # La porter en base plutôt qu'en Python, c'est la même décision que
+        # `uq_reussite` : un contrôle applicatif se contourne par un chemin
+        # qu'on n'avait pas prévu, une contrainte non.
+        #
+        # La clé est l'ARTICLE (`item.id`), jamais la commande : une commande
+        # peut porter plusieurs inscrits, et s'en servir perdrait le second
+        # enfant sans que rien ne le dise.
+        UniqueConstraint("competition_id", "article_id", name="uq_inscription_article"),
+    )
+
+    id = Column(Integer, primary_key=True)
+    competition_id = Column(Integer, ForeignKey("competition.id"), nullable=False)
+
+    article_id = Column(Integer, nullable=False)      # item.id chez HelloAsso
+    commande_id = Column(Integer)                     # order.id
+
+    etat = Column(String(20), nullable=False, default=A_TRANCHER)
+    motif = Column(String(30))
+    participant_id = Column(Integer, ForeignKey("participant.id"))
+
+    nom = Column(String(80))
+    prenom = Column(String(80))
+    annee_naissance = Column(Integer)
+    club = Column(String(80))
+    categorie = Column(String(20))
+
+    etat_helloasso = Column(String(20))               # Processed, Canceled…
+    # L'heure de dernière modification CHEZ EUX. C'est elle qui fait avancer le
+    # curseur du relevé — surtout pas notre propre horloge.
+    maj_le = Column(DateTime)
+    recue_le = Column(DateTime, nullable=False, default=func.now())
+    traitee_le = Column(DateTime)
+    traitee_par = Column(String(80))
+
+    competition = relationship("Competition", back_populates="inscriptions")
+    participant = relationship("Participant", back_populates="inscriptions")
+
+    @property
+    def nom_complet(self) -> str:
+        return f"{self.nom} {self.prenom}".strip() if self.prenom else (self.nom or "")
+
+    def to_dict(self) -> dict:
+        return {
+            "id": self.id,
+            "article_id": self.article_id,
+            "commande_id": self.commande_id,
+            "etat": self.etat,
+            "motif": self.motif,
+            "participant_id": self.participant_id,
+            "nom": self.nom_complet,
+            "annee_naissance": self.annee_naissance,
+            "club": self.club,
+            "categorie": self.categorie,
+            "etat_helloasso": self.etat_helloasso,
+            "recue_le": self.recue_le.isoformat() if self.recue_le else None,
+        }
+
+    def __repr__(self) -> str:
+        return (f"<Inscription article={self.article_id} "
+                f"{self.nom_complet!r} {self.etat}>")
 
 
 # --- Comptes, posés dès maintenant pour éviter une migration en spec 005 -----

@@ -44,6 +44,16 @@ description = "Secret de session écrit en dur"
 regex = '''(?i)(secret[_-]?key|session[_-]?secret)["'\s:=]+["'][A-Za-z0-9_\-!@#$%^&*]{12,}["']'''
 tags = ["session"]
 
+[[rules]]
+id = "climbcontest-helloasso"
+description = "Cle d'API HelloAsso ecrite en dur (spec 008, risque R13)"
+# Le README du depot PUBLIC climbBackEnd a publie un clientId, un clientSecret
+# et deux jetons HelloAsso en clair. Cette regle existe pour que la question ne
+# se repose jamais : l'identifiant est un UUID sans tirets de 32 caracteres, le
+# secret une chaine base64 de 40 et plus.
+regex = '''(?i)(client[_-]?id|client[_-]?secret|helloasso)["'\s:=]+["']?[A-Za-z0-9+/=_\-]{32,}["']?'''
+tags = ["helloasso"]
+
 [allowlist]
 description = "Faux positifs connus"
 

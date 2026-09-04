@@ -188,3 +188,12 @@ token.pickle
 credentials.json
 *.pem
 .env
+
+# Cles d'API HelloAsso (spec 008). Le fichier de travail d'Adrien vit HORS du
+# depot, a la racine du plan de travail -- il n'a donc jamais pu etre commite.
+# Ces motifs sont la pour le jour ou quelqu'un le recopiera « juste pour
+# essayer » : c'est exactement comme ca que la cle du depot public
+# climbBackEnd s'est retrouvee dans un README (risque R13).
+helloasso.json
+sandboxsecret.json
+*secret*.json

@@ -33,6 +33,94 @@ qu'on ne met pas à jour le matin d'une compétition :
 
 ### Ajouté
 
+- **Les inscriptions HelloAsso arrivent toutes seules** (spec 008). La
+  plateforme d'inscription du club alimente désormais une **salle d'attente**
+  dans la console : c'est elle qui décide si un participant est créé, jamais le
+  réseau. Trois piles dans l'ordre où on les traite — *à trancher*, *à
+  imprimer*, *faites* — sur un écran rafraîchi toutes les trente secondes,
+  qu'on laisse ouvert pendant la compétition. Une pastille dans le bandeau
+  compte ce qui attend, depuis n'importe quel écran.
+
+  **La catégorie se calcule.** « U » veut dire *under* : U13, ce sont les moins
+  de 13 ans, et c'est le plus petit Under qui l'emporte. L'année de référence
+  est celle où **finit** la saison FFME — septembre à août — ce qui est
+  exactement ce qui fait qu'un grimpeur démarre l'année dans une catégorie et y
+  reste. Le barème ne se saisit plus : il se déduit de la date de la compétition
+  et des catégories de l'édition, et un écran **Catégories** permet de
+  l'appliquer à tous les inscrits, avec son aperçu avant / après.
+
+  **Deux mécanismes distincts, et il ne faut pas les confondre.** Ne pas
+  réimporter tient à une contrainte SQL sur l'**article** HelloAsso ; rapprocher
+  une personne déjà connue se fait sur nom + prénom + club. Le numéro de
+  commande, lui, ne peut pas servir de clé anti-doublon : une commande porte
+  souvent **deux enfants**, et s'en servir perdrait le second.
+
+  Le relevé ne garde **rien du payeur** — ni nom, ni courriel, ni adresse — et
+  seulement l'**année** de naissance de l'inscrit, qui est tout ce que la règle
+  demande. Ce sont des mineurs.
+
+- **La liste des participants change de geste** (spec 008). Une colonne
+  **Source** dit d'où vient chacun — `G` classeur Google, `H` HelloAsso, `M`
+  saisie au guichet — et deux pastilles sur une ligne veulent dire que le
+  rapprochement a fait son travail. Un **crayon** ouvre la ligne sur place, avec
+  des listes déroulantes qui savent créer une valeur. La **sélection par cases**
+  remplace la tuile « Imprimer les fiches » : on filtre par catégorie, on coche,
+  on imprime. Le formulaire d'ajout apprend l'**année de naissance**, et l'année
+  et la catégorie se répondent l'une l'autre.
+
+- **Un seul formatage, et plus de doublons** (spec 008). Le formatage
+  s'applique désormais à **toutes** les sources, l'import du classeur compris —
+  la spec 013 l'en tenait à l'écart, et c'est ce qui fabriquait des doublons :
+  « ANNONAY ESCALADE » importé et « annonay escalade » tapé au guichet étaient
+  deux clubs. Quand un club existe déjà sous une forme, **c'est la sienne qui
+  fait référence**, quelle que soit la façon dont on vient de l'écrire.
+
+  Créer quelqu'un qui porte le même nom **et** le même club est refusé, avec sa
+  fiche à l'écran pour la reprendre d'un clic. Même nom mais club différent
+  reste possible — deux « Martin Lea » existent vraiment — et se signale. Une
+  carte **Doublons** paraît quand la base en porte déjà, et laisse choisir
+  laquelle des deux fiches garde son dossard : c'est celui qui est déjà imprimé.
+
+- **Les catégories d'une édition peuvent se déclarer** (spec 008). Le barème se
+  déduisait des inscrits et des circuits — et les circuits ne viennent que de
+  l'import du classeur Google, qui est temporaire et finira par disparaître. Une
+  édition alimentée par HelloAsso seul n'aurait donc eu aucune catégorie
+  calculable au premier relevé. Une ligne dans l'écran **Catégories** suffit
+  désormais à les annoncer, et le calcul cesse de dépendre du classeur.
+
+- **D'où viennent les inscrits se règle** (spec 008). Dans **Général**, trois
+  positions : le classeur Google seul — ce qu'on fait aujourd'hui, et le défaut
+  —, HelloAsso seul, ou les deux. Tant que HelloAsso n'est pas choisi,
+  **aucun** écran ni aucune pastille HelloAsso n'apparaît dans la console.
+
+  Le réglage porte sur les **participants** et sur rien d'autre : le miroir
+  continue d'écrire les réussites dans le classeur, et l'import continue d'y
+  lire les blocs et les circuits. Le classeur peut cesser de fournir les
+  inscrits tout en restant la carte du mur.
+
+  **Décocher n'efface rien** : la clé, le formulaire et la correspondance
+  reviennent tels quels à la réactivation. Pour effacer, il y a « Débrancher »,
+  qui dit ce qu'il fait.
+
+- **Relier HelloAsso tient en deux champs** (spec 008). On colle l'identifiant
+  et le secret, et la console **trouve l'association toute seule** — son nom
+  s'affiche aussitôt, avec la liste de ses formulaires. Plus de nom court à
+  taper, donc plus de faute de frappe dont le seul symptôme aurait été « aucun
+  formulaire trouvé ».
+
+  Un bouton **Tester** répond à « est-ce que ça marche ? » par des faits qu'on
+  reconnaît : le nom du club, le nombre de formulaires, et le nombre
+  d'inscriptions vues sur celui qui est choisi. Un verdict qui dirait seulement
+  « relié » ne prouverait rien — il pourrait désigner la mauvaise association.
+
+- **L'import HelloAsso devine ses champs** (spec 008). Choisir le formulaire lit
+  un échantillon et reconnaît tout seul l'année de naissance, le genre et le
+  club — par le nom du champ, et à défaut **par ses réponses** : un champ dont
+  toutes les réponses sont « Fille » ou « Garçon » est un champ de genre, quel
+  que soit son intitulé. « Fille », « F », « Féminin », « Girl » sont reconnus
+  d'origine. Rien n'est deviné en silence : la console dit ce qu'elle a trouvé,
+  et liste les réponses qu'elle n'a pas su ranger.
+
 - **L'application juge choisit son thème** (spec 040). Trois pastilles dans les
   Réglages — *Système*, *Clair*, *Sombre*. « Système » reste la position de
   départ : rien ne change pour un juge qui n'y touche pas. Le choix est appliqué

@@ -133,10 +133,19 @@ le jour de la compétition, sans passer par HelloAsso.**
   ligne de log ne suffit pas : l'écran d'administration doit être **regardable
   en continu** pendant la compétition.
 
+> ✅ **Traité par la [spec 008](../specs/008-helloasso-import/), livrée le
+> 04/09/2026.** Les quatre points ci-dessus sont construits : l'import est un
+> flux qui alimente une **salle d'attente**, la saisie manuelle est intacte, le
+> rapprochement se fait sur nom + prénom + club avec validation humaine, et la
+> vue *Inscriptions* est l'écran qu'on laisse ouvert. Une précision est venue de
+> la règle FFME : la catégorie ne se saisit plus, elle **se calcule** sur
+> l'année de naissance.
+>
 > 🔴 **Sécurité, à traiter indépendamment** : le `README.md` du dépôt public
 > `climbBackEnd` contient l'identifiant, le **secret client** et des jetons
 > HelloAsso (bac à sable). À révoquer avant toute reprise de ce code.
-> C'est le risque R13 de l'[état des lieux](etat-des-lieux.md).
+> C'est le risque R13 de l'[état des lieux](etat-des-lieux.md), et il reste
+> **ouvert** : il demande d'être connecté au compte HelloAsso du club.
 
 ---
 
