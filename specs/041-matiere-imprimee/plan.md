@@ -46,10 +46,29 @@ Master a bougé **deux fois** pendant le travail.
       rendu **détectable** par un test
 - [x] Mesurer l'intégration des deux specs sur les **six** croisements
 
-## Étape 5 — Ce qui ne se fait pas depuis un Mac
+## Étape 5 — Réparer le harnais navigateur (fait)
+
+- [x] `test_navigateur_juge_claire.py` : fixtures en portée **module** — un
+      navigateur au lieu de trente, 1,5 s au lieu de plusieurs minutes
+- [x] Le même défaut dans `test_navigateur_theme_au_choix.py`, arrivé avec la
+      spec 040 : 19,2 s → 1,6 s
+- [x] Un garde structurel, `tests/test_harnais_navigateur.py`, vérifié en
+      réintroduisant le défaut
+- [x] Vérifier qu'il **épargne** `test_navigateur_reglages_resultats.py`, dont
+      les cinq tests pilotent cinq parcours réellement différents
+
+## Étape 6 — Ce qui ne se fait pas depuis un Mac
 
 - [ ] Essai sur un vrai téléphone, en salle, avant la mise en production
-- [ ] L'éblouissement (D2 de la 035) : jamais mesuré, toujours pas mesuré ici
+
+⚠️ **L'éblouissement ne fait plus partie des questions ouvertes**, et le porter
+comme un risque serait une erreur. C'était l'argument qui tenait l'application
+en sombre : « un écran clair éblouit quand on lève les yeux vers le mur ». La
+[039](../039-pwa-claire/) a fait du clair le défaut, et la
+[040](../040-theme-au-choix/) a donné au juge un **interrupteur dans les
+Réglages**. Un bénévole gêné bascule en sombre en deux gestes, sur son propre
+téléphone, sans que personne ait à mesurer quoi que ce soit. La question n'a
+plus de décision suspendue à elle.
 
 ## Plan de test
 
@@ -99,8 +118,9 @@ n'a eu à être ajouté pour que la 041 suive la 040.
 ### Ce qui n'est couvert par aucun test
 
 - **Le « waouh ».** Il se juge à l'œil, et il a été jugé : deux tours d'aperçu.
-- **L'éblouissement en salle**, la lisibilité au soleil, la fatigue sur deux
-  cents validations. Aucun ne se simule sur un Mac.
+- **La fatigue sur deux cents validations**, et la lisibilité au soleil. Elles
+  ne se simulent pas sur un Mac. Le juge a désormais l'interrupteur de thème
+  pour y répondre lui-même, sur le terrain.
 - **Le rendu sur un vrai téléphone.** Les captures sont faites par un moteur de
   bureau : le rendu des ombres et des liserés d'un iPhone peut différer d'un
   cheveu. C'est l'objet de l'étape 4.

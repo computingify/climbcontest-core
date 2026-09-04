@@ -132,6 +132,41 @@ valeur, et ne voit rien bouger.
 dans la feuille du gabarit n'a plus aucun `var()` qui la lise. Vérifié en
 réintroduisant le défaut : le test tombe, et il nomme la variable.
 
+### 5.5 Les rouges du harnais navigateur n'étaient pas des contrastes
+
+Trouvé en vérifiant la suite après fusion, et corrigé sur demande d'Adrien :
+« pour ce `test_navigateur_juge_claire.py` trouve une autre façon de tester,
+sinon tu le supprimes ».
+
+Le fichier ne mesurait rien de faux — ses valeurs étaient bonnes, 4,95 et 5,98
+pour un seuil de 4,5. Son défaut était **structurel** : sa fixture `mesures`
+était en portée **fonction**, et trente tests la lisaient. Le même parcours
+était donc rejoué **trente fois**, chacun payant un démarrage de chromium — 0,3 s
+à chaud, 7,2 s au premier lancement d'un runner, davantage sur une machine
+chargée. Le fichier finissait par dépasser le délai du pilote, sur un paramètre
+**différent à chaque exécution**.
+
+C'est ce qui faisait passer ces rouges pour un « aléa de runner ». Ils n'en
+étaient pas : ils avaient une cause, et elle se corrige.
+
+| Fichier | Avant | Après |
+| --- | --- | --- |
+| `test_navigateur_juge_claire.py` (30 tests) | 30 navigateurs | **1**, 1,5 s |
+| `test_navigateur_theme_au_choix.py` (13 tests) | 13 navigateurs, 19,2 s | **1**, 1,6 s |
+
+Le second fichier est arrivé avec la [spec 040](../040-theme-au-choix/) et
+portait le même défaut : le corriger seul aurait laissé le problème entier.
+
+⚠️ Aucun délai n'a été allongé. Un test qui attend plus longtemps ne devient pas
+plus sûr, il devient plus lent à échouer : on supprime les vingt-neuf attentes,
+on ne rallonge pas la trentième.
+
+Et le piège est rendu **détectable** : `tests/test_harnais_navigateur.py`
+échoue désormais dès qu'une fixture qui appelle `piloter` reste en portée
+fonction. Il nomme le fichier et la fixture. Vérifié en réintroduisant le
+défaut. La règle épargne `test_navigateur_reglages_resultats.py`, dont les cinq
+tests pilotent **cinq parcours différents** : sa portée fonction est correcte.
+
 ## 6. Le réglage qu'Adrien a rouvert
 
 La direction A demandait « une ombre franche de 5 px ». Implémentée telle
@@ -163,6 +198,7 @@ délibéré : la spec 035 décrivait une intention, le rendu a tranché la valeu
 | A11 | La matière suit le thème **imposé** par la spec 040, pas seulement celui du système | Mesuré sur les **six** croisements système × réglage × circuit |
 | A12 | Aucune variable CSS déclarée sans lecteur | `tests/test_matiere_imprimee.py`, vérifié en réintroduisant le défaut |
 | A13 | Le souffle ne peut plus effacer l'ombre | Idem : le test tombe si une étape cesse de la reporter |
+| A14 | Aucune fixture ne relance un navigateur par test | `tests/test_harnais_navigateur.py`, vérifié en réintroduisant le défaut |
 
 ## 8. Hors périmètre
 

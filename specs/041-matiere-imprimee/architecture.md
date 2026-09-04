@@ -96,6 +96,6 @@ réelle servie à 390 × 844, l'état posé comme le fait `redessiner()`, puis
 thèmes et sur deux circuits, plus le bouton désactivé. Le détail est dans le
 plan.
 
-Ce qui **ne se mesure pas** reste écrit noir sur blanc : l'éblouissement en
-salle, la fatigue sur deux cents validations, et le « waouh ». Ceux-là se
-jugent sur un vrai téléphone, un vrai jour.
+Ce qui **ne se mesure pas** reste écrit noir sur blanc : la fatigue sur deux
+cents validations, et le « waouh ». Ceux-là se jugent sur un vrai téléphone, un
+vrai jour.

@@ -76,6 +76,17 @@ l'application.
   seconde : `box-shadow` est une propriété unique, et les images-clés du souffle
   la réécrivaient entièrement. Elles reportent désormais l'ombre et ne font
   varier que la lueur du circuit.
+- **Les rouges intermittents des tests navigateur avaient une cause, et elle
+  est réparée.** Ce n'était pas un aléa de machine : deux fichiers relançaient
+  un navigateur **par test** pour rejouer exactement le même parcours — trente
+  fois pour `test_navigateur_juge_claire.py`, treize pour celui du thème au
+  choix. Chaque démarrage coûte de 0,3 s à chaud à 7,2 s au premier lancement,
+  bien plus sur une machine chargée : le fichier finissait par dépasser le
+  délai, sur un test différent à chaque exécution, et le rouge se lisait comme
+  un contraste en faute alors que les valeurs mesurées étaient bonnes. Un seul
+  navigateur suffit : 19,2 s → 1,6 s pour l'un, plusieurs minutes → 1,5 s pour
+  l'autre. Aucun délai n'a été allongé — on a supprimé les attentes, pas
+  rallongé la dernière.
 - **Une variable de couleur avait survécu à son dernier lecteur.**
   `--trait-circuit` ne servait plus une fois la carte du bloc cerclée d'encre ;
   elle est revenue par la fusion avec le thème au choix, qui avait recopié le
