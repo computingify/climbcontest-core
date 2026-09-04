@@ -1,252 +1,259 @@
 # Plan — spec 008, l'import HelloAsso
 
-Six lots. Les cinq premiers sont livrables séparément ; **le lot 0 est un
-préalable, et il n'est pas de moi**.
+Huit lots. Le plan de test est écrit **avant** l'implémentation, comme
+[`docs/workflow.md`](../../docs/workflow.md) l'impose.
 
-Le plan de test est écrit **avant** l'implémentation, comme
-[`docs/workflow.md`](../../docs/workflow.md) l'impose : c'est ce qui force à
-regarder les cas limites avant d'avoir le nez dans le code.
+**L'ordre a changé le 04/09**, et c'est la conséquence la plus utile de la
+décision D1 : la règle des catégories et les écrans de la liste **ne dépendent
+pas de HelloAsso**. Ils passent devant. Si la clé d'API tarde, la moitié utile
+est déjà en production.
 
 ---
 
 ## Lot 0 — Solder R13, et obtenir une clé *(Adrien)*
 
-Rien ne commence avant.
-
 - [ ] **Révoquer** la clé de bac à sable publiée dans le `README.md` du dépôt
-      public `climbBackEnd` (`clientId` `e417b84a…`, secret, deux jetons)
-- [ ] **Retirer** ces lignes du `README.md`, committer, pousser
+      public `climbBackEnd`
+- [ ] **Retirer** ces lignes, committer, pousser
 - [ ] Créer une **association de test** sur `helloasso-sandbox.com` et un
-      **formulaire d'événement** qui ressemble à celui du club : quelques tarifs
-      nommés comme des catégories, un champ *Club*, un champ *Date de naissance*
+      **formulaire d'événement** qui ressemble à celui du club
 - [ ] Générer la clé d'API du bac à sable, et me la donner **hors du dépôt**
-- [ ] *(plus tard, à la recette)* la clé d'API du vrai compte du club
+- [ ] *(à la recette)* la clé du vrai compte du club
 
-⚠️ Le formulaire de test doit porter un champ **Date de naissance** et un champ
-**Sexe** (ou des tarifs qui distinguent filles et garçons). Depuis la décision
-D1, c'est la date de naissance qui fait la catégorie : un formulaire de test
-sans elle validerait un chemin qui n'existe pas en vrai.
+⚠️ Le formulaire de test doit porter un champ **date de naissance** et un champ
+**Sexe**. Depuis D1 c'est l'année qui fait la catégorie ; un formulaire de test
+sans elle validerait un chemin qui n'existe pas en vrai. Le tarif, lui, n'a plus
+aucune importance — tout le monde paie le même.
 
-> Je ne peux pas faire ces gestes : ils demandent d'être connecté au compte
-> HelloAsso du club. C'est la décision **D7**.
-
----
-
-## Lot 1 — Parler à HelloAsso
-
-Le socle. Aucune interface, aucune table : juste savoir demander.
-
-- [ ] `helloasso/client.py` — `ClientHelloAsso`, `ErreurHelloAsso`
-- [ ] Jeton **en base** (`reglage`), rafraîchissement sous le verrou
-      `helloasso_jeton`
-- [ ] Secret dans `shared/secrets/helloasso.json`, jamais renvoyé, jamais
-      journalisé
-- [ ] Pagination `continuationToken` — arrêt sur **tableau vide**
-- [ ] Bascule production / bac à sable par le réglage, pas par une constante
-- [ ] `tools/dump_helloasso.py` : liste les formulaires, puis les tarifs et les
-      champs personnalisés d'un formulaire. **Lecture seule**, refuse de
-      démarrer sans `CLIMBCONTEST_HELLOASSO_ENV` explicite
-- [ ] `.gitleaks.toml` : motif pour une clé HelloAsso
-
-**Fin du lot** : `python3 tools/dump_helloasso.py --formulaires` affiche le
-formulaire de test du bac à sable.
+**Ce lot ne bloque que les lots 4 à 8.** Les lots 1 à 3 avancent sans lui.
 
 ---
 
-## Lot 2 — Le cœur : relever, comprendre, rapprocher
+## Lot 1 — La règle FFME, seule
 
-Toujours aucune interface. C'est le lot qui se teste le mieux.
+Aucune interface, aucune base, aucun réseau. Le lot qui se teste le mieux, et
+celui dont tout le reste dépend.
 
-- [ ] `models.py` : table `inscription`, constantes d'état et de motif,
-      `Participant.date_naissance` + sa ligne dans `COLONNES_AJOUTEES`
-- [ ] `helloasso/correspondance.py` : découverte des tarifs, des champs et des
-      **réponses réellement vues** ; `proposer_bareme()`, `controler()` ;
-      lecture / écriture dans `competition.options["helloasso"]`
-- [ ] `helloasso/rapprochement.py` : `cle()`, `confronter()` — **fonctions
-      pures**, aucune base
-- [ ] `helloasso/releve.py` : la boucle, la copie élaguée, un `commit` par
-      article, un `Rapport` sur le modèle de `sheets/importer.py`
-- [ ] Création du participant par `contest.ajouter_participant_numerote()`,
-      `source="helloasso"` — **le même chemin que le bouton « Ajouter »**
+- [ ] `climbcontest/categories.py` : `annee_de_reference()`, `circuit()`,
+      `bareme()` — **fonctions pures**
+- [ ] Les `unders` se déduisent des catégories de l'édition, **rien en dur**
 
-**Fin du lot** : un relevé sur le bac à sable crée les participants et remplit
-les trois piles, vérifié en `flask shell`.
+**Fin du lot** : le barème calculé reproduit le tableau FFME publié pour
+2025-2026, ligne pour ligne.
 
 ---
 
-## Lot 3 — La console *(ne commence qu'après validation de la maquette)*
+## Lot 2 — Les catégories dans la console
 
-- [ ] Vue **Inscriptions** : les trois piles, la carte de doublon à deux
-      colonnes, le rafraîchissement toutes les 30 s
-- [ ] Page **HelloAsso** dans *Administration* : clé, environnement, formulaire,
-      **barème année → circuit** avec sa proposition et son contrôle, source du
-      genre, les deux champs, « Relever maintenant »
-- [ ] **Pastille** dans le bandeau, comptée dans `/admin/moi`
-- [ ] « Imprimer le dossard » → `/admin/dossards?dossard=…`, et la ligne passe
-      en *faite*
-- [ ] Rappel dans *Ajouter un participant* quand une inscription en ligne porte
-      le même nom
-- [ ] *(si D8 est retenu)* champ **Année de naissance** facultatif dans
-      *Ajouter un participant*, et la catégorie qui se propose toute seule
-- [ ] Les dix routes, avec leurs codes de refus
+- [ ] `models.py` : `Participant.annee_naissance`, `Participant.categorie_forcee`,
+      + leurs deux lignes dans `COLONNES_AJOUTEES`
+- [ ] Écran **Catégories** : le barème, la saison, les compteurs, le verdict
+- [ ] `POST /admin/categories/appliquer?apercu=1` — l'avant / après **sans écrire**
+- [ ] Le bouton qui se **maintient** (spec 027), et le refus de toucher un
+      inscrit sans année
+- [ ] *(D10)* une catégorie corrigée à la main est protégée, comptée à part,
+      forçable explicitement
+- [ ] Ajout manuel : champ **Année**, et la proposition dans les deux sens (D8)
+
+---
+
+## Lot 3 — La liste des participants
+
+Indépendant de HelloAsso lui aussi. C'est le lot qui change le geste quotidien.
+
+- [ ] Colonne **Source** : `G` / `H` / `M`, plusieurs pastilles possibles
+- [ ] Filtre **Catégorie** dans la barre de la liste
+- [ ] **Sélection pour impression** : bande ocre, colonne de cases, *Tout
+      sélectionner*, compteur, bouton d'impression, *Annuler*
+- [ ] **Retirer la tuile « Imprimer les fiches »**
+- [ ] **Crayon** et édition en ligne : `PATCH /admin/participants/<id>`
+- [ ] Listes déroulantes club et catégorie avec **« + Créer… »**, formatage
+      appliqué à ce qui est créé
+- [ ] L'édition respecte la règle du dossard (spec 002)
 
 **Fin du lot** : les écrans se comportent comme la maquette validée.
 
 ---
 
-## Lot 4 — Le fil, et le reste du système
+## Lot 4 — Parler à HelloAsso
+
+- [ ] `helloasso/client.py` — `ClientHelloAsso`, `ErreurHelloAsso`
+- [ ] Jeton **en base**, rafraîchissement sous le verrou `helloasso_jeton`
+- [ ] Secret dans `shared/secrets/helloasso.json`, jamais renvoyé, jamais journalisé
+- [ ] Pagination : arrêt sur **tableau vide**
+- [ ] Bascule production / bac à sable par le réglage
+- [ ] `tools/dump_helloasso.py` — lecture seule, refuse de démarrer sans
+      `CLIMBCONTEST_HELLOASSO_ENV`
+- [ ] `.gitleaks.toml` : motif pour une clé HelloAsso
+
+**Fin du lot** : le formulaire de test s'affiche depuis le Mac, avec ses champs
+et les réponses vues.
+
+---
+
+## Lot 5 — Le relevé et le rapprochement
+
+- [ ] `models.py` : table `inscription`
+- [ ] `helloasso/releve.py` : la boucle, la transformation, un `commit` par
+      article, un `Rapport` sur le modèle de `sheets/importer.py`
+- [ ] `helloasso/rapprochement.py` : `cle()`, `confronter()` — **pures**
+- [ ] Création par `contest.ajouter_participant_numerote()`, `source="helloasso"`
+- [ ] Les trois champs et les valeurs de genre, réglables depuis la console
+
+---
+
+## Lot 6 — La vue Inscriptions
+
+- [ ] Les trois piles, les cartes de rapprochement à deux colonnes
+- [ ] **Le même** mécanisme de sélection d'impression qu'au lot 3
+- [ ] La **pastille** du bandeau, comptée dans `/admin/moi`
+- [ ] Rafraîchissement toutes les 30 s
+- [ ] Rappel dans *Ajouter un participant* quand une inscription porte le même nom
+
+---
+
+## Lot 7 — Le fil, et le reste du système
 
 - [ ] `helloasso/planificateur.py` : cadence variable, verrou, ne meurt jamais,
       ne répète pas sa plainte
 - [ ] Démarrage **conditionnel** : pas de clé → pas de fil → pas d'appel réseau
-- [ ] Arrêt net sur clé refusée (401/403), pour ne pas brûler le quota
-- [ ] `/health` expose la dernière erreur HelloAsso
-- [ ] `cycle.py` : « Effacer les données du serveur » emporte les inscriptions
-- [ ] L'archivage (spec 018) **n'emporte pas** les inscriptions
+- [ ] Arrêt net sur clé refusée (401/403)
+- [ ] `/health` expose la dernière erreur
+- [ ] `cycle.py` : l'effacement emporte les inscriptions ; l'archivage non
 - [ ] `CHANGELOG.md` sous `## [Non publié]`, `docs/specs-index.md`,
       `docs/contraintes-metier.md` §3 qui cesse d'être au futur
 
 ---
 
-## Lot 5 — La recette, sur le bac à sable puis en vrai
+## Lot 8 — La recette
 
-- [ ] Une inscription passée à la main sur le formulaire de test apparaît dans
-      la console **en moins de 90 s**, compétition `en_cours`
+- [ ] Une inscription passée à la main sur le formulaire de test apparaît en
+      **moins de 90 s**, compétition `en_cours`
+- [ ] Une commande à **deux** enfants crée **deux** participants
 - [ ] Une annulation depuis le back-office fait remonter la ligne
-- [ ] Un tarif ajouté en cours de route met ses inscrits en attente, et le
-      bouton « rejouer » les repêche
 - [ ] Quatre workers gunicorn sur la VM : **un seul** rafraîchissement de jeton
-      (compté dans le journal)
 - [ ] Bascule sur la clé de production, formulaire réel, relevé à blanc
-      *(la compétition n'est pas ouverte : rien n'est créé)*
 
 ---
 
 ## Plan de test
 
-Trois niveaux, et le premier est celui qui attrape les vrais défauts.
+### La règle FFME — `tests/test_categories.py`
 
-### Fonctions pures — `tests/test_helloasso_rapprochement.py`
-
-Aucune base, aucun réseau. Une table de cas.
+Aucune base, aucun réseau. C'est le test qui prouve quelque chose.
 
 | Scénario | Attendu |
 | --- | --- |
-| Liste vide, un candidat | `NOUVEAU` |
+| **Le tableau FFME 2025-2026 entier**, référence 2026 | U11 → 2016-2017, U13 → 2014-2015, U15 → 2012-2013, U17 → 2010-2011, U19 → 2008-2009, U21 → 2006-2007 |
+| Compétition du 15/11/2026 | Référence **2027** |
+| Compétition du 15/03/2027 | Référence **2027** — la même saison |
+| Compétition du 31/08/2026 | Référence **2026** — la saison précédente |
+| Compétition du 01/09/2026 | Référence **2027** — la bascule |
+| Né en 2015, référence 2027 : âge 12 | **U13**, jamais U15 — le plus petit gagne |
+| Né en 2016, référence 2027 : âge 11 | **U13** |
+| Né en 2017, référence 2027 : âge 10 | **U11** |
+| Né en 1990 | **Aucun Under** — catégorie vide, pas d'exception |
+| Catégories de l'édition = `U11 F`, `U13 H` | `unders = {11, 13}` — rien d'autre n'existe |
+| Une édition sans aucune catégorie en `U` | Barème vide, aucune exception |
+| Année aberrante (1015, 2916) | Catégorie vide, mise en attente |
+
+### Le barème appliqué — `tests/test_categories_appliquer.py`
+
+| Scénario | Attendu |
+| --- | --- |
+| 12 participants dont la catégorie change | L'aperçu en liste **12**, et n'écrit **rien** |
+| Application réelle | 12 écrits, 110 intacts |
+| Participant **sans année** | **Jamais** touché |
+| Participant `categorie_forcee` *(D10)* | Non touché, compté à part |
+| Le même appliquer deux fois | La seconde fois ne change rien |
+
+### Le rapprochement — `tests/test_helloasso_rapprochement.py`
+
+| Scénario | Attendu |
+| --- | --- |
+| Liste vide | `NOUVEAU` |
 | « Dupont Jean-Luc » vs « DUPONT jean luc » | Même clé |
 | « Roc N'Potes » vs « Roc n'potes » | Même clé |
-| Homonyme, deux dates de naissance identiques | `MEME_PERSONNE(id)` |
-| Homonyme, deux dates différentes | `DEUX_PERSONNES` |
-| Homonyme, une date manque | `A_TRANCHER` |
-| Homonyme, **les deux** dates manquent | `A_TRANCHER` |
-| Trois homonymes dont un seul de même date | `MEME_PERSONNE` sur le bon |
-| Prénom composé d'un côté seulement | `A_TRANCHER`, jamais `NOUVEAU` en silence |
-| Nom avec espace final, casse mixte, accents | Même clé |
+| Nom + prénom + club identiques | `MEME_PERSONNE` |
+| Nom + prénom identiques, club différent | `A_TRANCHER(club_different)` |
+| Nom + prénom identiques, club absent d'un côté | `A_TRANCHER` |
+| Rattachement dont les catégories diffèrent | `MEME_PERSONNE`, **signalé** |
+| Trois homonymes, un seul du bon club | `MEME_PERSONNE` sur le bon |
 
-### Le barème — `tests/test_helloasso_correspondance.py`
+### Le relevé — `tests/test_helloasso_releve.py`
 
-Fonctions pures elles aussi. C'est le lot que D1 fait naître, et il se teste
-entièrement hors base.
+Réseau doublé, données en fixtures.
 
 | Scénario | Attendu |
 | --- | --- |
-| Compétition du 15/11/2026, circuits U11→U17 | Proposition `U11` → 2016-2017, `U13` → 2014-2015 |
-| Compétition du 15/03/2027 (même saison) | **La même** proposition — la saison, pas l'année civile |
-| Une année dans deux circuits | Anomalie `recouvrement`, avec l'année nommée |
-| Une année entre deux circuits, sans circuit | Anomalie `trou` |
-| Un circuit dont `de > a` | Anomalie `circuit_vide` |
-| `Adulte` non marqué mixte, catégories sans « Adulte F » | Anomalie `categorie_inconnue` |
-| `Adulte` marqué mixte | Catégorie = `Adulte`, **sans suffixe**, aucune anomalie |
-| Barème vide | Le contrôle ne lève pas, il dit que tout est en attente |
-| Réponse de genre absente de `valeurs` | Genre **indéterminé** — jamais `H` par défaut |
-
-### Correspondance et transformation — `tests/test_helloasso_releve.py`
-
-Le réseau est un **double** ; les données viennent de fixtures.
-
-| Scénario | Attendu |
-| --- | --- |
-| Article `Processed` complet | Inscription `a_imprimer`, participant créé, dossard attribué |
 | **Le même article relevé dix fois** | **Une** inscription, **un** participant |
-| Date de naissance **absente** | `a_trancher`, catégorie vide |
-| Année **hors barème** | `a_trancher`, l'année affichée |
-| Genre indéterminé, circuit non mixte | `a_trancher` |
-| Genre indéterminé, circuit **mixte** | Intégré — le genre n'est pas demandé |
-| Le tarif ne correspond à aucune catégorie | **Sans effet** — le tarif ne décide plus de rien (D1) |
-| Article sans `user`, `payer` présent | `a_trancher`, motif `sans_nom`, nom repris du payeur |
-| Article `Canceled` jamais vu | Aucune inscription |
-| Article `Canceled` **déjà intégré** | `a_trancher`, motif `annulee_apres_coup`, **participant intact** |
-| Commande à deux articles (fratrie) | **Deux** inscriptions, deux participants |
-| `customFields` absent (`withDetails` oublié) | Club et date vides, l'inscription passe quand même en `a_trancher` |
-| Nom en capitales, club en minuscules | `formatage` appliqué, club en sigle préservé |
-| Payeur complet dans la réponse | **Rien de lui n'est écrit** — ni nom, ni courriel, ni adresse (D5) |
-| Une inscription relue après correction du barème | Article **redemandé** à HelloAsso, aucune copie locale relue |
-| Pagination : 3 pages puis un tableau vide | 3 pages lues, arrêt sur le vide |
-| Pagination : `continuationToken` toujours renvoyé, données vides | Arrêt — **pas de boucle infinie** |
-| Un article sur cent lève une exception | 99 écrits, l'erreur au rapport |
-| Curseur : deuxième relevé | `from` = dernier `updatedAt` − 5 min |
+| **Une commande, deux articles** | **Deux** inscriptions, **deux** participants |
+| Année absente | `a_trancher`, catégorie vide |
+| Année hors barème | `a_trancher`, l'année affichée |
+| Genre indéterminé | `a_trancher` |
+| Réponse de genre inconnue | Genre indéterminé — **jamais `H` par défaut** |
+| Article sans `user` | Nom repris du payeur, motif `sans_nom` |
+| Annulé après intégration | `a_trancher`, **participant intact** |
+| Payeur complet dans la réponse | **Rien de lui n'est écrit** |
+| Le tarif, quel qu'il soit | **Sans effet** |
+| `continuationToken` toujours renvoyé, données vides | Arrêt — **pas de boucle infinie** |
+| Un article sur cent lève | 99 écrits, l'erreur au rapport |
+| Deuxième relevé | `from` = dernier `updatedAt` − 5 min |
 
-### Client et jeton — `tests/test_helloasso_client.py`
+### Le jeton — `tests/test_helloasso_client.py`
 
 | Scénario | Attendu |
 | --- | --- |
-| Pas de clé posée | `ErreurHelloAsso` « non relié », **zéro appel réseau** |
-| Premier appel | `grant_type=client_credentials`, jeton écrit en base |
+| Pas de clé posée | `ErreurHelloAsso`, **zéro appel réseau** |
 | Jeton valide en base | **Aucun** appel à `/oauth2/token` |
-| Jeton expiré | Un `grant_type=refresh_token`, le nouveau couple écrit |
-| **Deux appels concurrents sur un jeton expiré** | **Un seul** rafraîchissement ; le second relit la base |
+| **Deux appels concurrents sur un jeton expiré** | **Un seul** rafraîchissement |
 | `401` en cours de relevé | Un rafraîchissement, **un seul** réessai |
-| `401` sur le rafraîchissement lui-même | État « clé à reconnecter », le fil s'arrête |
-| `429` | Erreur réseau, retenté à la cadence normale, pas d'insistance |
-| Le secret dans un journal ou une réponse | **Aucune occurrence** — test explicite sur `caplog` et sur le JSON |
+| `401` sur le rafraîchissement | « Clé à reconnecter », le fil **s'arrête** |
+| `429` | Retenté à la cadence normale, pas d'insistance |
+| Le secret dans un journal ou une réponse | **Aucune occurrence** |
 
-### Routes et console — `tests/test_helloasso_routes.py`
+### La console — `tests/test_console_participants.py`
 
 | Scénario | Attendu |
 | --- | --- |
-| `GET /admin/helloasso` sans session | `401` |
-| … avec un rôle organisateur | `403` |
-| `POST /admin/helloasso/cle` avec une clé refusée | `400`, message actionnable |
-| `GET /admin/helloasso` après pose | `client_id` **masqué**, secret absent |
-| `GET /admin/inscriptions` | Trois piles, compteurs justes |
-| Trancher « même personne » | Inscription rattachée, **aucun** participant créé |
-| Trancher « deux personnes » | Participant créé, dossard attribué |
-| Trancher deux fois la même inscription | La seconde ne fait rien, et le dit |
-| `/admin/moi` | Porte le compteur de la pastille |
-| Aucune clé posée | Le compteur vaut 0, la vue n'apparaît pas dans le menu |
+| `PATCH` d'un participant | Formatage appliqué : `u13f` → `U13 F` |
+| `PATCH` du dossard d'un participant **avec réussites** | **409**, message explicite |
+| `PATCH` d'un champ inconnu | Ignoré, pas d'erreur 500 |
+| Impression d'une sélection de 3 dossards | Trois fiches, dans l'ordre des dossards |
+| Sélection vide | Bouton inactif, route refusant en 400 |
+| Ajout avec année seule | Catégorie proposée, participant créé |
+| Ajout avec catégorie seule | Créé, année vide |
+| Sources d'un participant rapproché | **Deux** pastilles |
+| Aucune clé HelloAsso | Aucune pastille `H`, aucune entrée de menu |
 
 ### Fixtures
 
-`fixtures/helloasso/` — des réponses d'API **fabriquées à la main**, pas des
-exports réels.
+`fixtures/helloasso/` — des réponses **fabriquées à la main**.
 
-> ⚠️ La règle 7 du `CLAUDE.md` interdit de committer des données personnelles.
-> Un export du vrai formulaire du club contiendrait des **noms de mineurs** et
-> les coordonnées de leurs parents. Les fixtures portent donc des noms inventés,
-> et la structure vient de la documentation, pas d'un dump.
+> ⚠️ Règle 7 du `CLAUDE.md` : un export du vrai formulaire contiendrait des noms
+> de mineurs et les coordonnées de leurs parents. Les fixtures portent des noms
+> inventés ; la structure vient de la documentation, pas d'un dump.
 
 | Fichier | Contenu |
 | --- | --- |
-| `items-page-1.json`, `items-page-2.json`, `items-vide.json` | Trois pages, dont la dernière vide |
+| `items-page-1.json`, `items-page-2.json`, `items-vide.json` | Trois pages, la dernière vide |
 | `item-annule.json` | Un `Canceled` |
 | `item-sans-user.json` | `user` absent, `payer` présent |
-| `item-fratrie.json` | Une commande, deux articles |
-| `formulaire-public.json` | Tarifs et champs personnalisés à découvrir |
+| `commande-fratrie.json` | Une commande, deux articles |
+| `formulaire-public.json` | Champs et réponses vues à découvrir |
 
 ### Non-régression
 
-- [ ] `pytest` complet vert — la suite existante ne bouge pas
-- [ ] `python3 tools/verify_ranking.py fixtures/contest-nov2025.json` sort
-      toujours **« 196 conformes, 0 écart »**
+- [ ] `pytest` complet vert
+- [ ] `tools/verify_ranking.py` sort toujours « 196 conformes, 0 écart »
 - [ ] `gitleaks` passe
 
 ---
 
 ## Environnement de test
 
-Le dépôt n'a **pas** de venv utilisable : `venv/` et `.venv-dev/` n'ont pas
-`pytest`. Un venv jetable, `requirements.txt` **et** `requirements-dev.txt` —
-c'est le geste connu, il est noté ici pour ne pas le redécouvrir.
+`venv/` et `.venv-dev/` n'ont pas `pytest`. Un venv jetable, avec les **deux**
+fichiers de dépendances :
 
 ```bash
 python3 -m venv /tmp/venv-008 && /tmp/venv-008/bin/pip install -q \
@@ -260,9 +267,10 @@ python3 -m venv /tmp/venv-008 && /tmp/venv-008/bin/pip install -q \
 
 | Risque | Ce qu'on fait |
 | --- | --- |
-| 🔴 **Le formulaire du club ne demande pas la date de naissance.** D1 tombe entièrement | C'est le **premier** geste du lot 1 : `tools/dump_helloasso.py` le dit avant qu'une ligne de code de correspondance soit écrite. Si c'est le cas, soit le club ajoute le champ, soit D1 se rejoue |
-| Le genre n'est ni dans un champ ni dans le nom des tarifs | Toutes les inscriptions des circuits non mixtes passent en « à trancher ». Vu au lot 1, pas en recette |
-| **Le `refresh_token` meurt entre deux compétitions** | État explicite « clé à reconnecter » dans la console, et l'arrêt du fil. Un geste d'une minute, pas un mystère |
-| **`admin.html` est déjà disputé par trois sessions** | La vue est un `<section class="vue">` de plus, ajouté en fin de bloc : conflit additif, résolu à la main |
-| **Le relevé écrit pendant qu'un juge scanne** | Un `commit` par article, sur SQLite en mode WAL. Le banc de la spec 001 dit que la charge est ridicule ; on le re-mesure quand même au lot 5 |
-| **Le quota d'authentification** | 2 appels/h contre 50 autorisés. Mesuré dans le journal au lot 5 |
+| 🔴 **Le formulaire du club ne demande pas la date de naissance.** D1 tombe | Vu au **lot 4**, avec `dump_helloasso.py`, avant qu'une ligne de relevé soit écrite. Les lots 1 à 3 restent valides quoi qu'il arrive |
+| **Le formulaire ne demande pas le genre** | Toutes les inscriptions en « à trancher ». Vu au même moment |
+| **La FFME change ses tranches** | Le barème se recalcule, et « Corriger à la main » existe pour ne pas attendre une release |
+| **« Appliquer à tous » défait le travail de quelqu'un** | C'est **D10**. Aperçu obligatoire, bouton à maintenir, et protection des corrections manuelles |
+| **`admin.html` est disputé par les autres sessions** | Les ajouts sont additifs ; le **retrait** de la tuile d'impression est la seule suppression, et elle se verra au conflit |
+| **Le relevé écrit pendant qu'un juge scanne** | Un `commit` par article, SQLite en **WAL**. Re-mesuré au lot 8 |
+| **Le quota d'authentification** | 2 appels/h contre 50 autorisés. Mesuré dans le journal au lot 8 |

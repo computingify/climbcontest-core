@@ -15,6 +15,9 @@
   --trait: #DDD7CB; --encre: #1B1A17; --encre2: #5C574C; --encre3: #8A8375;
   --accent: #B5761C; --accent-texte: #8A5A0F; --sur-accent: #FFFFFF;
   --ok: #2E7D4F; --alerte: #B3392A; --attention: #9A6B0B;
+  --sur-alerte: #FFFFFF;
+  --src-g: #1A73E8; --src-g-txt: #FFFFFF;      /* bleu Google */
+  --src-h: #00875A; --src-h-txt: #FFFFFF;      /* vert HelloAsso */
   --titre: system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
   --chiffre: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
   --ombre: 0 10px 30px rgba(27,26,23,.10);
@@ -27,6 +30,9 @@
     --trait: #3A3628; --encre: #F2EFE8; --encre2: #B0AA9B; --encre3: #7C766A;
     --accent: #E0A94A; --accent-texte: #E8BC70; --sur-accent: #1B1A17;
     --ok: #6FC08A; --alerte: #F08A78; --attention: #E5B44A;
+    --sur-alerte: #1B1A17;
+    --src-g: #5B9BF8; --src-g-txt: #10233F;
+    --src-h: #3FD9A0; --src-h-txt: #06281C;
     --ombre: 0 18px 48px rgba(0,0,0,.5);
     color-scheme: dark;
   }
@@ -36,6 +42,9 @@
   --trait: #3A3628; --encre: #F2EFE8; --encre2: #B0AA9B; --encre3: #7C766A;
   --accent: #E0A94A; --accent-texte: #E8BC70; --sur-accent: #1B1A17;
   --ok: #6FC08A; --alerte: #F08A78; --attention: #E5B44A;
+  --sur-alerte: #1B1A17;
+  --src-g: #5B9BF8; --src-g-txt: #10233F;
+  --src-h: #3FD9A0; --src-h-txt: #06281C;
   --ombre: 0 18px 48px rgba(0,0,0,.5);
   color-scheme: dark;
 }
@@ -233,6 +242,100 @@ td.num { font-family: var(--chiffre); }
 .diff { color: var(--alerte); font-weight: 600; }
 .pareil { color: var(--ok); font-weight: 600; }
 
+/* --- les trois sources d'une inscription ---------------------------------
+   G = classeur Google (bleu Google), H = HelloAsso (leur vert), M = saisie
+   manuelle (l'ocre de la console : c'est NOTRE source). Les couleurs sont des
+   jetons parce qu'elles changent entre les deux thèmes — un bleu qui porte du
+   blanc en clair porte de l'encre sombre en sombre. */
+.src {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 21px; height: 21px; border-radius: 6px; flex: none;
+  font-size: .72rem; font-weight: 800; line-height: 1;
+}
+.src.g { background: var(--src-g); color: var(--src-g-txt); }
+.src.h { background: var(--src-h); color: var(--src-h-txt); }
+.src.m { background: var(--accent); color: var(--sur-accent); }
+.sources { display: inline-flex; gap: 5px; }
+.legende {
+  display: flex; align-items: center; gap: 7px; flex-wrap: wrap;
+  margin: 12px 0 0; font-size: .8rem; color: var(--encre2);
+}
+.legende .src { margin-left: 9px; }
+.legende .src:first-child { margin-left: 0; }
+
+/* --- la barre au-dessus de la liste --------------------------------------- */
+.outils { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin-bottom: 14px; }
+.outils .chercher { max-width: 260px; }
+.outils .filtre { max-width: 200px; }
+.pousse { flex: 1 1 auto; }
+.ico { width: 15px; height: 15px; vertical-align: -2px; margin-right: 6px; }
+
+/* La bande qui dit « on est en train de choisir quoi imprimer ». Teintée à
+   l'ocre : c'est ce qui rend le mode évident sans une phrase d'explication. */
+.bande-selection {
+  display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+  margin: 0 0 14px; padding: 10px 13px; border-radius: 11px;
+  background: color-mix(in srgb, var(--accent) 13%, transparent);
+  border: 1px solid color-mix(in srgb, var(--accent) 42%, transparent);
+  font-size: .88rem;
+}
+.bande-selection .tout {
+  display: inline-flex; align-items: center; gap: 7px; margin: 0;
+  font-weight: 600; color: var(--encre); font-size: .87rem;
+}
+.bande-selection .tout input { width: auto; }
+.bande-selection b { color: var(--accent-texte); }
+th.coche, td.coche { width: 34px; padding-right: 0; }
+td.coche input { width: auto; }
+tr.prise td { background: color-mix(in srgb, var(--accent) 8%, transparent); }
+td.fin { text-align: right; white-space: nowrap; }
+.paire { display: inline-flex; gap: 7px; }
+
+/* --- le crayon, et la ligne qui s'ouvre ----------------------------------- */
+.crayon {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 30px; height: 30px; border-radius: 8px; cursor: pointer;
+  border: 1px solid transparent; background: none; color: var(--encre3);
+}
+.crayon:hover { background: var(--surface2); color: var(--accent-texte); border-color: var(--trait); }
+.crayon svg { width: 15px; height: 15px; }
+tr.edition td {
+  background: color-mix(in srgb, var(--accent) 8%, transparent);
+  padding-top: 7px; padding-bottom: 7px;
+}
+tr.edition td:first-child { box-shadow: inset 3px 0 0 var(--accent); }
+.mini-champ { padding: 6px 9px; font-size: .86rem; border-radius: 7px; }
+.mini-champ.num { max-width: 84px; font-family: var(--chiffre); }
+.apercu { margin: 6px 0 0; font-size: .8rem; color: var(--accent-texte); }
+.apercu b { color: var(--encre); }
+.sous-titre {
+  margin: 20px 0 8px; font-size: .78rem; font-weight: 700; letter-spacing: .05em;
+  text-transform: uppercase; color: var(--encre3);
+}
+
+/* Le bouton qui se maintient (spec 027) : il dit ce qu'il attend, et se
+   remplit. Ici c'est une maquette — le remplissage est une simple animation. */
+.maintenir {
+  position: relative; overflow: hidden; font: inherit; font-weight: 600;
+  cursor: pointer; padding: 9px 16px; font-size: .9rem; border-radius: 9px;
+  color: var(--sur-alerte); border: 1px solid var(--alerte); background: var(--alerte);
+}
+.maintenir::after {
+  content: ""; position: absolute; inset: 0 100% 0 0;
+  background: rgba(0, 0, 0, .22); transition: inset .2s;
+}
+.maintenir:active::after { inset: 0; transition: inset 1.4s linear; }
+
+/* --- titres de groupe dans l'onglet Écrans -------------------------------- */
+.groupe-titre {
+  margin: 6px 0 20px; font-size: .82rem; font-weight: 700; letter-spacing: .09em;
+  text-transform: uppercase; color: var(--encre3);
+  padding-bottom: 9px; border-bottom: 1px solid var(--trait);
+}
+.plaque + .groupe-titre { margin-top: 34px; }
+
+button[disabled] { opacity: .45; cursor: not-allowed; }
+
 /* un champ que je propose d'ajouter, pas encore validé */
 .propose-champ {
   border: 1px dashed var(--accent); border-radius: 11px; padding: 9px 11px 11px;
@@ -335,21 +438,25 @@ td.num { font-family: var(--chiffre); }
      imprimer un dossard et l'apporter.</p>
   <div class="meta">
     <span class="tag">Porte 2 — rien n'est codé</span>
-    <span class="tag">D1→D7 tranchées le 03/09</span>
+    <span class="tag">D1→D9 tranchées</span>
+    <span class="tag">Barème FFME relevé le 04/09</span>
     <span class="tag">Branche <code>feat/008-helloasso-import</code></span>
-    <span class="tag">API v5 relevée le 03/09/2026</span>
   </div>
-  <p class="note" style="margin-top:16px"><b>Reprise du 03/09, après tes deux
-     changements.</b> D1 — la catégorie vient de la <b>date de naissance</b>, plus
-     du tarif : l'écran <b>6</b> est entièrement refait. D5 — <b>strict
-     minimum</b> : plus de courriel du payeur, et le numéro de commande le
-     remplace là où il faut joindre quelqu'un. Deux questions naissent de D1,
-     <b>D8</b> et <b>D9</b>, dans l'onglet Décisions.</p>
+  <p class="note" style="margin-top:16px"><b>Reprise du 04/09.</b> Les sources
+     <span class="src g">G</span> <span class="src h">H</span>
+     <span class="src m">M</span> sur chaque ligne · la sélection par cases pour
+     l'impression, qui <b>remplace</b> la tuile du bas · le crayon qui ouvre la
+     ligne sur place · le barème FFME <b>calculé</b> au lieu d'être saisi · et le
+     tarif abandonné, puisque tout le monde paie le même.<br>
+     <b>Une erreur corrigée :</b> mon barème d'hier décalait d'un an. La règle
+     FFME prend l'année où <b>finit</b> la saison — pour une compétition de
+     novembre 2026, la référence est <b>2027</b>, donc U13 = 2015-2016 et non
+     2014-2015.</p>
 </header>
 
 <nav class="onglets" aria-label="Sections">
   <button type="button" data-vue="ecrans" aria-current="true">Écrans</button>
-  <button type="button" data-vue="decisions">Décisions <span class="compte calme" id="compteD">2</span></button>
+  <button type="button" data-vue="decisions">Décisions <span class="compte calme" id="compteD">9 ✓</span></button>
   <button type="button" data-vue="spec">Spec</button>
   <button type="button" data-vue="archi">Architecture</button>
   <button type="button" data-vue="plan">Plan</button>
@@ -364,11 +471,295 @@ td.num { font-family: var(--chiffre); }
 <!-- ═══════════════════════════ ÉCRANS ═══════════════════════════ -->
 <main id="vue-ecrans">
 
+  <h2 class="groupe-titre">A · La liste des participants</h2>
+
   <section class="plaque">
-    <span class="puce"><b>1</b> · Le bandeau, depuis n'importe quel écran</span>
-    <p>La pastille de la spec 031, même forme, même ocre. Elle compte
-       <b>à trancher + à imprimer</b>, mène à la vue Inscriptions, et disparaît
-       quand la pile est vide.</p>
+    <span class="puce"><b>1</b> · Au repos</span>
+    <p>Trois choses nouvelles : la colonne <b>Source</b>, le <b>crayon</b> au bout
+       de chaque ligne, et la barre au-dessus de la liste.</p>
+    <div class="ecran">
+      <div class="barre">
+        <span class="burger"><i></i><i></i><i></i></span>
+        <span class="ou"><b>Participants</b><span>Bloc Party 2026</span></span>
+        <span class="droite">
+          <button type="button" class="pastille">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"
+                 stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/>
+              <path d="M19 8v6"/><path d="M22 11h-6"/>
+            </svg>
+            5 inscriptions
+          </button>
+          <span class="jeton">adrien</span>
+        </span>
+      </div>
+      <div class="dedans">
+        <div class="carte">
+          <h2>La liste <span class="compte calme">124</span></h2>
+          <div class="outils">
+            <input class="chercher" placeholder="Chercher un nom ou un dossard…">
+            <select class="filtre"><option>Toutes les catégories</option><option>U11 F</option><option>U13 F</option></select>
+            <span class="pousse"></span>
+            <button type="button" class="secondaire">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"
+                   stroke-linecap="round" stroke-linejoin="round" class="ico" aria-hidden="true">
+                <path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/>
+              </svg>
+              Sélectionner pour impression</button>
+          </div>
+          <div class="scroll"><table>
+            <thead><tr><th>Dossard</th><th>Nom</th><th>Club</th><th>Catégorie</th><th>Source</th><th></th></tr></thead>
+            <tbody>
+              <tr><td class="num">47</td><td>Léa Brunel</td><td>Annonay Escalade</td><td>U13 F</td>
+                  <td><span class="sources"><span class="src g" title="Classeur Google">G</span><span class="src h" title="HelloAsso">H</span></span></td>
+                  <td class="fin"><button type="button" class="crayon" aria-label="Modifier">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
+                  </button></td></tr>
+              <tr><td class="num">128</td><td>Nino Chapuis</td><td>Annonay Escalade</td><td>U11 H</td>
+                  <td><span class="sources"><span class="src h" title="HelloAsso">H</span></span></td>
+                  <td class="fin"><button type="button" class="crayon" aria-label="Modifier">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
+                  </button></td></tr>
+              <tr><td class="num">131</td><td>Sacha Peyron</td><td>CAF Vivarais</td><td>U15 H</td>
+                  <td><span class="sources"><span class="src m" title="Saisie manuelle">M</span></span></td>
+                  <td class="fin"><button type="button" class="crayon" aria-label="Modifier">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
+                  </button></td></tr>
+              <tr><td class="num">52</td><td>Jade Peyron</td><td>CAF Vivarais</td><td>U13 F</td>
+                  <td><span class="sources"><span class="src g" title="Classeur Google">G</span></span></td>
+                  <td class="fin"><button type="button" class="crayon" aria-label="Modifier">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
+                  </button></td></tr>
+            </tbody>
+          </table></div>
+          <p class="legende"><span class="src g">G</span> classeur Google
+             <span class="src h">H</span> HelloAsso
+             <span class="src m">M</span> saisie manuelle</p>
+        </div>
+      </div>
+    </div>
+    <p class="note"><b>Deux sources sur une même ligne</b>, comme Léa Brunel : elle
+       était dans le classeur, et son inscription en ligne s'est rattachée à elle
+       au lieu de créer un doublon. C'est le rapprochement qui se voit.<br>
+       Le <b>vert</b> est celui de HelloAsso — leur page de charte graphique
+       répond 403, je n'ai pas pu relever le code exact. Un mot et je le corrige.</p>
+  </section>
+
+  <section class="plaque">
+    <span class="puce"><b>2</b> · Sélection pour impression</span>
+    <p>Le bouton bascule la liste en mode sélection : une bande ocre, une colonne
+       de cases, les lignes retenues teintées. <b>La tuile « Imprimer les fiches »
+       du bas disparaît</b> — c'est elle que ce mode remplace.</p>
+    <div class="ecran"><div class="dedans">
+      <p class="fil">Participants</p>
+      <div class="carte">
+        <h2>La liste <span class="compte calme">124</span></h2>
+        <div class="bande-selection">
+          <label class="tout"><input type="checkbox"> Tout sélectionner</label>
+          <b>3 sélectionnés</b>
+          <span class="pousse"></span>
+          <button type="button" class="action">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"
+                 stroke-linecap="round" stroke-linejoin="round" class="ico" aria-hidden="true">
+              <path d="M6 9V2h12v7"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><path d="M6 14h12v8H6z"/>
+            </svg>
+            Imprimer 3 fiches</button>
+          <button type="button" class="secondaire">Annuler</button>
+        </div>
+        <div class="scroll"><table>
+          <thead><tr><th class="coche"></th><th>Dossard</th><th>Nom</th><th>Club</th><th>Catégorie</th><th>Source</th></tr></thead>
+          <tbody>
+            <tr class="prise"><td class="coche"><input type="checkbox" checked></td><td class="num">47</td><td>Léa Brunel</td><td>Annonay Escalade</td><td>U13 F</td>
+                <td><span class="sources"><span class="src g">G</span><span class="src h">H</span></span></td></tr>
+            <tr class="prise"><td class="coche"><input type="checkbox" checked></td><td class="num">128</td><td>Nino Chapuis</td><td>Annonay Escalade</td><td>U11 H</td>
+                <td><span class="sources"><span class="src h">H</span></span></td></tr>
+            <tr><td class="coche"><input type="checkbox"></td><td class="num">131</td><td>Sacha Peyron</td><td>CAF Vivarais</td><td>U15 H</td>
+                <td><span class="sources"><span class="src m">M</span></span></td></tr>
+            <tr class="prise"><td class="coche"><input type="checkbox" checked></td><td class="num">52</td><td>Jade Peyron</td><td>CAF Vivarais</td><td>U13 F</td>
+                <td><span class="sources"><span class="src g">G</span></span></td></tr>
+          </tbody>
+        </table></div>
+      </div>
+    </div></div>
+    <p class="note">Le filtre <b>Catégorie</b> de l'écran 1 n'est pas un ornement :
+       il remplace le champ « une catégorie (vide = toutes) » de la tuile
+       supprimée. Filtrer, puis <b>Tout sélectionner</b>, puis imprimer — la
+       fonction survit au rangement.</p>
+  </section>
+
+  <section class="plaque">
+    <span class="puce"><b>3</b> · Le crayon ouvre la ligne, pas une fenêtre</span>
+    <p>La ligne devient éditable sur place. Les listes déroulantes savent
+       <b>créer</b> une valeur qui n'existe pas encore.</p>
+    <div class="ecran"><div class="dedans">
+      <p class="fil">Participants</p>
+      <div class="carte">
+        <h2>La liste <span class="compte calme">124</span></h2>
+        <div class="scroll"><table>
+          <thead><tr><th>Dossard</th><th>Nom</th><th>Année</th><th>Club</th><th>Catégorie</th><th>Source</th><th></th></tr></thead>
+          <tbody>
+            <tr><td class="num">47</td><td>Léa Brunel</td><td class="num">2015</td><td>Annonay Escalade</td><td>U13 F</td>
+                <td><span class="sources"><span class="src g">G</span><span class="src h">H</span></span></td>
+                <td class="fin"><button type="button" class="crayon" aria-label="Modifier">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
+                </button></td></tr>
+            <tr class="edition">
+              <td><input value="128" class="mini-champ num" inputmode="numeric"></td>
+              <td><input value="Nino Chapuis" class="mini-champ"></td>
+              <td><input value="2016" class="mini-champ num" inputmode="numeric"></td>
+              <td><select class="mini-champ"><option selected>Annonay Escalade</option><option>CAF Vivarais</option><option>+ Créer un club…</option></select></td>
+              <td><select class="mini-champ"><option>U11 F</option><option selected>U11 H</option><option>U13 H</option><option>+ Créer une catégorie…</option></select></td>
+              <td><span class="sources"><span class="src h">H</span></span></td>
+              <td class="fin"><span class="paire">
+                <button type="button" class="mini fort">Enregistrer</button>
+                <button type="button" class="mini">Annuler</button>
+              </span></td>
+            </tr>
+            <tr><td class="num">131</td><td>Sacha Peyron</td><td class="num">2012</td><td>CAF Vivarais</td><td>U15 H</td>
+                <td><span class="sources"><span class="src m">M</span></span></td>
+                <td class="fin"><button type="button" class="crayon" aria-label="Modifier">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
+                </button></td></tr>
+          </tbody>
+        </table></div>
+      </div>
+
+      <div class="carte">
+        <h2>« + Créer une catégorie… »</h2>
+        <div class="grille" style="max-width:420px">
+          <div>
+            <label for="nc">Nouvelle catégorie</label>
+            <input id="nc" value="u13f">
+            <p class="apercu">Sera enregistrée <b>U13 F</b></p>
+          </div>
+        </div>
+        <div class="boutons"><button type="button" class="mini fort">Créer</button><button type="button" class="mini">Annuler</button></div>
+      </div>
+    </div></div>
+    <p class="note">Le formatage de la spec 013 s'applique à ce qu'on tape, ici
+       comme dans le formulaire d'ajout : <code>u13f</code> → <b>U13 F</b>,
+       <code>roc n'potes</code> → <b>Roc N'Potes</b>, et les sigles courts
+       (<code>CAF</code>, <code>ASPTT</code>) restent en capitales. C'est ce qui
+       empêche « U13 M » de cohabiter avec « U13 H » et de fabriquer un
+       classement d'une personne — le défaut mesuré en production le 30/08.<br>
+       Un dossard qui porte déjà des réussites <b>refuse</b> de changer de main :
+       c'est la règle de la spec 002, l'édition en ligne ne l'ouvre pas.</p>
+  </section>
+
+  <section class="plaque">
+    <span class="puce"><b>4</b> · Ajouter — l'année et la catégorie se répondent</span>
+    <p>D8 : l'une <b>ou</b> l'autre. Taper l'année propose la catégorie ; choisir
+       la catégorie dit les années attendues.</p>
+    <div class="face-a-face">
+      <div class="ecran"><div class="dedans">
+        <p class="fil">Participants · on tape l'année</p>
+        <div class="carte">
+          <h2>Ajouter un participant</h2>
+          <div class="grille">
+            <div><label for="an">Nom *</label><input id="an" value="Marret"></div>
+            <div><label for="ap">Prénom</label><input id="ap" value="Hugo"></div>
+            <div><label for="aa">Année de naissance</label><input id="aa" value="2016" inputmode="numeric"></div>
+            <div><label for="ak">Catégorie</label>
+              <select id="ak"><option selected>U11 H</option><option>U11 F</option></select>
+              <p class="apercu">Proposé d'après 2016 — <b>U11</b></p></div>
+          </div>
+          <div class="boutons"><button type="button" class="action">Ajouter</button></div>
+        </div>
+      </div></div>
+      <div class="ecran"><div class="dedans">
+        <p class="fil">Participants · on choisit la catégorie</p>
+        <div class="carte">
+          <h2>Ajouter un participant</h2>
+          <div class="grille">
+            <div><label for="bn">Nom *</label><input id="bn" value="Marret"></div>
+            <div><label for="bp">Prénom</label><input id="bp" value="Hugo"></div>
+            <div><label for="ba">Année de naissance</label><input id="ba" placeholder="2017 ou 2018" inputmode="numeric">
+              <p class="apercu">Attendu pour U11 — <b>2017 ou 2018</b></p></div>
+            <div><label for="bk">Catégorie</label>
+              <select id="bk"><option selected>U11 H</option><option>U13 H</option><option>+ Créer une catégorie…</option></select></div>
+          </div>
+          <div class="boutons"><button type="button" class="action">Ajouter</button></div>
+        </div>
+      </div></div>
+    </div>
+    <p class="note">Une catégorie couvre <b>deux</b> années : la choisir ne peut
+       pas remplir l'année, seulement dire laquelle on attend. L'inverse, si.</p>
+  </section>
+
+  <h2 class="groupe-titre">B · Les catégories, calculées</h2>
+
+  <section class="plaque">
+    <span class="puce"><b>5</b> · Le barème, réglé tout seul sur la saison</span>
+    <p>Règle FFME, relevée le 04/09 : <b>U13 = moins de 13 ans dans l'année de
+       référence</b>, et <b>le plus petit Under l'emporte</b>. L'année de référence
+       est celle où <b>finit</b> la saison — septembre à août.</p>
+    <div class="ecran"><div class="dedans">
+      <p class="fil">Participants · Catégories</p>
+      <div class="carte">
+        <h2>Les catégories, par année de naissance</h2>
+        <dl class="etat" style="margin-bottom:14px">
+          <dt>Compétition</dt><dd>15 novembre 2026</dd>
+          <dt>Saison</dt><dd>2026-2027 · référence <b>2027</b></dd>
+        </dl>
+        <div class="scroll"><table>
+          <thead><tr><th>Catégorie</th><th>Années de naissance</th><th>Âge en 2027</th><th>Inscrits</th></tr></thead>
+          <tbody>
+            <tr><td>U11</td><td class="num">2017 – 2018</td><td class="discret">9 – 10 ans</td><td class="num discret">10</td></tr>
+            <tr><td>U13</td><td class="num">2015 – 2016</td><td class="discret">11 – 12 ans</td><td class="num discret">8</td></tr>
+            <tr><td>U15</td><td class="num">2013 – 2014</td><td class="discret">13 – 14 ans</td><td class="num discret">3</td></tr>
+            <tr><td>U17</td><td class="num">2011 – 2012</td><td class="discret">15 – 16 ans</td><td class="num discret">0</td></tr>
+            <tr><td>U19</td><td class="num">2009 – 2010</td><td class="discret">17 – 18 ans</td><td class="num discret">1</td></tr>
+          </tbody>
+        </table></div>
+        <p class="verdict est-ok"><span class="rond" aria-hidden="true"></span>Barème complet, aucun trou</p>
+        <div class="boutons">
+          <button type="button" class="action">Appliquer à tous les inscrits</button>
+          <button type="button" class="secondaire">Corriger à la main…</button>
+        </div>
+      </div>
+    </div></div>
+    <p class="note">Plus rien à saisir : les années se déduisent de la date de la
+       compétition et des catégories de l'édition. « Corriger à la main » reste,
+       replié — une fédération change ses tranches, et le jour où ça arrive on ne
+       veut pas attendre une release.</p>
+  </section>
+
+  <section class="plaque">
+    <span class="puce"><b>5 bis</b> · Appliquer, c'est réécrire des catégories</span>
+    <p>Donc on montre ce qui va changer, et le bouton se <b>maintient</b> — le
+       geste de la spec 027.</p>
+    <div class="ecran"><div class="dedans">
+      <p class="fil">Participants · Catégories</p>
+      <div class="carte">
+        <h2>Appliquer le barème 2026-2027 ?</h2>
+        <dl class="etat">
+          <dt>Inchangés</dt><dd>110 inscrits</dd>
+          <dt>Recalculés</dt><dd><b>12</b> inscrits</dd>
+          <dt>Sans année</dt><dd>2 inscrits — <span class="discret">non touchés</span></dd>
+        </dl>
+        <div class="scroll" style="margin-top:14px"><table>
+          <thead><tr><th>Dossard</th><th>Nom</th><th>Avant</th><th>Après</th></tr></thead>
+          <tbody>
+            <tr><td class="num">47</td><td>Léa Brunel</td><td class="discret">U15 F</td><td><b>U13 F</b></td></tr>
+            <tr><td class="num">52</td><td>Jade Peyron</td><td class="discret">U15 F</td><td><b>U13 F</b></td></tr>
+            <tr><td class="num">88</td><td>Tom Vidal</td><td class="discret">—</td><td><b>U19 H</b></td></tr>
+          </tbody>
+        </table></div>
+        <div class="boutons">
+          <button type="button" class="maintenir">Maintenir pour appliquer</button>
+          <button type="button" class="secondaire">Annuler</button>
+        </div>
+      </div>
+    </div></div>
+    <p class="note">Un inscrit <b>sans année</b> n'est jamais touché : on ne
+       remplace pas une catégorie saisie à la main par un vide calculé.</p>
+  </section>
+
+  <h2 class="groupe-titre">C · Les inscriptions HelloAsso</h2>
+
+  <section class="plaque">
+    <span class="puce"><b>6</b> · La pastille, depuis n'importe quel écran</span>
+    <p>Elle compte <b>à trancher + à imprimer</b> et disparaît quand la pile est vide.</p>
     <div class="ecran">
       <div class="barre">
         <span class="burger"><i></i><i></i><i></i></span>
@@ -389,204 +780,107 @@ td.num { font-family: var(--chiffre); }
   </section>
 
   <section class="plaque">
-    <span class="puce"><b>2</b> · La vue Inscriptions — l'écran qu'on laisse ouvert</span>
-    <p>Trois piles, dans l'ordre où on les traite. Elle se rafraîchit toute seule
-       toutes les 30 s. C'est le « dashboard » demandé le 28/08.</p>
-    <div class="ecran">
-      <div class="barre">
-        <span class="burger"><i></i><i></i><i></i></span>
-        <span class="ou"><b>Inscriptions</b><span>Bloc Party 2026</span></span>
-        <span class="droite"><span class="jeton">adrien</span></span>
+    <span class="puce"><b>7</b> · La vue Inscriptions</span>
+    <p>Trois piles, dans l'ordre où on les traite. Rafraîchie toutes les 30 s :
+       c'est l'écran qu'on laisse ouvert.</p>
+    <div class="ecran"><div class="dedans">
+      <p class="fil">Inscriptions</p>
+      <div class="titre-vue">
+        <h1>Inscriptions</h1>
+        <p>Relevé il y a 40 s · 5 en attente</p>
       </div>
-      <div class="dedans">
-        <div class="titre-vue">
-          <h1>Inscriptions</h1>
-          <p>Relevé il y a 40 s · 5 en attente</p>
-        </div>
 
-        <div class="carte">
-          <h2>À trancher <span class="compte">2</span></h2>
+      <div class="carte">
+        <h2>À trancher <span class="compte">2</span></h2>
 
-          <div class="cas">
-            <div class="quoi">
-              <b>Léa Brunel</b>
-              <span class="motif">Doublon possible</span>
-              <span class="discret">reçue à 09:12</span>
+        <div class="cas">
+          <div class="quoi">
+            <b>Léa Brunel</b>
+            <span class="motif">Même nom, autre club</span>
+            <span class="discret">commande 8 868 440</span>
+          </div>
+          <div class="face-a-face">
+            <div class="colonne">
+              <h3><span class="src h">H</span> HelloAsso</h3>
+              <dl>
+                <dt>Nom</dt><dd class="pareil">Brunel Léa</dd>
+                <dt>Club</dt><dd class="diff">Roc N'Potes</dd>
+                <dt>Année</dt><dd>2015</dd>
+                <dt>Catégorie</dt><dd class="pareil">U13 F</dd>
+              </dl>
             </div>
-            <div class="face-a-face">
-              <div class="colonne">
-                <h3>HelloAsso</h3>
-                <dl>
-                  <dt>Nom</dt><dd class="pareil">Brunel Léa</dd>
-                  <dt>Naissance</dt><dd class="diff">12/04/2014</dd>
-                  <dt>Club</dt><dd>Annonay Escalade</dd>
-                  <dt>Catégorie</dt><dd>U13 F</dd>
-                </dl>
-              </div>
-              <div class="colonne">
-                <h3>Déjà dans la liste — dossard 47, saisie au guichet</h3>
-                <dl>
-                  <dt>Nom</dt><dd class="pareil">Brunel Léa</dd>
-                  <dt>Naissance</dt><dd class="diff">non renseignée</dd>
-                  <dt>Club</dt><dd>Annonay Escalade</dd>
-                  <dt>Catégorie</dt><dd>U13 F</dd>
-                </dl>
-              </div>
-            </div>
-            <div class="boutons">
-              <button type="button" class="mini fort">La même personne</button>
-              <button type="button" class="mini">Deux personnes</button>
-              <button type="button" class="mini risque">Ignorer</button>
+            <div class="colonne">
+              <h3><span class="src g">G</span> Déjà dans la liste — dossard 47</h3>
+              <dl>
+                <dt>Nom</dt><dd class="pareil">Brunel Léa</dd>
+                <dt>Club</dt><dd class="diff">Annonay Escalade</dd>
+                <dt>Année</dt><dd>2015</dd>
+                <dt>Catégorie</dt><dd class="pareil">U13 F</dd>
+              </dl>
             </div>
           </div>
-          <p class="note" style="margin-bottom:12px">Ce cas-là sera le
-             <b>plus fréquent</b>, et pas par hasard : la saisie au guichet ne
-             demande pas la date de naissance, donc aucune rencontre entre les
-             deux origines ne peut se trancher toute seule. C'est la
-             décision <b>D8</b>.</p>
-
-          <div class="cas">
-            <div class="quoi">
-              <b>Tom Vidal</b>
-              <span class="motif">Année hors barème</span>
-              <span class="discret">né le 04/07/2009 · commande 8 868 440</span>
-            </div>
-            <div class="grille" style="max-width:420px">
-              <div>
-                <label for="catTom">Catégorie</label>
-                <select id="catTom">
-                  <option>— choisir —</option>
-                  <option>U17 H</option><option>U19 H</option><option>Adulte</option>
-                </select>
-              </div>
-            </div>
-            <div class="boutons">
-              <button type="button" class="mini fort">Ranger</button>
-              <button type="button" class="mini">Régler le barème…</button>
-              <button type="button" class="mini risque">Ignorer</button>
-            </div>
+          <div class="boutons">
+            <button type="button" class="mini fort">La même personne</button>
+            <button type="button" class="mini">Deux personnes</button>
+            <button type="button" class="mini risque">Ignorer</button>
           </div>
         </div>
 
-        <div class="carte">
-          <h2>À imprimer <span class="compte">3</span></h2>
-          <div class="scroll"><table>
-            <thead><tr><th>Dossard</th><th>Nom</th><th>Catégorie</th><th>Club</th><th>Reçue</th><th></th></tr></thead>
-            <tbody>
-              <tr>
-                <td class="num">128</td><td>Nino Chapuis</td><td>U11 H</td>
-                <td>Annonay Escalade</td><td class="discret">09:31</td>
-                <td style="text-align:right;white-space:nowrap">
-                  <button type="button" class="mini fort">Imprimer</button>
-                  <button type="button" class="mini">Déjà remis</button>
-                </td>
-              </tr>
-              <tr>
-                <td class="num">129</td><td>Jade Peyron</td><td>U13 F</td>
-                <td>CAF Vivarais</td><td class="discret">09:28</td>
-                <td style="text-align:right;white-space:nowrap">
-                  <button type="button" class="mini fort">Imprimer</button>
-                  <button type="button" class="mini">Déjà remis</button>
-                </td>
-              </tr>
-              <tr>
-                <td class="num">130</td><td>Sacha Peyron</td><td>U15 H</td>
-                <td>CAF Vivarais</td><td class="discret">09:28</td>
-                <td style="text-align:right;white-space:nowrap">
-                  <button type="button" class="mini fort">Imprimer</button>
-                  <button type="button" class="mini">Déjà remis</button>
-                </td>
-              </tr>
-            </tbody>
-          </table></div>
-          <p class="note" style="margin-top:14px">Jade et Sacha Peyron sont
-             <b>une seule commande, deux articles</b>. C'est le cas nominal d'une
-             fratrie — et celui qu'un import « par commande » raterait.</p>
-        </div>
-
-        <div class="carte">
-          <h2>Faites <span class="compte calme">14</span></h2>
-          <p class="aide">Repliée. On l'ouvre pour retrouver quelqu'un.</p>
-        </div>
-      </div>
-    </div>
-  </section>
-
-  <section class="plaque">
-    <span class="puce"><b>3</b> · Deux états qu'on voit plus souvent qu'on ne croit</span>
-    <p>À gauche, la pile vide — l'état nominal pendant les trois quarts de la
-       journée. À droite, une annulation arrivée après coup : on remonte la
-       ligne, on ne supprime rien.</p>
-    <div class="face-a-face">
-      <div class="ecran"><div class="dedans">
-        <p class="fil">Inscriptions</p>
-        <div class="carte">
-          <h2>Rien en attente</h2>
-          <dl class="etat">
-            <dt>Dernier relevé</dt><dd>il y a 25 s</dd>
-            <dt>Aujourd'hui</dt><dd><b>19</b> inscriptions</dd>
-          </dl>
-          <div class="boutons"><button type="button" class="secondaire">Relever maintenant</button></div>
-        </div>
-      </div></div>
-      <div class="ecran"><div class="dedans">
-        <p class="fil">Inscriptions</p>
-        <div class="carte">
-          <h2>À trancher <span class="compte">1</span></h2>
-          <div class="cas">
-            <div class="quoi">
-              <b>Hugo Marret</b>
-              <span class="motif rouge">Annulée chez HelloAsso</span>
-              <span class="discret">dossard 96</span>
-            </div>
-            <p class="aide" style="margin:0 0 10px">Aucune réussite enregistrée.</p>
-            <div class="boutons">
-              <button type="button" class="mini risque">Retirer le participant</button>
-              <button type="button" class="mini">Le garder</button>
-            </div>
+        <div class="cas">
+          <div class="quoi">
+            <b>Tom Vidal</b>
+            <span class="motif">Année hors barème</span>
+            <span class="discret">né en 2005 · commande 8 868 512</span>
           </div>
-        </div>
-      </div></div>
-    </div>
-  </section>
-
-  <section class="plaque">
-    <span class="puce"><b>4</b> · Administration → HelloAsso, pas encore relié</span>
-    <p>Tant qu'aucune clé n'est posée : pas d'entrée de menu <i>Inscriptions</i>,
-       pas de fil de fond, <b>aucun appel réseau</b>.</p>
-    <div class="ecran">
-      <div class="barre">
-        <span class="burger"><i></i><i></i><i></i></span>
-        <span class="ou"><b>HelloAsso</b><span>Bloc Party 2026</span></span>
-        <span class="droite"><span class="jeton">adrien</span></span>
-      </div>
-      <div class="dedans">
-        <div class="titre-vue">
-          <h1>HelloAsso</h1>
-          <p>Les inscriptions en ligne. Réservé aux administrateurs.</p>
-        </div>
-        <div class="carte">
-          <h2>Relier le compte du club</h2>
-          <p class="aide">La clé se trouve sur le compte HelloAsso du club,
-             <b>Mon Compte → Intégrations et API</b>.</p>
-          <div class="grille">
-            <div><label for="haId">Identifiant client</label><input id="haId" placeholder="9fdc22226bf2…"></div>
-            <div><label for="haSecret">Secret client</label><input id="haSecret" type="password" placeholder="••••••••••••"></div>
+          <div class="grille" style="max-width:420px">
             <div>
-              <label for="haEnv">Environnement</label>
-              <select id="haEnv"><option>Production</option><option>Bac à sable</option></select>
+              <label for="catTom">Catégorie</label>
+              <select id="catTom"><option>— choisir —</option><option>Senior H</option><option>+ Créer une catégorie…</option></select>
             </div>
           </div>
-          <div class="boutons"><button type="button" class="action">Relier</button></div>
+          <div class="boutons">
+            <button type="button" class="mini fort">Ranger</button>
+            <button type="button" class="mini risque">Ignorer</button>
+          </div>
         </div>
       </div>
-    </div>
+
+      <div class="carte">
+        <h2>À imprimer <span class="compte">3</span></h2>
+        <div class="bande-selection">
+          <label class="tout"><input type="checkbox" checked> Tout sélectionner</label>
+          <b>3 sélectionnés</b>
+          <span class="pousse"></span>
+          <button type="button" class="action">Imprimer 3 fiches</button>
+        </div>
+        <div class="scroll"><table>
+          <thead><tr><th class="coche"></th><th>Dossard</th><th>Nom</th><th>Catégorie</th><th>Club</th><th>Reçue</th><th></th></tr></thead>
+          <tbody>
+            <tr class="prise"><td class="coche"><input type="checkbox" checked></td><td class="num">128</td><td>Nino Chapuis</td><td>U11 H</td><td>Annonay Escalade</td><td class="discret">09:31</td>
+                <td class="fin"><button type="button" class="mini">Déjà remis</button></td></tr>
+            <tr class="prise"><td class="coche"><input type="checkbox" checked></td><td class="num">129</td><td>Jade Peyron</td><td>U13 F</td><td>CAF Vivarais</td><td class="discret">09:28</td>
+                <td class="fin"><button type="button" class="mini">Déjà remis</button></td></tr>
+            <tr class="prise"><td class="coche"><input type="checkbox" checked></td><td class="num">130</td><td>Sacha Peyron</td><td>U15 H</td><td>CAF Vivarais</td><td class="discret">09:28</td>
+                <td class="fin"><button type="button" class="mini">Déjà remis</button></td></tr>
+          </tbody>
+        </table></div>
+      </div>
+
+      <div class="carte">
+        <h2>Faites <span class="compte calme">14</span></h2>
+      </div>
+    </div></div>
+    <p class="note">Même mécanisme de sélection que la liste des participants —
+       une seule façon d'imprimer dans toute la console, pas deux.<br>
+       Jade et Sacha Peyron sont <b>une commande, deux articles</b> : c'est
+       pourquoi le numéro de commande ne peut pas servir de clé anti-doublon.
+       Voir l'onglet <b>Spec</b>.</p>
   </section>
 
   <section class="plaque">
-    <span class="puce"><b>5</b> · HelloAsso, relié</span>
-    <p>Le secret n'est jamais réaffiché. L'état tient en trois lignes ; le reste
-       est un bouton.</p>
+    <span class="puce"><b>8</b> · HelloAsso, relié</span>
+    <p>Le tarif ne sert plus à rien — tout le monde paie le même. Il ne reste que
+       trois champs à désigner, et un état.</p>
     <div class="ecran"><div class="dedans">
       <p class="fil">HelloAsso</p>
 
@@ -595,7 +889,7 @@ td.num { font-family: var(--chiffre); }
         <dl class="etat">
           <dt>Environnement</dt><dd>Production</dd>
           <dt>Clé</dt><dd><b>9fdc…3715</b></dd>
-          <dt>Association</dt><dd>Annonay Escalade</dd>
+          <dt>Formulaire</dt><dd>Bloc Party 2026</dd>
         </dl>
         <p class="verdict est-ok"><span class="rond" aria-hidden="true"></span>Reliée</p>
         <div class="boutons">
@@ -605,18 +899,28 @@ td.num { font-family: var(--chiffre); }
       </div>
 
       <div class="carte">
-        <h2>Formulaire de cette édition</h2>
-        <div class="grille" style="max-width:520px">
-          <div>
-            <label for="haForm">Formulaire</label>
-            <select id="haForm">
-              <option>Bloc Party 2026 — Événement</option>
-              <option>Adhésions 2026-2027 — Adhésion</option>
-              <option>Sortie falaise — Événement</option>
-            </select>
-          </div>
-        </div>
-        <div class="boutons"><button type="button" class="action">Choisir et découvrir</button></div>
+        <h2>Les champs du formulaire</h2>
+        <div class="scroll"><table>
+          <thead><tr><th>Sert à</th><th>Champ HelloAsso</th></tr></thead>
+          <tbody>
+            <tr><td><b>Année de naissance</b><br><span class="discret">obligatoire — elle fait la catégorie</span></td>
+                <td><select><option selected>Date de naissance</option><option>— aucun —</option></select></td></tr>
+            <tr><td><b>Genre</b><br><span class="discret">obligatoire — le F ou le H</span></td>
+                <td><select><option selected>Sexe</option><option>— aucun —</option></select></td></tr>
+            <tr><td>Club<br><span class="discret">facultatif</span></td>
+                <td><select><option selected>Votre club</option><option>— aucun —</option></select></td></tr>
+          </tbody>
+        </table></div>
+        <p class="sous-titre">Les réponses vues pour « Sexe »</p>
+        <div class="scroll"><table>
+          <thead><tr><th>Réponse</th><th>Range en</th><th></th></tr></thead>
+          <tbody>
+            <tr><td>Fille</td><td><select><option selected>F</option><option>H</option></select></td><td class="discret">12 fois</td></tr>
+            <tr><td>Garçon</td><td><select><option>F</option><option selected>H</option></select></td><td class="discret">9 fois</td></tr>
+            <tr><td>F</td><td><select><option selected>F</option><option>H</option></select></td><td class="discret">2 fois</td></tr>
+          </tbody>
+        </table></div>
+        <div class="boutons"><button type="button" class="action">Enregistrer</button></div>
       </div>
 
       <div class="carte">
@@ -624,171 +928,36 @@ td.num { font-family: var(--chiffre); }
         <dl class="etat">
           <dt>Dernier</dt><dd>il y a 40 s</dd>
           <dt>Cadence</dt><dd>60 s <span class="discret">(compétition en cours)</span></dd>
-          <dt>Aujourd'hui</dt><dd><b>19</b> inscriptions</dd>
+          <dt>Aujourd'hui</dt><dd><b>19</b> inscriptions · <b>0</b> doublon</dd>
         </dl>
         <p class="verdict est-ok"><span class="rond" aria-hidden="true"></span>À jour</p>
         <div class="boutons"><button type="button" class="secondaire">Relever maintenant</button></div>
       </div>
     </div></div>
-    <p class="note">Les deux états d'échec, en une ligne chacun :
-       <span class="verdict est-attention" style="display:inline-flex;margin:0 0 0 6px">
-       <span class="rond"></span>HelloAsso injoignable</span> — on retente tout seul ·
-       <span class="verdict est-alerte" style="display:inline-flex;margin:0 0 0 6px">
-       <span class="rond"></span>Clé à reconnecter</span> — et le fil <b>s'arrête</b>,
-       pour ne pas brûler le quota.</p>
+    <p class="note">« 0 doublon » n'est pas décoratif : c'est le compteur des
+       articles déjà connus, revus et <b>non réimportés</b>. Il doit monter à
+       chaque relevé et ne rien créer.</p>
   </section>
 
   <section class="plaque">
-    <span class="puce"><b>6</b> · Le barème — refait après D1</span>
-    <p>Une catégorie est faite de deux morceaux : un <b>circuit</b> (<code>U13</code>)
-       et un <b>genre</b> (<code>F</code>). Ils ne viennent pas du même endroit,
-       et l'écran suit cette découpe.</p>
+    <span class="puce"><b>8 bis</b> · Le seul refus d'enregistrement</span>
+    <p>Sans année de naissance, aucune catégorie ne se calcule. On le dit tout de
+       suite plutôt que de laisser cent inscriptions s'empiler en attente.</p>
     <div class="ecran"><div class="dedans">
-      <p class="fil">HelloAsso · Bloc Party 2026</p>
-
+      <p class="fil">HelloAsso</p>
       <div class="carte">
-        <h2>Les circuits, par année de naissance</h2>
-        <p class="aide">Proposé pour la saison 2026-2027. À corriger si le barème
-           du club diffère.</p>
-        <div class="scroll"><table>
-          <thead><tr><th>Circuit</th><th>De</th><th>À</th><th>Mixte</th><th>Inscrits</th></tr></thead>
-          <tbody>
-            <tr><td>U11</td>
-                <td><input value="2016" style="width:88px" inputmode="numeric"></td>
-                <td><input value="2017" style="width:88px" inputmode="numeric"></td>
-                <td><input type="checkbox" style="width:auto"></td>
-                <td class="num discret">10</td></tr>
-            <tr><td>U13</td>
-                <td><input value="2014" style="width:88px" inputmode="numeric"></td>
-                <td><input value="2015" style="width:88px" inputmode="numeric"></td>
-                <td><input type="checkbox" style="width:auto"></td>
-                <td class="num discret">8</td></tr>
-            <tr><td>U15</td>
-                <td><input value="2012" style="width:88px" inputmode="numeric"></td>
-                <td><input value="2013" style="width:88px" inputmode="numeric"></td>
-                <td><input type="checkbox" style="width:auto"></td>
-                <td class="num discret">3</td></tr>
-            <tr><td>U17</td>
-                <td><input value="2010" style="width:88px" inputmode="numeric"></td>
-                <td><input value="2011" style="width:88px" inputmode="numeric"></td>
-                <td><input type="checkbox" style="width:auto"></td>
-                <td class="num discret">0</td></tr>
-            <tr><td>Adulte</td>
-                <td><input value="1950" style="width:88px" inputmode="numeric"></td>
-                <td><input value="2008" style="width:88px" inputmode="numeric"></td>
-                <td><input type="checkbox" checked style="width:auto"></td>
-                <td class="num discret">2</td></tr>
-          </tbody>
-        </table></div>
-        <p class="verdict est-attention"><span class="rond" aria-hidden="true"></span>2009 : aucun circuit — 1 inscrit en attente</p>
-        <div class="boutons">
-          <button type="button" class="secondaire">Reproposer pour 2026-2027</button>
-        </div>
-      </div>
-
-      <div class="carte">
-        <h2>Le genre</h2>
-        <fieldset class="choix" style="border:0;padding:0;margin:0 0 14px">
-          <label><input type="radio" name="mSrc" checked>
-            <span class="quoi"><b>Un champ du formulaire</b></span></label>
-          <label><input type="radio" name="mSrc">
-            <span class="quoi"><b>Le nom du tarif</b>
-              <i>« U11 filles », « U11 garçons »</i></span></label>
-        </fieldset>
-        <div class="grille" style="max-width:340px;margin-bottom:14px">
-          <div><label for="chGenre">Champ</label>
-            <select id="chGenre"><option selected>Sexe</option><option>Genre</option></select></div>
-        </div>
-        <div class="scroll"><table>
-          <thead><tr><th>Réponse vue</th><th>Range en</th><th></th></tr></thead>
-          <tbody>
-            <tr><td>Fille</td><td><select><option selected>F</option><option>H</option><option>— indéterminé —</option></select></td><td class="discret">12 fois</td></tr>
-            <tr><td>Garçon</td><td><select><option>F</option><option selected>H</option><option>— indéterminé —</option></select></td><td class="discret">9 fois</td></tr>
-            <tr><td>F</td><td><select><option selected>F</option><option>H</option></select></td><td class="discret">2 fois</td></tr>
-          </tbody>
-        </table></div>
-      </div>
-
-      <div class="carte">
-        <h2>Les deux champs qui restent</h2>
+        <h2>Les champs du formulaire</h2>
         <div class="scroll"><table>
           <thead><tr><th>Sert à</th><th>Champ HelloAsso</th></tr></thead>
           <tbody>
-            <tr><td><b>Date de naissance</b><br><span class="discret">obligatoire</span></td>
-                <td><select><option selected>Date de naissance</option><option>— aucun —</option></select></td></tr>
-            <tr><td>Club<br><span class="discret">facultatif</span></td>
-                <td><select><option selected>Votre club</option><option>— aucun —</option></select></td></tr>
-          </tbody>
-        </table></div>
-        <div class="boutons">
-          <button type="button" class="action">Enregistrer</button>
-          <button type="button" class="secondaire">Rejouer les inscriptions en attente</button>
-        </div>
-      </div>
-    </div></div>
-    <p class="note">Le barème est <b>proposé, jamais imposé</b> — les catégories
-       changent d'une édition à l'autre et rien ne garantit des tranches de deux
-       ans. Et il est <b>contrôlé</b>, comme la cascade contrôle ses phrases
-       mortes : recouvrement, trou, circuit sans année, et catégorie composée qui
-       n'existe pas dans l'édition. C'est ce dernier contrôle qui attrape le
-       circuit « Adulte » qu'on aurait oublié de cocher <b>mixte</b> — il
-       composerait « Adulte F », une catégorie qui n'existe nulle part.</p>
-  </section>
-
-  <section class="plaque">
-    <span class="puce"><b>6 bis</b> · Ce que la console refuse d'enregistrer</span>
-    <p>Un seul refus, et c'est celui qui évite cent inscriptions bloquées sans
-       qu'on comprenne pourquoi.</p>
-    <div class="ecran"><div class="dedans">
-      <p class="fil">HelloAsso · Bloc Party 2026</p>
-      <div class="carte">
-        <h2>Les deux champs qui restent</h2>
-        <div class="scroll"><table>
-          <thead><tr><th>Sert à</th><th>Champ HelloAsso</th></tr></thead>
-          <tbody>
-            <tr><td><b>Date de naissance</b><br><span class="discret">obligatoire</span></td>
+            <tr><td><b>Année de naissance</b><br><span class="discret">obligatoire</span></td>
                 <td><select><option selected>— aucun —</option></select></td></tr>
           </tbody>
         </table></div>
-        <p class="verdict est-alerte"><span class="rond" aria-hidden="true"></span>Aucun champ de date de naissance — aucune catégorie ne se calculera</p>
-        <div class="boutons"><button type="button" class="action" disabled style="opacity:.5">Enregistrer</button></div>
+        <p class="verdict est-alerte"><span class="rond" aria-hidden="true"></span>Aucun champ de date — aucune catégorie ne se calculera</p>
+        <div class="boutons"><button type="button" class="action" disabled>Enregistrer</button></div>
       </div>
     </div></div>
-  </section>
-
-  <section class="plaque">
-    <span class="puce"><b>7</b> · Le guichet, quand quelqu'un s'est déjà inscrit en ligne</span>
-    <p>Le rapprochement marche dans les deux sens : la saisie manuelle prévient
-       avant de créer un doublon. Le champ encadré est un <b>ajout que je
-       propose</b> — c'est la décision <b>D8</b>, il n'est pas acquis.</p>
-    <div class="ecran"><div class="dedans">
-      <p class="fil">Participants</p>
-      <div class="carte">
-        <h2>Ajouter un participant</h2>
-        <div class="grille">
-          <div><label for="pn">Nom *</label><input id="pn" value="Brunel"></div>
-          <div><label for="pp">Prénom</label><input id="pp" value="Léa"></div>
-          <div class="propose-champ">
-            <span class="drapeau">Ajout proposé · D8</span>
-            <label for="pa">Année de naissance</label><input id="pa" value="2014" inputmode="numeric">
-          </div>
-          <div><label for="pc">Club</label><select id="pc"><option>Annonay Escalade</option></select></div>
-          <div><label for="pk">Catégorie</label><select id="pk"><option>U13 F</option></select></div>
-        </div>
-        <p class="verdict est-attention" style="margin-top:14px">
-          <span class="rond" aria-hidden="true"></span>Léa Brunel s'est inscrite en ligne à 09:12
-        </p>
-        <div class="boutons">
-          <button type="button" class="action">Reprendre son inscription</button>
-          <button type="button" class="secondaire">Ajouter quand même</button>
-        </div>
-      </div>
-    </div></div>
-    <p class="note">Sans ce champ, une saisie au guichet n'a <b>jamais</b> de date
-       de naissance — et toute rencontre avec une inscription en ligne tombe en
-       « à trancher ». Avec lui, la catégorie se propose aussi toute seule au
-       guichet, par le même barème : les deux origines se rangent de la même
-       façon, ce qui est tout l'intérêt de D1.</p>
   </section>
 
 </main>
@@ -796,59 +965,75 @@ td.num { font-family: var(--chiffre); }
 <!-- ═══════════════════════════ DÉCISIONS ═══════════════════════════ -->
 <main id="vue-decisions" hidden>
   <div class="decision" style="border-color:var(--ok)">
-    <h3>Tranché le 03/09</h3>
-    <p>Tes sept réponses. Les deux que tu as changées sont en gras.</p>
+    <h3>Tranché</h3>
+    <p>Neuf décisions, deux séances.</p>
     <div class="scroll"><table>
       <thead><tr><th>#</th><th>Question</th><th>Tranché</th></tr></thead>
       <tbody>
         <tr><td class="num">D1</td><td>D'où vient la catégorie ?</td>
-            <td><b>De la date de naissance</b> — un barème année → circuit, le genre lu à part</td></tr>
+            <td>De l'<b>année de naissance</b>, par le barème FFME</td></tr>
         <tr><td class="num">D2</td><td>Création automatique sans ambiguïté ?</td><td>Oui</td></tr>
         <tr><td class="num">D3</td><td>Webhook ou sondage ?</td><td>Sondage seul, 60 s</td></tr>
         <tr><td class="num">D4</td><td>Ce qui clôt une inscription</td><td>Imprimer vaut « remis »</td></tr>
-        <tr><td class="num">D5</td><td>Données gardées</td>
-            <td><b>Le strict minimum</b> — rien du payeur, pas même son courriel</td></tr>
+        <tr><td class="num">D5</td><td>Données gardées</td><td>Le strict minimum — rien du payeur</td></tr>
         <tr><td class="num">D6</td><td>Environnement</td><td>Bac à sable</td></tr>
         <tr><td class="num">D7</td><td>Risque R13</td><td>Révoqué et nettoyé avant de commencer</td></tr>
+        <tr><td class="num">D8</td><td>Le formulaire manuel</td>
+            <td><b>Année <i>ou</i> catégorie</b>, et chacune propose l'autre</td></tr>
+        <tr><td class="num">D9</td><td>Finesse de la date</td>
+            <td><b>L'année seule</b> — c'est tout ce que la règle FFME demande</td></tr>
       </tbody>
     </table></div>
   </div>
 
+  <div class="decision" style="border-color:var(--ok)">
+    <h3>Ce qui tombe avec le tarif</h3>
+    <p>« Tout le monde paie le même tarif. » Trois choses disparaissent du dossier
+       d'hier, et c'est autant de moins à construire :</p>
+    <ul style="margin:0;padding-left:20px;color:var(--encre2)">
+      <li>la table de correspondance <b>tarif → catégorie</b> ;</li>
+      <li>le genre lu dans le <b>nom du tarif</b> — il ne reste qu'une source,
+          un champ du formulaire ;</li>
+      <li>le tarif comme motif de mise en attente. Il n'est plus qu'une colonne
+          d'affichage.</li>
+    </ul>
+  </div>
+
   <p style="color:var(--encre2);margin:26px 0 20px;max-width:68ch">
-    <b>Deux questions naissent de D1</b> — elles n'existaient pas tant que la
-    catégorie venait du tarif. Mon choix est présélectionné ; le récapitulatif en
-    bas se met à jour tout seul.</p>
+    <b>Une question naît du bouton « Appliquer à tous les inscrits ».</b>
+    Mon choix est présélectionné.</p>
 
   <div class="decision">
-    <h3><span class="code">D8</span> Le formulaire d'ajout manuel apprend-il l'année de naissance ?</h3>
-    <p>Aujourd'hui il demande nom, prénom, club, catégorie (spec 013). C'est une
-       retouche à un écran qui existe — à valider, pas à faire en douce.</p>
+    <h3><span class="code">D10</span> Le barème écrase-t-il une catégorie corrigée à la main ?</h3>
+    <p>Quelqu'un a rangé Tom en U19 alors que son année dit Senior — parce qu'il
+       le connaît. Un clic sur « Appliquer à tous » le remet en Senior.</p>
     <div class="choix">
-      <label><input type="radio" name="d8" value="oui" checked>
-        <span class="quoi"><b>Oui, un champ facultatif<span class="propose">proposé</span></b>
-          <i>Le rapprochement peut alors trancher tout seul, et la catégorie se propose
-             aussi au guichet — les deux origines se rangent de la même façon.</i></span></label>
-      <label><input type="radio" name="d8" value="non">
-        <span class="quoi"><b>Non, on ne touche pas à cet écran</b>
-          <i>Toute rencontre entre une inscription en ligne et une saisie au guichet
-             passera par « à trancher ». C'est un clic de plus par personne concernée.</i></span></label>
+      <label><input type="radio" name="d10" value="protege" checked>
+        <span class="quoi"><b>Non — une correction à la main est protégée<span class="propose">proposé</span></b>
+          <i>Le participant porte une trace du geste, comme
+             <code>hors_circuit_force</code> le fait déjà pour les juges. L'aperçu
+             les compte à part : « 3 corrigées à la main, non touchées », avec un
+             bouton pour les forcer quand même.</i></span></label>
+      <label><input type="radio" name="d10" value="ecrase">
+        <span class="quoi"><b>Oui — le barème fait autorité sur tout</b>
+          <i>Plus simple, une colonne de moins. Mais « Appliquer » défait
+             silencieusement le travail de quelqu'un, et rien ne le dit.</i></span></label>
     </div>
   </div>
 
   <div class="decision">
-    <h3><span class="code">D9</span> Date de naissance complète, ou année seule ?</h3>
-    <p>L'année suffit pour la catégorie. C'est la <b>date</b> qui autorise une
-       fusion sans demander.</p>
+    <h3><span class="code">D11</span> Le vert de HelloAsso</h3>
+    <p>Leur page de charte graphique répond <b>403</b> : je n'ai pas pu relever le
+       code exact. Le vert utilisé dans les pastilles est le mien.</p>
     <div class="choix">
-      <label><input type="radio" name="d9" value="date" checked>
-        <span class="quoi"><b>La date complète<span class="propose">proposé</span></b>
-          <i>Deux homonymes nés la même année restent distingués. C'est la donnée que
-             HelloAsso envoie de toute façon.</i></span></label>
-      <label><input type="radio" name="d9" value="annee">
-        <span class="quoi"><b>L'année seule</b>
-          <i>Moins de données sur un mineur, dans l'esprit de D5. La règle de fusion se
-             durcit alors : nom + prénom + année + <b>club</b>, et tout le reste en
-             « à trancher ».</i></span></label>
+      <label><input type="radio" name="d11" value="mien" checked>
+        <span class="quoi"><b>Celui-là convient<span class="propose">proposé</span></b>
+          <i><span class="src h">H</span> <code>#00875A</code> en clair,
+             <code>#3FD9A0</code> en sombre — choisis pour être lisibles sur les
+             deux fonds.</i></span></label>
+      <label><input type="radio" name="d11" value="autre">
+        <span class="quoi"><b>Je te donnerai le bon code</b>
+          <i>Un mot et je le remplace ; c'est deux jetons CSS.</i></span></label>
     </div>
   </div>
 
@@ -863,124 +1048,143 @@ td.num { font-family: var(--chiffre); }
 <!-- ═══════════════════════════ SPEC ═══════════════════════════ -->
 <main id="vue-spec" hidden>
   <div class="doc">
-    <h2>Le besoin, tel que le terrain le pose</h2>
-    <p><code>docs/contraintes-metier.md</code> §3, recueilli le 28/08 :</p>
-    <ul>
-      <li>HelloAsso est la plateforme d'inscription à la compétition.</li>
-      <li><b>Des inscriptions se font sur place</b>, sans passer par elle. L'import
-          est un flux d'alimentation, <b>jamais la source unique</b>.</li>
-      <li>Quelqu'un peut s'inscrire en ligne <b>et</b> se présenter au guichet :
-          rapprochement sur nom + date de naissance, avec validation humaine.</li>
-      <li>« Il faut pouvoir avoir un dashboard dans la page admin et le voir sur
-          cet écran » — derrière chaque inscription, <b>imprimer un dossard et
-          l'apporter</b>.</li>
-    </ul>
-    <p>Aujourd'hui, la seule trace de HelloAsso dans le dépôt est une constante
-       jamais écrite : <code>SOURCE_HELLOASSO = "helloasso"</code>. Le geste réel,
-       en novembre 2025, était un export tableur recollé à la main dans l'onglet
-       <code>Listes</code>. Une fois. Ce qui arrive après l'export n'arrive jamais.</p>
+    <h2>Le besoin</h2>
+    <p><code>docs/contraintes-metier.md</code> §3, recueilli le 28/08 : HelloAsso
+       est la plateforme d'inscription, <b>mais des inscriptions se font sur
+       place</b>. L'import est un flux d'alimentation, jamais la source unique.
+       Il faut un rapprochement, il faut du temps réel, et il faut que ça se voie
+       sur un écran qu'on laisse ouvert — parce que derrière chaque inscription
+       il y a un dossard à imprimer et à apporter.</p>
 
-    <h2>Ce que l'API donne — vérifié le 03/09/2026</h2>
+    <h2>La règle des catégories — FFME, relevée le 04/09/2026</h2>
+    <p>« U » veut dire <i>under</i>. <b>U13 = moins de 13 ans</b>, et c'est le
+       <b>plus petit Under</b> qui l'emporte. Deux précisions qui font tout :</p>
+    <ul>
+      <li>c'est l'<b>année de naissance</b> qui compte, pas la date — un grimpeur
+          ne change pas de catégorie le jour de son anniversaire ;</li>
+      <li>l'année de référence est celle où <b>finit</b> la saison. La saison FFME
+          va du 1<sup>er</sup> septembre au 31 août : une compétition de novembre
+          2026 est dans la saison 2026-2027, donc la référence est <b>2027</b>.
+          C'est ce qui fait qu'on démarre l'année dans une catégorie et qu'on y
+          reste.</li>
+    </ul>
+<pre>age = annee_de_reference - annee_de_naissance
+categorie = le plus petit U(n) tel que age &lt; n
+
+annee_de_reference(d) = d.year + 1 si d.month &gt;= 9 sinon d.year</pre>
+    <p>Vérification sur le tableau publié pour 2025-2026 (référence 2026) :</p>
     <div class="scroll"><table>
-      <thead><tr><th>Fait</th><th>Conséquence</th></tr></thead>
+      <thead><tr><th>Catégorie</th><th>Années</th><th>Âge en 2026</th><th>Contrôle</th></tr></thead>
       <tbody>
-        <tr><td>Clé d'API depuis le back-office du club. Rôle <code>OrganizationAdmin</code>,
-                privilège <code>AccessTransactions</code></td>
-            <td>Suffisant. <b>Aucun partenariat à demander</b></td></tr>
-        <tr><td><code>access_token</code> 30 min, <code>refresh_token</code> 30 jours.
-                Quotas d'authentification : <b>50/h</b></td>
-            <td>Le jeton vit en base, pas en mémoire vive</td></tr>
-        <tr><td>Le <code>refresh_token</code> <b>tourne</b> : réutiliser A révoque B</td>
-            <td>Deux workers qui rafraîchissent en même temps se cassent l'un l'autre → <b>verrou</b></td></tr>
-        <tr><td><code>GET .../items</code> : <b>un article = un inscrit</b>,
-                <code>item.id</code> stable</td>
-            <td>La clé d'idempotence, portée par une contrainte SQL</td></tr>
-        <tr><td><code>withDetails=true</code> → <code>customFields[]</code></td>
-            <td>C'est là que vivent le club et la date de naissance</td></tr>
-        <tr><td><code>sortField=UpdateDate</code> + <code>from=</code></td>
-            <td>Relevé incrémental, et une annulation ancienne <b>reste visible</b></td></tr>
-        <tr><td>Fin de pagination = <b>tableau vide</b>, pas absence de jeton.
-                <code>totalCount = -1</code></td>
-            <td>Boucle écrite d'après leur algorithme, pas d'après l'intuition</td></tr>
-        <tr><td><code>payer</code> ≠ <code>user</code> : le payeur est le parent</td>
-            <td>On inscrit <code>user</code>. Les confondre inscrirait les parents</td></tr>
-        <tr><td>Webhook : signature HMAC <b>réservée aux partenaires</b>, corps sans
-                <code>customFields</code></td>
-            <td>Il ne peut pas être une source de données → <b>D3</b></td></tr>
+        <tr><td>U11</td><td class="num">2016 – 2017</td><td>9 – 10 ans</td><td>10 &lt; 11 ✓</td></tr>
+        <tr><td>U13</td><td class="num">2014 – 2015</td><td>11 – 12 ans</td><td>12 &lt; 13 ✓</td></tr>
+        <tr><td>U15</td><td class="num">2012 – 2013</td><td>13 – 14 ans</td><td>14 &lt; 15 ✓</td></tr>
+        <tr><td>U17</td><td class="num">2010 – 2011</td><td>15 – 16 ans</td><td>16 &lt; 17 ✓</td></tr>
+        <tr><td>U19</td><td class="num">2008 – 2009</td><td>17 – 18 ans</td><td>18 &lt; 19 ✓</td></tr>
       </tbody>
     </table></div>
+    <p class="note"><b>Mon barème d'hier était faux d'un an</b> : j'avais pris
+       l'année où la saison <i>commence</i>. Pour une compétition de novembre
+       2026, U13 est 2015-2016, pas 2014-2015. C'est exactement le genre d'écart
+       qu'un tableau écrit à la main ne montre pas et qu'un calcul vérifié
+       montre.</p>
+    <p>Le barème n'est donc plus une saisie : il se <b>déduit</b> de la date de la
+       compétition et des catégories de l'édition. « Corriger à la main » reste,
+       replié — une fédération change ses tranches, et ce jour-là on ne veut pas
+       attendre une release.</p>
 
-    <h2>Le rapprochement</h2>
+    <h2>Ne pas réimporter — et rapprocher : deux mécanismes, deux clés</h2>
+    <p>Les confondre est le piège de ce dossier.</p>
+    <div class="scroll"><table>
+      <thead><tr><th></th><th>Ne pas réimporter</th><th>Rapprocher</th></tr></thead>
+      <tbody>
+        <tr><td><b>La question</b></td>
+            <td>Ai-je déjà vu <i>cet article</i> ?</td>
+            <td>Cette personne est-elle déjà dans la liste ?</td></tr>
+        <tr><td><b>La clé</b></td>
+            <td><code>item.id</code> — l'article HelloAsso</td>
+            <td>nom + prénom + club, puis la catégorie en contrôle</td></tr>
+        <tr><td><b>Portée</b></td>
+            <td>Une contrainte SQL <code>UNIQUE(competition, article)</code></td>
+            <td>Une fonction pure, testée par table de cas</td></tr>
+        <tr><td><b>Pourquoi pas le n° de commande</b></td>
+            <td colspan="2"><b>Une commande peut contenir plusieurs inscrits</b> —
+                un parent qui inscrit deux enfants. Le numéro de commande est
+                unique et fiable <i>pour une commande</i>, pas pour une personne :
+                s'en servir comme clé anti-doublon perdrait le second enfant</td></tr>
+      </tbody>
+    </table></div>
+    <p>Le numéro de commande est gardé quand même, et il sert à deux choses
+       réelles : <b>retrouver la fratrie</b>, et <b>retrouver la commande dans le
+       back-office</b> quand il faut joindre quelqu'un — puisque D5 dit qu'on ne
+       garde pas le courriel.</p>
+
+    <h3>La table de rapprochement</h3>
     <div class="scroll"><table>
       <thead><tr><th>Cas</th><th>Verdict</th></tr></thead>
       <tbody>
         <tr><td>Aucun homonyme</td><td><b>Nouveau</b> — participant créé, dossard attribué</td></tr>
-        <tr><td>Homonyme, dates de naissance <b>identiques</b></td><td><b>La même personne</b> — rattachement, champs vides complétés</td></tr>
-        <tr><td>Homonyme, dates <b>différentes</b></td><td><b>Deux personnes</b> — créé, et signalé une fois</td></tr>
-        <tr><td>Homonyme, une date manque</td><td><b>À trancher</b></td></tr>
-        <tr><td>Date absente, ou année <b>hors barème</b></td><td><b>À trancher</b>, catégorie vide</td></tr>
-        <tr><td>Genre indéterminé, circuit non mixte</td><td><b>À trancher</b></td></tr>
-        <tr><td>Article annulé, jamais intégré</td><td>Rien</td></tr>
-        <tr><td>Article annulé, <b>déjà intégré</b></td><td><b>À trancher</b> — le participant n'est pas touché</td></tr>
+        <tr><td>Nom + prénom + <b>club identiques</b></td><td><b>La même personne</b> — rattachée, jamais dupliquée</td></tr>
+        <tr><td>Nom + prénom identiques, <b>club différent</b></td><td><b>À trancher</b> — les deux fiches côte à côte</td></tr>
+        <tr><td>Nom + prénom identiques, <b>club absent</b> d'un côté</td><td><b>À trancher</b></td></tr>
+        <tr><td>Rattaché, mais catégorie différente</td><td>Rattaché quand même, et <b>signalé</b></td></tr>
+        <tr><td>Année absente, ou hors barème</td><td><b>À trancher</b>, catégorie vide</td></tr>
+        <tr><td>Genre indéterminé</td><td><b>À trancher</b></td></tr>
+        <tr><td>Article annulé, déjà intégré</td><td><b>À trancher</b> — le participant n'est pas touché</td></tr>
       </tbody>
     </table></div>
-    <p>Une fusion automatique n'arrive <b>que</b> sur une date de naissance
-       identique. C'est la seule preuve dont on dispose.</p>
-    <p class="note"><b>Conséquence de D1 à regarder en face :</b> la saisie au
-       guichet ne demande pas la date de naissance, donc une inscription en ligne
-       et une saisie au guichet pour la même personne tomberont
-       <b>systématiquement</b> en « à trancher ». C'est la décision <b>D8</b>.</p>
+    <p>La comparaison passe par les mêmes normalisations que la saisie manuelle
+       (<code>formatage.py</code>) : minuscules, accents retirés, tirets et
+       apostrophes traités en séparateurs. « DUPONT Jean-Luc » et « dupont jean
+       luc » sont le même nom.</p>
+
+    <h2>Les trois sources</h2>
+    <div class="scroll"><table>
+      <thead><tr><th></th><th>Vient de</th><th>Colonne <code>source</code></th></tr></thead>
+      <tbody>
+        <tr><td><span class="src g">G</span></td><td>Le classeur Google</td><td><code>classeur</code></td></tr>
+        <tr><td><span class="src h">H</span></td><td>HelloAsso</td><td><code>helloasso</code></td></tr>
+        <tr><td><span class="src m">M</span></td><td>La saisie au guichet</td><td><code>manuel</code></td></tr>
+      </tbody>
+    </table></div>
+    <p>Les trois constantes existent déjà dans <code>models.py</code> depuis la
+       spec 002 — elles n'ont simplement jamais été montrées. <b>Deux pastilles
+       sur une ligne</b> veut dire que le rapprochement a fait son travail : la
+       personne était dans le classeur, son inscription en ligne s'y est
+       rattachée. Ça ne demande pas de colonne nouvelle : c'est
+       <code>source</code>, plus l'existence d'une inscription liée.</p>
 
     <h2>Données personnelles</h2>
-    <p>Les articles portent des noms de mineurs et les coordonnées des parents.
-       La règle 7 du <code>CLAUDE.md</code> est explicite.</p>
+    <p>Décision D5 — le strict minimum. Et D9 réduit encore : <b>l'année</b>, pas
+       la date.</p>
     <div class="scroll"><table>
       <thead><tr><th>Donnée</th><th>Gardée ?</th></tr></thead>
       <tbody>
-        <tr><td>Nom, prénom, date de naissance de l'inscrit</td><td><b>oui</b> — la date fait la catégorie <i>et</i> le rapprochement</td></tr>
-        <tr><td>Club, catégorie, nom du tarif</td><td><b>oui</b></td></tr>
-        <tr><td>Numéro de commande</td><td><b>oui</b> — un entier, qui ne décrit personne</td></tr>
-        <tr><td>Courriel du payeur</td><td><b>non</b> (D5)</td></tr>
-        <tr><td>Nom, adresse, ville, téléphone du payeur</td><td><b>non</b></td></tr>
+        <tr><td>Nom, prénom</td><td><b>oui</b></td></tr>
+        <tr><td><b>Année</b> de naissance</td><td><b>oui</b> — un entier, et c'est tout ce que la règle FFME demande</td></tr>
+        <tr><td>Jour et mois de naissance</td><td><b>non</b> (D9)</td></tr>
+        <tr><td>Club, catégorie</td><td><b>oui</b></td></tr>
+        <tr><td>Numéro de commande</td><td><b>oui</b> — un entier qui ne décrit personne</td></tr>
+        <tr><td>Tout du payeur — nom, courriel, adresse, téléphone</td><td><b>non</b></td></tr>
         <tr><td>Montants, moyens de paiement, reçus</td><td><b>non</b></td></tr>
-        <tr><td>Le JSON brut, ou une copie élaguée</td><td><b>non</b> — les colonnes <i>sont</i> l'enregistrement</td></tr>
+        <tr><td>Le JSON brut</td><td><b>non</b> — les colonnes <i>sont</i> l'enregistrement</td></tr>
       </tbody>
     </table></div>
-    <p class="note">Ce que D5 coûte : quand quelqu'un s'est trompé de prénom, on
-       ne peut plus le joindre <b>depuis la console</b>. On lit le numéro de
-       commande à l'écran et on le retrouve dans le back-office HelloAsso, où le
-       courriel est déjà, et où il a sa place.<br>
-       Ce que D5 simplifie : relire une inscription après correction du barème
-       <b>redemande</b> l'article à HelloAsso au lieu de rejouer une copie
-       locale. Moins de données gardées <i>et</i> moins de code.</p>
-    <p>Les inscriptions suivent leur compétition. Elles ne partent <b>pas</b> dans
-       l'archive : une archive sert à rejouer un classement, pas à conserver
-       l'état civil d'un enfant pendant dix ans.</p>
 
-    <h2>Ce qu'on ne fait pas</h2>
+    <h2>Les critères qui comptent</h2>
     <ul>
-      <li><b>Écrire chez HelloAsso.</b> Lecture seule, sans exception.</li>
-      <li><b>Encaisser.</b> Le club encaisse déjà sur HelloAsso.</li>
-      <li><b>Recopier les inscriptions dans le classeur.</b> Le classeur reçoit
-          des réussites, pas des inscrits.</li>
-      <li><b>Deviner une catégorie.</b> On refuse et on demande.</li>
-    </ul>
-
-    <h2>Critères d'acceptation — les dix qui comptent</h2>
-    <ul>
-      <li>Une inscription en ligne apparaît <b>en moins de 90 s</b> pendant une
-          compétition, sans que personne n'ait cliqué</li>
+      <li>Le barème calculé <b>reproduit le tableau FFME publié</b> pour 2025-2026</li>
+      <li>Une compétition de novembre et une de mars <b>de la même saison</b> donnent le même barème</li>
       <li>Le même article relevé dix fois ne crée <b>qu'un</b> participant</li>
-      <li>Un homonyme de même date de naissance n'en crée <b>pas</b> un second</li>
-      <li>Le barème est <b>proposé</b> depuis la date de l'édition, et modifiable</li>
-      <li>Le contrôle attrape recouvrement, trou, circuit vide, catégorie composée inexistante</li>
-      <li>Une année hors barème met l'inscription en attente <b>sans bloquer les autres</b></li>
-      <li>Un article annulé après coup remonte, et <b>ne supprime rien</b></li>
-      <li>Quatre workers gunicorn = <b>un seul</b> rafraîchissement de jeton</li>
-      <li>Aucune adresse, aucun téléphone, aucun montant n'entre en base</li>
-      <li>Le secret n'apparaît ni dans une réponse, ni dans un journal</li>
-      <li>Pas de clé posée = pas de menu, pas de fil, <b>aucun appel réseau</b></li>
-      <li>HelloAsso injoignable une heure : dit une fois, le reste marche</li>
+      <li>Une commande à deux enfants crée <b>deux</b> participants</li>
+      <li>Nom + prénom + club identiques ne créent <b>pas</b> de doublon</li>
+      <li>Club différent attend un humain</li>
+      <li>« Appliquer à tous » montre l'avant / après <b>avant</b> d'écrire</li>
+      <li>Un participant sans année n'est <b>jamais</b> touché par le barème</li>
+      <li>Le formatage s'applique à ce qui est créé en ligne comme au guichet</li>
+      <li>Un dossard portant des réussites <b>refuse</b> de changer de main, y compris à l'édition</li>
+      <li>Aucune donnée du payeur n'entre en base</li>
+      <li>Pas de clé posée : pas de menu, pas de fil, <b>aucun appel réseau</b></li>
     </ul>
   </div>
 </main>
@@ -991,8 +1195,7 @@ td.num { font-family: var(--chiffre); }
     <h2>Le principe</h2>
     <p><b>HelloAsso alimente une salle d'attente ; c'est la salle d'attente qui
        décide si un participant est créé.</b> Rien de ce qui vient du réseau
-       n'écrit directement dans <code>participant</code> — même séparation que la
-       spec 002 entre la base et le classeur.</p>
+       n'écrit directement dans <code>participant</code>.</p>
 <pre>   HelloAsso                   climbcontest                      humain
    ─────────                   ────────────                      ──────
                         ┌──────────────────────────┐
@@ -1001,16 +1204,14 @@ td.num { font-family: var(--chiffre); }
                         └──────────┬───────────────┘
   /v5/.../items         ┌──────────▼───────────────┐
   ?from=…&amp;withDetails ─►│ helloasso/releve.py      │
-                        │  pagination, idempotence │
+                        │  UNIQUE(compet, article) │ ← ne réimporte pas
                         └──────────┬───────────────┘
                         ┌──────────▼───────────────┐
-                        │ helloasso/correspondance │  naissance → circuit
-                        │  le barème, le genre,    │  genre     → F / H
-                        │  les deux champs         │  champ     → club
+                        │ categories.py            │  année → U(n)
+                        │  la règle FFME, pure     │  le plus petit gagne
                         └──────────┬───────────────┘
                         ┌──────────▼───────────────┐
-                        │ helloasso/rapprochement  │
-                        │  homonyme ? même date ?  │
+                        │ helloasso/rapprochement  │  nom + prénom + club
                         └──────────┬───────────────┘
                                    ▼
                         ┌──────────────────────────┐     ┌──────────────┐
@@ -1022,170 +1223,100 @@ td.num { font-family: var(--chiffre); }
                                    ▼
                    contest.ajouter_participant_numerote()
                    ← le MÊME chemin que le bouton « Ajouter »</pre>
-    <p>Le dernier encadré compte : l'inscription en ligne n'a <b>pas</b> son
-       propre chemin de création. Deux chemins divergeraient au premier correctif
-       — c'est ce qui est arrivé à <code>Competition.statut</code> (spec 018).</p>
 
-    <h2>La table <code>inscription</code></h2>
-    <p>Elle survit au participant qu'elle a créé : c'est la trace de ce que la
-       plateforme a dit, et la seule chose qui rende le relevé idempotent.</p>
-<pre>UniqueConstraint("competition_id", "article_id")   ← l'idempotence est ICI,
+    <h2><code>categories.py</code> — la règle, à part</h2>
+    <p>Un module <b>hors de <code>helloasso/</code></b>, et c'est délibéré : la
+       règle sert au relevé, au formulaire d'ajout manuel (D8), à l'édition en
+       ligne et au bouton « Appliquer à tous ». La ranger sous HelloAsso ferait
+       dépendre la saisie au guichet d'une intégration qui peut ne pas être
+       branchée.</p>
+<pre>def annee_de_reference(jour: date) -> int
+def categorie(annee_naissance, reference, unders) -> str | None
+def bareme(reference, categories_de_l_edition) -> list[Tranche]</pre>
+    <p>Trois fonctions pures : ni base, ni Flask, ni réseau. C'est ce qui permet
+       de les éprouver par une table de cas — et de vérifier le calcul contre le
+       tableau FFME publié, ce qui est le seul test qui prouve quelque chose ici.</p>
+
+    <h2>Ce qui change dans le modèle</h2>
+    <div class="scroll"><table>
+      <thead><tr><th>Où</th><th>Quoi</th><th>Pourquoi</th></tr></thead>
+      <tbody>
+        <tr><td><code>participant</code></td><td>+ <code>annee_naissance</code> (entier, nullable)</td>
+            <td>D9. Un entier, pas une date : c'est tout ce que la règle demande</td></tr>
+        <tr><td><code>participant</code></td><td>+ <code>categorie_forcee</code> (booléen)</td>
+            <td>D10 — la trace du geste, comme <code>hors_circuit_force</code></td></tr>
+        <tr><td><code>inscription</code></td><td>table nouvelle</td>
+            <td>La salle d'attente, et la clé anti-réimport</td></tr>
+        <tr><td><code>schema.py</code></td><td>2 lignes dans <code>COLONNES_AJOUTEES</code></td>
+            <td>Le mécanisme existe, idempotent, sous le verrou de démarrage</td></tr>
+      </tbody>
+    </table></div>
+<pre>UniqueConstraint("competition_id", "article_id")   ← l'anti-réimport est ICI,
                                                      pas dans le code du relevé
 
 article_id · commande_id · etat · motif · participant_id
-nom · prenom · date_naissance · club · categorie · tarif
+nom · prenom · annee_naissance · club · categorie
 etat_helloasso · maj_le · recue_le · traitee_le · traitee_par
 
-pas de colonne `courriel`, pas de colonne `detail`     ← décision D5</pre>
-    <p>Il n'existe nulle part de copie du JSON reçu : les colonnes ci-dessus
-       <b>sont</b> l'enregistrement. Et une colonne s'ajoute à une table
-       existante — <code>participant.date_naissance</code>, nullable : sans elle,
-       un participant saisi au guichet n'aurait jamais de date, et le
-       rapprochement devrait aller la chercher par un chemin détourné. Le
-       mécanisme <code>COLONNES_AJOUTEES</code> de <code>schema.py</code> le fait
-       déjà, sous le verrou de démarrage.</p>
-    <div class="scroll"><table>
-      <thead><tr><th><code>etat</code></th><th>Ce que ça veut dire</th><th>Ce qui le fait bouger</th></tr></thead>
-      <tbody>
-        <tr><td><code>a_trancher</code></td><td>Un humain doit dire quelque chose</td><td>Il clique</td></tr>
-        <tr><td><code>a_imprimer</code></td><td>Le participant existe, le papier n'est pas sorti</td><td>« Imprimer » / « Déjà remis »</td></tr>
-        <tr><td><code>faite</code></td><td>Le dossard est entre ses mains</td><td>—</td></tr>
-        <tr><td><code>ignoree</code></td><td>Mise de côté volontairement</td><td>Réouverture possible</td></tr>
-      </tbody>
-    </table></div>
-    <p>Les quatre états décrivent un <b>geste physique</b>, pas un état
-       informatique. <code>motif</code> dit pourquoi ça attend, et c'est ce que la
-       carte affiche.</p>
-
-    <h2>Les réglages, à deux étages</h2>
-    <p>Le club a <b>un</b> compte HelloAsso, mais <b>une</b> compétition par an.</p>
-    <div class="scroll"><table>
-      <thead><tr><th>Quoi</th><th>Où</th><th>Pourquoi là</th></tr></thead>
-      <tbody>
-        <tr><td>client_id, secret, refresh_token</td><td><code>shared/secrets/helloasso.json</code></td>
-            <td>Comme <code>token.json</code> : hors dépôt, hors release, hors sauvegarde</td></tr>
-        <tr><td>Environnement, organisation, dernier relevé, dernière erreur</td><td>table <code>reglage</code></td>
-            <td>Global au serveur, et en base — la sauvegarde ne recopie que la base</td></tr>
-        <tr><td>Formulaire + <b>correspondance</b></td><td><code>competition.options["helloasso"]</code></td>
-            <td>Par édition. Le formulaire change chaque année</td></tr>
-      </tbody>
-    </table></div>
-<pre>{
-  "form_type": "Event",
-  "form_slug": "bloc-party-2026",
-
-  "champs": { "naissance": "Date de naissance", "club": "Votre club" },
-
-  "bareme": [
-    { "circuit": "U11",    "de": 2016, "a": 2017, "mixte": false },
-    { "circuit": "U13",    "de": 2014, "a": 2015, "mixte": false },
-    { "circuit": "Adulte", "de": 1950, "a": 2008, "mixte": true  }
-  ],
-
-  "genre": {
-    "source":  "champ",
-    "champ":   "Sexe",
-    "valeurs": { "Fille": "F", "Garçon": "H", "F": "F" }
-  }
-}</pre>
-    <p>Trois choses à ne pas confondre :</p>
-    <ul>
-      <li><b><code>bareme</code> est une liste, pas un dictionnaire.</b> Deux
-          circuits peuvent se recouvrir — c'est une erreur, mais elle doit
-          pouvoir être <i>enregistrée</i> pour être <i>montrée</i>. Un
-          dictionnaire indexé par année rendrait le recouvrement inexprimable,
-          donc invisible, donc impossible à corriger.</li>
-      <li><b><code>genre.source</code></b> vaut <code>champ</code> ou
-          <code>tarif</code>. Une seule source, choisie ; pas deux mécanismes qui
-          se marchent dessus.</li>
-      <li><b><code>genre.valeurs</code></b> range les réponses <i>réellement
-          vues</i>. Une valeur absente n'est pas <code>H</code> par défaut : elle
-          rend le genre <b>indéterminé</b>.</li>
-    </ul>
-    <p><code>proposer_bareme()</code> calcule la proposition — saison qui commence
-       en <code>A</code>, <code>U(n)</code> prend <code>A-n+1</code> et
-       <code>A-n+2</code>. <code>controler()</code> rend les anomalies, dans la
-       même forme que <code>cascade.controler()</code> : <code>recouvrement</code>,
-       <code>trou</code>, <code>circuit_vide</code>,
-       <code>categorie_inconnue</code>. Le dernier attrape le circuit
-       « Adulte » qu'on a oublié de marquer mixte et qui composerait
-       « Adulte F » — le défaut des « catégories orphelines » de la spec 019,
-       pris en amont.</p>
+pas de colonne `courriel`, pas de colonne `detail`, pas de `tarif`</pre>
 
     <h2>Le jeton, et pourquoi il vit en base</h2>
-    <p>La documentation HelloAsso est explicite : <i>« Si une nouvelle
-       utilisation du refresh token A est faite, alors un nouveau refresh_token C
-       est créé et <b>B est révoqué</b>. »</i></p>
-    <p>Avec quatre workers gunicorn et un jeton en mémoire vive, deux
-       rafraîchissements simultanés <b>se révoquent l'un l'autre</b>. Le symptôme
-       serait le pire qui soit : ça marche en développement, et ça tombe en
-       production au bout de trente minutes, un jour de compétition.</p>
+    <p>Leur documentation est explicite : <i>« Si une nouvelle utilisation du
+       refresh token A est faite, alors un nouveau refresh_token C est créé et
+       <b>B est révoqué</b>. »</i> Avec quatre workers gunicorn et un jeton en
+       mémoire vive, deux rafraîchissements simultanés se révoquent l'un
+       l'autre : ça marche en développement, et ça tombe en production au bout de
+       trente minutes, un jour de compétition.</p>
     <ul>
-      <li>Le couple <code>access</code>/<code>refresh</code> est lu et écrit <b>en base</b>.</li>
-      <li>Le rafraîchissement prend le verrou <code>helloasso_jeton</code> —
-          la table <code>verrou</code> existe déjà, le miroir s'en sert.</li>
-      <li>Celui qui n'obtient pas le verrou <b>relit</b> : le voisin vient d'y
-          déposer un jeton frais.</li>
+      <li>Le couple <code>access</code>/<code>refresh</code> vit <b>en base</b>.</li>
+      <li>Le rafraîchissement prend le verrou <code>helloasso_jeton</code> — la
+          table <code>verrou</code> existe déjà, le miroir s'en sert.</li>
+      <li>Coût : <b>2 appels d'authentification par heure</b>, sur 50 autorisés.</li>
     </ul>
-    <p>Coût : <b>2 appels d'authentification par heure</b>, sur 50 autorisés.</p>
 
     <h2>Le relevé</h2>
 <pre>GET /v5/organizations/{org}/forms/{type}/{slug}/items
     ?from={dernier_vu - 5 min}   ← recouvrement : les horloges diffèrent
     &amp;sortField=UpdateDate        ← sinon une annulation ancienne est invisible
     &amp;sortOrder=Asc
-    &amp;withDetails=true            ← sans lui : ni club, ni date de naissance
+    &amp;withDetails=true            ← sans lui : ni club, ni année, ni genre
     &amp;pageSize=100</pre>
     <p>Arrêt sur <b>tableau vide</b>, comme leur documentation l'impose — un
        <code>continuationToken</code> peut être renvoyé alors qu'il n'y a plus
        rien. Un <code>commit</code> par article : cent qui passent et un qui
        échoue laissent cent inscriptions écrites, pas zéro.</p>
-    <p><code>formatage.py</code> est réutilisé tel quel. Sa réserve — « ce module
-       ne touche jamais à ce qui est importé du classeur » — ne s'applique pas
-       ici : HelloAsso n'est pas une source qui fait autorité sur sa mise en
-       forme, c'est <b>du texte tapé par un parent sur un téléphone</b>.</p>
 
-    <h2>Le fil</h2>
-    <p>Copie conforme de <code>sheets/planificateur.py</code>, avec ses deux
-       qualités payées cher : <b>il ne meurt jamais</b>, et <b>il ne répète pas sa
-       plainte</b> — une heure sans réseau produit une ligne, pas soixante.</p>
+    <h2>La console</h2>
     <div class="scroll"><table>
-      <thead><tr><th>Situation</th><th>Cadence</th></tr></thead>
+      <thead><tr><th>Écran</th><th>Ce qui s'ajoute</th></tr></thead>
       <tbody>
-        <tr><td>Compétition <code>en_cours</code></td><td><b>60 s</b></td></tr>
-        <tr><td><code>preparation</code>, aujourd'hui ou demain</td><td>5 min</td></tr>
-        <tr><td>Le reste du temps</td><td>30 min</td></tr>
-        <tr><td>Pas de clé posée</td><td><b>le fil ne démarre pas</b></td></tr>
+        <tr><td>Participants</td><td>Colonne <b>Source</b>, filtre <b>Catégorie</b>,
+            barre de <b>sélection pour impression</b>, <b>crayon</b> et édition en
+            ligne. La tuile « Imprimer les fiches » <b>disparaît</b></td></tr>
+        <tr><td>Participants → Ajouter</td><td>Champ <b>Année</b>, et la catégorie
+            qui se propose dans les deux sens (D8)</td></tr>
+        <tr><td>Participants → Catégories</td><td>Le <b>barème calculé</b> et
+            « Appliquer à tous les inscrits », avec son aperçu et son bouton à
+            maintenir</td></tr>
+        <tr><td>Inscriptions</td><td>La vue entière : trois piles, cartes de
+            rapprochement, même sélection d'impression</td></tr>
+        <tr><td>HelloAsso</td><td>Clé, formulaire, les <b>trois</b> champs à
+            désigner, les réponses de genre, l'état du relevé</td></tr>
+        <tr><td>Bandeau</td><td>La <b>pastille</b>, comptée dans <code>/admin/moi</code></td></tr>
       </tbody>
     </table></div>
-
-    <h2>Les routes</h2>
-    <div class="scroll"><table>
-      <thead><tr><th>Route</th><th>Rôle</th><th>Quoi</th></tr></thead>
-      <tbody>
-        <tr><td><code>GET /admin/helloasso</code></td><td>admin</td><td>L'état. <b>Jamais le secret</b></td></tr>
-        <tr><td><code>POST · DELETE /admin/helloasso/cle</code></td><td>admin</td><td>Poser, débrancher</td></tr>
-        <tr><td><code>GET /admin/helloasso/formulaires</code></td><td>admin</td><td>Les formulaires du club</td></tr>
-        <tr><td><code>POST /admin/helloasso/formulaire</code></td><td>admin</td><td>Choisir, et <b>découvrir</b> tarifs et champs</td></tr>
-        <tr><td><code>GET · POST /admin/helloasso/correspondance</code></td><td>organisateur</td><td>La correspondance</td></tr>
-        <tr><td><code>POST /admin/helloasso/relever</code></td><td>organisateur</td><td>Relever maintenant</td></tr>
-        <tr><td><code>GET /admin/inscriptions</code></td><td>organisateur</td><td>Les trois piles</td></tr>
-        <tr><td><code>POST /admin/inscriptions/&lt;id&gt;/trancher</code></td><td>organisateur</td><td>Le choix humain</td></tr>
-        <tr><td><code>POST /admin/inscriptions/&lt;id&gt;/remise</code></td><td>organisateur</td><td>Dossard remis</td></tr>
-      </tbody>
-    </table></div>
-    <p>Le compteur de la pastille voyage dans <code>/admin/moi</code>, comme celui
-       des mises à jour : aucune requête supplémentaire.</p>
 
     <h2>Ce qui ne bouge pas</h2>
     <ul>
       <li><b>Le miroir vers le classeur</b> — il envoie des réussites.</li>
       <li><b>L'import du classeur</b> — les deux flux cohabitent et ne se
           connaissent pas ; c'est le rapprochement qui les fait se rencontrer.</li>
-      <li><b>Le catalogue de l'app juge</b> — créer un participant incrémente déjà
-          <code>catalogue_version</code> : les vingt-cinq téléphones voient
-          l'inscrit en moins de vingt secondes, sans une ligne de code de plus.</li>
+      <li><b>Le catalogue de l'app juge</b> — créer un participant incrémente
+          déjà <code>catalogue_version</code> : les téléphones voient l'inscrit
+          en moins de vingt secondes, sans une ligne de plus.</li>
       <li><b>Le classement</b> — il ne connaît que <code>participant</code>.</li>
+      <li><b>La règle du dossard</b> — un dossard qui porte des réussites ne
+          change pas de main, l'édition en ligne ne l'ouvre pas.</li>
     </ul>
   </div>
 </main>
@@ -1193,132 +1324,143 @@ pas de colonne `courriel`, pas de colonne `detail`     ← décision D5</pre>
 <!-- ═══════════════════════════ PLAN ═══════════════════════════ -->
 <main id="vue-plan" hidden>
   <div class="doc">
-    <h2>Six lots</h2>
+    <h2>Huit lots — et l'ordre a changé</h2>
+    <p>C'est la conséquence la plus utile de D1 : <b>la règle des catégories et
+       les écrans de la liste ne dépendent pas de HelloAsso</b>. Ils passent
+       devant. Si la clé d'API tarde, la moitié utile est déjà en production.</p>
     <ul class="etapes">
       <li><span class="lot zero">Lot 0</span>
         <span><b>Solder R13, et obtenir une clé</b> — <i>c'est toi</i>. Révoquer la
         clé publiée dans le <code>README.md</code> de <code>climbBackEnd</code>,
-        nettoyer le fichier, créer une association et un formulaire de test sur
-        le bac à sable, générer la clé. <b>Rien ne commence avant.</b></span></li>
+        nettoyer, créer une association et un formulaire de test sur le bac à
+        sable. <b>Ne bloque que les lots 4 à 8.</b></span></li>
       <li><span class="lot">Lot 1</span>
-        <span><b>Parler à HelloAsso</b> — <code>client.py</code> : OAuth, jeton en
-        base sous verrou, pagination, bascule production / bac à sable.
-        <code>tools/dump_helloasso.py</code> en lecture seule.
-        Motif <code>gitleaks</code>.<br>
-        <i>Fin du lot : le formulaire de test s'affiche depuis le Mac.</i></span></li>
+        <span><b>La règle FFME, seule</b> — <code>categories.py</code> :
+        <code>annee_de_reference()</code>, <code>circuit()</code>,
+        <code>bareme()</code>. Pures, sans base ni réseau.<br>
+        <i>Fin du lot : le barème reproduit le tableau FFME publié, ligne pour
+        ligne.</i></span></li>
       <li><span class="lot">Lot 2</span>
-        <span><b>Le cœur</b> — table <code>inscription</code>, correspondance,
-        rapprochement (fonctions <b>pures</b>), relevé avec son rapport. Création
-        par <code>ajouter_participant_numerote()</code>.<br>
-        <i>Fin du lot : un relevé remplit les trois piles.</i></span></li>
+        <span><b>Les catégories dans la console</b> — les deux colonnes de
+        <code>participant</code>, l'écran Catégories, l'aperçu avant / après, le
+        bouton à maintenir, l'ajout manuel année ⇄ catégorie.</span></li>
       <li><span class="lot">Lot 3</span>
-        <span><b>La console</b> — <i>ne commence qu'après validation de cette
-        maquette</i>. Vue Inscriptions, page HelloAsso, correspondance, pastille,
-        impression, rappel au guichet, les dix routes.</span></li>
+        <span><b>La liste des participants</b> — sources, filtre catégorie,
+        sélection pour impression, <b>retrait de la tuile « Imprimer les
+        fiches »</b>, crayon et édition en ligne.</span></li>
       <li><span class="lot">Lot 4</span>
+        <span><b>Parler à HelloAsso</b> — client, jeton en base sous verrou,
+        pagination, <code>tools/dump_helloasso.py</code>, motif
+        <code>gitleaks</code>.</span></li>
+      <li><span class="lot">Lot 5</span>
+        <span><b>Le relevé et le rapprochement</b> — table
+        <code>inscription</code>, la boucle, les fonctions pures, les trois
+        champs réglables.</span></li>
+      <li><span class="lot">Lot 6</span>
+        <span><b>La vue Inscriptions</b> — les trois piles, les cartes à deux
+        colonnes, la pastille, <b>le même</b> mécanisme de sélection qu'au
+        lot 3.</span></li>
+      <li><span class="lot">Lot 7</span>
         <span><b>Le fil et le reste</b> — cadence variable, démarrage
         conditionnel, arrêt net sur clé refusée, <code>/health</code>,
-        l'effacement des données emporte les inscriptions, l'archivage non.
-        Changelog et index.</span></li>
-      <li><span class="lot">Lot 5</span>
+        l'effacement, le changelog.</span></li>
+      <li><span class="lot">Lot 8</span>
         <span><b>La recette</b> — bac à sable, puis clé de production et relevé à
-        blanc. Vérifier sur la VM que quatre workers ne font <b>qu'un</b>
-        rafraîchissement.</span></li>
+        blanc. Quatre workers, <b>un</b> rafraîchissement.</span></li>
     </ul>
 
-    <h2>Le plan de test — écrit avant le code</h2>
+    <h2>Le plan de test</h2>
 
-    <h3>Fonctions pures — aucune base, aucun réseau</h3>
+    <h3>La règle FFME — celui qui prouve quelque chose</h3>
     <div class="scroll"><table>
       <thead><tr><th>Scénario</th><th>Attendu</th></tr></thead>
       <tbody>
-        <tr><td>« Dupont Jean-Luc » vs « DUPONT jean luc »</td><td>Même clé</td></tr>
+        <tr><td><b>Le tableau FFME 2025-2026 entier</b>, référence 2026</td>
+            <td>U11 → 2016-2017, U13 → 2014-2015, … U21 → 2006-2007</td></tr>
+        <tr><td>Compétition du 15/11/2026</td><td>Référence <b>2027</b></td></tr>
+        <tr><td>Compétition du 15/03/2027</td><td>Référence <b>2027</b> — même saison</td></tr>
+        <tr><td>Compétition du 31/08/2026</td><td>Référence <b>2026</b></td></tr>
+        <tr><td>Compétition du 01/09/2026</td><td>Référence <b>2027</b> — la bascule</td></tr>
+        <tr><td>Âge 12 en référence</td><td><b>U13</b>, jamais U15 — le plus petit gagne</td></tr>
+        <tr><td>Né en 1990</td><td>Aucun Under — catégorie vide, <b>pas d'exception</b></td></tr>
+        <tr><td>Édition sans aucune catégorie en U</td><td>Barème vide, aucune exception</td></tr>
+        <tr><td>Année aberrante (1015, 2916)</td><td>Catégorie vide, mise en attente</td></tr>
+      </tbody>
+    </table></div>
+
+    <h3>Le barème appliqué</h3>
+    <div class="scroll"><table>
+      <thead><tr><th>Scénario</th><th>Attendu</th></tr></thead>
+      <tbody>
+        <tr><td>12 catégories changent</td><td>L'aperçu en liste 12, et n'écrit <b>rien</b></td></tr>
+        <tr><td>Participant <b>sans année</b></td><td><b>Jamais</b> touché</td></tr>
+        <tr><td>Participant corrigé à la main <i>(D10)</i></td><td>Non touché, compté à part</td></tr>
+        <tr><td>Appliquer deux fois</td><td>La seconde ne change rien</td></tr>
+      </tbody>
+    </table></div>
+
+    <h3>Le rapprochement</h3>
+    <div class="scroll"><table>
+      <thead><tr><th>Scénario</th><th>Attendu</th></tr></thead>
+      <tbody>
+        <tr><td>Nom + prénom + club identiques</td><td><code>MEME_PERSONNE</code></td></tr>
+        <tr><td>Club différent</td><td><code>A_TRANCHER(club_different)</code></td></tr>
+        <tr><td>Club absent d'un côté</td><td><code>A_TRANCHER</code></td></tr>
+        <tr><td>Catégories différentes</td><td>Rattaché, et <b>signalé</b></td></tr>
         <tr><td>« Roc N'Potes » vs « Roc n'potes »</td><td>Même clé</td></tr>
-        <tr><td>Homonyme, dates identiques</td><td><code>MEME_PERSONNE</code></td></tr>
-        <tr><td>Homonyme, dates différentes</td><td><code>DEUX_PERSONNES</code></td></tr>
-        <tr><td>Homonyme, une date manque</td><td><code>A_TRANCHER</code></td></tr>
-        <tr><td>Trois homonymes, un seul de même date</td><td><code>MEME_PERSONNE</code> sur le bon</td></tr>
       </tbody>
     </table></div>
 
-    <h3>Le barème — le lot que D1 fait naître, testable hors base</h3>
-    <div class="scroll"><table>
-      <thead><tr><th>Scénario</th><th>Attendu</th></tr></thead>
-      <tbody>
-        <tr><td>Compétition du 15/11/2026, circuits U11→U17</td><td>U11 → 2016-2017, U13 → 2014-2015</td></tr>
-        <tr><td>Compétition du 15/03/2027, <b>même saison</b></td><td><b>La même</b> proposition — la saison, pas l'année civile</td></tr>
-        <tr><td>Une année dans deux circuits</td><td><code>recouvrement</code>, avec l'année nommée</td></tr>
-        <tr><td>Une année sans circuit entre deux</td><td><code>trou</code></td></tr>
-        <tr><td>« Adulte » non marqué mixte</td><td><code>categorie_inconnue</code> — « Adulte F » n'existe pas</td></tr>
-        <tr><td>« Adulte » marqué mixte</td><td>Catégorie = <code>Adulte</code>, sans suffixe</td></tr>
-        <tr><td>Réponse de genre inconnue</td><td>Genre <b>indéterminé</b> — jamais <code>H</code> par défaut</td></tr>
-      </tbody>
-    </table></div>
-
-    <h3>Le relevé — réseau doublé, données en fixtures</h3>
+    <h3>Le relevé</h3>
     <div class="scroll"><table>
       <thead><tr><th>Scénario</th><th>Attendu</th></tr></thead>
       <tbody>
         <tr><td><b>Le même article relevé dix fois</b></td><td><b>Une</b> inscription, <b>un</b> participant</td></tr>
-        <tr><td>Date de naissance absente</td><td><code>a_trancher</code>, catégorie vide</td></tr>
-        <tr><td>Année hors barème</td><td><code>a_trancher</code>, l'année affichée</td></tr>
-        <tr><td>Le tarif ne correspond à aucune catégorie</td><td><b>Sans effet</b> — le tarif ne décide plus de rien (D1)</td></tr>
-        <tr><td>Article sans <code>user</code></td><td>Nom repris du payeur, motif <code>sans_nom</code></td></tr>
+        <tr><td><b>Une commande, deux articles</b></td><td><b>Deux</b> participants</td></tr>
+        <tr><td>Réponse de genre inconnue</td><td>Indéterminé — <b>jamais H par défaut</b></td></tr>
         <tr><td>Annulé après intégration</td><td><code>a_trancher</code>, <b>participant intact</b></td></tr>
-        <tr><td>Commande à deux articles (fratrie)</td><td><b>Deux</b> participants</td></tr>
-        <tr><td>Payeur complet dans la réponse</td><td><b>Rien de lui n'est écrit</b> — ni nom, ni courriel, ni adresse</td></tr>
-        <tr><td><code>continuationToken</code> toujours renvoyé, données vides</td><td>Arrêt — <b>pas de boucle infinie</b></td></tr>
-        <tr><td>Un article sur cent lève</td><td>99 écrits, l'erreur au rapport</td></tr>
+        <tr><td>Payeur complet dans la réponse</td><td><b>Rien de lui n'est écrit</b></td></tr>
+        <tr><td>Le tarif, quel qu'il soit</td><td><b>Sans effet</b></td></tr>
+        <tr><td><code>continuationToken</code> renvoyé, données vides</td><td>Arrêt — <b>pas de boucle infinie</b></td></tr>
       </tbody>
     </table></div>
 
-    <h3>Le jeton</h3>
+    <h3>La console</h3>
     <div class="scroll"><table>
       <thead><tr><th>Scénario</th><th>Attendu</th></tr></thead>
       <tbody>
-        <tr><td>Pas de clé posée</td><td><b>Zéro appel réseau</b></td></tr>
-        <tr><td>Jeton valide en base</td><td><b>Aucun</b> appel à <code>/oauth2/token</code></td></tr>
-        <tr><td><b>Deux appels concurrents sur un jeton expiré</b></td><td><b>Un seul</b> rafraîchissement</td></tr>
-        <tr><td><code>401</code> en cours de relevé</td><td>Un rafraîchissement, <b>un seul</b> réessai</td></tr>
-        <tr><td><code>401</code> sur le rafraîchissement</td><td>« Clé à reconnecter », le fil <b>s'arrête</b></td></tr>
-        <tr><td>Le secret dans un journal ou une réponse</td><td><b>Aucune occurrence</b> — test explicite</td></tr>
+        <tr><td><code>PATCH</code> d'un participant</td><td><code>u13f</code> → <b>U13 F</b></td></tr>
+        <tr><td><code>PATCH</code> du dossard d'un participant <b>avec réussites</b></td><td><b>409</b>, message explicite</td></tr>
+        <tr><td>Impression d'une sélection de 3</td><td>Trois fiches, dans l'ordre des dossards</td></tr>
+        <tr><td>Sélection vide</td><td>Bouton inactif, route refusant en 400</td></tr>
+        <tr><td>Participant rapproché</td><td><b>Deux</b> pastilles de source</td></tr>
+        <tr><td>Aucune clé HelloAsso</td><td>Aucune pastille H, aucune entrée de menu</td></tr>
       </tbody>
     </table></div>
 
     <h3>Fixtures</h3>
     <p class="note"><b>Fabriquées à la main, jamais un export réel.</b> Un export
        du vrai formulaire contiendrait des noms de mineurs et les coordonnées de
-       leurs parents — règle 7 du <code>CLAUDE.md</code>. La structure vient de la
-       documentation, pas d'un dump.</p>
-
-    <h3>Non-régression</h3>
-    <ul>
-      <li><code>pytest</code> complet vert — la suite existante ne bouge pas</li>
-      <li><code>tools/verify_ranking.py</code> sort toujours « 196 conformes, 0 écart »</li>
-      <li><code>gitleaks</code> passe</li>
-    </ul>
+       leurs parents — règle 7 du <code>CLAUDE.md</code>.</p>
 
     <h2>Risques</h2>
     <div class="scroll"><table>
       <thead><tr><th>Risque</th><th>Ce qu'on fait</th></tr></thead>
       <tbody>
-        <tr><td>🔴 <b>Le formulaire du club ne demande pas la date de naissance.</b>
-                D1 tombe entièrement</td>
-            <td><b>Premier geste du lot 1</b> : <code>dump_helloasso.py</code> le
-                dit avant qu'une ligne de correspondance soit écrite. Si c'est le
-                cas, soit le club ajoute le champ, soit D1 se rejoue</td></tr>
-        <tr><td>Le genre n'est ni dans un champ, ni dans le nom des tarifs</td>
-            <td>Tous les circuits non mixtes passent en « à trancher ». Vu au
-                lot 1, pas en recette</td></tr>
-        <tr><td>Le <code>refresh_token</code> meurt entre deux compétitions</td>
-            <td>État explicite « clé à reconnecter ». Un geste d'une minute, pas
-                un mystère</td></tr>
-        <tr><td><code>admin.html</code> est déjà disputé par trois autres sessions</td>
-            <td>Une <code>&lt;section class="vue"&gt;</code> de plus, en fin de
-                bloc : conflit additif, résolu à la main</td></tr>
+        <tr><td>🔴 <b>Le formulaire du club ne demande pas la date de naissance.</b> D1 tombe</td>
+            <td>Vu au <b>lot 4</b> avec <code>dump_helloasso.py</code>. Les lots 1
+                à 3 restent valides quoi qu'il arrive</td></tr>
+        <tr><td>Le formulaire ne demande pas le genre</td>
+            <td>Tout passe en « à trancher ». Vu au même moment</td></tr>
+        <tr><td><b>« Appliquer à tous » défait le travail de quelqu'un</b></td>
+            <td>C'est <b>D10</b> : aperçu obligatoire, bouton à maintenir,
+                protection des corrections manuelles</td></tr>
+        <tr><td><code>admin.html</code> disputé par les autres sessions</td>
+            <td>Les ajouts sont additifs ; le <b>retrait</b> de la tuile
+                d'impression est la seule suppression, et elle se verra au
+                conflit</td></tr>
         <tr><td>Le relevé écrit pendant qu'un juge scanne</td>
-            <td>Un <code>commit</code> par article, SQLite en <b>WAL</b>.
-                Re-mesuré au lot 5</td></tr>
+            <td>Un <code>commit</code> par article, SQLite en <b>WAL</b></td></tr>
       </tbody>
     </table></div>
   </div>
@@ -1349,13 +1491,13 @@ document.querySelectorAll(".bascule [data-theme]").forEach(b => {
 
 // --- récapitulatif des décisions ------------------------------------------
 const LIBELLES = {
-  d8: ["D8 · année de naissance au guichet", {oui: "oui, un champ facultatif", non: "non, on ne touche pas à cet écran"}],
-  d9: ["D9 · finesse de la date", {date: "la date complète", annee: "l'année seule, fusion durcie par le club"}],
+  d10: ["D10 · barème vs correction à la main", {protege: "une correction à la main est protégée", ecrase: "le barème écrase tout"}],
+  d11: ["D11 · vert HelloAsso", {mien: "celui de la maquette convient", autre: "Adrien donnera le bon code"}],
 };
-const DEFAUTS = {d8: "oui", d9: "date"};
+const DEFAUTS = {d10: "protege", d11: "mien"};
 
 function majRecap() {
-  const lignes = ["Spec 008 — décisions D8 et D9"];
+  const lignes = ["Spec 008 — décisions D10 et D11"];
   let changees = 0;
   for (const [nom, [titre, valeurs]] of Object.entries(LIBELLES)) {
     const choisi = document.querySelector(`input[name="${nom}"]:checked`);
@@ -1370,7 +1512,7 @@ function majRecap() {
     : `${changees} décision(s) changée(s), marquée(s) d'une flèche.`);
   document.getElementById("recapTexte").value = lignes.join("\n");
   const compte = document.getElementById("compteD");
-  compte.textContent = changees === 0 ? "2" : `${changees} ≠`;
+  compte.textContent = changees === 0 ? "9 ✓" : `${changees} ≠`;
   compte.classList.toggle("calme", changees === 0);
 }
 document.querySelectorAll('.choix input[type="radio"]').forEach(r =>
