@@ -6,14 +6,12 @@ et, surtout, ce qu'il ne fait pas — `test_retirer_refuse_si_le_participant_a_d
 est celui qui empêche un clic d'effacer des résultats.
 """
 
-from datetime import datetime
-
 import pytest
 
 from climbcontest import comptes
 from climbcontest.contest import enregistrer_reussite
 from climbcontest.extensions import db
-from climbcontest.helloasso import client as ha, salle
+from climbcontest.helloasso import client as ha
 from climbcontest.models import (
     A_IMPRIMER, A_TRANCHER, FAITE, IGNOREE, Inscription, MOTIF_ANNULEE,
     MOTIF_CLUB_DIFFERENT, Participant,

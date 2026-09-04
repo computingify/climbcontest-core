@@ -12,7 +12,8 @@ référence **2027**. Donc U13 = 2015-2016.
 import pytest
 
 from climbcontest import bareme
-from climbcontest.contest import ErreurMetier
+from climbcontest.contest import (
+    ErreurMetier, verifier_annee)
 from climbcontest.extensions import db
 from climbcontest.models import Participant
 
@@ -231,12 +232,12 @@ class TestVerifierAnnee:
         ("2015", 2015), (2015, 2015), (" 2015 ", 2015), ("", None), (None, None),
     ])
     def test_ce_qui_passe(self, brut, attendu):
-        assert bareme.verifier_annee(brut) == attendu
+        assert verifier_annee(brut) == attendu
 
     @pytest.mark.parametrize("brut", ["abc", "20a5", "1015", "2916", "-4"])
     def test_ce_qui_est_refuse(self, brut):
         with pytest.raises(ErreurMetier):
-            bareme.verifier_annee(brut)
+            verifier_annee(brut)
 
 
 class TestCeQueLeBaremeNePeutPasRanger:

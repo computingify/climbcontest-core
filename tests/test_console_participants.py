@@ -18,7 +18,7 @@ from climbcontest import comptes
 from climbcontest.contest import enregistrer_reussite
 from climbcontest.extensions import db
 from climbcontest.models import (
-    SOURCE_CLASSEUR, SOURCE_HELLOASSO, SOURCE_MANUEL, Participant,
+    SOURCE_CLASSEUR, SOURCE_MANUEL, Participant,
 )
 
 MDP = "un-mot-de-passe-assez-long"

@@ -13,7 +13,7 @@ Deux tests portent tout le fichier :
   raterait.
 """
 
-from datetime import date, datetime
+from datetime import datetime
 
 import pytest
 

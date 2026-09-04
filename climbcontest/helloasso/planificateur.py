@@ -28,7 +28,7 @@ impossible au moment précis où on en aurait besoin.
 
 import logging
 import threading
-from datetime import date, datetime, timedelta
+from datetime import date, datetime
 
 from ..models import EN_COURS, PREPARATION, Competition
 from .client import ErreurHelloAsso, configure

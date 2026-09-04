@@ -1625,7 +1625,6 @@ def lien_juge():
     Servi uniquement a un organisateur connecte -- le lien se transfere ensuite
     comme une cle de salle : de la main a la main.
     """
-    from flask import current_app
     cle = (os.environ.get("CLIMBCONTEST_API_KEY_PWA") or "").strip()
     if not cle:
         return jsonify({

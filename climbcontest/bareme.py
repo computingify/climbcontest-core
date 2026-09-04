@@ -28,7 +28,7 @@ import logging
 from datetime import datetime
 
 from . import categories, formatage
-from .contest import ErreurMetier, incrementer_catalogue, verifier_annee
+from .contest import incrementer_catalogue
 from .extensions import db
 from .models import Circuit, Participant
 
