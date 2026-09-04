@@ -148,6 +148,11 @@ def _identite(u) -> dict:
         # /admin/helloasso priverait de menu ceux-la memes qui impriment les
         # dossards et les portent.
         "helloasso_relie": ha_client.configure(),
+        # D'ou viennent les inscrits de l'edition active. La console s'en sert
+        # pour n'afficher AUCUN parametrage HelloAsso quand il n'est pas
+        # selectionne -- demande d'Adrien du 04/09.
+        "sources_inscriptions": (cycle.sources_inscriptions(active)
+                                 if active else []),
     }
 
 
@@ -1269,6 +1274,7 @@ def competition_etat():
                         "statut": comp.statut},
         "groupes": groupes,
         "groupes_masques": cycle.groupes_masques(comp),
+        "sources_inscriptions": cycle.sources_inscriptions(comp),
     }), 200
 
 
@@ -1436,6 +1442,37 @@ def competition_cascade_regler():
                 len(document["regles"]), len(document["categories_eteintes"]))
     return jsonify({"success": True, "cascade": document,
                     "avertissements": avertissements}), 200
+
+
+@bp.post("/competition/sources")
+@exige_role(ADMIN)
+def competition_sources():
+    """D'ou viennent les inscrits. `{"sources": ["classeur", "helloasso"]}`.
+
+    ⚠️ Decocher HelloAsso **ne supprime rien** : la cle, le formulaire et la
+    correspondance restent en place, et reviennent tels quels a la
+    reactivation. Un reglage qui efface en se desactivant n'est pas un
+    interrupteur, c'est un piege.
+
+    Pour effacer vraiment, il y a « Debrancher » sur l'ecran HelloAsso, qui dit
+    ce qu'il fait.
+    """
+    corps = _corps_objet() or {}
+    try:
+        comp = competition_active()
+        sources = cycle.regler_sources(comp, corps.get("sources") or [])
+    except ErreurMetier as e:
+        return jsonify({"success": False, "message": e.message}), e.code
+
+    # Le fil suit le reglage sans attendre le prochain tour : on l'allume ou on
+    # le laisse s'endormir de lui-meme.
+    if "helloasso" in sources and ha_client.configure():
+        ha_planificateur.reveiller()
+        ha_planificateur.demarrer(current_app._get_current_object())
+
+    logger.info("sources d'inscrits reglees par %s : %s",
+                g.utilisateur.identifiant, sources)
+    return jsonify({"success": True, "sources": sources}), 200
 
 
 @bp.post("/competition/statut")

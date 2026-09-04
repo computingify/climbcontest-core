@@ -263,6 +263,49 @@ Deux garde-fous, et ils comptent autant que l'automatisation :
   qui a été reconnu, et les réponses qu'on n'a **pas** su ranger. Ce sont les
   seules lignes qui demandent encore un geste.
 
+## 5 quater. D'où viennent les inscrits — le réglage
+
+> Demandé le 04/09 : « je voudrais pouvoir paramétrer si on récupère les
+> informations des participants depuis la fiche Google Sheet ou HelloAsso ou
+> les 2 [...] si HelloAsso n'est pas sélectionné je ne veux voir aucun
+> paramétrage HelloAsso dans ma console. »
+
+Un réglage par édition, dans **Général**, à trois positions :
+
+| Position | Ce qui alimente la liste | Ce que la console montre |
+| --- | --- | --- |
+| **Le classeur seul** *(défaut)* | L'import du classeur | Aucun écran HelloAsso, aucune pastille |
+| **HelloAsso seul** | Le relevé | Le classeur reste la carte du mur |
+| **Les deux** | Les deux, et le rapprochement les fait se rencontrer | Tout |
+
+### Ce que le réglage ne touche pas
+
+Il porte sur les **participants**, et sur rien d'autre :
+
+- le **miroir** continue d'écrire les réussites dans le classeur ;
+- l'import du classeur continue d'apporter les **blocs et les circuits** — le
+  classeur peut cesser de fournir les inscrits tout en restant la carte du mur.
+
+Les confondre reviendrait à éteindre le miroir, ou à perdre le mur, en
+décochant une case qui ne parle ni de l'un ni de l'autre.
+
+### Désactiver n'efface rien
+
+C'est la demande explicite, et c'est aussi la bonne façon de faire : **un
+réglage qui efface en se désactivant n'est pas un interrupteur, c'est un
+piège.** Décocher HelloAsso masque son paramétrage et arrête son fil ; la clé,
+le formulaire et la correspondance reviennent tels quels à la réactivation.
+
+Pour effacer vraiment, il y a **« Débrancher »** sur l'écran HelloAsso, qui dit
+ce qu'il fait.
+
+### La garde est dans le métier
+
+`relever()` refuse si la source est éteinte — pas seulement la route et le fil.
+Un relevé qui passerait par un troisième chemin ferait entrer des inscrits dans
+une édition qui a déclaré ne pas s'en servir, et personne ne comprendrait d'où
+ils viennent.
+
 ## 6. Les trois sources, montrées
 
 | | Vient de | `Participant.source` |

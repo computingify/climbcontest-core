@@ -30,7 +30,9 @@ import logging
 import threading
 from datetime import date, datetime
 
-from ..models import EN_COURS, PREPARATION, Competition
+from ..cycle import source_active
+from ..models import (EN_COURS, PREPARATION, Competition,
+                      SOURCE_HELLOASSO)
 from .client import ErreurHelloAsso, configure
 from .releve import relever
 
@@ -84,6 +86,11 @@ def _un_tour(app) -> int:
             return CADENCE_LENTE
         comp = Competition.query.filter_by(active=True).first()
         if comp is None:
+            return CADENCE_LENTE
+
+        # L'edition a decoche HelloAsso : on ne releve pas, et on ne se plaint
+        # pas non plus. Ce n'est pas une panne, c'est un choix.
+        if not source_active(comp, SOURCE_HELLOASSO):
             return CADENCE_LENTE
 
         prochaine = cadence(comp)

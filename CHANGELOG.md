@@ -88,6 +88,20 @@ qu'on ne met pas à jour le matin d'une compétition :
   calculable au premier relevé. Une ligne dans l'écran **Catégories** suffit
   désormais à les annoncer, et le calcul cesse de dépendre du classeur.
 
+- **D'où viennent les inscrits se règle** (spec 008). Dans **Général**, trois
+  positions : le classeur Google seul — ce qu'on fait aujourd'hui, et le défaut
+  —, HelloAsso seul, ou les deux. Tant que HelloAsso n'est pas choisi,
+  **aucun** écran ni aucune pastille HelloAsso n'apparaît dans la console.
+
+  Le réglage porte sur les **participants** et sur rien d'autre : le miroir
+  continue d'écrire les réussites dans le classeur, et l'import continue d'y
+  lire les blocs et les circuits. Le classeur peut cesser de fournir les
+  inscrits tout en restant la carte du mur.
+
+  **Décocher n'efface rien** : la clé, le formulaire et la correspondance
+  reviennent tels quels à la réactivation. Pour effacer, il y a « Débrancher »,
+  qui dit ce qu'il fait.
+
 - **Relier HelloAsso tient en deux champs** (spec 008). On colle l'identifiant
   et le secret, et la console **trouve l'association toute seule** — son nom
   s'affiche aussitôt, avec la liste de ses formulaires. Plus de nom court à

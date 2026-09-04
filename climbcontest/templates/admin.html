@@ -1895,6 +1895,41 @@
       </div>
 
       <div class="carte">
+        <h2>D'où viennent les inscrits</h2>
+        <p class="aide">Le classeur Google est <strong>temporaire</strong> : il
+           finira par disparaître. Ce réglage porte sur les <strong>participants
+           </strong> seulement — les blocs, les circuits et le miroir des
+           réussites continuent d'utiliser le classeur quoi qu'il arrive.</p>
+        <fieldset class="choix" id="choixSources">
+          <legend>Sources de cette édition</legend>
+          <label>
+            <input type="radio" name="sources" value="classeur">
+            <span class="quoi"><b>Le classeur Google seul</b>
+              <i>Ce qu'on fait aujourd'hui. Aucun réglage HelloAsso n'apparaît
+                 dans la console.</i></span>
+          </label>
+          <label>
+            <input type="radio" name="sources" value="helloasso">
+            <span class="quoi"><b>HelloAsso seul</b>
+              <i>Les inscriptions en ligne alimentent seules la liste. Le
+                 classeur reste la carte du mur.</i></span>
+          </label>
+          <label>
+            <input type="radio" name="sources" value="classeur,helloasso">
+            <span class="quoi"><b>Les deux</b>
+              <i>Les deux flux alimentent la même liste, et le rapprochement les
+                 fait se rencontrer : une personne présente des deux côtés n'est
+                 créée qu'une fois.</i></span>
+          </label>
+        </fieldset>
+        <p class="aide" style="margin-top:12px">Décocher HelloAsso
+           <strong>ne supprime rien</strong> : la clé, le formulaire et la
+           correspondance restent en place et reviennent tels quels si on le
+           réactive.</p>
+        <button class="action" id="btnSources">Enregistrer</button>
+      </div>
+
+      <div class="carte">
         <h2>L'édition</h2>
         <p class="aide">Affiché sur le vidéoprojecteur, et repris dans le nom du
            fichier d'archive.</p>
@@ -2268,9 +2303,15 @@
     // posee. Une integration non branchee ne doit pas laisser d'entree de menu
     // qui mene a un ecran vide : c'est ce qui fait chercher une panne la ou il
     // n'y a rien.
-    $("navHelloasso").hidden = etat.moi.roles.indexOf("admin") === -1;
-    $("navInscriptions").hidden = !etat.moi.helloasso_relie;
-    if (etat.moi.helloasso_relie) chargerInscriptions();
+    // ⚠️ Deux conditions, et elles ne disent pas la meme chose : la SOURCE
+    // (l'edition s'en sert-elle ?) et la CLE (est-elle posee ?). Une edition
+    // qui a decoche HelloAsso ne doit rien en voir, meme si la cle est la --
+    // c'est tout l'objet du reglage.
+    majMenusSources(etat.moi.sources_inscriptions || []);
+    if ((etat.moi.sources_inscriptions || []).indexOf("helloasso") !== -1
+        && etat.moi.helloasso_relie) {
+      chargerInscriptions();
+    }
     chargerReferentiels();
     // Sur QUOI on agit. Sans ca, rien a l'ecran ne distingue la competition
     // de novembre d'une competition de test restee active.
@@ -2334,6 +2375,53 @@
       chargerMaj(false);
     }
   }
+
+  // --- D'ou viennent les inscrits (spec 008) ---------------------------------
+  //
+  // Le reglage vit dans General parce qu'il decrit L'EDITION. Il commande la
+  // visibilite de tout le parametrage HelloAsso : « si helloasso n'est pas
+  // selectionne je ne veux voir aucun parametrage helloasso dans ma console »
+  // (Adrien, 04/09).
+
+  function dessinerSources(sources) {
+    var valeur = (sources || []).slice().sort().join(",");
+    // « classeur,helloasso » est la valeur des deux ; les deux autres sont
+    // simples. Trier evite que l'ordre du serveur decide de la case cochee.
+    var bouton = document.querySelector(
+      '#choixSources input[value="' + valeur + '"]');
+    if (bouton) bouton.checked = true;
+    majMenusSources(sources || []);
+  }
+
+  function majMenusSources(sources) {
+    var avecHelloasso = sources.indexOf("helloasso") !== -1;
+    var admin = etat.moi && etat.moi.roles.indexOf("admin") !== -1;
+    $("navHelloasso").hidden = !avecHelloasso || !admin;
+    $("navInscriptions").hidden = !avecHelloasso
+      || !(etat.moi && etat.moi.helloasso_relie);
+    if (!avecHelloasso) {
+      // La pastille disparait avec le reste : elle compterait des inscriptions
+      // d'une source qu'on vient d'eteindre.
+      $("pastilleInscriptions").hidden = true;
+      fermerInscriptions();
+    }
+  }
+
+  $("btnSources").addEventListener("click", function () {
+    var choisi = document.querySelector('#choixSources input:checked');
+    if (!choisi) { dire("Choisis une source.", "alerte"); return; }
+    var sources = choisi.value.split(",");
+    appeler("/admin/competition/sources", { methode: "POST",
+                                            corps: { sources: sources } })
+      .then(function (d) {
+        etat.moi.sources_inscriptions = d.sources;
+        dessinerSources(d.sources);
+        dire(d.sources.indexOf("helloasso") !== -1
+          ? "Enregistré. Le paramétrage HelloAsso est disponible."
+          : "Enregistré. Le paramétrage HelloAsso est masqué — rien n'est perdu.",
+          "ok");
+      }).catch(signaler);
+  });
 
   // --- Version du serveur (spec 031) ----------------------------------------
   //
@@ -4781,6 +4869,7 @@
     etat.competitionReglages = d;
     $("nomCompetition").value = d.competition ? d.competition.nom : "";
     $("dateCompetition").value = (d.competition && d.competition.date) || "";
+    dessinerSources(d.sources_inscriptions);
 
     var masques = d.groupes_masques || [];
     var bloc = $("listeGroupes");

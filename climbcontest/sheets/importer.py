@@ -27,6 +27,7 @@ from dataclasses import dataclass, field
 
 from .. import formatage
 from ..contest import club_canonique
+from ..cycle import source_active
 from ..extensions import db
 from ..models import (
     Bloc, BlocCircuit, Circuit, Competition, Participant, SOURCE_CLASSEUR,
@@ -136,6 +137,20 @@ def _texte(ligne: list, index: int) -> str | None:
 
 def importer_participants(comp: Competition, classeur, rapport: Rapport,
                           lignes: list[list] | None = None) -> None:
+    """⚠️ Ne fait rien si le classeur n'est pas une source d'inscrits.
+
+    Le reglage du 04/09 porte sur les PARTICIPANTS, et sur eux seuls : une
+    edition peut tres bien prendre ses inscrits sur HelloAsso tout en
+    continuant a lire les BLOCS et les CIRCUITS dans le classeur, qui reste la
+    carte du mur. C'est pourquoi la garde est ici, sur cette fonction, et non
+    sur `importer()`.
+    """
+    if not source_active(comp, SOURCE_CLASSEUR):
+        rapport.avertissements.append(
+            "Le classeur n'est pas une source d'inscrits pour cette edition : "
+            "les blocs sont importes, les participants non.")
+        return
+
     if lignes is None:
         lignes = classeur.lire(LISTES_ONGLET, LISTES_PLAGE)
 

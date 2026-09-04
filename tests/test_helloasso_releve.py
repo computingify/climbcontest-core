@@ -24,9 +24,9 @@ from climbcontest.models import (
     A_IMPRIMER, A_TRANCHER, Circuit, Inscription, MOTIF_ANNEE_ABSENTE,
     MOTIF_ANNEE_HORS_BAREME, MOTIF_ANNEE_ILLISIBLE, MOTIF_ANNULEE,
     MOTIF_GENRE_INDETERMINE,
-    MOTIF_SANS_NOM, Participant, SOURCE_HELLOASSO,
+    MOTIF_SANS_NOM, Participant, SOURCE_CLASSEUR, SOURCE_HELLOASSO,
 )
-from climbcontest.cycle import ecrire_options
+from climbcontest.cycle import ecrire_options, regler_sources
 
 
 class ClientDouble:
@@ -74,11 +74,18 @@ def article(identifiant=1, nom="Brunel", prenom="Lea", annee="12/04/2015",
 
 @pytest.fixture()
 def edition(app, competition):
-    """Une édition avec ses circuits — c'est d'eux que viennent les Under."""
+    """Une édition qui déclare HelloAsso comme source, et ses circuits.
+
+    ⚠️ `regler_sources` n'est pas un détail de fixture : depuis le 04/09, une
+    édition qui n'a pas déclaré HelloAsso **refuse** le relevé. C'est ce qui
+    empêche des inscrits d'entrer dans une compétition qui a dit ne pas s'en
+    servir — et personne n'aurait compris d'où ils venaient.
+    """
     for nom in ("U11", "U13", "U15"):
         db.session.add(Circuit(competition_id=competition.id, nom=nom))
     db.session.commit()
     ecrire_options(competition, helloasso=CONFIG)
+    regler_sources(competition, [SOURCE_CLASSEUR, SOURCE_HELLOASSO])
     return competition
 
 

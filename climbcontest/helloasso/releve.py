@@ -28,7 +28,7 @@ from datetime import datetime
 from .. import categories, formatage
 from ..bareme import reference as reference_de, unders as unders_de
 from ..contest import ajouter_participant_numerote, incrementer_catalogue
-from ..cycle import lire_options
+from ..cycle import lire_options, source_active
 from ..extensions import db
 from ..models import (
     A_IMPRIMER, A_TRANCHER, IGNOREE, Inscription,
@@ -350,6 +350,15 @@ def relever(comp, client=None, tout: bool = False) -> Rapport:
     rend l'opération gratuite — d'où le fait qu'on ne garde aucune copie locale
     des articles (décision D5).
     """
+    # ⚠️ La garde est ICI, dans le metier, et pas seulement dans la route et le
+    # fil. Un releve qui passerait par un troisieme chemin ferait entrer des
+    # inscrits dans une edition qui a declare ne pas se servir de HelloAsso --
+    # et personne ne comprendrait d'ou ils viennent.
+    if not source_active(comp, SOURCE_HELLOASSO):
+        raise ErreurHelloAsso(
+            "HelloAsso n'est pas une source d'inscrits pour cette edition. "
+            "L'activer depuis l'ecran General.", code=409)
+
     config = reglages(comp)
     if not config.get("form_slug"):
         raise ErreurHelloAsso(
