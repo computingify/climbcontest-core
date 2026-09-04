@@ -26,12 +26,85 @@ def _cache_propre():
     classement_service.invalider()
 
 
-@pytest.fixture()
-def app():
+# --- L'application, construite une fois -------------------------------------
+#
+# ⚠️ Elle etait rebatie a CHAQUE test : 11,8 ms, mille deux cents fois, soit
+# **14 s** -- et le travail refait n'etait meme pas le notre. Werkzeug compile
+# les soixante-sept regles de routage a la construction (une expression
+# reguliere et une fonction generee par regle), ce qui pese 78 % du temps de
+# `creer_app`. Rien, dans une suite de tests, ne depend du fait que ces regles
+# soient recompilees.
+#
+# Ce qui doit VRAIMENT etre neuf a chaque test, c'est l'etat : la base et la
+# configuration. Les deux sont remis a zero ci-dessous, et un garde verifie que
+# rien d'autre n'a bouge.
+
+
+def _empreinte(app) -> tuple:
+    """Ce qui ne doit PAS changer d'un test a l'autre.
+
+    Le partage d'une application est sur tant que les tests n'y ajoutent rien.
+    Aucun ne le fait aujourd'hui -- les fichiers qui greffent une route de
+    harnais (`/__verdict`, `/__harnais`) construisent leur PROPRE application,
+    et c'est ce qu'il faut continuer a faire. Mais « aujourd'hui » n'est pas une
+    garantie : une route ajoutee a l'application partagee survivrait au test qui
+    l'a posee et repondrait dans tous les suivants, sans que rien ne le dise.
+    """
+    # ⚠️ On compte les gestionnaires d'erreur ENREGISTRES, pas les cases du
+    # dictionnaire qui les range. `error_handler_spec` est un `defaultdict`
+    # imbrique : Flask y cree des cases vides rien qu'en TRAITANT une erreur.
+    # Le compter naivement faisait echouer ce garde sur 419 tests qui n'avaient
+    # rien fait de mal -- ils avaient seulement provoque un 404.
+    gestionnaires = sum(
+        len(par_code) for par_blueprint in app.error_handler_spec.values()
+        for par_code in par_blueprint.values())
+    return (
+        len(app.url_map._rules),
+        {p: len(f) for p, f in app.before_request_funcs.items()},
+        {p: len(f) for p, f in app.after_request_funcs.items()},
+        gestionnaires,
+    )
+
+
+@pytest.fixture(scope="session")
+def _application():
     app = creer_app(ConfigTest)
+    return app, dict(app.config), _empreinte(app)
+
+
+@pytest.fixture()
+def app(_application):
+    """Une base neuve et une configuration neuve, sur une application partagee.
+
+    La configuration est REPOSEE avant le test plutot que nettoyee apres : un
+    test qui la modifie -- et cent neuf endroits le font, `SECRET_KEY` en tete
+    -- n'affecte alors que lui-meme, meme s'il echoue en cours de route.
+    """
+    app, config_neuve, empreinte = _application
+
+    app.config.clear()
+    app.config.update(config_neuve)
+    # `client` et `client_sans_cle` la posent chacun ; on repart du defaut pour
+    # qu'un test qui appelle `app.test_client()` directement ne herite pas de
+    # la classe choisie par son voisin.
+    app.test_client_class = None
+
     with app.app_context():
+        # ⚠️ Les tables du SCHEMA (`verrou`, migrations jouees) sont creees en
+        # SQL brut par `preparer_schema` et ne sont pas dans les metadonnees
+        # SQLAlchemy : `drop_all` ne les touche pas, et c'est voulu -- elles
+        # survivent aussi a un redemarrage en production.
+        db.drop_all()
+        db.create_all()
         yield app
         db.session.remove()
+
+    assert _empreinte(app) == empreinte, (
+        "ce test a modifie l'application elle-meme -- une route, un crochet "
+        "`before_request` ou un gestionnaire d'erreur -- et l'application est "
+        "PARTAGEE par toute la session : l'ajout repondrait dans tous les "
+        "tests suivants. Construire une application a soi avec "
+        "`creer_app(...)`, comme le font les fichiers de harnais navigateur")
 
 
 CLE_DE_TEST = "cle-de-test"
@@ -57,6 +130,29 @@ class ClientAvecCle(FlaskClient):
             entetes["X-Api-Key"] = CLE_DE_TEST
         kwargs["headers"] = entetes
         return super().open(*args, **kwargs)
+
+
+@pytest.fixture()
+def hachage_reel(app):
+    """Rend a CETTE application la vraie derivation de production.
+
+    `ConfigTest` hache en `pbkdf2:sha256:1` -- une derivation quasi gratuite,
+    parce que la suite fait plusieurs centaines de connexions et qu'aucune ne
+    verifie la solidite du hachage (voir `comptes.METHODE_HACHAGE`).
+
+    ⚠️ Les rares tests dont le COUT est justement le sujet -- l'egalisation du
+    temps de reponse entre un compte connu et un inconnu -- ne peuvent pas se
+    contenter de ca : mesurer un rapport entre deux durees de quelques dizaines
+    de MICROsecondes, c'est mesurer le bruit de l'horloge. Ils redemandent la
+    vraie methode ici, et sont seuls a la payer.
+    """
+    from climbcontest import comptes
+    app.config["HACHAGE_MOT_DE_PASSE"] = comptes.METHODE_HACHAGE
+    # Le hachage a vide est mis en cache PAR METHODE : celui de scrypt n'a
+    # peut-etre jamais ete calcule dans ce processus, et son calcul tomberait
+    # alors dans la premiere mesure du test. On le paie ici.
+    comptes._hachage_factice()
+    return app
 
 
 @pytest.fixture()

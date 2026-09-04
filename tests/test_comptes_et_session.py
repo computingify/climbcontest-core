@@ -114,13 +114,21 @@ class TestVerification:
         comptes.desactiver(admin)
         assert comptes.verifier("chef", MDP) is None
 
-    def test_le_temps_de_reponse_ne_revele_pas_les_comptes(self, admin):
+    def test_le_temps_de_reponse_ne_revele_pas_les_comptes(self, hachage_reel, admin):
         """Repondre plus vite pour un identifiant inconnu dirait lesquels
         existent -- et c'est la premiere chose qu'on teste sur une console
         exposee. Le hachage a vide egalise les deux chemins.
 
         On compare des ORDRES DE GRANDEUR, pas des microsecondes : un test de
         temps trop serre devient instable et finit par etre ignore.
+
+        ⚠️ `hachage_reel` n'est pas un ornement. Avec la derivation allegee que
+        prend le reste de la suite, les deux chemins tombent sous la
+        microseconde et le rapport ne mesurerait plus que le bruit de
+        l'horloge -- il passerait au vert sans rien prouver, ou rougirait sans
+        rien reprocher. Ce test est le seul, avec son voisin de
+        `test_freinage.py`, dont le COUT du hachage est le sujet : il est donc
+        le seul a payer scrypt.
         """
         import time
 

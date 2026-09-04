@@ -146,6 +146,41 @@ function attendre(quoi, cond, ms = 15000) {
       return doc && fen && fen.location.href !== "about:blank"
           && doc.readyState === "complete";
     });
+
+    // ⚠️ « La page a-t-elle FINI de reagir ? », et non « ai-je attendu assez
+    // longtemps ? ». Une sonde qui veut constater qu'il ne s'est RIEN passe
+    // n'a rien a observer -- alors elle dormait. `rejeu_archive` dormait
+    // 1200 ms, deux fois : 2,4 s de la suite, et un pari perdant sur un runner
+    // lent, ou la feuille se serait ouverte a 1300 ms sans que le test la
+    // voie. Un sommeil trop court rend VERT ce qu'il devrait attraper.
+    //
+    // `calme()` attend ce qui est observable : que plus aucune requete ne soit
+    // en vol, puis deux rafraichissements d'ecran -- de quoi laisser passer un
+    // gestionnaire de clic et sa transition. Il rend la main en une trentaine
+    // de millisecondes quand il ne s'est rien passe, et attend VRAIMENT quand
+    // il se passe quelque chose.
+    let _enVol = 0, _fenetreSuivie = null;
+    function _suivreLesRequetes() {
+      const fen = cadre.contentWindow;
+      if (fen === _fenetreSuivie) return fen;
+      // Page rechargee : le compteur de l'ancienne ne veut plus rien dire, et
+      // ses requetes en vol ne redescendront jamais a zero.
+      _enVol = 0;
+      _fenetreSuivie = fen;
+      const dorigine = fen.fetch;
+      fen.fetch = function (...args) {
+        _enVol++;
+        return dorigine.apply(this, args).finally(() => { _enVol--; });
+      };
+      return fen;
+    }
+    _suivreLesRequetes();
+    const calme = async (quoi = "que la page ait fini de reagir") => {
+      const fen = _suivreLesRequetes();
+      await attendre(quoi, () => _enVol === 0, 10000);
+      await new Promise((r) => fen.requestAnimationFrame(
+          () => fen.requestAnimationFrame(r)));
+    };
 """
 
 EPILOGUE = r"""

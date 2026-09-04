@@ -46,14 +46,21 @@ SONDE = """
     // faite au doigt avant meme le clic.
     note("curseur", vue().getComputedStyle(ligne).cursor);
 
+    // ⚠️ On constate ici un NEGATIF -- « la feuille ne s'ouvre pas » -- et il
+    // n'y a donc rien a attendre positivement. Ce fut deux fois 1200 ms de
+    // sommeil, soit 2,4 s de la suite pour ne rien voir. `calme()` (preambule
+    // partage) attend a la place que la page ait fini de reagir : plus aucune
+    // requete en vol, puis deux rafraichissements d'ecran. C'est plus rapide,
+    // et c'est surtout plus SUR -- un sommeil de 1200 ms rendait vert un
+    // runner ou la feuille se serait ouverte a 1300 ms.
     ligne.click();
-    await new Promise((r) => setTimeout(r, 1200));
+    await calme("le clic sur la ligne d'archive");
     note("feuille", !!$(".sf-feuille"));
     note("hash", vue().location.hash || "(vide)");
 
     // Et l'adresse forgee a la main ne doit pas davantage ouvrir la fiche.
     vue().location.hash = "#g=" + ligne.dataset.participant;
-    await new Promise((r) => setTimeout(r, 1200));
+    await calme("le diese pose a la main");
     note("feuilleApresDiese", !!$(".sf-feuille"));
 """
 

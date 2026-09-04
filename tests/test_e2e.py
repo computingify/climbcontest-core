@@ -52,6 +52,27 @@ def port_libre() -> int:
         return s.getsockname()[1]
 
 
+#: Ce que gunicorn ECRIT quand il n'arrive pas a prendre le port. Releve tel
+#: quel le 04/09 sur gunicorn 26.2.0, en lui donnant un port deja ecoute :
+#:
+#:     [ERROR] Connection in use: ('127.0.0.1', 61968)
+#:     [ERROR] connection to ('127.0.0.1', 61968) failed: [Errno 48] Address
+#:             already in use
+#:     [ERROR] Can't connect to ('127.0.0.1', 61968)
+#:
+#: Deux formulations, on reconnait les deux : `Address already in use` vient du
+#: systeme et ne bougera pas, `in use` est le mot de gunicorn lui-meme.
+def dit_que_le_port_est_pris(journal: str) -> bool:
+    """Ce journal raconte-t-il un port deja pris, ou une vraie panne ?
+
+    La distinction n'est pas cosmetique : le premier cas se rattrape en
+    changeant de port, le second doit remonter tel quel. Confondre les deux
+    ferait soit boucler sur une panne reelle, soit abandonner sur une course
+    qu'on sait gagner.
+    """
+    return "Address already in use" in journal or "in use" in journal.lower()
+
+
 class PortDejaPris(RuntimeError):
     """Le port choisi a ete pris entre son attribution et le `bind` de gunicorn."""
 
@@ -130,7 +151,34 @@ class ServeurReel:
                 self.base = f"http://127.0.0.1:{self.port}"
                 self.journal = self.journal.with_name(f"gunicorn-{self.port}.log")
 
+    def _port_est_libre(self) -> bool:
+        """Le port repond-il encore de nous ?
+
+        ⚠️ Ce coup d'oeil vaut **cinq secondes par conflit**. Quand le port est
+        deja pris, gunicorn ne renonce pas tout de suite : son arbitre reessaie
+        le `bind` cinq fois, une seconde d'intervalle, avant de mourir. Il
+        avait raison de le faire -- une adresse peut se liberer -- mais nous
+        avons mieux a proposer qu'attendre : un autre port, tout de suite.
+
+        C'est le harnais qui s'ameliore, pas seulement le test : dans la vraie
+        course, celle ou deux serveurs demarrent en meme temps sur une machine
+        chargee, cette verification fait perdre des millisecondes au lieu de
+        cinq secondes. La detection dans le journal de gunicorn reste en place
+        derriere -- elle attrape le cas que ce coup d'oeil ne peut PAS voir :
+        le port pris entre notre `bind` et celui de gunicorn.
+        """
+        with socket.socket() as s:
+            s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+            try:
+                s.bind(("127.0.0.1", self.port))
+            except OSError:
+                return False
+        return True
+
     def _demarrer_une_fois(self) -> None:
+        if not self._port_est_libre():
+            raise PortDejaPris(self.port)
+
         env = {
             **os.environ,
             "CLIMBCONTEST_DATA_DIR": str(self.dossier),
@@ -156,7 +204,7 @@ class ServeurReel:
                 journal = self.lire_journal()
                 # Distingue « le port a ete pris sous nos pieds », qu'on sait
                 # rattraper, d'une vraie panne de demarrage, qu'il faut montrer.
-                if "Address already in use" in journal or "in use" in journal.lower():
+                if dit_que_le_port_est_pris(journal):
                     self.arreter()
                     raise PortDejaPris(self.port)
                 raise RuntimeError(f"gunicorn n'a pas demarre :\n{journal[-800:]}")
@@ -530,6 +578,30 @@ class TestLotSousGunicorn:
 # --- Le catalogue -----------------------------------------------------------
 
 class TestCatalogue:
+    """Trois lectures du meme catalogue, sur UN seul serveur.
+
+    ⚠️ Le partage n'est legitime que parce que ces trois tests ne font que
+    LIRE : aucun n'ecrit une reussite, aucun ne touche au catalogue. Un
+    demarrage de gunicorn coute 580 ms -- l'import de Flask et de
+    l'application, quel que soit le nombre de workers -- et en payer trois pour
+    trois `GET` etait le prix de rien.
+
+    Ce n'est PAS un motif a etendre par confort au reste du fichier :
+    `TestLotSousGunicorn` et `TestParcoursDuJuge` ecrivent, et plusieurs de
+    leurs assertions portent sur le compteur cumule de `/health`. Partager leur
+    serveur ne les rendrait pas seulement dependants de l'ordre : il faudrait
+    aussi que leurs jeux de donnees ne se recouvrent pas, sans quoi
+    l'idempotence -- ce qu'ils verifient justement -- avalerait des insertions
+    et les comptes deviendraient faux pour une raison invisible.
+    """
+
+    @pytest.fixture(scope="class")
+    def serveur(self, tmp_path_factory, base_modele):
+        dossier = tmp_path_factory.mktemp("e2e-catalogue")
+        shutil.copy(base_modele, dossier / "climbcontest.db")
+        with ServeurReel(dossier) as s:
+            yield s
+
     def test_contenu_et_version(self, serveur):
         code, corps = appeler(serveur.base, "/api/v2/catalog", methode="GET")
         assert code == 200
@@ -722,6 +794,53 @@ class TestBancDeTest:
     pas le produit finit par etre relance sans etre lu -- et le jour ou il
     signale un vrai defaut, personne ne le croit.
     """
+
+    #: Le journal REEL de gunicorn 26.2.0 quand le port est deja ecoute,
+    #: releve le 04/09 en lui donnant un port squatte. Il est fige ici parce
+    #: que le reproduire coute CINQ SECONDES a chaque execution : l'arbitre de
+    #: gunicorn reessaie le `bind` cinq fois avant de renoncer.
+    JOURNAL_PORT_PRIS = (
+        "[2026-09-04 10:28:10 +0200] [74261] [INFO] Starting gunicorn 26.2.0\n"
+        "[2026-09-04 10:28:10 +0200] [74261] [ERROR] Connection in use:"
+        " ('127.0.0.1', 61968)\n"
+        "[2026-09-04 10:28:10 +0200] [74261] [ERROR] connection to"
+        " ('127.0.0.1', 61968) failed: [Errno 48] Address already in use\n"
+        "[2026-09-04 10:28:15 +0200] [74261] [ERROR] Can't connect to"
+        " ('127.0.0.1', 61968)\n"
+    )
+
+    #: Une vraie panne de demarrage : rien a voir avec un port.
+    JOURNAL_VRAIE_PANNE = (
+        "[2026-09-04 10:31:02 +0200] [74300] [INFO] Starting gunicorn 26.2.0\n"
+        "[2026-09-04 10:31:02 +0200] [74300] [ERROR] Exception in worker process\n"
+        "Traceback (most recent call last):\n"
+        "  File \"wsgi.py\", line 1, in <module>\n"
+        "ModuleNotFoundError: No module named 'climbcontest'\n"
+    )
+
+    def test_un_journal_de_port_pris_est_reconnu(self):
+        """La seconde ligne de defense, testee sans la payer.
+
+        Depuis que `_port_est_libre` regarde AVANT de lancer gunicorn, ce
+        chemin ne sert plus qu'a la vraie course : le port pris entre notre
+        `bind` et celui de gunicorn. Il ne se declenche donc presque jamais --
+        et une branche qui ne se declenche jamais, personne ne remarque qu'elle
+        est cassee.
+
+        On la teste sur le journal REEL, fige plus haut, au lieu de refaire
+        renoncer gunicorn pendant cinq secondes.
+        """
+        assert dit_que_le_port_est_pris(self.JOURNAL_PORT_PRIS)
+
+    def test_une_vraie_panne_n_est_pas_prise_pour_un_port_occupe(self):
+        """Le sens INVERSE, qui est celui qui coute cher quand il rate.
+
+        Prendre une panne reelle pour un conflit de port ferait reessayer trois
+        fois sur trois ports differents, puis remonter « port deja pris » --
+        et on chercherait un conflit de port pendant que l'application ne
+        s'importe simplement plus.
+        """
+        assert not dit_que_le_port_est_pris(self.JOURNAL_VRAIE_PANNE)
 
     def test_reprend_un_autre_port_si_le_sien_est_pris(self, tmp_path):
         serveur = ServeurReel(tmp_path, workers=1)
