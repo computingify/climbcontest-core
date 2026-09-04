@@ -158,8 +158,9 @@ l'application.
 - **Le circuit « Noir » garde sa carte en papier.** C'est le seul dont la teinte
   est déjà l'encre : sa carte teintée virait au gris quand toutes les autres
   prennent leur couleur, et le liseré de sa pastille se confondait avec l'aplat.
-- **L'étape « Tests » de la CI passe de 4 min 15 à 51 s** — mesuré sur le
-  runner, pas extrapolé ; le job entier tombe de 4 min 39 à **1 min 14**. En
+- **L'étape « Tests » de la CI passe de 4 min 15 à ~50 s** — mesuré sur le
+  runner, pas extrapolé (48 s, 51 s, 53 s sur trois passages) ; le job entier
+  tombe de 4 min 39 à **~1 min 15**. En
   local : 2 min 26 → 45 s **en série**, 13 s en parallèle. Aucun test retiré,
   dix-sept ajoutés (1 872, tous verts). Le parallélisme est un multiplicateur ;
   les deux tiers du gain viennent du travail supprimé.
@@ -198,7 +199,8 @@ l'application.
     textes séparés — deux PR qui en touchent deux différentes ne se disputent
     toujours rien — et chacune tourne dans son propre `try` : une sonde qui
     casse ne fait pas tomber les trois autres.
-  - **Le premier lancement de chromium coûte 17 s sur un runner GitHub**, et
+  - **Le premier lancement de chromium coûte 12 à 22 s sur un runner GitHub**
+    — le même geste, du simple au double selon la charge de la machine — et
     ce prix était facturé au premier test navigateur par ordre alphabétique —
     qui affichait 20 s en CI contre 0,13 s sur le Mac, et faisait échouer le
     budget par test en accusant un innocent. Il est rendu à un test dont c'est
