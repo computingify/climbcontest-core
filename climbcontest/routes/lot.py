@@ -20,7 +20,8 @@ from flask import Blueprint, jsonify, request
 
 from ..auth import exige_cle_api
 from ..contest import (
-    ErreurMetier, competition_active, enregistrer_lot, identite_appareil,
+    ErreurMetier, competition_active, enregistrer_annonce, enregistrer_lot,
+    identite_appareil,
 )
 
 logger = logging.getLogger(__name__)
@@ -68,7 +69,23 @@ def envoyer_lot():
         # tard, pas jeter ce qu'elle a.
         return jsonify({"success": False, "message": e.message}), e.code
 
-    resultats = enregistrer_lot(elements, identite_appareil(corps.get("appareil")))
+    appareil = identite_appareil(corps.get("appareil"))
+    resultats = enregistrer_lot(elements, appareil)
+
+    # ⚠️ La MEME annonce que sur la route du catalogue, et c'est deliberement
+    # redondant (spec 030, F8). L'annonce voyage normalement sur un GET, qu'un
+    # cache pose un jour devant `/api/v2/catalog` absorberait sans que rien ne
+    # le dise. Un POST, lui, n'est jamais mis en cache : tant que des reussites
+    # arrivent, la console sait au moins quelle VERSION tourne sur ce telephone.
+    #
+    # ⚠️ Et surtout : **pas de `catalogue_version` ici.** Recevoir un lot prouve
+    # que le telephone est vivant, pas qu'il detient le catalogue courant. Le
+    # renseigner depuis cette route afficherait « a jour » un telephone qui ne
+    # s'est pas synchronise depuis des heures -- exactement le mensonge que
+    # cette spec existe pour supprimer.
+    if appareil:
+        enregistrer_annonce(appareil["id"], nom=appareil.get("nom"),
+                            version_app=appareil.get("app"))
 
     # La version du catalogue voyage dans une réponse qui part de toute façon :
     # l'application apprend qu'elle a du retard sans requête supplémentaire.

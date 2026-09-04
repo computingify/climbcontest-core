@@ -4,16 +4,17 @@ Tout ce qui décide est ici ; les routes ne font que traduire HTTP.
 """
 
 import logging
-from datetime import datetime
+from datetime import datetime, timedelta
 
 from sqlalchemy import func
 from sqlalchemy.exc import IntegrityError
 
 from . import formatage
 from .extensions import db
+from .version import VERSION
 from .models import (
-    Bloc, Competition, EN_COURS, Participant, ReaffectationDossard, SOURCE_MANUEL,
-    SOURCE_SCAN, Success, prochaine_version_catalogue,
+    Appareil, Bloc, Competition, EN_COURS, Participant, ReaffectationDossard,
+    SOURCE_MANUEL, SOURCE_SCAN, Success, prochaine_version_catalogue,
 )
 
 logger = logging.getLogger(__name__)
@@ -418,6 +419,10 @@ def identite_appareil(valeur) -> dict | None:
 
     Renvoie `None` quand il n'y a rien d'exploitable : une application plus
     ancienne, qui n'envoie pas d'identite, continue simplement de fonctionner.
+
+    Depuis la spec 030, l'objet peut porter un champ `app` : la version que le
+    client execute. Facultatif comme le reste, et absent de l'application
+    Android -- qui doit continuer de fonctionner sans rien changer.
     """
     if not isinstance(valeur, dict):
         return None
@@ -433,7 +438,17 @@ def identite_appareil(valeur) -> dict | None:
         # utilisable ; un envoi rejete pour ca ne le serait pas.
         nom = nom.strip()[:60]
 
-    return {"id": identifiant.strip()[:40], "nom": nom}
+    identite = {"id": identifiant.strip()[:40], "nom": nom}
+
+    # ⚠️ La cle `app` n'apparait QUE si le client en a envoye une. Une cle
+    # toujours presente, a `None`, changerait la forme rendue a des appelants
+    # qui ne demandent rien -- et deux tests de la spec 011 comparent ce
+    # dictionnaire entier. Ne rien dire, c'est different de dire « rien ».
+    version = valeur.get("app")
+    if isinstance(version, str) and version.strip():
+        identite["app"] = version.strip()[:20]
+
+    return identite
 
 
 def _horodatage_client(valeur) -> datetime | None:
@@ -563,6 +578,75 @@ def reussites_inenvoyables() -> int:
 #: presque toujours un juge bloque : batterie, wifi, ou application fermee.
 SILENCE_S = 600
 
+#: Au-dela, on considere que les ANNONCES de ce telephone ne nous arrivent plus.
+#: Ecran allume, la PWA s'annonce toutes les TRENTE SECONDES (`juge.js`,
+#: `PERIODE_PRESENCE_MS`) : un quart d'heure laisse donc passer une trentaine
+#: d'occasions avant de crier au loup. Le seuil est genereux exprès -- une
+#: alerte qui se declenche pour un creux de wifi apprend a ignorer les alertes.
+SILENCE_ANNONCE_S = 900
+
+#: En deca, un telephone en retard sur le catalogue est simplement en train de
+#: le RATTRAPER : il s'est annonce tres recemment, donc il est en service, donc
+#: il reprendra le numero tout seul dans la minute. Six minutes plutot que
+#: trente secondes pour absorber un creux de wifi sans changer de discours.
+#:
+#: ⚠️ Au-dela, il ne devient pas « en panne » : il sort simplement du cas
+#: benin. C'est ce qui fait qu'un telephone EN VEILLE -- dont la boucle ne
+#: tourne plus du tout -- cesse d'etre annonce comme « se remet a jour tout
+#: seul », ce qui serait faux : il attend qu'on rallume son ecran.
+PERIODE_RATTRAPAGE_S = 360
+
+#: Au-dela, un telephone sort du tableau de la console s'il n'a rien envoye sur
+#: l'edition en cours. Sans cette fenetre, les telephones de toutes les editions
+#: passees s'y empileraient -- et la question posee par cet ecran est « qui
+#: tourne AUJOURD'HUI ».
+FENETRE_APPAREIL_S = 24 * 3600
+
+
+def enregistrer_annonce(identifiant: str, nom: str | None = None,
+                        version_app: str | None = None,
+                        catalogue_version: int | None = None,
+                        maintenant: datetime | None = None) -> None:
+    """Note qu'un telephone s'est manifeste. **Ne leve jamais.** (spec 030)
+
+    Meme principe que `identite_appareil` : ce qui est mal forme est ignore,
+    jamais rejete. Cette fonction est appelee depuis le chemin du catalogue --
+    celui qui, s'il echoue, arrete les scans de tout le monde. Une colonne vide
+    dans la console rend Adrien aveugle sur un point ; un catalogue qui n'arrive
+    pas arrete la competition. Les deux ne se comparent pas.
+
+    ⚠️ `catalogue_version` n'est passe QUE par la route du catalogue, et c'est
+    volontaire. Recevoir un lot prouve que le telephone est vivant, pas qu'il
+    detient le catalogue courant : ecrire le numero depuis la route des lots
+    afficherait « a jour » un telephone qui ne s'est pas synchronise depuis des
+    heures.
+    """
+    if not isinstance(identifiant, str) or not identifiant.strip():
+        return
+    quand = maintenant or datetime.now()
+    try:
+        appareil = db.session.get(Appareil, identifiant.strip()[:40])
+        if appareil is None:
+            appareil = Appareil(id=identifiant.strip()[:40],
+                                premiere_vue_le=quand)
+            db.session.add(appareil)
+        # Un champ absent ne DOIT PAS effacer ce qu'on savait : un lot sans nom
+        # ne rend pas un telephone anonyme.
+        if nom:
+            appareil.nom = nom[:60]
+        if version_app:
+            appareil.version_app = version_app[:20]
+        if catalogue_version is not None:
+            appareil.catalogue_version = catalogue_version
+            appareil.catalogue_vu_le = quand
+        appareil.vu_le = quand
+        db.session.commit()
+    except Exception as e:
+        # Une base verrouillee, une colonne manquante sur une vieille base : on
+        # journalise et on rend la main. L'appelant continue son travail.
+        db.session.rollback()
+        logger.warning("annonce d'appareil ignoree (%s) : %s", type(e).__name__, e)
+
 #: Le nombre de caracteres d'`appareil_id` qui suffisent a distinguer les
 #: telephones d'une competition. Huit caracteres d'UUID, c'est ce que
 #: l'application affiche deja dans ses reglages et ce que la colonne
@@ -609,13 +693,28 @@ def libelle_poste(nom: str | None, appareil_id: str | None) -> str | None:
 
 
 def appareils(comp: Competition, maintenant: datetime | None = None) -> list[dict]:
-    """Les telephones vus sur cette competition, du plus recent au plus ancien.
+    """Les telephones connus de cette competition, du plus recent au plus ancien.
 
     Regroupe par IDENTIFIANT et non par nom : deux telephones peuvent porter le
     meme nom — personne n'a le temps de verifier l'unicite d'un nom le jour J —
     et un meme telephone peut avoir ete renomme en cours de route.
 
     Le nom affiche est donc le DERNIER connu, celui du dernier envoi.
+
+    ⚠️ **Deux sources, et il en faut deux** (spec 030) :
+
+    1. les REUSSITES de l'edition en cours -- qui a envoye quoi, et quand ;
+    2. les ANNONCES, table `appareil` -- qui tourne sur quelle version, avec
+       quel catalogue.
+
+    Un telephone peut n'etre que dans la seconde : c'est le cas du matin, quand
+    les juges ouvrent l'application avant la premiere grimpe. C'est precisement
+    celui qu'on veut voir -- verifier les versions APRES la premiere reussite,
+    c'est verifier trop tard.
+
+    Un telephone peut n'etre que dans la premiere : l'application Android du
+    Play Store envoie des lots et ne s'annonce pas. Ses colonnes de version
+    restent vides, et c'est deja un renseignement.
     """
     maintenant = maintenant or datetime.now()
 
@@ -633,7 +732,7 @@ def appareils(comp: Competition, maintenant: datetime | None = None) -> list[dic
         .all()
     )
 
-    resultat = []
+    par_id: dict[str, dict] = {}
     for identifiant, nombre, premiere, derniere in lignes:
         # Le dernier nom connu : une requete par appareil, mais il y en a
         # vingt-cinq au plus. Le faire en une seule passerait par une
@@ -646,7 +745,7 @@ def appareils(comp: Competition, maintenant: datetime | None = None) -> list[dic
             .scalar()
         )
         silence = (maintenant - derniere).total_seconds() if derniere else None
-        resultat.append({
+        par_id[identifiant] = {
             "id": identifiant,
             "nom": dernier_nom,
             "reussites": nombre,
@@ -657,10 +756,144 @@ def appareils(comp: Competition, maintenant: datetime | None = None) -> list[dic
             # Le nom SUIVI du code court : deux juges d'une meme zone scannent
             # le meme carton et portent le meme nom. Voir `libelle_poste`.
             "libelle": libelle_poste(dernier_nom, identifiant),
-        })
+            # Comblees juste apres par la table des annonces, quand elle en a.
+            "version_app": None,
+            "catalogue_version": None,
+            "vu_le": None,
+            "annonce": False,
+            "app_a_jour": None,
+            "catalogue_a_jour": None,
+            "annonce_perdue": False,
+            "rattrapage": False,
+        }
 
-    resultat.sort(key=lambda a: a["derniere_le"] or "", reverse=True)
+    depuis = maintenant - timedelta(seconds=FENETRE_APPAREIL_S)
+    for annonce in Appareil.query.filter(Appareil.vu_le >= depuis).all():
+        fiche = par_id.get(annonce.id)
+        if fiche is None:
+            # Vu, mais rien envoye sur cette edition. Il compte quand meme.
+            fiche = {
+                "id": annonce.id,
+                "nom": annonce.nom,
+                "reussites": 0,
+                "premiere_le": None,
+                "derniere_le": None,
+                "silence_s": None,
+                "silencieux": False,
+                "libelle": libelle_poste(annonce.nom, annonce.id),
+            }
+            par_id[annonce.id] = fiche
+        # Le nom d'une annonce est plus FRAIS que celui recopie sur la derniere
+        # reussite : un juge qui renomme son poste sans rien scanner ensuite
+        # verrait sinon l'ancien nom jusqu'a sa prochaine reussite.
+        if annonce.nom:
+            fiche["nom"] = annonce.nom
+            # Le libelle derive du nom : il se refait ici, sinon la vue
+            # « Qui envoie quoi » garderait l'ancien nom entre parentheses.
+            fiche["libelle"] = libelle_poste(annonce.nom, annonce.id)
+        fiche["version_app"] = annonce.version_app
+        fiche["catalogue_version"] = annonce.catalogue_version
+        fiche["vu_le"] = annonce.vu_le.isoformat() if annonce.vu_le else None
+        fiche["annonce"] = annonce.version_app is not None
+        # ⚠️ EGALITE STRICTE, jamais un ordre. Le numero de catalogue identifie
+        # un couple (edition, etat de son catalogue) : depuis la fermeture de
+        # l'incoherence du plan, il SAUTE et il saute pour toutes les editions a
+        # la fois. « Plus grand » ne veut rien dire ; « different » veut dire
+        # « pas les memes donnees ».
+        fiche["app_a_jour"] = (
+            None if not annonce.version_app else annonce.version_app == VERSION)
+        fiche["catalogue_a_jour"] = (
+            None if annonce.catalogue_version is None
+            else annonce.catalogue_version == comp.catalogue_version)
+        fiche["annonce_perdue"] = _annonce_perdue(annonce, fiche, maintenant)
+        fiche["rattrapage"] = _rattrapage(annonce, fiche, maintenant)
+
+    resultat = list(par_id.values())
+    # Trie sur la derniere ACTIVITE, quelle qu'elle soit : un telephone qui
+    # s'annonce sans rien envoyer est actif, et doit remonter.
+    resultat.sort(key=lambda a: max(a["derniere_le"] or "", a["vu_le"] or ""),
+                  reverse=True)
     return resultat
+
+
+def _annonce_perdue(annonce: Appareil, fiche: dict,
+                    maintenant: datetime) -> bool:
+    """Ce telephone envoie-t-il des reussites SANS plus s'annoncer ? (spec 030)
+
+    C'est la signature exacte d'un cache pose devant `/api/v2/catalog` : les
+    lots partent en POST, qu'aucun cache n'absorbe, tandis que l'annonce voyage
+    sur un GET qui, lui, peut etre servi depuis un cache sans jamais atteindre
+    l'application. Le serveur cesse alors de savoir qui tourne sur quoi, et
+    RIEN ne le dirait -- le tableau se viderait tout seul, et on croirait les
+    telephones eteints.
+
+    Trois conditions, et les trois comptent :
+
+    - le telephone SAIT s'annoncer (on connait sa version) -- sinon c'est
+      l'application Android, et son silence est normal ;
+    - il a envoye une reussite recemment -- sinon il est simplement eteint, ce
+      que `silencieux` dit deja ;
+    - sa derniere annonce date de plus d'un quart d'heure, alors qu'ecran
+      allume la PWA s'annonce toutes les trente secondes.
+
+    ⚠️ La deuxieme condition n'est pas un confort, c'est ce qui rend le
+    detecteur SUR : la boucle de l'application sort des sa premiere ligne quand
+    l'ecran est eteint, donc un telephone en veille n'envoie rien ET ne
+    s'annonce plus. Exiger une reussite recente elimine ce cas -- il ne reste
+    que celui ou les lots passent pendant que les annonces disparaissent, ce
+    qui ne peut venir que d'un cache pose devant le GET.
+
+    ⚠️ **CE RAISONNEMENT REPOSE SUR UNE HYPOTHESE : aucun lot ne part hors du
+    premier plan.** Elle est vraie aujourd'hui -- les cinq chemins d'envoi de
+    `juge.js` sont soit la boucle (qui teste `visibilityState`), soit un geste
+    du juge -- et `sw.js` n'ecoute ni `sync` ni `periodicsync`. Le jour ou
+    quelqu'un ajoutera une synchronisation en arriere-plan pour vider la file
+    hors ligne -- une evolution naturelle pour une PWA offline-first -- des
+    lots partiront sans annonce, et ce detecteur criera au cache sur un
+    telephone en veille parfaitement sain. Verifier `sw.js` avant de conclure,
+    et rendre alors l'annonce solidaire de l'envoi.
+    """
+    if not annonce.version_app:
+        return False
+    if fiche["silence_s"] is None or fiche["silence_s"] >= SILENCE_S:
+        return False
+    # Jamais annonce du tout : c'est le cas d'un cache pose des le depart. Mais
+    # on laisse passer le quart d'heure qui suit la premiere apparition, sinon
+    # un telephone qui vient d'envoyer son premier lot avant meme d'avoir
+    # telecharge son catalogue declencherait l'alerte pour quelques secondes.
+    reference = annonce.catalogue_vu_le or annonce.premiere_vue_le
+    if reference is None:
+        return False
+    return (maintenant - reference).total_seconds() >= SILENCE_ANNONCE_S
+
+
+def _rattrapage(annonce: Appareil, fiche: dict, maintenant: datetime) -> bool:
+    """Ce telephone est-il en retard sur le catalogue, mais en train de le
+    rattraper ? (spec 030)
+
+    ⚠️ La distinction existe pour une raison precise, et elle est arrivee avec
+    la fermeture de l'incoherence du plan : redessiner le mur donne un numero
+    NEUF a toutes les editions d'un coup. Le jour ou un organisateur retouche
+    le plan en pleine competition, les vingt-cinq telephones passent en ambre
+    EN MEME TEMPS -- et il croira avoir tout casse, alors que ceux qui sont en
+    service reprennent le numero dans la minute.
+
+    Ce qui separe ce cas de la vraie panne : ici l'annonce de catalogue est
+    FRAICHE. Le telephone parle, il n'a simplement pas encore repris le nouveau
+    numero. Quand un cache absorbe les annonces, c'est l'inverse -- elles
+    vieillissent, et `_annonce_perdue` s'allume.
+
+    ⚠️ On regarde `catalogue_vu_le`, et surtout pas `vu_le` : ce dernier avance
+    aussi a chaque lot, donc un telephone dont les annonces sont mangees par un
+    cache passerait pour un simple rattrapage. Les deux horodatages sont
+    distincts exactement pour ca.
+    """
+    if fiche["catalogue_a_jour"] is not False:
+        return False
+    if annonce.catalogue_vu_le is None:
+        return False
+    age = (maintenant - annonce.catalogue_vu_le).total_seconds()
+    return age < PERIODE_RATTRAPAGE_S
 
 
 def reussites_tracees(comp: Competition, ref: str | None = None,

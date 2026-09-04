@@ -20,6 +20,14 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="ClimbContest">
 <title>Juge — ClimbContest</title>
+<!-- ⚠️ La version est GRAVÉE ICI, et non demandée par un appel. Le service
+     worker sert cette coquille depuis son cache et la rafraîchit derrière :
+     ce que le téléphone exécute peut donc avoir un lancement de retard sur ce
+     que le serveur sert. C'est exactement ce que les réglages doivent
+     afficher — la version du code qui tourne, pas celle qui est disponible.
+     Aller la chercher par un appel dirait « à jour » à un téléphone qui ne
+     l'est pas, ce qui est la panne que la spec 030 supprime. -->
+<meta name="climbcontest-version" content="{{ version }}">
 <link rel="manifest" href="/juge/manifest.webmanifest{{ suffixe_manifeste }}">
 <link rel="apple-touch-icon" href="/static/juge/icone-192.png">
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='7' fill='%232F6BB0'/><circle cx='16' cy='16' r='7' fill='%23EEF1F5'/></svg>">
@@ -476,6 +484,30 @@
   .lien { background: none; border: 0; color: var(--action-texte); font: inherit;
           font-size: 1rem; padding: 12px 0; cursor: pointer; text-align: left; }
 
+  /* Les versions (spec 030). Le chiffre a droite, le VERDICT en dessous : ce
+     qu'on lit d'abord, c'est « est-ce que ca va ? », pas le numero. Le numero
+     ne sert qu'a le dire a quelqu'un d'autre -- au telephone, ou dans la
+     console. */
+  .valeurLigne { font-weight: 700; font-variant-numeric: tabular-nums; }
+  .verdict { display: flex; align-items: center; gap: 8px; font-size: 0.9rem;
+             margin-top: 10px; font-weight: 600; }
+  .verdict.ok { color: var(--fait); }
+  .verdict.att { color: var(--attention); }
+  /* ⚠️ La pastille ne porte JAMAIS seule : le texte a cote dit la meme chose en
+     toutes lettres. Meme regle que le voyant de connexion -- le vert et
+     l'ambre seuls sont indistinguables pour environ 8 % des hommes, et il y a
+     des juges hommes. */
+  .verdict i { width: 8px; height: 8px; border-radius: 50%; flex: none;
+               background: currentColor; }
+  .sous { color: var(--encre2); font-size: 0.85rem; margin: 8px 0 0;
+          line-height: 1.5; }
+  .bloc .action { width: 100%; margin-top: 14px; }
+  /* Le bouton reste CALME tant qu'il n'y a rien a reparer : un bouton bleu vif
+     dans un ecran ou tout va bien attire la main sans raison. Il ne prend sa
+     couleur d'action que quand le telephone est en retard. */
+  .bloc .action.calme { background: var(--carte-attente); color: var(--encre);
+                        border: 1px solid var(--trait-actif); }
+
   /* « Mes scans ». */
   #listeScans { margin: 0 16px 24px; }
   .scan { display: flex; align-items: center; gap: 12px; background: var(--carte-faite);
@@ -750,6 +782,40 @@
     <div class="bloc">
       <div class="ligne"><span id="etatServeur">Connexion en cours</span></div>
       <p class="mono" id="adresseServeur"></p>
+    </div>
+  </div>
+
+  <!-- Les versions (spec 030). En bas, comme un « à propos » : on ne les
+       consulte pas en scannant, on y va quand on doute. -->
+  <div class="section">
+    <h3>Catalogue</h3>
+    <div class="bloc">
+      <div class="ligne"><span>Sur ce téléphone</span>
+           <span class="valeurLigne" id="versionCatalogue">—</span></div>
+      <div class="verdict" id="verdictCatalogue" hidden>
+        <i aria-hidden="true"></i><span></span>
+      </div>
+      <p class="sous" id="contenuCatalogue"></p>
+      <button class="action calme" id="forcerCatalogue" type="button">Retélécharger maintenant</button>
+      <p class="explication">Le catalogue se met à jour tout seul, en moins
+         d'une minute, tant que l'écran est allumé. Ce bouton sert quand on ne
+         veut pas attendre : un participant vient d'être inscrit, ou le mur
+         vient d'être redessiné.</p>
+    </div>
+  </div>
+
+  <div class="section">
+    <h3>Application</h3>
+    <div class="bloc">
+      <div class="ligne"><span>Version</span>
+           <span class="valeurLigne" id="versionApp">—</span></div>
+      <div class="verdict" id="verdictApp" hidden>
+        <i aria-hidden="true"></i><span></span>
+      </div>
+      <p class="explication" id="expliquerMaj" hidden>Ferme complètement
+         l'application et rouvre-la : elle se met à jour toute seule au
+         lancement. Le bouton fait la même chose tout de suite.</p>
+      <button class="action" id="majApplication" type="button" hidden>Mettre à jour et redémarrer</button>
     </div>
   </div>
 </section>

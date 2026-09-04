@@ -23,6 +23,9 @@ function faux(reponses) {
     return {
       ok: r.code >= 200 && r.code < 300,
       status: r.code,
+      // Les en-tetes de reponse : la version du serveur y voyage, sur le 200
+      // comme sur le 304 (spec 030).
+      headers: { get: (nom) => (r.entetes || {})[nom] ?? null },
       json: async () => {
         if (r.corps === undefined) throw new Error("pas de json");
         return r.corps;
@@ -185,4 +188,67 @@ test("un catalogue refuse est un echec, pas un catalogue vide", async () => {
   const r = await new Api({ jeton: "mauvaise", fetch }).telechargerCatalogue(null);
   assert.equal(r.etat, "echec");
   assert.equal(r.code, 401);
+});
+
+// --- L'annonce du telephone, et la version du serveur (spec 030) ------------
+
+const ANNONCE = { id: "abc-123", nom: "Entrée du mur", app: "v0.16.0" };
+
+test("le telephone s'annonce sur la requete de catalogue", async () => {
+  const { fetch, appels } = faux({ code: 304 });
+  await new Api({ jeton: "s", fetch }).telechargerCatalogue(7, ANNONCE);
+  const entetes = appels[0].options.headers;
+  assert.equal(entetes["X-Device-Id"], "abc-123");
+  assert.equal(entetes["X-App-Version"], "v0.16.0");
+  // Percent-encode : un en-tete HTTP ne transporte pas surement les accents.
+  assert.equal(entetes["X-Device-Name"], "Entr%C3%A9e%20du%20mur");
+});
+
+test("sans annonce, aucun de ces en-tetes -- le contrat d'avant la spec 030",
+     async () => {
+  const { fetch, appels } = faux({ code: 304 });
+  await new Api({ jeton: "s", fetch }).telechargerCatalogue(7);
+  const entetes = appels[0].options.headers;
+  for (const nom of ["X-Device-Id", "X-Device-Name", "X-App-Version"]) {
+    assert.equal(nom in entetes, false,
+                 `${nom} ne doit pas etre envoye : l'app Android n'en envoie aucun`);
+  }
+});
+
+test("FORCER le catalogue : requete nue, aucun If-None-Match", async () => {
+  // ⚠️ Le bouton « Reteldecharger maintenant ». Le serveur decide du 304 par
+  // egalite stricte : annoncer un autre numero pour le forcer ne marcherait
+  // pas, il refuse deliberement ce raccourci. Une requete NUE est le seul
+  // moyen propre d'obtenir un 200.
+  const { fetch, appels } = faux({ code: 200, corps: { version: 9 } });
+  await new Api({ jeton: "s", fetch }).telechargerCatalogue(null, ANNONCE);
+  assert.equal("If-None-Match" in appels[0].options.headers, false);
+  assert.equal(appels[0].url.includes("depuis"), false);
+});
+
+test("la version du serveur remonte sur le 304 -- le cas majoritaire", async () => {
+  const { fetch } = faux({ code: 304, entetes: { "X-Server-Version": "v0.16.0" } });
+  const r = await new Api({ jeton: "s", fetch }).telechargerCatalogue(7, ANNONCE);
+  assert.equal(r.etat, "deja-a-jour");
+  assert.equal(r.serveur, "v0.16.0");
+});
+
+test("la version du serveur remonte aussi sur le 200", async () => {
+  const { fetch } = faux({ code: 200, corps: { version: 3 },
+                           entetes: { "X-Server-Version": "v0.16.0" } });
+  const r = await new Api({ jeton: "s", fetch }).telechargerCatalogue(null);
+  assert.equal(r.serveur, "v0.16.0");
+});
+
+test("reseau coupe : aucune version, aucune exception", async () => {
+  const { fetch } = faux(new Error("hors ligne"));
+  const r = await new Api({ jeton: "s", fetch }).telechargerCatalogue(7, ANNONCE);
+  assert.equal(r.etat, "echec");
+  assert.equal(r.serveur, null);
+});
+
+test("la version voyage aussi avec les lots -- la redondance de F8", async () => {
+  const { fetch, appels } = faux({ code: 200, corps: { resultats: [] } });
+  await new Api({ jeton: "s", fetch }).envoyerLot(UN_LOT, ANNONCE);
+  assert.equal(JSON.parse(appels[0].options.body).appareil.app, "v0.16.0");
 });

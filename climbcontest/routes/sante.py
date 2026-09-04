@@ -5,18 +5,15 @@ from pathlib import Path
 
 from flask import Blueprint, current_app, jsonify
 
+from ..version import VERSION
+
 bp = Blueprint("sante", __name__)
-RACINE = Path(__file__).resolve().parent.parent.parent
 
-
-def _version() -> str:
-    try:
-        return (RACINE / "VERSION").read_text(encoding="utf-8").strip() or "dev"
-    except OSError:
-        return "dev"
-
-
-VERSION = _version()
+# ⚠️ `VERSION` etait lu ICI, par une fonction privee de ce module. La spec 030 a
+# eu besoin du meme numero dans la console et dans la route du catalogue : il
+# est passe dans `climbcontest/version.py`, importe ci-dessus. La sonde ne
+# change pas d'un iota -- elle repond toujours la meme chose -- mais deux autres
+# appelants peuvent enfin le lire sans importer une route.
 
 
 @bp.get("/health")

@@ -27,6 +27,44 @@ qu'on ne met pas à jour le matin d'une compétition :
   avant que l'écran ne se peigne, donc sans clignotement au lancement, et il
   survit à la fermeture de l'application.
 
+- **Les versions se voient, et le catalogue se force** (spec 030). Tout était
+  déjà versionné — le tag git dans un fichier `VERSION` lu par `/health`, le
+  numéro de catalogue qui décide du `304` — et **rien n'était lisible**. Un
+  téléphone en retard était indiscernable d'un téléphone à jour, et le juge
+  n'avait aucun geste à sa portée.
+
+  Sur le téléphone, l'écran **Réglages** gagne deux sections : le **catalogue**
+  (numéro local, verdict, contenu, âge) avec un bouton **« Retélécharger
+  maintenant »**, et l'**application** (version, verdict) avec un bouton
+  **« Mettre à jour et redémarrer »** qui n'apparaît que si la coquille est en
+  retard. La version affichée est celle de la **coquille en cache** — le code
+  qui tourne vraiment, pas celui que le serveur sert : afficher le second
+  dirait « à jour » à un téléphone qui ne l'est pas.
+
+  Dans la console, la version et le numéro de catalogue en **pied de tiroir**,
+  sur tous les écrans ; une carte **« Versions en circulation »** ; et dans le
+  tableau des téléphones **deux colonnes** disant, par poste, quelle version et
+  quel catalogue il porte. Les téléphones qui se sont annoncés **sans rien
+  envoyer** y figurent aussi : c'est le contrôle du matin, avant la première
+  grimpe.
+
+  Le téléphone s'annonce sur la requête de catalogue qu'il fait déjà — trois
+  en-têtes facultatifs, **aucune requête supplémentaire**. Le serveur répond
+  avec `X-Server-Version`, sur le `200` **comme sur le `304`**, qui est le cas
+  majoritaire le jour J.
+
+  Le **retard normal se distingue de la panne** : redessiner le mur renumérote
+  toutes les éditions d'un coup, donc tous les téléphones passent à l'ambre en
+  même temps. La console le dit en ocre, et **distingue deux populations** —
+  écran allumé l'application rafraîchit toutes les trente secondes, écran
+  éteint elle ne fait rien du tout. La phrase donne donc le geste qui débloque
+  un téléphone en veille (rallumer son écran) au lieu de promettre qu'il n'y en
+  a pas.
+
+- **Le module `climbcontest/version.py`.** Le tag git était lu par une fonction
+  privée de `routes/sante.py` : trois appelants en avaient besoin, aucun ne
+  pouvait l'atteindre sans importer une route.
+
 ### Corrigé
 
 - Le circuit **« Noir »** suivait le thème du téléphone et non celui qui est
@@ -34,7 +72,7 @@ qu'on ne met pas à jour le matin d'une compétition :
   aurait vu un aplat presque noir sur un fond presque noir, sans savoir s'il
   avait scanné (spec 040).
 
-⚠️ La coquille hors-ligne de la PWA passe en `v7` : sur un téléphone déjà
+⚠️ La coquille hors-ligne de la PWA passe en `v8` : sur un téléphone déjà
 installé, le réglage n'apparaît qu'après avoir **fermé et rouvert**
 l'application.
 

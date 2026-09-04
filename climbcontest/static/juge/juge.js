@@ -24,11 +24,18 @@ import { doitEnvoyer } from "./politique.js";
 import { expliquerLeQrRefuse, nomDePoste } from "./poste.js";
 import { appliquer, ecrireChoix, lireChoix } from "./theme.js";
 import { bailNeuf, identifiantDOnglet, peutPrendre } from "./verrou.js";
+import { A_JOUR, EN_RETARD, resumeDuCatalogue, verdict } from "./versions.js";
 import { expliquerLErreurCamera, lireUnQr } from "./scan.js";
 
 const $ = (id) => document.getElementById(id);
 const CLE_CATALOGUE = "catalogue";
 const CLE_BAIL = "bail-envoi";
+// Deux dates, et il en faut deux : « reçu » dit quand les données ont changé,
+// « vérifié » quand on a demandé au serveur. Un catalogue reçu il y a deux
+// heures et vérifié il y a deux minutes est parfaitement sain — les confondre
+// ferait croire à un téléphone décroché.
+const CLE_CATALOGUE_RECU = "catalogue-recu-le";
+const CLE_CATALOGUE_VU = "catalogue-vu-le";
 const PERIODE_BOUCLE_MS = 1000;
 const PERIODE_PRESENCE_MS = 30_000;
 
@@ -54,6 +61,24 @@ let dernierEnvoiMs = 0;
 let dernierCatalogueMs = 0;
 let dernierContactMs = 0;
 let versionServeurConnue = null;
+// Deux « versions serveur » qui n'ont rien à voir, d'où deux noms distincts :
+// `versionServeurConnue` est le numéro du CATALOGUE, `versionAppServeur` est le
+// tag git du backend.
+let versionAppServeur = null;
+let catalogueRecuMs = 0;
+let catalogueVuMs = 0;
+
+/**
+ * La version de la coquille que ce téléphone exécute.
+ *
+ * ⚠️ Lue dans la PAGE, pas demandée au serveur. Le service worker sert la
+ * coquille depuis son cache : demander la version au serveur afficherait celle
+ * qui est disponible, pas celle qui tourne — et dirait « à jour » à un
+ * téléphone en retard, ce qui est précisément la panne à supprimer.
+ */
+const VERSION_APP = (
+  document.querySelector('meta[name="climbcontest-version"]')?.content || ""
+).trim() || null;
 
 // --- Le jeton ---------------------------------------------------------------
 
@@ -545,17 +570,44 @@ async function vider({ forcer = false } = {}) {
   await rafraichirLesCompteurs();
 }
 
-async function rafraichirLeCatalogue() {
+/**
+ * Ce que le téléphone dit de lui au serveur, sur la requête qu'il fait déjà.
+ *
+ * Pas une requête de plus : écran allumé, le catalogue se rafraîchit toutes
+ * les trente secondes de toute façon (`PERIODE_PRESENCE_MS`). C'est ce qui permet à la console de dire quel téléphone est
+ * en retard sans qu'on aille les lire un par un — y compris le matin, avant la
+ * première réussite envoyée.
+ */
+function annonceDeCeTelephone() {
+  if (!identite || !identite.id) return null;
+  return { id: identite.id, nom: identite.nom, app: VERSION_APP };
+}
+
+/**
+ * @param forcer  vrai = requête NUE, sans `If-None-Match`, donc un `200`
+ *                complet. C'est le bouton « Retélécharger maintenant », et
+ *                c'est le seul moyen propre de forcer : le serveur décide du
+ *                `304` par égalité stricte et refuse délibérément tout
+ *                raccourci qui consisterait à annoncer un autre numéro.
+ */
+async function rafraichirLeCatalogue({ forcer = false } = {}) {
   dernierCatalogueMs = Date.now();
   dernierContactMs = Date.now();
-  const r = await api.telechargerCatalogue(catalogue.version || null);
+  const r = await api.telechargerCatalogue(
+    forcer ? null : (catalogue.version || null), annonceDeCeTelephone());
+  if (r.serveur) versionAppServeur = r.serveur;
   if (r.etat === "recu") {
     catalogue = Catalogue.depuisReponseServeur(r.catalogue);
     versionServeurConnue = catalogue.version;
     await reglages.ecrire(CLE_CATALOGUE, catalogue.versJson());
+    catalogueRecuMs = catalogueVuMs = Date.now();
+    await reglages.ecrire(CLE_CATALOGUE_RECU, catalogueRecuMs).catch(() => {});
+    await reglages.ecrire(CLE_CATALOGUE_VU, catalogueVuMs).catch(() => {});
     voyant("ok");
   } else if (r.etat === "deja-a-jour") {
     versionServeurConnue = catalogue.version;
+    catalogueVuMs = Date.now();
+    await reglages.ecrire(CLE_CATALOGUE_VU, catalogueVuMs).catch(() => {});
     voyant("ok");
   } else {
     // Tout échec éteint le voyant, réseau ou non : un 401 sur un jeton révoqué
@@ -563,6 +615,7 @@ async function rafraichirLeCatalogue() {
     // mensonge.
     voyant("ko");
   }
+  return r;
 }
 
 /**
@@ -686,6 +739,164 @@ async function rafraichirLesReglages() {
   const voyantClasses = [...$("voyant").classList];
   $("etatServeur").textContent = voyantClasses.includes("ok") ? "Serveur joignable"
     : voyantClasses.includes("ko") ? "Serveur injoignable" : "Connexion en cours";
+
+  dessinerLesVersions();
+}
+
+function poserLeVerdict(id, etatVerdict, texte) {
+  const bloc = $(id);
+  // INCONNU n'affiche RIEN : ni « à jour », ni « en retard ». On ne prononce
+  // pas un verdict qu'on n'a pas les moyens de rendre.
+  bloc.hidden = etatVerdict !== A_JOUR && etatVerdict !== EN_RETARD;
+  if (bloc.hidden) return;
+  bloc.classList.toggle("ok", etatVerdict === A_JOUR);
+  bloc.classList.toggle("att", etatVerdict === EN_RETARD);
+  bloc.querySelector("span").textContent = texte;
+}
+
+/**
+ * Les deux sections « Catalogue » et « Application » (spec 030).
+ *
+ * ⚠️ **Trois états, pas deux.** Tant qu'on n'a jamais joint le serveur, on
+ * n'affiche AUCUN verdict — ni « à jour », ni « en retard ». Dire « à jour »
+ * sans le savoir est le mensonge exact que cet écran existe pour supprimer, et
+ * un téléphone qui démarre en mode avion est dans ce cas.
+ *
+ * ⚠️ **Comparaison par ÉGALITÉ, jamais par ordre.** Le numéro de catalogue
+ * identifie un couple (édition, état de son catalogue) : il saute, et il saute
+ * pour toutes les éditions à la fois quand le mur change. « Plus grand » ne
+ * veut rien dire ; « différent » veut dire « pas les mêmes données ».
+ */
+function dessinerLesVersions() {
+  const local = catalogue.version || null;
+  $("versionCatalogue").textContent = local ? `n° ${local}` : "aucun";
+
+  poserLeVerdict(
+    "verdictCatalogue", verdict(local, versionServeurConnue),
+    local === versionServeurConnue
+      ? "Identique au serveur"
+      : `Le serveur en est au n° ${versionServeurConnue}`);
+
+  // `textContent` ligne par ligne plutôt qu'un `innerHTML` : rien de ce qui
+  // s'affiche ici ne vient du serveur, mais un jour quelque chose en viendra.
+  const resume = $("contenuCatalogue");
+  resume.textContent = "";
+  const lignes = resumeDuCatalogue({
+    grimpeurs: catalogue.parDossard.size, blocs: catalogue.parTag.size,
+    recuMs: catalogueRecuMs, vuMs: catalogueVuMs,
+  });
+  lignes.forEach((ligne, i) => {
+    if (i) resume.appendChild(document.createElement("br"));
+    resume.appendChild(document.createTextNode(ligne));
+  });
+
+  $("versionApp").textContent = VERSION_APP || "inconnue";
+  const etatApp = verdict(VERSION_APP, versionAppServeur);
+  const enRetard = etatApp === EN_RETARD;
+  poserLeVerdict("verdictApp", etatApp,
+                 enRetard ? `Le serveur sert ${versionAppServeur}` : "À jour");
+  // Le bouton n'existe que s'il y a quelque chose à réparer : offrir en
+  // permanence un « mettre à jour » invite à s'en servir pendant un scan, pour
+  // rien.
+  $("majApplication").hidden = !enRetard;
+  $("expliquerMaj").hidden = !enRetard;
+  $("forcerCatalogue").classList.toggle(
+    "calme", versionServeurConnue === null || local === versionServeurConnue);
+}
+
+/** Le bouton « Retélécharger maintenant ». */
+async function forcerLeCatalogue() {
+  const bouton = $("forcerCatalogue");
+  bouton.disabled = true;
+  bouton.textContent = "Téléchargement…";
+  try {
+    const r = await rafraichirLeCatalogue({ forcer: true });
+    if (r && r.etat === "recu") {
+      dire(`Catalogue n° ${catalogue.version} reçu — ` +
+           `${catalogue.parDossard.size} grimpeurs, ${catalogue.parTag.size} blocs.`,
+           "ok");
+    } else {
+      // Hors ligne, le téléphone GARDE ce qu'il a : c'est la promesse de
+      // l'application, et ce bouton ne doit pas la trahir.
+      dire("Serveur injoignable — le téléphone garde le catalogue qu'il a.",
+           "attention");
+    }
+  } finally {
+    bouton.disabled = false;
+    bouton.textContent = "Retélécharger maintenant";
+    dessinerLesVersions();
+  }
+}
+
+/**
+ * Le bouton « Mettre à jour et redémarrer ».
+ *
+ * Il demande au service worker de retélécharger la coquille, puis recharge la
+ * page. Le service worker ne remplace un fichier qu'APRÈS l'avoir reçu : sans
+ * réseau, rien ne bouge et l'application reste utilisable hors ligne.
+ *
+ * ⚠️ Un scan en cours serait perdu par le rechargement. On refuse alors, en
+ * disant pourquoi — plutôt que de demander une confirmation qu'un juge pressé
+ * accepterait sans lire. La file d'attente, elle, est en IndexedDB : elle
+ * survit au rechargement, toujours.
+ */
+async function mettreAJourLApplication() {
+  if (etat.dossard || etat.bloc) {
+    dire("Termine ou efface le scan en cours avant de mettre à jour.",
+         "attention");
+    return;
+  }
+  const bouton = $("majApplication");
+  bouton.disabled = true;
+  bouton.textContent = "Mise à jour…";
+  try {
+    const registre = "serviceWorker" in navigator
+      ? await navigator.serviceWorker.getRegistration("/juge") : null;
+    if (!registre || !navigator.serviceWorker.controller) {
+      dire("Cette application n'est pas installée hors ligne : ferme-la et " +
+           "rouvre-la pour prendre la nouvelle version.", "attention");
+      return;
+    }
+    // D'abord le service worker lui-même : c'est lui qui porte la liste des
+    // fichiers de la coquille, et elle a pu changer avec la version.
+    await registre.update().catch(() => {});
+    const bilan = await demanderAuServiceWorker(
+      { type: "rafraichir-la-coquille" });
+    if (bilan && bilan.remplaces > 0) {
+      dire("Nouvelle version reçue — redémarrage.", "ok");
+      // Court délai : le message doit avoir le temps de s'afficher.
+      setTimeout(() => location.reload(), 700);
+      return;
+    }
+    dire("Rien n'a pu être téléchargé — l'application reste comme elle est.",
+         "attention");
+  } finally {
+    bouton.disabled = false;
+    bouton.textContent = "Mettre à jour et redémarrer";
+  }
+}
+
+/** Un aller-retour avec le service worker, avec un délai de garde. */
+function demanderAuServiceWorker(message, delaiMs = 20_000) {
+  return new Promise((resoudre) => {
+    let canal;
+    try {
+      canal = new MessageChannel();
+    } catch {
+      resoudre(null);
+      return;
+    }
+    // Sans ce minuteur, un service worker qui ne répond pas laisserait le
+    // bouton bloqué sur « Mise à jour… » pour toujours.
+    const minuteur = setTimeout(() => resoudre(null), delaiMs);
+    canal.port1.onmessage = (e) => { clearTimeout(minuteur); resoudre(e.data); };
+    try {
+      navigator.serviceWorker.controller.postMessage(message, [canal.port2]);
+    } catch {
+      clearTimeout(minuteur);
+      resoudre(null);
+    }
+  });
 }
 
 /**
@@ -862,7 +1073,14 @@ async function demarrer() {
   file = new FileDeReussites(new MagasinIdb(MAGASINS.file),
                              new MagasinIdb(MAGASINS.refusees));
   historique = new Historique(new MagasinIdb(MAGASINS.historique));
-  expediteur = new Expediteur(file, api, { identite: () => identite });
+  // ⚠️ La version voyage AUSSI avec les lots, et c'est délibérément redondant
+  // (spec 030, F8) : l'annonce normale passe par un `GET`, qu'un cache posé un
+  // jour devant `/api/v2/catalog` absorberait sans que rien ne le dise. Un
+  // `POST` n'est jamais mis en cache — tant que des réussites partent, la
+  // console sait au moins quelle version tourne sur ce téléphone.
+  expediteur = new Expediteur(file, api, {
+    identite: () => ({ ...identite, app: VERSION_APP }),
+  });
 
   if (!jeton) {
     dire("Cette application a besoin du lien fourni par l'organisateur.", "attention");
@@ -877,6 +1095,10 @@ async function demarrer() {
     identite = await identiteCourante(reglages);
     afficherLeNomDuPoste();
     etat.garderGrimpeur = (await reglages.lire("garder-grimpeur")) === true;
+    // Les deux dates survivent au redémarrage : « reçu il y a 1 h » reste vrai
+    // après avoir fermé et rouvert l'application.
+    catalogueRecuMs = Number(await reglages.lire(CLE_CATALOGUE_RECU)) || 0;
+    catalogueVuMs = Number(await reglages.lire(CLE_CATALOGUE_VU)) || 0;
     // Au démarrage, une fois : ce qui a plus de trente jours s'en va. Ne touche
     // jamais à la file, donc ne peut pas perdre une réussite.
     await historique.purger();
@@ -929,6 +1151,8 @@ async function demarrer() {
     await rafraichirLesReglages();
   });
   $("renvoyerRefus").addEventListener("click", renvoyerLesRefusees);
+  $("forcerCatalogue").addEventListener("click", forcerLeCatalogue);
+  $("majApplication").addEventListener("click", mettreAJourLApplication);
 
   surNouveauLien();
   proposerLInstallation();

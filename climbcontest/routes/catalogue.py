@@ -32,16 +32,35 @@ Deux mécanismes plutôt qu'un, parce qu'ils ne servent pas au même :
 - `ETag` / `If-None-Match` est le mécanisme HTTP standard : c'est lui que
   comprennent Caddy, un cache intermédiaire ou un simple navigateur. Sans lui,
   la page de consultation retéléchargerait tout à chaque ouverture.
+
+## Ce que le téléphone dit de lui au passage (spec 030)
+
+Trois en-têtes **facultatifs** — `X-Device-Id`, `X-Device-Name`,
+`X-App-Version` — permettent au téléphone de dire qui il est et quelle version
+il exécute, **sans une requête de plus** : écran allumé, il en fait déjà une
+toutes les trente secondes. Le serveur répond avec `X-Server-Version`, sur les deux branches, et
+le téléphone sait ainsi s'il est en retard sans appeler `/health`, que Caddy
+lui ferme.
+
+⚠️ **Cette route est donc un `GET` avec effet de bord, et ça se protège.** Elle
+ne peut pas être mise en cache : la réponse porte `Cache-Control: no-cache,
+private`, un test le verrouille sur les deux branches, la même annonce est
+enregistrée en redondance depuis la route des lots (un `POST`, jamais mis en
+cache), et la console signale un téléphone qui envoie des réussites sans plus
+s'annoncer — la signature exacte d'un cache posé devant cette route. Le
+raisonnement complet est dans `specs/030-versions-visibles/spec.md`, F8.
 """
 
 import logging
+from urllib.parse import unquote
 
 from flask import Blueprint, jsonify, make_response, request
 
 from ..auth import exige_cle_api
-from ..contest import ErreurMetier, competition_active
+from ..contest import ErreurMetier, competition_active, enregistrer_annonce
 from .. import fiches
 from ..models import Bloc, Circuit, Participant
+from ..version import VERSION
 
 logger = logging.getLogger(__name__)
 bp = Blueprint("catalogue", __name__, url_prefix="/api/v2")
@@ -57,6 +76,17 @@ def catalogue():
 
     version = comp.catalogue_version
     etiquette = f'"{version}"'
+
+    # ⚠️ L'ANNONCE SE FAIT ICI, AVANT LE CALCUL DE `a_jour` -- et jamais apres.
+    #
+    # La garde ci-dessous fait un RETOUR ANTICIPE sur le 304 : tout ce qui la
+    # suit n'est jamais atteint quand le telephone est deja a jour. Or c'est le
+    # cas MAJORITAIRE le jour J -- la PWA revalide toutes les trente secondes et le
+    # catalogue ne bouge presque jamais. Une annonce enregistree apres la garde
+    # ne montrerait dans la console que les telephones EN RETARD : l'exact
+    # inverse de ce qu'on veut voir, avec un telephone parfaitement a jour
+    # indiscernable d'un telephone eteint.
+    _annoncer(version)
 
     # Deux façons de dire « j'ai déjà la version N ». On accepte les deux, et on
     # répond pareil : 304, corps vide, ~150 octets sur le réseau.
@@ -77,8 +107,7 @@ def catalogue():
         # Rien de neuf : l'application garde ce qu'elle a.
         reponse = make_response("", 304)
         reponse.headers["ETag"] = etiquette
-        reponse.headers["Cache-Control"] = "no-cache"
-        return reponse
+        return _entetes(reponse)
 
     participants = (Participant.query
                     .filter_by(competition_id=comp.id)
@@ -114,8 +143,69 @@ def catalogue():
         "plan": fiches.plan_courant(),
     })
     reponse.headers["ETag"] = etiquette
-    # `no-cache` ne veut pas dire « ne cache pas » : il veut dire « revalide
-    # avant de servir ». C'est exactement ce qu'on veut — un participant ajouté
-    # à 14 h doit être vu, et la revalidation coûte 150 octets.
-    reponse.headers["Cache-Control"] = "no-cache"
-    return reponse, 200
+    return _entetes(reponse), 200
+
+
+def _entetes(reponse):
+    """Les en-têtes communs aux DEUX branches, 200 et 304.
+
+    ⚠️ Une fonction, et pas deux blocs recopiés : le `304` construit sa réponse
+    séparément et repose ses en-têtes à la main. C'est exactement le genre
+    d'endroit où on ajoute quelque chose au chemin `200` et où on l'oublie sur
+    l'autre — c'est-à-dire sur le chemin majoritaire.
+
+    `no-cache` ne veut pas dire « ne cache pas » : il veut dire « revalide avant
+    de servir ». C'est ce qu'on veut — un participant ajouté à 14 h doit être
+    vu, et la revalidation coûte 150 octets.
+
+    ⚠️ `private` **n'est pas décoratif**, et le retirer casserait le tableau des
+    appareils de la console sans qu'aucun test fonctionnel ne bronche. Cette
+    route enregistre une annonce à chaque appel (`_annoncer`) : c'est un `GET`
+    avec effet de bord, ce qui n'est acceptable QUE parce que la requête atteint
+    réellement l'application à chaque fois. Un cache **partagé** — un module
+    Caddy, un CDN, un proxy sur le wifi de la salle — aurait le droit, sans
+    `private`, de servir la réponse d'un téléphone à tous les autres : le
+    serveur cesserait de voir qui tourne sur quoi, et la console montrerait des
+    téléphones « absents » pendant qu'ils grimpent. `private` interdit ce
+    stockage-là. Il est verrouillé par un test, sur les deux branches.
+    """
+    reponse.headers["Cache-Control"] = "no-cache, private"
+    reponse.headers["X-Server-Version"] = VERSION
+    return reponse
+
+
+def _annoncer(version_courante: int) -> None:
+    """Note le passage du téléphone. **Ne peut jamais faire échouer la route.**
+
+    Trois en-têtes facultatifs, et le serveur se passe des trois : une requête
+    qui n'en porte aucun se comporte exactement comme avant. C'est ce qui permet
+    à l'application Android du Play Store, qui ne les envoie pas, de continuer
+    sans rien changer.
+
+    ⚠️ Des **en-têtes**, et non des paramètres d'URL : le nom d'un poste n'a rien
+    à faire dans le journal d'accès de Caddy — la spec 014 a justement dû y
+    poser un filtre pour en retirer le jeton du juge.
+
+    ⚠️ Le numéro enregistré est celui que le téléphone DÉTIENDRA à la fin de
+    l'échange, c'est-à-dire le numéro courant. Un `304` veut dire qu'ils sont
+    déjà égaux ; un `200` que le téléphone reçoit le courant à l'instant.
+    Enregistrer le numéro *annoncé* ferait clignoter en ambre, pendant cinq
+    minutes après chaque import, des téléphones qui viennent de se mettre à jour.
+    """
+    identifiant = (request.headers.get("X-Device-Id") or "").strip()
+    if not identifiant:
+        return
+    nom = request.headers.get("X-Device-Name") or ""
+    try:
+        # Percent-encodé par le client : un nom porte des accents, un en-tête
+        # HTTP ne les transporte pas sûrement.
+        nom = unquote(nom).strip()
+    except Exception:
+        # Un encodage abîmé coûte le nom, jamais la requête.
+        nom = ""
+    enregistrer_annonce(
+        identifiant,
+        nom=nom or None,
+        version_app=(request.headers.get("X-App-Version") or "").strip() or None,
+        catalogue_version=version_courante,
+    )
