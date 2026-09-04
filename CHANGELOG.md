@@ -67,6 +67,25 @@ qu'on ne met pas à jour le matin d'une compétition :
 
 ### Corrigé
 
+- **Le pied du tiroir de la console disait la version sans le catalogue** tant
+  qu'on n'avait pas ouvert l'écran « Téléphones » (spec 030, critère A9). Le
+  numéro vient de `/admin/versions`, et cette route n'était appelée que par cet
+  écran-là : un organisateur qui ouvrait la console et restait sur
+  « Participants » lisait un pied à moitié rempli, sans que rien ne lui dise où
+  aller chercher le reste. La console la demande maintenant **à l'ouverture** —
+  une requête de plus, ~200 octets — et l'écran « Téléphones » continue de la
+  rafraîchir, donc le numéro ne vieillit pas.
+
+  Trouvé en reprenant les dix-huit critères d'acceptation de la spec un par un
+  avant de publier. Les dix-sept autres étaient tenus ; **sept ne l'étaient que
+  par un relevé fait à la main**, sans qu'aucun test ne touche les écrans
+  concernés. Ils en ont un désormais : les deux sections des Réglages du juge,
+  ce que le bouton « Retélécharger maintenant » envoie **vraiment** (observé
+  côté serveur : ni `If-None-Match`, ni chaîne de requête), son refus propre
+  hors ligne, le bouton de mise à jour qui n'apparaît que si la coquille est en
+  retard, le pied du tiroir, et la phrase du rattrapage qui doit **nommer le
+  geste** plutôt que promettre que ça se répare tout seul.
+
 - Le circuit **« Noir »** suivait le thème du téléphone et non celui qui est
   réellement affiché : un juge qui imposait le sombre sur un téléphone en clair
   aurait vu un aplat presque noir sur un fond presque noir, sans savoir s'il
