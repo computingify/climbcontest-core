@@ -158,9 +158,87 @@ l'application.
 - **Le circuit « Noir » garde sa carte en papier.** C'est le seul dont la teinte
   est déjà l'encre : sa carte teintée virait au gris quand toutes les autres
   prennent leur couleur, et le liseré de sa pastille se confondait avec l'aplat.
+- **Le job de CI passe de 4 min 39 à ~1 min 10**, et son étape « Tests » de
+  4 min 15 à **43 s** — mesuré sur le runner, pas extrapolé. En
+  local : 2 min 26 → 45 s **en série**, 13 s en parallèle. Aucun test retiré,
+  dix-sept ajoutés (1 872, tous verts). Le parallélisme est un multiplicateur ;
+  les deux tiers du gain viennent du travail supprimé.
+  - **Un tiers de la suite dérivait des mots de passe.** `scrypt` est lent à
+    dessein (54 ms), et chaque fixture de connexion en payait deux — création
+    du compte, puis vérification — soit ~105 ms, quatre cents fois. La
+    configuration de test dérive désormais au minimum. **Le défaut reste
+    `scrypt` partout ailleurs**, et aucune variable d'environnement ne peut
+    l'affaiblir ; les deux tests dont le *coût* est le sujet redemandent la
+    vraie méthode. `tests/test_hachage.py` échoue si l'allégement déborde du
+    test.
+  - **Une application Flask était rebâtie à chaque test** (11,8 ms × 1 200) :
+    Werkzeug y recompilait ses soixante-sept règles de routage, ce qui pesait
+    78 % du coût. Elle est construite une fois ; la base, la configuration et
+    la classe de client sont remises à neuf avant chaque test. Deux gardes
+    tiennent l'isolement — un refus de sortie si un test modifie l'application
+    partagée, et `tests/test_isolation.py`, qui salit puis vérifie **dans
+    n'importe quel ordre**.
+  - **Le test le plus cher de la suite testait le harnais** : 7,5 s, dont 5 s
+    passées à regarder gunicorn renoncer à prendre un port occupé. Le harnais
+    vérifie maintenant que le port est libre *avant* de lancer gunicorn — un
+    vrai gain aussi hors des tests — et le test tombe à 0,6 s.
+  - **Une sonde navigateur dormait 2,4 s pour constater qu'il ne se passait
+    rien.** C'était lent *et* faux : sur une machine lente, la feuille aurait
+    pu s'ouvrir après le réveil sans que le test la voie. Le harnais attend
+    désormais une condition — plus aucune requête en vol, puis deux
+    rafraîchissements d'écran — et le test passe de 2,5 s à 0,13 s.
+  - **Deux serveurs de test se fermaient en 0,5 s chacun** : `serve_forever`
+    sonde son drapeau d'arrêt à cet intervalle par défaut, une attente logée
+    dans le *teardown* où personne ne lit les durées.
+  - **Les tests E2E ne relancent plus un interpréteur Python par test** pour
+    peupler leur base : elle est bâtie une fois, puis copiée.
+  - **Quatre parcours navigateur pour quatre sondes** de l'écran Réglages du
+    juge : quatre démarrages de l'application pour rejouer chaque fois la même
+    ouverture. Un seul parcours, 4,8 s → 2,3 s. Les sondes restent quatre
+    textes séparés — deux PR qui en touchent deux différentes ne se disputent
+    toujours rien — et chacune tourne dans son propre `try` : une sonde qui
+    casse ne fait pas tomber les trois autres.
+  - **Le navigateur de la CI change** : `/usr/bin/chromium` est un paquet
+    confiné dont le premier lancement coûte **9,6 à 22,2 s** — le même geste,
+    du simple au double, mesuré sur cinq passages. Le Chrome de la même image
+    est un paquet ordinaire : **7,2 s**, et sans cette variance qui a fait
+    échouer deux jobs sur le budget par test. Même moteur, donc rien ne change
+    de ce que les tests mesurent — une cascade CSS, un `display` calculé. Une
+    étape de CI nomme désormais le binaire retenu et chronomètre son démarrage :
+    l'en-tête de pytest, qui l'aurait dit, est masqué par le `-q` de `addopts`.
+    ⚠️ Cette étape paie le premier lancement, si bien qu'une part du gain de
+    l'étape « Tests » est un **déplacement** — le job entier, lui, ne ment pas.
+  - **Ce premier lancement était facturé au premier test navigateur** par ordre
+    alphabétique — le même geste, du simple au double selon la charge — et
+    ce prix était facturé au premier test navigateur par ordre alphabétique —
+    qui affichait 20 s en CI contre 0,13 s sur le Mac, et faisait échouer le
+    budget par test en accusant un innocent. Il est rendu à un test dont c'est
+    le sujet, placé en tête du groupe ; les autres trouvent un navigateur
+    chaud. Le harnais nomme désormais ce démarrage dans son avertissement : il
+    se produisait *avant* le chronomètre, donc rien ne le voyait.
+  - **La suite tourne en parallèle par défaut** (`pytest-xdist`, `-n logical
+    --dist loadgroup`). `pytest -n 0` revient à l'exécution en série.
+  - **Un seul chromium pour toute l'exécution**, au lieu d'un par fichier.
+    Chaque parcours ouvre un **contexte isolé** — cookies, `localStorage` et
+    service workers propres, comme un profil neuf, mais en 2 à 5 ms au lieu de
+    300. Les tests navigateur sont regroupés sur un même worker pour que ce
+    « un seul » reste vrai en parallèle.
+  - `test_navigateur_fiche.py` **rejoint le harnais partagé** : il portait sa
+    propre copie de `piloter`, donc son propre chromium.
 
 ### Corrigé
 
+- **Un test passait en héritant du voisin.**
+  `test_la_garde_et_la_confirmation_sont_partagees_avec_relier` ne demandait
+  pas la fixture `classeur` : il lisait le registre laissé par un test
+  précédent. Lancé seul, il échouait déjà sur `master` — le parallélisme n'a
+  fait que le montrer. La fixture remet désormais le registre à `None` en
+  sortant, si bien que l'oubli échoue **toujours**, au lieu de dépendre de
+  l'ordre de passage.
+- **`piloter` remet le verdict à zéro** avant chaque parcours. Sans ça, un
+  second appel sur le même dictionnaire trouvait la valeur du premier, rendait
+  un verdict périmé, n'ouvrait aucun navigateur — et le test passait au vert
+  sur les mesures du parcours précédent, sans rien dire.
 - **La pulsation du bouton « Envoyer » effaçait son ombre** deux fois par
   seconde : `box-shadow` est une propriété unique, et les images-clés du souffle
   la réécrivaient entièrement. Elles reportent désormais l'ombre et ne font

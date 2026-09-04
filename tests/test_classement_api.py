@@ -6,12 +6,61 @@ calcul complet.
 """
 
 import json
-import time
+
+import pytest
 
 from climbcontest import cascade as cascade_module
 from climbcontest import classement_service
 from climbcontest.contest import enregistrer_reussite
 from climbcontest.extensions import db
+
+
+class _Horloge:
+    """Le temps que voit le cache, et que le test fait avancer lui-meme.
+
+    ⚠️ **Pourquoi une horloge fausse plutot qu'un `sleep` plus long.** Ces
+    tests raccourcissaient `FRAICHEUR_S` a 0,05 s puis dormaient 0,08 s. Le
+    piege n'est pas le sommeil : c'est l'assertion d'AVANT, « pendant la
+    fraicheur, l'ancien resultat tient ». Elle exige que tout ce qui la precede
+    -- une ecriture en base comprise -- tienne dans les 50 ms de la fenetre. Sur
+    une machine au repos c'est vrai ; sur une machine chargee, l'ecriture seule
+    peut les depasser, le cache a deja expire, et le test echoue en accusant le
+    cache d'avoir mal garde.
+
+    Constate le 04/09 : **une fois sur trente-sept**, et seulement depuis que la
+    suite tourne en parallele -- c'est-a-dire depuis que la machine est chargee.
+    Le defaut, lui, etait la depuis toujours.
+
+    Allonger le sommeil ne repare rien : la fenetre du milieu resterait aussi
+    etroite, et le test deviendrait seulement plus lent a echouer. On enleve
+    donc l'horloge murale du raisonnement. Ce qui est verifie ne change pas --
+    le cache tient tant que la fraicheur n'est pas ecoulee, et recalcule apres
+    -- mais « ecoule » est desormais decide par le test, pas par la charge de
+    la machine.
+    """
+
+    def __init__(self):
+        self.instant = 1_000_000.0
+
+    def time(self):
+        return self.instant
+
+    def monotonic(self):
+        return self.instant
+
+    def sleep(self, secondes):
+        self.instant += secondes
+
+    def avancer(self, secondes):
+        self.instant += secondes
+
+
+@pytest.fixture()
+def horloge(monkeypatch):
+    """Remplace l'horloge que lit `classement_service`, et elle seule."""
+    fausse = _Horloge()
+    monkeypatch.setattr(classement_service, "time", fausse)
+    return fausse
 
 
 class TestRouteClassement:
@@ -97,14 +146,15 @@ class TestCache:
             classement_service.classements(jeu["competition"])
         assert appels["n"] == 1, "le calcul doit etre mutualise"
 
-    def test_le_cache_expire_au_bout_de_la_fraicheur(self, app, jeu, monkeypatch):
+    def test_le_cache_expire_au_bout_de_la_fraicheur(self, app, jeu, monkeypatch,
+                                                     horloge):
         """Sans expiration, un spectateur verrait le classement de 9 h a 17 h.
 
-        On raccourcit la duree plutot que d'attendre cinq secondes : le test
-        doit rester rapide, mais c'est bien le MECANISME d'expiration qu'il
-        exerce, pas un appel force.
+        On garde la vraie duree de fraicheur -- cinq secondes -- et on fait
+        avancer l'horloge : c'est bien le MECANISME d'expiration qui est
+        exerce, pas un appel force, et sans attendre quoi que ce soit. Voir
+        [_Horloge] pour ce que le sommeil coutait.
         """
-        monkeypatch.setattr(classement_service, "FRAICHEUR_S", 0.05)
         appels = {"n": 0}
         vrai = classement_service.calculer_tout
 
@@ -118,19 +168,21 @@ class TestCache:
         classement_service.classements(jeu["competition"])
         assert appels["n"] == 1, "deux appels rapproches : un seul calcul"
 
-        time.sleep(0.08)
+        horloge.avancer(classement_service.FRAICHEUR_S + 0.01)
         classement_service.classements(jeu["competition"])
         assert appels["n"] == 2, "passe la fraicheur, il faut recalculer"
 
-    def test_une_reussite_arrivee_pendant_la_fraicheur_apparait_ensuite(self, app, jeu, monkeypatch):
+    def test_une_reussite_arrivee_pendant_la_fraicheur_apparait_ensuite(
+            self, app, jeu, horloge):
         """Jamais un classement a moitie a jour : soit l'ancien, soit le nouveau.
 
         Le calcul repart toujours de la base — il n'y a pas d'etat incremental a
         desynchroniser. La reussite arrivee entre-temps est donc simplement
         prise au calcul suivant, entiere.
-        """
-        monkeypatch.setattr(classement_service, "FRAICHEUR_S", 0.05)
 
+        ⚠️ C'est le test qui a rougi une fois sur trente-sept le 04/09, et son
+        assertion du milieu etait en cause -- pas le cache. Voir [_Horloge].
+        """
         def score(dossard=1):
             tous, _ = classement_service.classements(jeu["competition"])
             ligne = next(l for l in tous["U11 F"].lignes if l.dossard == dossard)
@@ -141,7 +193,7 @@ class TestCache:
         enregistrer_reussite(jeu["participants"][0], jeu["blocs"][0])
         assert score() == 0, "pendant la fraicheur, l'ancien resultat tient"
 
-        time.sleep(0.08)
+        horloge.avancer(classement_service.FRAICHEUR_S + 0.01)
         assert score() == 1000, "au calcul suivant, la reussite est prise"
 
     def test_forcer_recalcule(self, app, jeu, monkeypatch):
@@ -154,10 +206,13 @@ class TestCache:
         classement_service.classements(jeu["competition"], forcer=True)
         assert appels["n"] == 2
 
-    def test_invalider_force_le_recalcul(self, app, jeu):
+    def test_invalider_force_le_recalcul(self, app, jeu, horloge):
         _, premier = classement_service.classements(jeu["competition"])
         classement_service.invalider(jeu["competition"].id)
-        time.sleep(0.01)
+        # Le sommeil n'etait la que pour que les deux horodatages different :
+        # `time.time()` a une resolution assez fine pour que ce soit vrai la
+        # plupart du temps, et pas toujours. On le DIT, plutot que d'esperer.
+        horloge.avancer(0.01)
         _, second = classement_service.classements(jeu["competition"])
         assert second > premier
 

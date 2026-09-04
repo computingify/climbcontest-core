@@ -4,7 +4,7 @@ La méthode est celle de toute la maison : chaque protection est vérifiée en
 montrant qu'AVANT elle, le test tombait.
 """
 import pytest
-from werkzeug.security import generate_password_hash
+from climbcontest.comptes import _hacher as hacher
 
 from climbcontest import comptes
 from climbcontest.config import Config
@@ -25,7 +25,7 @@ def _connecter(client, app, roles):
     else:
         db.session.add(Utilisateur(
             identifiant="u",
-            mot_de_passe_hache=generate_password_hash(MDP),
+            mot_de_passe_hache=hacher(MDP),
             actif=True,
         ))
         db.session.commit()

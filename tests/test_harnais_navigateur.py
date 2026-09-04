@@ -26,11 +26,80 @@ fonction est correcte, et il doit le rester. Ce qu'on interdit, c'est de rejouer
 le MEME parcours N fois.
 """
 import ast
+import os
+import warnings
 from pathlib import Path
 
 import pytest
 
-from tests.navigateur import CHROME, piloter
+# ⚠️ Importer `piloter` place CE fichier dans le groupe navigateur, exactement
+# comme les six autres -- et c'est ce qui permet a
+# `test_le_regroupement_arrive_bien_jusqu_a_xdist` de lire son propre
+# identifiant : un garde du regroupement doit etre DANS le groupe qu'il
+# surveille, sinon il ne prouve rien.
+from tests.navigateur import CHROME, GROUPE, NAVIGATEUR, piloter
+
+
+#: Le nom du test qui paie le demarrage. `tests/conftest.py` le fait passer en
+#: TETE du groupe navigateur -- c'est la seule raison d'etre de cette constante,
+#: et le garde ci-dessous verifie qu'elle designe bien quelque chose.
+DEMARRE_LE_NAVIGATEUR = "test_le_navigateur_demarre_et_repond"
+
+
+# ⚠️ 45 s, et c'est le SEUL test du depot qui declare son plafond.
+#
+# Le budget ordinaire est de 20 s, et il vise les tests qui ATTENDENT une
+# horloge. Celui-ci n'attend rien : il paie un travail reel et incompressible,
+# le premier lancement de chromium. Mesure sur trois passages de CI le 04/09 :
+# **12,7 s, 17,1 s et 22,2 s** -- le meme geste, du simple au double, selon ce
+# que le runner a d'autre a faire. 45 s laisse de la marge sans devenir un
+# plafond qui ne se declenche jamais.
+#
+# Le geste a NE PAS faire est de relever CLIMBCONTEST_BUDGET_TEST_S : il
+# aveuglerait le garde sur les mille huit cent soixante-onze autres tests, et
+# personne ne s'en apercevrait.
+@pytest.mark.budget(45)
+@pytest.mark.skipif(CHROME is None,
+                    reason="aucun navigateur : ce test se saute, il n'echoue pas")
+def test_le_navigateur_demarre_et_repond():
+    """Le premier test du groupe, et celui qui paie le demarrage a froid.
+
+    ⚠️ **Ce n'est pas un test de complaisance.** Le premier lancement de
+    chromium coute **17,1 s sur un runner GitHub** -- mesure le 04/09, ou
+    l'image fournit un chromium en paquet confine. Ce prix etait facture au
+    premier test navigateur venu, par ordre alphabetique : celui de la couture
+    des zones affichait 20 s en CI contre 0,13 s sur le Mac, et faisait echouer
+    le budget par test en accusant un test qui n'attendait rien.
+
+    C'est exactement le defaut que la chauffe corrigeait AVANT le parallelisme.
+    Sous `pytest-xdist`, elle ne marche plus : le processus qui chauffait n'est
+    plus celui qui joue les tests, et chauffer dans CHAQUE worker lance quatre
+    chromium a froid en concurrence -- mesure aussi, c'est pire (30 s).
+
+    Alors on ne cache plus le prix : on le rend a un test dont c'est le SUJET.
+    Celui-ci verifie que le harnais sait ouvrir un navigateur et lui parler --
+    ce qui, aujourd'hui, ne se decouvrait qu'a travers l'echec confus d'un test
+    de contraste. `tests/conftest.py` le place en tete du groupe ; les autres
+    trouvent un navigateur chaud, a 0,3 s.
+    """
+    NAVIGATEUR.demarrer()
+    version = NAVIGATEUR.appeler("Browser.getVersion")
+    assert version.get("product", "").lower().startswith(("chrome", "headless")), (
+        f"le navigateur a repondu {version!r} : le harnais parle bien CDP, mais "
+        "pas a un chromium")
+    assert NAVIGATEUR.processus.poll() is None, (
+        "le navigateur s'est arrete juste apres avoir repondu")
+
+
+def _analyser(fichier: Path) -> ast.Module:
+    """`ast.parse` COMPILE, donc il rejoue les avertissements de syntaxe du
+    fichier lu -- un `\\{` dans une expression reguliere en produit un. Ce
+    garde lit tous les fichiers de test : sans ce silence, il remplirait le
+    resume de pytest d'avertissements qui ne le concernent pas et qui
+    n'appartiennent meme pas au fichier qui les affiche."""
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore", SyntaxWarning)
+        return ast.parse(fichier.read_text(encoding="utf-8"))
 
 TESTS = Path(__file__).resolve().parent
 
@@ -81,7 +150,7 @@ def _fixtures_qui_pilotent(arbre: ast.Module):
 
 @pytest.mark.parametrize("fichier", FICHIERS, ids=lambda f: f.name)
 def test_une_fixture_qui_pilote_declare_sa_portee(fichier):
-    arbre = ast.parse(fichier.read_text(encoding="utf-8"))
+    arbre = _analyser(fichier)
     fautives = [nom for nom, portee in _fixtures_qui_pilotent(arbre)
                 if portee in (None, "function")]
     assert fautives == [], (
@@ -150,8 +219,7 @@ def test_le_garde_regarde_bien_quelque_chose():
         "le fichier qui pilote un navigateur sans le dire dans son nom est "
         "sorti du champ du garde : la selection est redevenue nominale")
     pilotantes = [nom for f in FICHIERS
-                  for nom, _ in _fixtures_qui_pilotent(ast.parse(
-                      f.read_text(encoding="utf-8")))]
+                  for nom, _ in _fixtures_qui_pilotent(_analyser(f))]
     assert pilotantes, (
         "aucune fixture ne pilote plus de navigateur : soit le harnais a "
         "change de forme, soit ce garde ne sait plus le reconnaitre")
@@ -185,3 +253,129 @@ def test_piloter_ne_rend_jamais_un_verdict_deja_la():
         "test mutualise passerait au vert sur le parcours precedent")
     assert "perime" not in rendu, (
         f"le verdict perime a survecu a l'appel : {rendu!r}")
+
+
+# --- Le regroupement sous xdist ---------------------------------------------
+#
+# La portee des fixtures ne suffit plus a garantir « un navigateur ». Depuis
+# que la suite tourne en parallele, il faut AUSSI que tous les tests qui
+# pilotent atterrissent sur le meme worker -- sinon `pytest-xdist` les
+# eparpille et chaque worker redemarre un chromium. Le regroupement est pose
+# par `tests/conftest.py` ; ce qui suit verifie qu'il n'oublie personne.
+
+
+def _modules_qui_pilotent():
+    """Les fichiers de test qui importent `piloter`, quel que soit leur nom.
+
+    ⚠️ On ne regarde PAS `test_navigateur_*` : `test_coherence_console_ecran.py`
+    pilote sans porter le prefixe, et c'est exactement le fichier qu'un garde
+    fonde sur le nom laisserait passer.
+    """
+    for fichier in sorted(TESTS.glob("test_*.py")):
+        arbre = _analyser(fichier)
+        for noeud in ast.walk(arbre):
+            if isinstance(noeud, ast.ImportFrom) and noeud.module == "tests.navigateur":
+                if any(a.name == "piloter" for a in noeud.names):
+                    yield fichier
+                    break
+
+
+def test_tous_les_fichiers_qui_pilotent_sont_regroupes(pytestconfig):
+    """Un fichier qui pilote et que le conftest ne reconnait pas coute un
+    navigateur de plus, en silence.
+
+    Le conftest reconnait un module au fait qu'il expose `piloter`. Un fichier
+    qui importerait le harnais sous un autre nom (`from tests.navigateur import
+    piloter as p`) passerait donc au travers : c'est ce qu'on refuse ici, en
+    exigeant que le nom reste `piloter` dans le module.
+    """
+    import importlib
+
+    manquants = []
+    for fichier in _modules_qui_pilotent():
+        module = importlib.import_module(f"tests.{fichier.stem}")
+        if getattr(module, "piloter", None) is None:
+            manquants.append(fichier.name)
+    assert manquants == [], (
+        f"{manquants} importe(nt) `piloter` mais ne l'expose(nt) pas sous ce "
+        "nom : le regroupement de tests/conftest.py ne les reconnaitra pas, "
+        "xdist les enverra sur un autre worker, et chacun y redemarrera un "
+        "chromium. Garder le nom `piloter` dans le module, meme quand il n'est "
+        "qu'un mince enrobage du harnais partage -- c'est ce que fait "
+        "test_navigateur_fiche.py")
+
+
+def test_le_garde_du_regroupement_regarde_bien_quelque_chose():
+    fichiers = list(_modules_qui_pilotent())
+    assert len(fichiers) >= 6, (
+        "ce garde ne trouve plus que "
+        f"{[f.name for f in fichiers]} : le harnais a change de forme, ou son "
+        "import a change de tournure, et le regroupement n'est plus verifie")
+
+
+def test_le_regroupement_arrive_bien_jusqu_a_xdist(request):
+    """La marque `xdist_group` est-elle posee ASSEZ TOT pour que xdist la voie ?
+
+    ⚠️ Le defaut que ce test ferme s'est produit, et **aucun autre garde ne le
+    voyait**. `pytest-xdist` n'ecoute pas la marque au moment de repartir : il
+    a deja encode le nom du groupe en suffixe de l'identifiant
+    (`...::test_x@navigateur`) depuis son propre
+    `pytest_collection_modifyitems`. Une marque posee apres le sien n'existe
+    donc pas pour le repartiteur.
+
+    Sans `tryfirst` sur le crochet de `tests/conftest.py`, les tests navigateur
+    se retrouvaient repartis sur les quatorze workers -- **quinze processus
+    chromium peres au lieu d'un**, mesures le 04/09. La suite restait VERTE :
+    le garde des portees de fixtures ne regarde pas la repartition, et le seul
+    symptome etait un temps qui ne baissait pas autant qu'annonce.
+
+    Ce test lit ce que xdist a reellement retenu : son propre identifiant.
+    """
+    if not os.environ.get("PYTEST_XDIST_WORKER"):
+        pytest.skip("suite en serie : il n'y a rien a repartir, donc rien a "
+                    "verifier ici. Ce test travaille sous xdist, qui est le "
+                    "mode par defaut (voir pytest.ini) et celui de la CI")
+    assert request.node.nodeid.endswith("@" + GROUPE), (
+        f"l'identifiant de ce test est {request.node.nodeid!r} : il ne porte "
+        f"pas le suffixe « @{GROUPE} ». La marque xdist_group posee par "
+        "tests/conftest.py arrive donc APRES que xdist a fige les "
+        "identifiants, et le regroupement est sans effet -- chaque worker "
+        "demarrera son propre chromium. La cause est presque toujours le "
+        "`@pytest.hookimpl(tryfirst=True)` du crochet, retire ou dépassé par "
+        "un autre greffon qui se declare plus tot encore")
+
+
+def test_le_test_qui_chauffe_existe_bien():
+    """`tests/conftest.py` place un test nomme en tete du groupe navigateur.
+
+    S'il etait renomme ou supprime, le placement deviendrait un `for` qui ne
+    trouve rien : silencieux, et le demarrage a froid retomberait sur le
+    premier test venu -- exactement le defaut qu'on vient de retirer.
+    """
+    assert DEMARRE_LE_NAVIGATEUR in globals(), (
+        f"« {DEMARRE_LE_NAVIGATEUR} » n'existe plus dans ce fichier, alors que "
+        "tests/conftest.py le cherche pour le mettre en tete du groupe "
+        "navigateur")
+
+
+@pytest.mark.budget(45)
+def test_le_plafond_declare_arrive_jusqu_au_verdict(request):
+    """`@pytest.mark.budget(n)` doit atteindre le processus qui rend le verdict.
+
+    ⚠️ Il ne peut pas passer par la collecte. Sous `pytest-xdist`, ce sont les
+    WORKERS qui collectent, et le processus qui additionne les durees ne
+    collecte rien : une table remplie a la collecte reste vide la ou on la lit.
+    Le 04/09, le garde accusait donc en parallele un test qui avait pourtant
+    declare son plafond -- et il le faisait en SILENCE, puisque le message
+    etait exactement le meme que pour un test fautif.
+
+    `tests/conftest.py` pose la valeur dans `user_properties`, le seul canal
+    serialise avec le rapport. Ce test verifie ce geste-la ; le reste du
+    chemin appartient a pytest.
+    """
+    poses = [v for c, v in request.node.user_properties if c == "budget"]
+    assert poses == [45.0], (
+        f"ce test declare `@pytest.mark.budget(45)` mais ses user_properties "
+        f"portent {poses!r} : le plafond ne traversera pas jusqu'au verdict, "
+        "et le garde de budget accusera des tests qui ont dit leur prix. Voir "
+        "`pytest_runtest_setup` dans tests/conftest.py")

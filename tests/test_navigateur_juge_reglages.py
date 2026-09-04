@@ -66,13 +66,6 @@ DEMARRAGE = """
 SONDES = {}
 
 SONDES["refusees"] = """
-    // ⚠️ Attendre le BOUTON ne suffit pas : il est dans le gabarit des le
-    // premier octet, alors que `ouvrirLesReglages()` lit `identite`, que le
-    // demarrage asynchrone n'a pas encore posee. Cliquer trop tot leve, et
-    // l'ecran ne s'ouvre jamais. `juge.js` marque la fin de son demarrage en
-    // retirant l'ecran d'accueil : c'est ce signal-la qu'on attend, et non un
-    // delai fixe. Le morceau est partage -- voir `DEMARRAGE`.
-""" + DEMARRAGE + """
     // La file est vide : c'est l'etat de depart, et l'etat normal.
     const ligne = $("#ligneRefus");
     note("hidden", ligne.hasAttribute("hidden"));
@@ -103,13 +96,19 @@ SONDES["refusees"] = """
     // L'ecran principal est REMPLACE, pas doublonne dessous : c'est ce que
     // `main[hidden]` garantissait avant la regle globale.
     note("principalRemplace", $("#principal").getBoundingClientRect().height === 0);
+
+    // ⚠️ On REPOSE la ligne comme on l'a trouvee. Les sondes suivantes
+    // partagent la page, et une ligne restee visible decale tout ce qui est
+    // en dessous -- donc les `elementFromPoint` de la sonde « demande », qui
+    // mesurent ce qui est sous le doigt. Une sonde qui salit la page fait
+    // echouer sa voisine pour une raison qui ne la concerne pas.
+    ligne.hidden = true;
 """
 
 
 # --- Spec 042 ----------------------------------------------------------------
 
 SONDES["demande"] = """
-""" + DEMARRAGE + """
     // ⚠️ ALLER-RETOUR, et pas seulement aller. Une sonde qui verifierait
     // uniquement l'extinction passerait au vert avec une regle qui cacherait la
     // demande POUR TOUJOURS -- et le carton change de table deviendrait
@@ -157,7 +156,6 @@ SONDES["demande"] = """
 """
 
 SONDES["interrupteur"] = """
-""" + DEMARRAGE + """
     const label = $("label.bascule");
     const case_ = $("#garderGrimpeur");
     const glissiere = $(".glissiere");
@@ -201,12 +199,18 @@ SONDES["interrupteur"] = """
 """
 
 SONDES["persistance"] = """
-""" + DEMARRAGE + """
     // Le reglage doit survivre a une FERMETURE de l'application, pas seulement
     // a un aller-retour d'ecran : rouvrir les Reglages relit `etat`, qui est en
     // memoire. Seul un rechargement prouve qu'IndexedDB a bien ete ecrit.
-    $(".glissiere").click();
-    await attendre("interrupteur allume", () => $("#garderGrimpeur").checked);
+    // ⚠️ On POSE l'etat au lieu de le supposer. La sonde « interrupteur » a
+    // pu passer avant et laisser le reglage allume : un clic inconditionnel
+    // l'eteindrait, et l'attente ci-dessous ne finirait jamais. Ce qu'on
+    // verifie n'est pas « le clic allume », c'est « ce qui est allume survit
+    // au rechargement ».
+    if (!$("#garderGrimpeur").checked) {
+      $(".glissiere").click();
+      await attendre("interrupteur allume", () => $("#garderGrimpeur").checked);
+    }
     note("avant", $("#garderGrimpeur").checked);
 
     // ⚠️ Un marqueur sur le document COURANT. Sans lui, l'attente ci-dessous
@@ -229,7 +233,51 @@ SONDES["persistance"] = """
 """
 
 
-@pytest.fixture()
+#: L'ordre du parcours, et il n'est pas libre.
+#:
+#: `refusees` mesure l'etat de DEPART de la page -- elle passe donc en premier.
+#: `persistance` RECHARGE la page : tout ce qui la suivrait mesurerait un
+#: document neuf, ou l'interrupteur est deja allume. Elle passe donc en dernier.
+#: Les deux du milieu se reposent elles-memes.
+ORDRE = ["refusees", "demande", "interrupteur", "persistance"]
+
+
+def parcours(noms=None) -> str:
+    """Le corps du pilote : un demarrage, puis chaque sonde dans son bloc.
+
+    ⚠️ **Ce fichier jouait QUATRE parcours pour quatre sondes** -- quatre
+    demarrages de l'application juge dans le navigateur, a une seconde piece,
+    pour rejouer a chaque fois le meme demarrage et la meme ouverture des
+    Reglages. Mesure du 04/09 : 4,8 s, dont l'essentiel n'etait pas la mesure.
+
+    Le fichier expliquait pourquoi il ne fallait PAS les entasser, et il avait
+    raison sur les deux points. Ils sont traites, pas ignores :
+
+    1. **« Un conflit entre deux PR sur la meme fonction »** (spec 038). Les
+       sondes restent QUATRE textes separes dans `SONDES` : deux PR qui
+       touchent deux sondes differentes ne se disputent toujours rien. C'est le
+       PARCOURS qu'on mutualise, pas la source.
+
+    2. **« Un verdict de quarante mesures ou plus personne ne voit laquelle a
+       lache. »** Chaque sonde tourne dans son propre `try`, et note
+       `echec_<sonde>` si elle leve. Une sonde qui casse ne fait donc pas
+       tomber les trois autres, et le test qui la lit dit son nom. Les mesures,
+       elles, portaient deja des noms distincts -- chaque test n'assertait que
+       les siennes, et ca ne change pas.
+
+    Un bloc `{ ... }` par sonde, et ce n'est pas cosmetique : `const bouton` et
+    `const sous` existent dans deux sondes chacun. A plat, la page ne se
+    chargerait meme pas.
+    """
+    morceaux = [DEMARRAGE]
+    for nom in (noms or ORDRE):
+        morceaux.append(
+            "\n    try {\n" + SONDES[nom]
+            + '\n    } catch (e) { note("echec_%s", e.message); }\n' % nom)
+    return "".join(morceaux)
+
+
+@pytest.fixture(scope="module")
 def serveur():
     """L'application et un vrai serveur. Aucune donnee : la file est vide.
 
@@ -260,12 +308,11 @@ def serveur():
 
     @app.get("/__harnais")
     def harnais():
-        # Une sonde par test. Les entasser dans une seule fonction, c'est ce
-        # qui a produit un conflit entre deux PR sur `test_navigateur_fiche.py`
-        # (spec 038) -- et un verdict de quarante mesures ou plus personne ne
-        # voit laquelle a lache.
-        sonde = SONDES[request.args.get("sonde", "refusees")]
-        return Response(page_harnais("/juge", sonde), mimetype="text/html")
+        # Tout le parcours par defaut. `?sonde=` reste accepte pour rejouer UNE
+        # sonde a la main quand on cherche une panne -- c'est le seul usage.
+        une = request.args.get("sonde")
+        return Response(page_harnais("/juge", parcours([une] if une else None)),
+                        mimetype="text/html")
 
     url, arreter = servir(app)
     try:
@@ -275,13 +322,37 @@ def serveur():
         shutil.rmtree(dossier, ignore_errors=True)
 
 
+def _mesures(rendu):
+    """Le verdict, en table. `note` remplace les espaces par des `_`."""
+    assert rendu.startswith("OK "), rendu
+    return dict(x.split("=", 1) for x in rendu[3:].split(" ") if "=" in x)
+
+
+@pytest.fixture(scope="module")
+def mesures(serveur):
+    """Le parcours entier, joue UNE fois, et ses mesures en table.
+
+    Portee module : c'est ce qu'exige `tests/test_harnais_navigateur.py` d'une
+    fixture qui pilote et que plusieurs tests lisent -- et c'est ce qui fait
+    tomber le compte de navigateurs de quatre a un.
+    """
+    url, verdict = serveur
+    return _mesures(piloter(f"{url}/__harnais", verdict))
+
+
+def _sans_echec(m, sonde):
+    """La sonde a-t-elle rendu ses mesures, ou a-t-elle leve en route ?"""
+    assert f"echec_{sonde}" not in m, (
+        f"la sonde « {sonde} » a leve pendant le parcours : "
+        f"{m[f'echec_{sonde}']}. Les autres sondes ont continue -- leurs tests "
+        "disent donc la verite, celui-ci non")
+
+
 class TestLaLigneDesRefuseesNApparaitQueSiIlYEnA:
 
-    def test_file_vide_aucun_bouton_renvoyer(self, serveur):
-        url, verdict = serveur
-        rendu = piloter(f"{url}/__harnais", verdict)
-        assert rendu.startswith("OK "), rendu
-        m = dict(x.split("=", 1) for x in rendu[3:].split(" ") if "=" in x)
+    def test_file_vide_aucun_bouton_renvoyer(self, mesures):
+        m = mesures
+        _sans_echec(m, "refusees")
 
         assert m["hidden"] == "true", (
             "le script ne pose plus `hidden` sur la ligne des refusees")
@@ -305,12 +376,6 @@ class TestLaLigneDesRefuseesNApparaitQueSiIlYEnA:
             "l'ecran principal reste sous les reglages au lieu d'etre remplace")
 
 
-def _mesures(rendu):
-    """Le verdict, en table. `note` remplace les espaces par des `_`."""
-    assert rendu.startswith("OK "), rendu
-    return dict(x.split("=", 1) for x in rendu[3:].split(" ") if "=" in x)
-
-
 class TestLaDemandeDeScanSEteintQuandLeTelephoneEstNomme:
     """« Si le juge set manuellement le nom de son téléphone il faut retirer la
     demande de scan du qrcode de paramétrage. » — Adrien, 03/09 (spec 042).
@@ -321,9 +386,9 @@ class TestLaDemandeDeScanSEteintQuandLeTelephoneEstNomme:
     champ d'abord.
     """
 
-    def test_la_demande_s_eteint_et_se_rallume(self, serveur):
-        url, verdict = serveur
-        m = _mesures(piloter(f"{url}/__harnais?sonde=demande", verdict))
+    def test_la_demande_s_eteint_et_se_rallume(self, mesures):
+        m = mesures
+        _sans_echec(m, "demande")
 
         # 1. Téléphone sans nom : la demande est là, entière.
         assert m["videClasse"] == "action_pleine", m["videClasse"]
@@ -382,9 +447,9 @@ class TestLInterrupteurEstUnInterrupteur:
     exactement ce qui avait laissé `#ligneRefus` visible en permanence.
     """
 
-    def test_la_case_est_habillee_et_reste_une_case(self, serveur):
-        url, verdict = serveur
-        m = _mesures(piloter(f"{url}/__harnais?sonde=interrupteur", verdict))
+    def test_la_case_est_habillee_et_reste_une_case(self, mesures):
+        m = mesures
+        _sans_echec(m, "interrupteur")
 
         assert m["labelDisplay"] == "flex", (
             f"le label de l'interrupteur est calculé en `display: "
@@ -427,9 +492,9 @@ class TestLeReglageSurvitAUneFermeture:
     prouve qu'IndexedDB a bien été écrit — et c'est le cas réel : un juge ferme
     l'application et la rouvre le lendemain matin."""
 
-    def test_l_interrupteur_est_retrouve_apres_rechargement(self, serveur):
-        url, verdict = serveur
-        m = _mesures(piloter(f"{url}/__harnais?sonde=persistance", verdict))
+    def test_l_interrupteur_est_retrouve_apres_rechargement(self, mesures):
+        m = mesures
+        _sans_echec(m, "persistance")
         assert m["avant"] == "true"
         assert m["apres"] == "true", (
             "le réglage est perdu au rechargement : l'habit a changé mais le "
