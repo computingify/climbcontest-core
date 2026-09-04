@@ -1,0 +1,795 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Maquette 044 — la préparation des ouvreurs</title>
+<!--
+  L'écran « Ouverture » de la console, tel qu'il se présente à un compte
+  OUVREUR. Disposition choisie par Adrien le 04/09/2026 : « Plan plein écran,
+  la zone s'ouvre par-dessus ».
+
+  ⚠️ LA GÉOMÉTRIE EST LA VRAIE. Les polygones, la place des lettres et leur
+  taille sortent de `fiches.plan_pour(set(), fiches.PLAN)` — le relevé
+  d'Annonay du 02/09. Rien n'est redessiné à la main pour arranger la maquette.
+
+  ⚠️ LA PASTILLE EST CELLE DE LA SPEC 036. Les cinq ratios (COMPTE_ECHELLE,
+  COMPTE_DESCENTE, PASTILLE_HAUTEUR, PASTILLE_LARGEUR, LETTRE_MONTEE) sont
+  recopiés de `static/resultats/plan.js`, et les teintes de profil de
+  `templates/resultats.html`. Ce que la pastille compte change — ici « voies
+  complètes / voies déclarées » et non « blocs réussis » — mais le vocabulaire
+  visuel, lui, est le même : l'ouvreur et le grimpeur lisent le même mur.
+
+  Les couleurs de l'habillage sont celles de la console (`templates/admin.html`,
+  l'ocre du logo du club), pas celles de la page publique.
+
+  Jeu d'essai : 47 voies sur 14 zones, 8 incomplètes, 3 zones vides. Choisi pour
+  contenir tous les cas — une zone finie (N 2/2), une entamée (C 1/2), une
+  entièrement vierge de couleurs (L 0/2), une grosse (I 3/5), et trois zones
+  sans aucune voie (D, X, Y) qui ne doivent porter AUCUNE pastille.
+-->
+<style>
+  :root {
+    color-scheme: light dark;
+    --fond: #FBFAF8; --surface: #FFFFFF; --surface2: #F4F1EB; --surface3: #E9E4DA;
+    --trait: #DDD7CB; --encre: #1B1A17; --encre2: #5C574C; --encre3: #8A8375;
+    --accent: #B5761C; --accent-texte: #8A5A0F; --sur-accent: #FFFFFF;
+    --ok: #2E7D4F; --alerte: #B3392A; --attention: #9A6B0B;
+    --titre: system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+    --chiffre: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+    --rayon: 14px;
+    --pf-dalle: #D2E0E7; --pf-vertical: #A6C4D3; --pf-incline: #F0D5A0;
+    --pf-devers: #EEBC7E; --pf-surplomb: #E7A074; --pf-toit: #E28379;
+  }
+  body.sombre {
+    --fond: #14130F; --surface: #1D1B16; --surface2: #26241D; --surface3: #322F26;
+    --trait: #3A3628; --encre: #F2EFE8; --encre2: #B0AA9B; --encre3: #7C766A;
+    --accent: #E0A94A; --accent-texte: #E8BC70; --sur-accent: #1B1A17;
+    --ok: #6FC08A; --alerte: #F08A78; --attention: #E5B44A;
+    --pf-dalle: #2E3F4C; --pf-vertical: #3D6076; --pf-incline: #9A7238;
+    --pf-devers: #B57430; --pf-surplomb: #BE5B33; --pf-toit: #BC443F;
+  }
+  * { box-sizing: border-box; }
+  [hidden] { display: none !important; }
+  body { margin: 0; padding: 24px 20px 70px; background: var(--fond);
+         color: var(--encre); font-family: var(--titre); line-height: 1.5; }
+  h1 { font-size: 1.35rem; margin: 0 0 6px; letter-spacing: -0.02em; }
+  h2 { font-size: 1rem; margin: 34px 0 2px; }
+  h2 small { display: block; font-weight: 400; font-size: .78rem; color: var(--encre2); }
+  p.chapo { margin: 0 0 18px; color: var(--encre2); font-size: .86rem; max-width: 78ch; }
+  .barre-outil { display: flex; gap: 10px; align-items: center; margin-bottom: 14px; }
+  .barre-outil button { font: inherit; font-size: .8rem; padding: 7px 13px;
+    border-radius: 9px; border: 1px solid var(--trait); background: var(--surface);
+    color: var(--encre); cursor: pointer; }
+  .note { background: var(--surface); border: 1px solid var(--trait);
+    border-left: 4px solid var(--accent); border-radius: 12px; padding: 11px 15px;
+    margin: 12px 0 0; max-width: 88ch; font-size: .81rem; color: var(--encre2); }
+  .note b { color: var(--encre); }
+  .rangee { display: flex; flex-wrap: wrap; gap: 22px; align-items: flex-start;
+            margin-top: 14px; }
+
+  /* --- Le châssis de téléphone ------------------------------------------- */
+  .tel { width: 390px; height: 786px; border-radius: 30px; overflow: hidden;
+    border: 1px solid var(--trait); background: var(--fond);
+    box-shadow: 0 14px 40px rgba(0,0,0,.13); display: flex; flex-direction: column;
+    position: relative; }
+  .large { width: 880px; height: 620px; border-radius: 16px; }
+
+  /* La barre de la console : burger, titre, compte. */
+  .cc-barre { flex: none; height: 56px; display: flex; align-items: center;
+    gap: 12px; padding: 0 14px; background: var(--surface);
+    border-bottom: 1px solid var(--trait); }
+  .cc-burger { width: 34px; height: 30px; border-radius: 8px; flex: none;
+    border: 1px solid var(--trait); background: var(--surface2);
+    display: grid; place-items: center; gap: 3px; }
+  .cc-burger i { display: block; width: 15px; height: 1.6px; background: var(--encre2);
+    grid-column: 1; }
+  .cc-titre { font-weight: 800; font-size: .98rem; letter-spacing: -.01em; }
+  .cc-titre em { display: block; font-style: normal; font-weight: 400;
+    font-size: .72rem; color: var(--encre2); }
+  .cc-qui { margin-left: auto; font-size: .7rem; color: var(--encre3);
+    text-align: right; }
+
+  /* Le résumé de l'avancement, sous la barre. */
+  .cc-resume { flex: none; padding: 9px 14px; background: var(--surface2);
+    border-bottom: 1px solid var(--trait); display: flex; align-items: baseline;
+    gap: 8px; font-size: .78rem; color: var(--encre2); flex-wrap: wrap; }
+  .cc-resume b { color: var(--encre); font-size: .84rem; }
+  .cc-resume .reste { color: var(--attention); font-weight: 700; }
+  .cc-resume .fini { color: var(--ok); font-weight: 700; }
+
+  .cc-corps { flex: 1; min-height: 0; position: relative; display: flex;
+    flex-direction: column; }
+  .cc-plan { flex: 1; min-height: 0; padding: 10px 12px 0; display: flex;
+    align-items: flex-start; justify-content: center; }
+  .cc-plan .plan { height: auto; }
+  /* ⚠️ LE PLAN SE REPLIE QUAND LE TIROIR S'OUVRE. Sans ça, le tiroir recouvre
+     précisément le pan qu'on vient d'ouvrir : on perd de vue OÙ l'on est au
+     moment même où on saisit. Le plan rétrécit, garde son anneau, et reste la
+     boussole. */
+  .cc-corps.avec-tiroir .cc-plan { flex: none; height: 32%; padding: 8px 12px 0; }
+  .cc-repartition { flex: none; padding: 10px 12px 2px; }
+  .cc-repartition .titre-rep { font-size: .68rem; text-transform: uppercase;
+    letter-spacing: .07em; color: var(--encre3); font-weight: 700; margin-bottom: 6px; }
+  .cc-repartition .barres { display: flex; gap: 6px; align-items: flex-end; }
+  .cc-repartition .col { flex: 1; text-align: center; }
+  .cc-repartition .tige { height: 46px; display: flex; align-items: flex-end; }
+  .cc-repartition .tige i { display: block; width: 100%; border-radius: 4px 4px 0 0;
+    border: 1px solid rgba(0,0,0,.15); border-bottom: 0; }
+  .cc-repartition .col b { display: block; font-size: .8rem;
+    font-variant-numeric: tabular-nums; }
+  .cc-repartition .col span { font-size: .62rem; color: var(--encre3); }
+  .cc-restant { flex: none; padding: 8px 12px 10px; display: flex; gap: 6px;
+    align-items: center; flex-wrap: wrap; font-size: .74rem; color: var(--encre2); }
+  .cc-restant .puce { font-weight: 800; font-size: .82rem; padding: 3px 10px;
+    border-radius: 999px; background: color-mix(in srgb, var(--attention) 15%, transparent);
+    border: 1px solid color-mix(in srgb, var(--attention) 38%, transparent);
+    color: var(--encre); }
+  .cc-pied { flex: none; display: flex; gap: 8px; padding: 10px 12px;
+    border-top: 1px solid var(--trait); background: var(--surface); }
+  .cc-pied button { flex: 1; font: inherit; font-size: .82rem; font-weight: 600;
+    padding: 11px 8px; border-radius: 11px; border: 1px solid var(--trait);
+    background: var(--surface2); color: var(--encre); }
+  .cc-pied button.primaire { background: var(--accent); color: var(--sur-accent);
+    border-color: var(--accent); }
+
+  /* --- Le plan ------------------------------------------------------------ */
+  .plan { display: block; width: 100%; height: 100%; }
+  .plan { --pl-contour: #FFFFFF; --pl-lettre: #16232E; --pl-halo: rgba(255,255,255,.92);
+    --pl-anneau: #B5791B; --pl-lueur: #E0A94A; --pl-efface: .34; }
+  body.sombre .plan { --pl-contour: #12131A; --pl-lettre: #F5F0E7;
+    --pl-halo: rgba(9,10,14,.85); --pl-anneau: #FFD489; --pl-lueur: #FFC463;
+    --pl-efface: .28; }
+  .plan .mur { stroke: var(--pl-contour); stroke-width: .9; stroke-linejoin: round; }
+  .plan g[data-profil="dalle"] .mur    { fill: var(--pf-dalle); }
+  .plan g[data-profil="vertical"] .mur { fill: var(--pf-vertical); }
+  .plan g[data-profil="incline"] .mur  { fill: var(--pf-incline); }
+  .plan g[data-profil="devers"] .mur   { fill: var(--pf-devers); }
+  .plan g[data-profil="surplomb"] .mur { fill: var(--pf-surplomb); }
+  .plan g[data-profil="toit"] .mur     { fill: var(--pf-toit); }
+  .plan .lettre { font-family: var(--titre); font-weight: 800; fill: var(--pl-lettre);
+    text-anchor: middle; dominant-baseline: central; paint-order: stroke fill;
+    stroke: var(--pl-halo); }
+  .plan .repere-plan { font-family: var(--titre); font-style: italic; font-size: 4.6px;
+    text-anchor: middle; fill: var(--encre2); }
+  /* ⚠️ Une zone SANS AUCUNE VOIE est effacée — c'est le même tout-ou-rien que
+     la spec 026 : « il n'y a rien à y faire ». Ici ça dit « personne n'a encore
+     rien déclaré », et c'est précisément ce qu'on cherche des yeux. */
+  .plan g[data-zone] { opacity: var(--pl-efface); cursor: pointer; }
+  .plan g[data-zone].z-saisie { opacity: 1; }
+  .plan .cadre-zone { fill: none; stroke: none; }
+  .plan .cadre-zone.z-finie { stroke: var(--ok); stroke-width: 1.6; }
+  .plan .cadre-zone.visee { stroke: var(--pl-anneau); stroke-width: 2.2; }
+  .plan g[data-zone].visee { filter: drop-shadow(0 0 2.5px var(--pl-lueur)); }
+  .plan .socle-compte { fill: var(--pl-halo); }
+  .plan .remplit-compte { fill: color-mix(in srgb, var(--ok) 62%, transparent); }
+  .plan .compte-zone { font-family: var(--titre); font-weight: 800;
+    font-variant-numeric: tabular-nums; fill: var(--pl-lettre);
+    text-anchor: middle; dominant-baseline: central; }
+  .plan .compteurs-zone { pointer-events: none; }
+
+  /* --- Le tiroir de zone -------------------------------------------------- */
+  .voile { position: absolute; inset: 0; background: rgba(20,18,14,.34); }
+  .large .voile { display: none; }
+  .tiroir { position: absolute; left: 0; right: 0; bottom: 0; height: 68%;
+    background: var(--surface); border-top: 1px solid var(--trait);
+    border-radius: 18px 18px 0 0; box-shadow: 0 -14px 40px rgba(0,0,0,.18);
+    display: flex; flex-direction: column; }
+  .tiroir.haut { height: 82%; }
+  .cc-corps.avec-fiche .cc-plan { flex: none; height: 18%; padding: 6px 12px 0; }
+  .large .tiroir { left: auto; top: 0; width: 360px; height: auto;
+    border-radius: 0; border-top: 0; border-left: 1px solid var(--trait);
+    box-shadow: -14px 0 40px rgba(0,0,0,.10); }
+  .tiroir .poignee { width: 38px; height: 4px; border-radius: 2px;
+    background: var(--surface3); margin: 8px auto 2px; }
+  .large .tiroir .poignee { display: none; }
+  .tiroir .tete { display: flex; align-items: center; gap: 10px;
+    padding: 8px 14px 10px; border-bottom: 1px solid var(--trait); }
+  .tiroir .tete h3 { margin: 0; font-size: 1rem; font-weight: 800; }
+  .tiroir .tete h3 em { font-style: normal; font-weight: 400; color: var(--encre2);
+    font-size: .78rem; display: block; }
+  .tiroir .tete .fermer { margin-left: auto; width: 30px; height: 30px;
+    border-radius: 9px; border: 1px solid var(--trait); background: var(--surface2);
+    color: var(--encre2); font-size: .9rem; line-height: 1; }
+  .tiroir .liste { overflow: auto; padding: 6px 10px 4px; }
+  .tiroir .pied { flex: none; padding: 10px 12px 14px; border-top: 1px solid var(--trait); }
+  .tiroir .pied > button { width: 100%; font: inherit; font-size: .84rem;
+    font-weight: 700; padding: 11px; border-radius: 11px; border: 1px dashed var(--trait);
+    background: var(--surface2); color: var(--accent-texte); }
+
+  /* Une ligne de voie. */
+  .voie { display: flex; align-items: center; gap: 10px; padding: 7px 8px;
+    border-radius: 11px; border: 1px solid transparent; }
+  .voie + .voie { border-top: 1px solid var(--trait); border-radius: 0; }
+  .voie .pastille-c { width: 26px; height: 26px; border-radius: 8px; flex: none;
+    border: 1px solid rgba(0,0,0,.18); }
+  .voie .num { font-family: var(--chiffre); font-weight: 700; font-size: 1.02rem;
+    min-width: 38px; }
+  .voie .quoi { flex: 1; min-width: 0; font-size: .78rem; color: var(--encre2); }
+  .voie .quoi b { color: var(--encre); font-weight: 600; }
+  .voie .cats { display: flex; gap: 4px; flex-wrap: wrap; margin-top: 3px;
+    align-items: center; }
+  /* Le contenu RÉEL du QR, en clair et en chasse fixe : c'est ce que le juge
+     scanne, et c'est là qu'une faute de zone se voit. */
+  .voie .qr { font-family: var(--chiffre); font-size: .64rem; color: var(--encre3);
+    letter-spacing: .02em; }
+  .voie .cat { font-size: .66rem; padding: 1px 6px; border-radius: 999px;
+    background: var(--surface3); color: var(--encre2); font-weight: 600; }
+  .voie .etat { font-size: .68rem; font-weight: 700; flex: none; }
+  .voie .etat.ok { color: var(--ok); }
+  .voie .etat.reste { color: var(--attention); }
+  .voie.incomplete { background: color-mix(in srgb, var(--attention) 9%, transparent);
+    border-color: color-mix(in srgb, var(--attention) 30%, transparent); }
+  .voie.incomplete .pastille-c { background: repeating-linear-gradient(45deg,
+    var(--surface3) 0 4px, var(--surface2) 4px 8px); }
+
+  /* --- La fiche d'édition d'une voie -------------------------------------- */
+  .fiche { padding: 4px 12px 2px; }
+  .fiche .rub { font-size: .7rem; text-transform: uppercase; letter-spacing: .07em;
+    color: var(--encre3); font-weight: 700; margin: 10px 0 6px; }
+  .fiche .rub:first-child { margin-top: 2px; }
+  .jetons { display: flex; gap: 7px; flex-wrap: wrap; }
+  .jeton { display: flex; align-items: center; gap: 6px; padding: 6px 10px;
+    border-radius: 999px; border: 1px solid var(--trait); background: var(--surface2);
+    font-size: .78rem; font-weight: 600; color: var(--encre2); }
+  .jeton i { width: 13px; height: 13px; border-radius: 4px; display: block;
+    border: 1px solid rgba(0,0,0,.2); }
+  .jeton.choisi { border-color: var(--accent); background: var(--surface);
+    color: var(--encre); box-shadow: inset 0 0 0 1px var(--accent); }
+  .fiche .attribue { margin: 12px 0 6px; padding: 9px 11px; border-radius: 11px;
+    background: color-mix(in srgb, var(--ok) 11%, transparent);
+    border: 1px solid color-mix(in srgb, var(--ok) 34%, transparent);
+    font-size: .77rem; color: var(--encre2); }
+  .fiche .attribue b { color: var(--encre); font-family: var(--chiffre); }
+  .fiche .actions { display: flex; gap: 8px; margin: 0; }
+  .fiche .actions button { flex: 1; font: inherit; font-size: .82rem; font-weight: 700;
+    padding: 11px; border-radius: 11px; border: 1px solid var(--trait);
+    background: var(--surface2); color: var(--encre); }
+  .fiche .actions .primaire { background: var(--accent); color: var(--sur-accent);
+    border-color: var(--accent); }
+  .fiche .actions .danger { flex: none; color: var(--alerte);
+    border-color: color-mix(in srgb, var(--alerte) 40%, transparent);
+    background: transparent; }
+
+  /* --- La boîte de renumérotation ----------------------------------------- */
+  .boite { position: absolute; left: 16px; right: 16px; top: 50%;
+    transform: translateY(-50%); background: var(--surface);
+    border: 1px solid var(--trait); border-radius: 16px; padding: 16px;
+    box-shadow: 0 20px 60px rgba(0,0,0,.30); }
+  .boite h3 { margin: 0 0 6px; font-size: 1rem; }
+  .boite p { margin: 0 0 10px; font-size: .8rem; color: var(--encre2); }
+  .boite .avert { background: color-mix(in srgb, var(--alerte) 10%, transparent);
+    border: 1px solid color-mix(in srgb, var(--alerte) 34%, transparent);
+    border-radius: 11px; padding: 10px 12px; font-size: .78rem; margin-bottom: 12px; }
+  .boite .avert b { color: var(--alerte); }
+  .boite table { width: 100%; border-collapse: collapse; font-size: .76rem;
+    margin-bottom: 12px; }
+  .boite th { text-align: left; font-size: .66rem; text-transform: uppercase;
+    letter-spacing: .06em; color: var(--encre3); padding-bottom: 4px; }
+  .boite td { padding: 3px 0; border-top: 1px solid var(--trait);
+    font-family: var(--chiffre); }
+  .boite td.zone { font-family: var(--titre); color: var(--encre2); }
+  .boite td .fleche { color: var(--encre3); }
+  .boite .actions { display: flex; gap: 8px; }
+  .boite .actions button { flex: 1; font: inherit; font-size: .82rem; font-weight: 700;
+    padding: 11px; border-radius: 11px; border: 1px solid var(--trait);
+    background: var(--surface2); color: var(--encre); }
+  .boite .actions .primaire { background: var(--accent); color: var(--sur-accent);
+    border-color: var(--accent); }
+
+  /* --- Le tiroir de navigation d'un compte ouvreur ------------------------- */
+  .nav { position: absolute; inset: 56px 0 0 0; background: var(--surface);
+    border-right: 1px solid var(--trait); width: 300px; padding: 12px 10px; }
+  .nav .item { display: flex; align-items: center; gap: 10px; padding: 11px 12px;
+    border-radius: 11px; font-size: .86rem; font-weight: 600; color: var(--encre2); }
+  .nav .item.actif { background: var(--surface2); color: var(--encre);
+    box-shadow: inset 2px 0 0 var(--accent); }
+  .nav .sep { height: 1px; background: var(--trait); margin: 10px 6px; }
+  .nav .pied { font-size: .72rem; color: var(--encre3); padding: 6px 12px; }
+  .legende { display: flex; gap: 14px; flex-wrap: wrap; font-size: .76rem;
+    color: var(--encre2); margin-top: 10px; }
+  .legende span { display: flex; align-items: center; gap: 6px; }
+  .legende i { width: 22px; height: 12px; border-radius: 3px; display: block;
+    border: 1px solid rgba(0,0,0,.15); }
+</style>
+</head>
+<body>
+
+<h1>Spec 044 — la préparation des ouvreurs</h1>
+<p class="chapo">
+  L'écran par lequel les ouvreurs déclarent, zone par zone, les voies qu'ils
+  posent : leur numéro, leur couleur de difficulté, leur couleur de prises et
+  les catégories pour lesquelles elles comptent. Disposition retenue le
+  04/09/2026 : <b>le plan occupe tout l'écran, la zone s'ouvre par-dessus</b>.
+  Le remplissage s'étale sur plusieurs séances — l'écran doit donc dire, à
+  chaque ouverture, <em>ce qui reste à faire</em> avant de dire quoi que ce
+  soit d'autre.
+</p>
+
+<div class="barre-outil">
+  <button id="basculer">Basculer clair / sombre</button>
+  <span style="font-size:.76rem;color:var(--encre2)">
+    La console suit le réglage du système ; les deux rendus comptent.
+  </span>
+</div>
+
+<h2>1 — L'écran d'accueil de l'ouvreur
+  <small>Il se connecte, et il voit le mur. Rien d'autre.</small></h2>
+<div class="rangee">
+  <div class="tel" id="ecran1"></div>
+  <div style="max-width:36ch">
+    <div class="note">
+      <b>Ce que la pastille compte ici</b>, ce ne sont pas des blocs réussis
+      mais des <b>voies complètes sur voies déclarées</b> — une voie est
+      complète quand elle porte une couleur de difficulté <em>et</em> au moins
+      une catégorie. La forme est celle de la spec 036 : même socle, même
+      remplissage vert, mêmes cinq ratios. L'ouvreur et le grimpeur lisent le
+      même mur.
+    </div>
+    <div class="note">
+      <b>Une zone effacée n'a aucune voie déclarée</b> — D, X et Y sur ce jeu
+      d'essai. C'est le tout-ou-rien de la spec 026, appliqué à la
+      préparation : ce qui est pâle est ce qui n'a pas encore été touché.
+    </div>
+    <div class="note">
+      <b>Un cadre vert = zone terminée.</b> Toutes ses voies sont complètes.
+      C'est le seul endroit de l'écran qui dit « tu peux passer à la suivante ».
+    </div>
+    <div class="legende">
+      <span><i style="background:var(--pf-dalle)"></i>dalle</span>
+      <span><i style="background:var(--pf-vertical)"></i>vertical</span>
+      <span><i style="background:var(--pf-incline)"></i>incliné</span>
+      <span><i style="background:var(--pf-devers)"></i>dévers</span>
+      <span><i style="background:var(--pf-surplomb)"></i>surplomb</span>
+      <span><i style="background:var(--pf-toit)"></i>toit</span>
+    </div>
+  </div>
+</div>
+
+<h2>2 — Une zone s'ouvre par-dessus le plan
+  <small>Un appui sur le pan J. Le plan reste visible au-dessus du tiroir.</small></h2>
+<div class="rangee">
+  <div class="tel" id="ecran2"></div>
+  <div style="max-width:36ch">
+    <div class="note">
+      <b>Le numéro est à gauche, en gros</b> : c'est lui qu'on lit sur le mur et
+      c'est lui qui part sur l'étiquette. Sous lui, en petit, le
+      <b>contenu réel du QR</b> — zone + numéro, « JV7 » — parce que c'est ce
+      que le juge scanne et que c'est là qu'une erreur se voit.
+    </div>
+    <div class="note">
+      <b>La voie incomplète est surlignée</b> et remonte visuellement, sans
+      changer d'ordre : la liste reste dans l'ordre des couleurs (celui de la
+      fiche du grimpeur et du classeur), on ne réordonne pas sous les doigts de
+      quelqu'un qui saisit.
+    </div>
+    <div class="note">
+      <b>« + Ajouter une voie » est en bas, pas en haut.</b> Sur un téléphone
+      tenu debout devant le mur, c'est le pouce qui l'atteint — même règle que
+      la spec 042.
+    </div>
+  </div>
+</div>
+
+<h2>3 — La fiche d'une voie
+  <small>Ce qu'on saisit : la couleur de difficulté, la couleur des prises, les catégories.</small></h2>
+<div class="rangee">
+  <div class="tel" id="ecran3"></div>
+  <div style="max-width:36ch">
+    <div class="note">
+      <b>Aucun champ libre.</b> Six couleurs de difficulté, une liste de
+      couleurs de prises, les catégories de la compétition : tout est un jeton
+      qu'on touche. Un clavier qui s'ouvre devant un mur, en tenant un
+      téléphone d'une main, c'est trois fautes de frappe sur dix voies.
+    </div>
+    <div class="note">
+      <b>Le numéro s'attribue tout seul</b> dès que la couleur est choisie : le
+      premier numéro libre de cette couleur. C'est la numérotation « au fur et
+      à mesure de l'ouverture ». Elle laisse des trous — une voie supprimée,
+      une couleur changée — et c'est le bouton « Renuméroter » qui les referme.
+    </div>
+    <div class="note">
+      <b>Rien n'est obligatoire pour enregistrer.</b> Une voie peut vivre sans
+      couleur et sans catégorie : elle compte alors comme « à compléter », et
+      c'est exactement ce que la pastille de sa zone montre. C'est la
+      contrainte de départ — « toutes les informations ne vont pas être
+      remplies en une fois ».
+    </div>
+  </div>
+</div>
+
+<h2>4 — Renuméroter tout le mur
+  <small>Par couleur, en parcourant les zones de A à Z. Le geste est rare, et il se confirme.</small></h2>
+<div class="rangee">
+  <div class="tel" id="ecran4"></div>
+  <div style="max-width:36ch">
+    <div class="note">
+      <b>La règle, telle qu'Adrien l'a énoncée le 04/09</b> : « la numérotation
+      pour une couleur de difficulté commence en zone A et termine en Z ». Pour
+      chaque couleur, on parcourt les zones dans l'ordre alphabétique et on
+      numérote 1, 2, 3… sans trou. À l'intérieur d'une zone, l'ordre de saisie
+      est conservé — ce qui rend l'opération <b>stable</b> : la relancer deux
+      fois ne change rien la seconde fois.
+    </div>
+    <div class="note">
+      <b>Renuméroter change le contenu des QR codes.</b> C'est la seule action
+      de cet écran qui ne se rattrape pas toute seule : les étiquettes déjà
+      collées sur le mur deviennent fausses. D'où l'écran de confirmation qui
+      <b>nomme les voies qui changent</b>, et le refus pur et simple dès qu'une
+      réussite existe.
+    </div>
+  </div>
+</div>
+
+<h2>5 — Sur un grand écran
+  <small>Le même écran, au bureau. Le tiroir s'ancre à droite au lieu du bas.</small></h2>
+<div class="rangee">
+  <div class="tel large" id="ecran5"></div>
+</div>
+
+<h2>6 — Ce que l'ouvreur voit du reste de la console
+  <small>Rien. Son tiroir n'a qu'une entrée.</small></h2>
+<div class="rangee">
+  <div class="tel" id="ecran6"></div>
+  <div style="max-width:36ch">
+    <div class="note">
+      Le rôle <b>ouvreur</b> n'ouvre qu'une vue. Pas de participants, pas de
+      dossards, pas de classeur, pas de réglages, pas de comptes. Il voit le
+      plan de la salle mais ne peut pas le redessiner — le plan part sur cent
+      vingt dossards imprimés.
+    </div>
+    <div class="note">
+      La seule autre chose qu'il peut faire, c'est <b>changer son propre mot de
+      passe</b> — la route existe déjà et n'exige aucun rôle particulier.
+    </div>
+  </div>
+</div>
+
+<script>
+/* ============================================================================
+   LA GÉOMÉTRIE — sortie de `fiches.plan_pour(set(), fiches.PLAN)`.
+   ========================================================================== */
+const PLAN = {"vue":[120,150],"cadrage":"-1.0 -1.0 122.0 152.0","contour":null,"murs":[
+{"zone":"X","profil":"vertical","d":"60,0 80,0 80,15 60,15","etiquette":[70.0,7.5],"taille":9.0},
+{"zone":"Y","profil":"vertical","d":"80,0 100,0 100,15 80,15","etiquette":[90.0,7.5],"taille":9.0},
+{"zone":"D","profil":"toit","d":"5,15 20,15 20,45 5,45","etiquette":[12.5,30.0],"taille":9.0},
+{"zone":"Z","profil":"vertical","d":"100,15 115,15 115,30 100,30","etiquette":[107.5,22.5],"taille":9.0},
+{"zone":"C","profil":"incline","d":"20,45 35,45 35,60 20,60","etiquette":[27.5,52.5],"taille":9.0},
+{"zone":"B","profil":"devers","d":"35,45 50,45 50,60 35,60","etiquette":[42.5,52.5],"taille":9.0},
+{"zone":"A","profil":"vertical","d":"50,45 70,45 70,60 50,60","etiquette":[60.0,52.5],"taille":9.0},
+{"zone":"L","profil":"toit","d":"0,75 15,75 15,100 0,100","etiquette":[7.5,87.5],"taille":9.0},
+{"zone":"M","profil":"dalle","d":"0,100 15,100 15,115 0,115","etiquette":[7.5,107.5],"taille":9.0},
+{"zone":"K","profil":"surplomb","d":"15,75 30,75 30,90 15,90","etiquette":[22.5,82.5],"taille":9.0},
+{"zone":"J","profil":"vertical","d":"30,75 45,75 45,90 30,90","etiquette":[37.5,82.5],"taille":9.0},
+{"zone":"I","profil":"devers","d":"45,75 60,75 60,90 45,90","etiquette":[52.5,82.5],"taille":9.0},
+{"zone":"H","profil":"incline","d":"60,75 75,75 75,90 60,90","etiquette":[67.5,82.5],"taille":9.0},
+{"zone":"G","profil":"vertical","d":"75,75 90,75 90,90 75,90","etiquette":[82.5,82.5],"taille":9.0},
+{"zone":"F","profil":"dalle","d":"90,75 105,75 105,90 90,90","etiquette":[97.5,82.5],"taille":9.0},
+{"zone":"N","profil":"dalle","d":"0,115 15,115 15,130 0,130","etiquette":[7.5,122.5],"taille":9.0},
+{"zone":"E","profil":"vertical","d":"105,90 120,90 120,105 105,105","etiquette":[112.5,97.5],"taille":9.0}],
+"reperes":[{"texte":"Escalier","x":97,"y":52},{"texte":"Haut","x":61,"y":111},{"texte":"Bas","x":60,"y":30}]};
+
+/* Les cinq ratios de la pastille — recopiés de `static/resultats/plan.js`. */
+const COMPTE_ECHELLE = 0.40, COMPTE_DESCENTE = 0.523, PASTILLE_HAUTEUR = 1.12,
+      PASTILLE_LARGEUR = 1.6, LETTRE_MONTEE = 0.267,
+      LARGEUR_CHIFFRE = 0.58, DEDANS = 0.86;
+
+/* Les six couleurs de difficulté, dans l'ordre de `classement.COULEURS`, avec
+   leur initiale — c'est elle qui préfixe le numéro d'une voie. */
+const COULEURS = [
+  {nom: "Jaune", ini: "J", teinte: "#E8C33A"},
+  {nom: "Vert",  ini: "V", teinte: "#3FA45B"},
+  {nom: "Bleu",  ini: "B", teinte: "#2E74C9"},
+  {nom: "Mauve", ini: "M", teinte: "#8250B4"},
+  {nom: "Rouge", ini: "R", teinte: "#C93B32"},
+  {nom: "Noir",  ini: "N", teinte: "#23262B"},
+];
+const TEINTE = Object.fromEntries(COULEURS.map(c => [c.nom, c.teinte]));
+
+/* Le jeu d'essai : 47 voies, 14 zones renseignées, 8 incomplètes. */
+const V = (n, c, p, cats) => ({n, c, p, cats});
+const VOIES = {
+  A: [V("J16","Jaune","Fluo",["U11","U13"]), V("V11","Vert","Blanc",["U13","U15"]), V("M11","Mauve","Noir",["U15","U17"])],
+  B: [V("J17","Jaune","Bleu",["U11"]), V("V12","Vert","Fluo",["U11","U13"]), V("B9","Bleu","Blanc",["U13","U15"]), V("R8","Rouge","Rouge",["U17"])],
+  C: [V("V17","Vert","Jaune",["U11","U13"]), V(null,null,null,[])],
+  D: [],
+  E: [V("J12","Jaune","Blanc",["U11"]), V("B8","Bleu","Fluo",["U13","U15"]), V("V10","Vert","Noir",["U13"])],
+  F: [V("J13","Jaune","Fluo",["U11"]), V("V8","Vert","Blanc",["U13"]), V(null,null,"Bleu",[]), V("R6","Rouge",null,[])],
+  G: [V("J9","Jaune","Jaune",["U11","U13"]), V("M8","Mauve","Noir",["U15","U17"]), V("R5","Rouge","Blanc",["U17"])],
+  H: [V("V6","Vert","Fluo",["U11","U13"]), V("B5","Bleu","Blanc",["U13"]), V("M7","Mauve","Noir",["U15"]), V("R4","Rouge","Rouge",["U17"])],
+  I: [V("J7","Jaune","Blanc",["U11"]), V("V5","Vert","Fluo",["U11","U13"]), V("B4","Bleu","Noir",["U13","U15"]), V(null,null,null,[]), V("R3","Rouge",null,[])],
+  J: [V("J6","Jaune","Fluo",["U11","U13"]), V("V7","Vert","Blanc",["U11","U13"]), V("B3","Bleu","Noir",["U13","U15"]), V("M3","Mauve","Jaune",["U15","U17"]), V(null,null,null,[])],
+  K: [V("J5","Jaune","Bleu",["U11"]), V("M5","Mauve","Fluo",["U15"]), V("N2","Noir","Noir",["U17"])],
+  L: [V(null,null,"Blanc",[]), V(null,null,null,[])],
+  M: [V("J14","Jaune","Jaune",["U11"]), V("V16","Vert","Blanc",["U13"]), V("R10","Rouge","Noir",["U17"])],
+  N: [V("J1","Jaune","Fluo",["U11"]), V("V1","Vert","Blanc",["U11","U13"])],
+  X: [], Y: [],
+  Z: [V("J20","Jaune","Bleu",["U11"]), V("J21","Jaune","Bleu",["U11"]), V("J22","Jaune","Fluo",["U11","U13"]), V("J4","Jaune","Blanc",["U11"])],
+};
+const CATEGORIES = ["U11","U13","U15","U17"];
+const PROFIL_FR = {dalle:"Dalle", vertical:"Vertical", incline:"Incliné",
+                   devers:"Dévers", surplomb:"Surplomb", toit:"Toit"};
+
+const complete = (v) => !!v.c && v.cats.length > 0;
+const compte = (zone) => {
+  const l = VOIES[zone] || [];
+  return {total: l.length, faites: l.filter(complete).length};
+};
+
+/* --- Le plan, monté en SVG (même description que `plan.js`) --------------- */
+const NS = "http://www.w3.org/2000/svg";
+function el(tag, attrs, texte) {
+  const n = document.createElementNS(NS, tag);
+  for (const k in attrs) n.setAttribute(k, String(attrs[k]));
+  if (texte !== undefined) n.textContent = texte;
+  return n;
+}
+function socleDe(mur) {
+  const [x, y] = mur.etiquette, t = mur.taille;
+  const hauteur = t * COMPTE_ECHELLE * PASTILLE_HAUTEUR;
+  const largeur = t * PASTILLE_LARGEUR;
+  const cy = y + t * COMPTE_DESCENTE;
+  return {x: x - largeur / 2, y: cy - hauteur / 2, width: largeur,
+          height: hauteur, rx: hauteur / 2, cx: x, cy};
+}
+function corpsDuCompte(taille, texte) {
+  return taille * Math.min(COMPTE_ECHELLE,
+    PASTILLE_LARGEUR * DEDANS / (LARGEUR_CHIFFRE * Math.max(1, texte.length)));
+}
+function dessinerPlan(hote, visee) {
+  const svg = el("svg", {class: "plan", viewBox: PLAN.cadrage, role: "img",
+                         "aria-label": "Plan du mur"});
+  const defs = el("defs", {});
+  for (const mur of PLAN.murs) {
+    const s = socleDe(mur);
+    const cp = el("clipPath", {id: "socle-" + hote.id + "-" + mur.zone});
+    cp.appendChild(el("rect", {x: s.x, y: s.y, width: s.width, height: s.height, rx: s.rx}));
+    defs.appendChild(cp);
+  }
+  svg.appendChild(defs);
+
+  for (const mur of PLAN.murs) {
+    const c = compte(mur.zone);
+    const g = el("g", {"data-zone": mur.zone, "data-profil": mur.profil,
+                       class: (c.total ? "z-saisie " : "") + (mur.zone === visee ? "visee" : "")});
+    g.appendChild(el("polygon", {class: "mur", points: mur.d}));
+    const [x, y] = mur.etiquette;
+    g.appendChild(el("text", {class: "lettre", x, y: y - mur.taille * LETTRE_MONTEE,
+      "font-size": mur.taille, "stroke-width": mur.taille * 0.24}, mur.zone));
+    svg.appendChild(g);
+  }
+  const cadres = el("g", {class: "cadres-zone"});
+  for (const mur of PLAN.murs) {
+    const c = compte(mur.zone);
+    const fini = c.total > 0 && c.faites === c.total;
+    cadres.appendChild(el("polygon", {class: "cadre-zone" + (fini ? " z-finie" : "")
+      + (mur.zone === visee ? " visee" : ""), points: mur.d}));
+  }
+  svg.appendChild(cadres);
+
+  const compteurs = el("g", {class: "compteurs-zone"});
+  for (const mur of PLAN.murs) {
+    const c = compte(mur.zone);
+    if (!c.total) continue;                    /* zone vierge : aucune pastille */
+    const s = socleDe(mur), libelle = c.faites + "/" + c.total;
+    const g = el("g", {"data-zone": mur.zone});
+    g.appendChild(el("rect", {class: "socle-compte", x: s.x, y: s.y,
+      width: s.width, height: s.height, rx: s.rx}));
+    g.appendChild(el("rect", {class: "remplit-compte", x: s.x, y: s.y,
+      width: s.width * (c.faites / c.total), height: s.height,
+      "clip-path": "url(#socle-" + hote.id + "-" + mur.zone + ")"}));
+    g.appendChild(el("text", {class: "compte-zone", x: s.cx, y: s.cy,
+      "font-size": corpsDuCompte(mur.taille, libelle).toFixed(2)}, libelle));
+    compteurs.appendChild(g);
+  }
+  svg.appendChild(compteurs);
+
+  for (const r of PLAN.reperes) {
+    svg.appendChild(el("text", {class: "repere-plan", x: r.x, y: r.y}, r.texte));
+  }
+  hote.appendChild(svg);
+}
+
+/* --- L'habillage de la console ------------------------------------------- */
+function h(html) { const d = document.createElement("div"); d.innerHTML = html.trim(); return d.firstElementChild; }
+
+function totaux() {
+  let voies = 0, faites = 0, zones = 0;
+  for (const z in VOIES) {
+    const c = compte(z);
+    voies += c.total; faites += c.faites; if (c.total) zones++;
+  }
+  return {voies, faites, reste: voies - faites, zones};
+}
+
+function chassis(hote, opts) {
+  const t = totaux();
+  hote.appendChild(h(`
+    <div class="cc-barre">
+      <div class="cc-burger"><i></i><i></i><i></i></div>
+      <div class="cc-titre">Ouverture<em>Novembre 2026 · en préparation</em></div>
+      <div class="cc-qui">marc.o<br>ouvreur</div>
+    </div>`));
+  hote.appendChild(h(`
+    <div class="cc-resume">
+      <b>${t.voies} voies</b> sur ${t.zones} zones
+      ${t.reste ? `· <span class="reste">${t.reste} à compléter</span>`
+                : `· <span class="fini">tout est complet</span>`}
+    </div>`));
+  const corps = h(`<div class="cc-corps"><div class="cc-plan"></div></div>`);
+  hote.appendChild(corps);
+  dessinerPlan(corps.querySelector(".cc-plan"), opts && opts.visee);
+
+  /* La place que le plan ne prend pas sert à dire CE QUI RESTE : les zones
+     encore incomplètes, touchables directement. Le mur d'Annonay est plus
+     large que haut ; sur un téléphone il laisse un tiers de l'écran libre, et
+     une bande vide au-dessus d'un écran de préparation serait un aveu. */
+  if (!(opts && opts.sansTiroir)) {
+    /* La répartition par couleur : « est-ce que mes six couleurs sont
+       servies ? » est la deuxième question d'un ouvreur, tout de suite après
+       « qu'est-ce qui manque ». Elle se lit sur les hauteurs, pas sur les
+       chiffres — c'est un déséquilibre qu'on cherche, pas un total. */
+    const parCouleur = COULEURS.map(c => ({
+      ...c, n: Object.values(VOIES).flat().filter(v => v.c === c.nom).length}));
+    const haut = Math.max(1, ...parCouleur.map(c => c.n));
+    corps.appendChild(h(`
+      <div class="cc-repartition">
+        <div class="titre-rep">Répartition des couleurs</div>
+        <div class="barres">
+          ${parCouleur.map(c => `
+            <div class="col">
+              <div class="tige"><i style="background:${c.teinte};
+                   height:${Math.round(100 * c.n / haut)}%"></i></div>
+              <b>${c.n}</b><span>${c.nom}</span>
+            </div>`).join("")}
+        </div>
+      </div>`));
+    const restantes = Object.keys(VOIES).sort()
+      .filter(z => { const c = compte(z); return c.total && c.faites < c.total; });
+    if (restantes.length) {
+      corps.appendChild(h(`
+        <div class="cc-restant">À compléter :
+          ${restantes.map(z => `<span class="puce">${z}</span>`).join("")}
+        </div>`));
+    }
+  }
+  if (!(opts && opts.sansPied)) {
+    /* ⚠️ AUCUN bouton d'accent ici. L'action principale de cet écran, c'est de
+       toucher une zone ; « Renuméroter » est rare et destructif. Le peindre en
+       ocre pleine largeur en faisait le geste que l'œil propose en premier. */
+    hote.appendChild(h(`
+      <div class="cc-pied">
+        <button>Récapitulatif</button>
+        <button>Renuméroter</button>
+      </div>`));
+  }
+  return corps;
+}
+
+function ligneVoie(v) {
+  const ok = complete(v);
+  const cats = v.cats.map(c => `<span class="cat">${c}</span>`).join("");
+  return `
+    <div class="voie${ok ? "" : " incomplete"}">
+      <span class="pastille-c" ${v.c ? `style="background:${TEINTE[v.c]}"` : ""}></span>
+      <span class="num">${v.n || "—"}</span>
+      <span class="quoi">
+        <b>${v.c || "couleur à choisir"}</b>${v.p ? ` · prises ${v.p}` : " · prises ?"}
+        <span class="cats">${cats || `<span class="cat">aucune catégorie</span>`}
+          <span class="qr">${v.n ? "QR J" + v.n : "sans n°"}</span></span>
+      </span>
+      <span class="etat ${ok ? "ok" : "reste"}">${ok ? "✓" : "à compléter"}</span>
+    </div>`;
+}
+
+function tiroirZone(corps, zone, large) {
+  const mur = PLAN.murs.find(m => m.zone === zone);
+  const c = compte(zone);
+  if (!large) corps.classList.add("avec-tiroir");
+  corps.appendChild(h(`<div class="voile"></div>`));
+  corps.appendChild(h(`
+    <div class="tiroir">
+      <div class="poignee"></div>
+      <div class="tete">
+        <h3>Zone ${zone}<em>${PROFIL_FR[mur.profil]} · ${c.faites} complète${c.faites > 1 ? "s" : ""} sur ${c.total}</em></h3>
+        <button class="fermer">✕</button>
+      </div>
+      <div class="liste">${VOIES[zone].map(ligneVoie).join("")}</div>
+      <div class="pied"><button>+ Ajouter une voie</button></div>
+    </div>`));
+}
+
+function tiroirFiche(corps) {
+  corps.classList.add("avec-tiroir", "avec-fiche");
+  corps.appendChild(h(`<div class="voile"></div>`));
+  const jetonsC = COULEURS.map(c => `
+    <span class="jeton${c.nom === "Vert" ? " choisi" : ""}">
+      <i style="background:${c.teinte}"></i>${c.nom}</span>`).join("");
+  const jetonsP = ["Blanc","Jaune","Fluo","Bleu","Rouge","Noir"].map(p => `
+    <span class="jeton${p === "Blanc" ? " choisi" : ""}">${p}</span>`).join("");
+  const jetonsCat = CATEGORIES.map(k => `
+    <span class="jeton${(k === "U11" || k === "U13") ? " choisi" : ""}">${k}</span>`).join("");
+  corps.appendChild(h(`
+    <div class="tiroir haut">
+      <div class="poignee"></div>
+      <div class="tete">
+        <h3>Zone J · une voie<em>Vertical · 5<sup>e</sup> voie de la zone</em></h3>
+        <button class="fermer">✕</button>
+      </div>
+      <div class="liste">
+        <div class="fiche">
+          <div class="rub">Couleur de difficulté</div>
+          <div class="jetons">${jetonsC}</div>
+          <div class="rub">Couleur des prises</div>
+          <div class="jetons">${jetonsP}</div>
+          <div class="rub">Catégories</div>
+          <div class="jetons">${jetonsCat}</div>
+          <p class="attribue">
+            Numéro attribué : <b>V7</b> — le premier libre en Vert.
+            Le QR portera <b>JV7</b>.
+          </p>
+        </div>
+      </div>
+      <div class="pied">
+        <div class="fiche"><div class="actions">
+          <button class="danger">Supprimer</button>
+          <button class="primaire">Enregistrer</button>
+        </div></div>
+      </div>
+    </div>`));
+}
+
+function boiteRenumeroter(corps) {
+  corps.appendChild(h(`<div class="voile"></div>`));
+  corps.appendChild(h(`
+    <div class="boite">
+      <h3>Renuméroter les 47 voies ?</h3>
+      <p>Par couleur, en parcourant les zones de A à Z. Les trous laissés par
+         les voies supprimées se referment.</p>
+      <div class="avert">
+        <b>17 voies changent de numéro.</b> Leur QR change avec — les
+        étiquettes déjà collées sur le mur ne seront plus valables et sont à
+        réimprimer.
+      </div>
+      <table>
+        <tr><th>Zone</th><th>Avant</th><th></th><th>Après</th></tr>
+        <tr><td class="zone">A</td><td>J16</td><td class="fleche">→</td><td>J1</td></tr>
+        <tr><td class="zone">B</td><td>J17</td><td class="fleche">→</td><td>J2</td></tr>
+        <tr><td class="zone">E</td><td>J12</td><td class="fleche">→</td><td>J3</td></tr>
+        <tr><td class="zone">F</td><td>J13</td><td class="fleche">→</td><td>J4</td></tr>
+        <tr><td class="zone">G</td><td>J9</td><td class="fleche">→</td><td>J5</td></tr>
+        <tr><td class="zone">…</td><td>…</td><td class="fleche">→</td><td>…</td></tr>
+      </table>
+      <div class="actions">
+        <button>Annuler</button>
+        <button class="primaire">Renuméroter</button>
+      </div>
+    </div>`));
+}
+
+/* --- Montage des six écrans ---------------------------------------------- */
+chassis(document.getElementById("ecran1"), {});
+tiroirZone(chassis(document.getElementById("ecran2"), {visee: "J", sansTiroir: true}), "J");
+tiroirFiche(chassis(document.getElementById("ecran3"), {visee: "J", sansTiroir: true}));
+boiteRenumeroter(chassis(document.getElementById("ecran4"), {}));
+tiroirZone(chassis(document.getElementById("ecran5"), {visee: "I", sansTiroir: true}), "I", true);
+
+const e6 = document.getElementById("ecran6");
+chassis(e6, {sansPied: true, sansTiroir: true});
+e6.appendChild(h(`<div class="voile"></div>`));
+e6.appendChild(h(`
+  <div class="nav">
+    <div class="item actif">▦ &nbsp;Ouverture</div>
+    <div class="sep"></div>
+    <div class="item">🔑 &nbsp;Mon mot de passe</div>
+    <div class="item">↩ &nbsp;Se déconnecter</div>
+    <div class="sep"></div>
+    <div class="pied">marc.o · ouvreur<br>ClimbContest 0.19.0</div>
+  </div>`));
+
+document.getElementById("basculer").addEventListener("click", function () {
+  document.body.classList.toggle("sombre");
+});
+</script>
+</body>
+</html>
