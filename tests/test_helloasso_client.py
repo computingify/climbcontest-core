@@ -37,7 +37,7 @@ def secrets(app, tmp_path):
 
 @pytest.fixture()
 def relie(secrets):
-    ha.ecrire_secret("9fdc22226bf24ff99b875f4a7c503715", "un-secret",
+    ha.ecrire_secret("identifiant-de-test-3715", "un-secret",
                      ha.BAC_A_SABLE)
     return secrets
 
@@ -61,7 +61,7 @@ class TestLaCle:
         etat = ha.etat()
         rendu = json.dumps(etat)
         assert "un-secret" not in rendu
-        assert "9fdc22226bf24ff99b875f4a7c503715" not in rendu
+        assert "identifiant-de-test-3715" not in rendu
         assert etat["cle"] == "…3715"
 
     def test_l_etat_sans_cle(self, secrets):

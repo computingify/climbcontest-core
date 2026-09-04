@@ -14,7 +14,7 @@ import logging
 import os
 from urllib.parse import quote
 
-from flask import (Blueprint, Response, g, jsonify, redirect,
+from flask import (Blueprint, Response, current_app, g, jsonify, redirect,
                    render_template, request, session)
 
 from ..auth_session import exige_role, fermer, ouvrir, utilisateur_courant
@@ -32,6 +32,10 @@ from ..contest import (
     supprimer_reussite, verifier_annee,
 )
 from .. import bareme as bareme_module
+from ..helloasso import client as ha_client
+from ..helloasso import planificateur as ha_planificateur
+from ..helloasso import releve as ha_releve
+from ..helloasso import salle as ha_salle
 from .. import formatage
 from .. import circuits as circuits_module
 from .. import cascade as cascade_module
@@ -129,6 +133,17 @@ def _identite(u) -> dict:
         # runbook, et la console etait le seul endroit ou l'on agissait sans
         # jamais voir sur quoi.
         "competition": {"id": active.id, "nom": active.nom} if active else None,
+        # Le compteur de la pastille (spec 008). Il voyage ICI, comme celui des
+        # mises a jour : la console appelle deja cette route a chaque ecran,
+        # une route dediee ferait un aller-retour de plus pour un nombre.
+        "inscriptions_en_attente": ha_salle.en_attente(active) if active else 0,
+        # « HelloAsso est-il branche ? » est un FAIT, pas un secret : il decide
+        # d'une entree de menu. Et il doit voyager ICI, parce que la vue
+        # Inscriptions appartient aux ORGANISATEURS alors que le reglage de la
+        # cle est reserve aux administrateurs -- le faire lire par
+        # /admin/helloasso priverait de menu ceux-la memes qui impriment les
+        # dossards et les portent.
+        "helloasso_relie": ha_client.configure(),
     }
 
 
@@ -1734,3 +1749,195 @@ def maj_installer():
     except maj.ErreurMaj as e:
         return jsonify({"success": False, "message": e.message}), e.code
     return jsonify({"success": True, "installation": lancee}), 202
+
+
+# --- HelloAsso (spec 008) ----------------------------------------------------
+#
+# Le reglage de la cle est reserve aux ADMINISTRATEURS, comme le classeur : il
+# manipule un secret. La correspondance et le releve, eux, sont des gestes
+# d'organisateur -- ils se font le matin de la competition, par qui est devant
+# l'ecran.
+
+@bp.get("/helloasso")
+@exige_role(ADMIN)
+def helloasso_etat():
+    """L'etat de la liaison. **Jamais le secret** -- voir `client.etat()`."""
+    etat = ha_client.etat()
+    try:
+        comp = competition_active()
+        etat["formulaire"] = ha_releve.reglages(comp)
+    except ErreurMetier:
+        pass                              # pas de competition : l'etat de la cle suffit
+    etat["dernier_releve"] = ha_planificateur.dernier_releve()
+    etat["derniere_erreur"] = ha_planificateur.derniere_erreur()
+    return jsonify({"success": True, **etat}), 200
+
+
+@bp.post("/helloasso/cle")
+@exige_role(ADMIN)
+def helloasso_poser_cle():
+    """Pose la cle et demande un premier jeton, pour verifier tout de suite."""
+    corps = _corps_objet() or {}
+    try:
+        ha_client.ecrire_secret(corps.get("client_id", ""),
+                                corps.get("client_secret", ""),
+                                corps.get("environnement") or ha_client.PRODUCTION)
+        ha_client.ClientHelloAsso().jeton()
+    except ha_client.ErreurHelloAsso as e:
+        # Une cle qui ne marche pas ne RESTE PAS posee : la laisser ferait
+        # demarrer le fil sur une cle morte, et bruler le quota
+        # d'authentification jusqu'a rendre la reconnexion impossible.
+        ha_client.effacer_secret()
+        return jsonify({"success": False, "message": e.message}), 400
+
+    # ⚠️ Le fil ne demarre qu'au lancement de l'application, et il ne demarre
+    # PAS sans cle. Sans ce reveil, poser la cle depuis la console ne
+    # declencherait rien jusqu'au prochain redemarrage -- et le symptome serait
+    # « HelloAsso est relie mais rien n'arrive », le matin de la competition.
+    ha_planificateur.reveiller()
+    ha_planificateur.demarrer(current_app._get_current_object())
+
+    logger.info("cle HelloAsso posee par %s", g.utilisateur.identifiant)
+    return jsonify({"success": True, **ha_client.etat()}), 200
+
+
+@bp.delete("/helloasso/cle")
+@exige_role(ADMIN)
+def helloasso_retirer_cle():
+    ha_client.effacer_secret()
+    logger.info("cle HelloAsso retiree par %s", g.utilisateur.identifiant)
+    return jsonify({"success": True, "configure": False}), 200
+
+
+@bp.get("/helloasso/formulaires")
+@exige_role(ADMIN)
+def helloasso_formulaires():
+    """Les formulaires du club, pour en choisir un."""
+    slug = (request.args.get("organisation") or "").strip()
+    if not slug:
+        return jsonify({"success": False,
+                        "message": "Le nom court de l'association est attendu"}), 400
+    try:
+        formulaires = ha_client.ClientHelloAsso().formulaires(slug)
+    except ha_client.ErreurHelloAsso as e:
+        return jsonify({"success": False, "message": e.message}), e.code
+    return jsonify({"success": True, "formulaires": [
+        {"nom": f.get("title"), "type": f.get("formType"), "slug": f.get("formSlug")}
+        for f in formulaires]}), 200
+
+
+@bp.post("/helloasso/formulaire")
+@exige_role(ORGANISATEUR)
+def helloasso_choisir_formulaire():
+    """Choisit le formulaire de l'edition."""
+    corps = _corps_objet() or {}
+    try:
+        comp = competition_active()
+    except ErreurMetier as e:
+        return jsonify({"success": False, "message": e.message}), e.code
+
+    organisation = (corps.get("organisation") or "").strip()
+    type_de_formulaire = (corps.get("form_type") or "").strip()
+    slug = (corps.get("form_slug") or "").strip()
+    if not (organisation and type_de_formulaire and slug):
+        return jsonify({"success": False,
+                        "message": "Association, type et formulaire sont attendus"}), 400
+
+    cycle.ecrire_options(comp, helloasso={
+        **ha_releve.reglages(comp),
+        "organisation": organisation,
+        "form_type": type_de_formulaire,
+        "form_slug": slug,
+    })
+    logger.info("formulaire HelloAsso choisi par %s : %s",
+                g.utilisateur.identifiant, slug)
+    return jsonify({"success": True, "formulaire": ha_releve.reglages(comp)}), 200
+
+
+@bp.post("/helloasso/champs")
+@exige_role(ORGANISATEUR)
+def helloasso_champs():
+    """Range les trois champs et les reponses de genre.
+
+    Un seul refus, et c'est celui qui evite cent inscriptions bloquees sans
+    qu'on comprenne pourquoi : sans champ d'annee de naissance, aucune
+    categorie ne se calcule.
+    """
+    corps = _corps_objet() or {}
+    try:
+        comp = competition_active()
+    except ErreurMetier as e:
+        return jsonify({"success": False, "message": e.message}), e.code
+
+    champs = corps.get("champs") or {}
+    if not (champs.get("naissance") or "").strip():
+        return jsonify({
+            "success": False,
+            "message": "Aucun champ de date de naissance : aucune categorie ne "
+                       "pourra se calculer.",
+        }), 400
+
+    cycle.ecrire_options(comp, helloasso={
+        **ha_releve.reglages(comp),
+        "champs": {c: (champs.get(c) or "").strip() or None
+                   for c in ("naissance", "genre", "club")},
+        "genre_valeurs": corps.get("genre_valeurs") or {},
+    })
+    return jsonify({"success": True, "formulaire": ha_releve.reglages(comp)}), 200
+
+
+@bp.post("/helloasso/relever")
+@exige_role(ORGANISATEUR)
+def helloasso_relever():
+    """Le bouton « Relever maintenant ». `{"tout": true}` repart du debut."""
+    corps = _corps_objet() or {}
+    try:
+        comp = competition_active()
+        rapport = ha_releve.relever(comp, tout=bool(corps.get("tout")))
+    except ErreurMetier as e:
+        return jsonify({"success": False, "message": e.message}), e.code
+    except ha_client.ErreurHelloAsso as e:
+        return jsonify({"success": False, "message": e.message}), e.code
+    return jsonify({"success": True, **rapport.to_dict()}), 200
+
+
+# --- Les inscriptions --------------------------------------------------------
+
+@bp.get("/inscriptions")
+@exige_role(ORGANISATEUR)
+def inscriptions_lister():
+    try:
+        comp = competition_active()
+    except ErreurMetier as e:
+        return jsonify({"success": False, "message": e.message}), e.code
+    return jsonify({"success": True, **ha_salle.piles(comp),
+                    "en_attente": ha_salle.en_attente(comp),
+                    "a_imprimer_dossards": ha_salle.dossards_a_imprimer(comp)}), 200
+
+
+@bp.post("/inscriptions/<int:identifiant>/trancher")
+@exige_role(ORGANISATEUR)
+def inscription_trancher(identifiant):
+    corps = _corps_objet() or {}
+    try:
+        comp = competition_active()
+        inscription = ha_salle.trancher(
+            comp, identifiant, (corps.get("choix") or "").strip(),
+            par=g.utilisateur.identifiant,
+            participant_id=corps.get("participant_id"),
+            categorie=corps.get("categorie"))
+    except ErreurMetier as e:
+        return jsonify({"success": False, "message": e.message}), e.code
+    return jsonify({"success": True, "inscription": inscription.to_dict()}), 200
+
+
+@bp.post("/inscriptions/<int:identifiant>/remise")
+@exige_role(ORGANISATEUR)
+def inscription_remise(identifiant):
+    try:
+        comp = competition_active()
+        inscription = ha_salle.remise(comp, identifiant,
+                                      par=g.utilisateur.identifiant)
+    except ErreurMetier as e:
+        return jsonify({"success": False, "message": e.message}), e.code
+    return jsonify({"success": True, "inscription": inscription.to_dict()}), 200

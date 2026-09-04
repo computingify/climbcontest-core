@@ -69,4 +69,10 @@ def creer_app(config=None) -> Flask:
     from .sheets.planificateur import demarrer
     demarrer(app)
 
+    # Le releve HelloAsso (spec 008). Il ne demarre QUE si une cle est posee :
+    # une integration non configuree doit couter exactement ce que coute une
+    # integration absente -- zero fil, zero appel reseau.
+    from .helloasso.planificateur import demarrer as demarrer_helloasso
+    demarrer_helloasso(app)
+
     return app

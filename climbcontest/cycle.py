@@ -24,6 +24,7 @@ from .classement_service import charge_publique
 from .contest import ErreurMetier
 from .extensions import db
 from .models import (
+    Inscription,
     Archive, Bloc, BlocCircuit, Circuit, EN_COURS, FORMAT_ARCHIVE, Participant,
     PREPARATION, ReaffectationDossard, Success, TERMINEE,
     prochaine_version_catalogue,
@@ -267,6 +268,12 @@ def vider_la_base(comp) -> dict:
     compte = compteurs(comp)
 
     ReaffectationDossard.query.filter_by(competition_id=comp.id).delete(
+        synchronize_session=False)
+    # Les inscriptions HelloAsso partent AVANT les participants : elles
+    # pointent vers eux, et SQLite applique l'integrite referentielle. Elles
+    # appartiennent a l'edition, comme tout le reste -- une salle d'attente qui
+    # survivrait a l'effacement ferait revenir des gens qu'on vient d'effacer.
+    Inscription.query.filter_by(competition_id=comp.id).delete(
         synchronize_session=False)
     db.session.flush()
 
