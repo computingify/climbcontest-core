@@ -79,7 +79,7 @@ SONDE = """
 """
 
 
-@pytest.fixture()
+@pytest.fixture(scope="module")
 def serveur():
     """Une console, un compte, et un telephone en train de rattraper.
 
@@ -147,16 +147,27 @@ def serveur():
         shutil.rmtree(dossier, ignore_errors=True)
 
 
-def _mesures(rendu):
+@pytest.fixture(scope="module")
+def mesures(serveur):
+    """Un SEUL navigateur pour tout le fichier.
+
+    ⚠️ Le cout dominant d'un test navigateur n'est pas le parcours, c'est le
+    demarrage de chromium : 0,3 s a chaud, 7,2 s au premier lancement d'un
+    runner. Deux tests qui rejouent le meme parcours pour lire deux mesures
+    differentes le paient deux fois pour rien. Le releve est en lecture seule --
+    aucun test ne le modifie. Meme motif que `test_navigateur_theme_au_choix.py`
+    depuis la spec 041, et `tests/test_harnais_navigateur.py` en fait une regle.
+    """
+    url, verdict = serveur
+    rendu = piloter(f"{url}/__harnais", verdict, taille=ECRAN)
     assert rendu.startswith("OK "), rendu
     return dict(x.split("=", 1) for x in rendu[3:].split(" ") if "=" in x)
 
 
 class TestLePiedDuTiroirEstCompletDesLOuverture:
 
-    def test_le_numero_de_catalogue_sans_passer_par_les_telephones(self, serveur):
-        url, verdict = serveur
-        m = _mesures(piloter(f"{url}/__harnais", verdict, taille=ECRAN))
+    def test_le_numero_de_catalogue_sans_passer_par_les_telephones(self, mesures):
+        m = mesures
 
         assert m["ecranTelephonesJamaisOuvert"] == "true", (
             "le test a ouvert l'ecran Telephones avant de mesurer : il ne "
@@ -172,11 +183,8 @@ class TestLePiedDuTiroirEstCompletDesLOuverture:
 
 class TestLaPhraseDuRattrapageNommeLeGeste:
 
-    def test_elle_dit_quoi_faire_pour_un_telephone_en_veille(self, serveur):
-        url, verdict = serveur
-        m = _mesures(piloter(f"{url}/__harnais", verdict, taille=ECRAN))
-
-        phrase = m["rattrapage"].replace("_", " ")
+    def test_elle_dit_quoi_faire_pour_un_telephone_en_veille(self, mesures):
+        phrase = mesures["rattrapage"].replace("_", " ")
         assert "rallume" in phrase, (
             f"la phrase du rattrapage est « {phrase} » : elle ne nomme plus le "
             "geste qui debloque un telephone en veille. Une phrase qui promet "
