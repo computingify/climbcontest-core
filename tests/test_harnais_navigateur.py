@@ -33,7 +33,20 @@ import pytest
 from tests.navigateur import CHROME, piloter
 
 TESTS = Path(__file__).resolve().parent
-FICHIERS = sorted(TESTS.glob("test_navigateur_*.py"))
+
+# ⚠️ ON NE SE FIE PAS AU NOM DES FICHIERS. La premiere version de ce garde
+# regardait `test_navigateur_*.py`, et laissait passer
+# `test_coherence_console_ecran.py` -- qui pilote un navigateur sans le dire
+# dans son nom, et qui se trouve etre le PREMIER par ordre alphabetique parmi
+# ceux qui en lancent un : c'est donc lui qui paie le demarrage a froid de
+# chromium, 7,2 s sur un runner. Le fichier le plus expose etait exactement
+# celui que le garde ne regardait pas.
+#
+# On selectionne donc sur ce que le fichier FAIT -- il appelle `piloter` --
+# et non sur la facon dont il s'appelle. Un fichier futur qui pilote un
+# navigateur sous un autre nom sera couvert sans que personne y pense.
+FICHIERS = sorted(f for f in TESTS.glob("test_*.py")
+                  if "piloter(" in f.read_text(encoding="utf-8"))
 
 
 def _portee(decorateur: ast.expr) -> str | None:
@@ -127,9 +140,15 @@ def test_aucun_parcours_n_est_rejoue_a_l_identique(fichier):
 
 def test_le_garde_regarde_bien_quelque_chose():
     """Un garde qui ne trouve aucun fichier passerait pour toujours vert."""
-    assert len(FICHIERS) >= 5, (
-        "les tests navigateur ont ete renommes ou deplaces : ce garde ne "
-        f"regarde plus que {len(FICHIERS)} fichier(s)")
+    assert len(FICHIERS) >= 8, (
+        "les tests qui pilotent un navigateur ont ete renommes ou deplaces : "
+        f"ce garde ne regarde plus que {len(FICHIERS)} fichier(s)")
+    # Le fichier qui a revele l'angle mort doit rester dans le champ : c'est
+    # lui qui paie le demarrage a froid, et son nom ne l'annonce pas.
+    noms = {f.name for f in FICHIERS}
+    assert "test_coherence_console_ecran.py" in noms, (
+        "le fichier qui pilote un navigateur sans le dire dans son nom est "
+        "sorti du champ du garde : la selection est redevenue nominale")
     pilotantes = [nom for f in FICHIERS
                   for nom, _ in _fixtures_qui_pilotent(ast.parse(
                       f.read_text(encoding="utf-8")))]
