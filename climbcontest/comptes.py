@@ -27,6 +27,47 @@ ADMIN = "admin"
 ORGANISATEUR = "organisateur"
 ROLES_CONNUS = frozenset({ADMIN, ORGANISATEUR})
 
+# --- Le cout de derivation du mot de passe ----------------------------------
+#
+# `scrypt` est le defaut de Werkzeug, et il est LENT A DESSEIN : 54 ms par
+# hachage sur cette machine. C'est ce qui rend une liste de mots de passe voles
+# inexploitable, et ce que `routes/admin.py` protege derriere le frein de la
+# spec 015.
+#
+# ⚠️ Cette valeur reste le defaut PARTOUT. Une installation qui ne dit rien
+# hache en scrypt -- il n'y a pas de variable d'environnement pour l'affaiblir,
+# et c'est voulu : un reglage de securite qu'on peut baisser depuis
+# l'environnement finit baisse en production, un jour, par accident.
+#
+# Le seul moyen d'en changer est de PASSER une configuration qui le dit, et
+# `ConfigTest` est la seule du depot a le faire. `tests/test_hachage.py`
+# verifie qu'une application de production hache bien en scrypt -- et il echoue
+# si quelqu'un pose ce reglage dans `Config`.
+METHODE_HACHAGE = "scrypt"
+
+
+def _methode_hachage() -> str:
+    """La methode de derivation de cette application.
+
+    Lue dans la configuration plutot que figee : la suite de tests fait
+    plusieurs centaines de connexions, et chacune coute DEUX derivations -- une
+    a la creation du compte, une a la verification. Mesure du 04/09 : **39 s
+    sur 123 s**, un tiers de la suite passe a deriver des cles dont aucun test
+    ne verifie la solidite.
+
+    Les rares tests dont le cout EST le sujet -- l'egalisation du temps de
+    reponse entre un compte connu et un inconnu -- redemandent la vraie
+    methode. Chacun paie ce qu'il verifie, et rien d'autre.
+    """
+    from flask import current_app, has_app_context
+    if has_app_context():
+        return current_app.config.get("HACHAGE_MOT_DE_PASSE") or METHODE_HACHAGE
+    return METHODE_HACHAGE
+
+
+def _hacher(mot_de_passe: str) -> str:
+    return generate_password_hash(mot_de_passe, method=_methode_hachage())
+
 # Longueur minimale. Volontairement modeste : ces comptes servent a des
 # benevoles, le jour d'une competition, souvent sur un clavier de telephone.
 # Exiger une majuscule, un chiffre et un caractere special produirait un
@@ -65,7 +106,7 @@ def creer(identifiant: str, mot_de_passe: str, roles: list[str],
 
     u = Utilisateur(
         identifiant=identifiant,
-        mot_de_passe_hache=generate_password_hash(mot_de_passe),
+        mot_de_passe_hache=_hacher(mot_de_passe),
         nom_affiche=(nom_affiche or "").strip() or None,
         actif=True,
     )
@@ -92,7 +133,7 @@ def verifier(identifiant: str, mot_de_passe: str) -> Utilisateur | None:
     u = Utilisateur.query.filter_by(identifiant=identifiant).first()
 
     if u is None or not u.actif:
-        check_password_hash(_HACHAGE_FACTICE, mot_de_passe or "")
+        check_password_hash(_hachage_factice(), mot_de_passe or "")
         return None
 
     if not check_password_hash(u.mot_de_passe_hache, mot_de_passe or ""):
@@ -100,16 +141,33 @@ def verifier(identifiant: str, mot_de_passe: str) -> Utilisateur | None:
     return u
 
 
-# Hachage d'un mot de passe qui n'existe pas, calcule une fois au chargement.
-# Sert uniquement a egaliser le temps de reponse (voir `verifier`).
-_HACHAGE_FACTICE = generate_password_hash("aucun-compte-ne-porte-ce-mot-de-passe")
+# Hachage d'un mot de passe qui n'existe pas. Sert uniquement a egaliser le
+# temps de reponse (voir `verifier`).
+#
+# ⚠️ Un par METHODE, et calcule a la demande. Il etait calcule une fois au
+# chargement du module, avec la methode par defaut -- ce qui aurait casse
+# l'egalisation des que l'application en utilise une autre : le chemin
+# « compte inconnu » aurait paye un scrypt pendant que le chemin « mauvais mot
+# de passe » n'en payait plus. C'est exactement la difference de temps que ce
+# hachage existe pour effacer.
+_FACTICES: dict[str, str] = {}
+
+FAUX_MOT_DE_PASSE = "aucun-compte-ne-porte-ce-mot-de-passe"
+
+
+def _hachage_factice() -> str:
+    methode = _methode_hachage()
+    if methode not in _FACTICES:
+        _FACTICES[methode] = generate_password_hash(FAUX_MOT_DE_PASSE,
+                                                    method=methode)
+    return _FACTICES[methode]
 
 
 def changer_mot_de_passe(u: Utilisateur, nouveau: str) -> None:
     if len(nouveau or "") < LONGUEUR_MINIMALE:
         raise ErreurCompte(
             f"Le mot de passe doit faire au moins {LONGUEUR_MINIMALE} caracteres.")
-    u.mot_de_passe_hache = generate_password_hash(nouveau)
+    u.mot_de_passe_hache = _hacher(nouveau)
     db.session.add(u)
     db.session.commit()
     # L'identifiant, jamais le mot de passe -- meme pas sa longueur.

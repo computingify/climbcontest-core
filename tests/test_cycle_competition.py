@@ -101,7 +101,21 @@ def classeur(monkeypatch):
     ClasseurDouble.registre = {"classeurs": 0, "lectures": [], "ecritures": 0,
                                "donnees": {k: list(v) for k, v in DONNEES_TYPE.items()}}
     monkeypatch.setattr(parametrage, "ClasseurGoogle", ClasseurDouble)
-    return ClasseurDouble.registre
+    yield ClasseurDouble.registre
+    # ⚠️ On REPREND le registre a la sortie, et ce n'est pas du menage poli.
+    #
+    # `registre` est un attribut de CLASSE : sans cette ligne, il survit au test
+    # qui l'a pose et reste lisible par tous les suivants. Un test qui construit
+    # un `ClasseurDouble` sans demander cette fixture marchait alors -- mais
+    # seulement s'il etait precede d'un autre, et en observant le registre du
+    # VOISIN. C'etait le cas de
+    # `test_la_garde_et_la_confirmation_sont_partagees_avec_relier`, et ca ne
+    # s'est vu que le jour ou la suite est passee en parallele : lance seul, il
+    # tombait deja sur `origin/master`.
+    #
+    # Remis a None, l'oubli echoue TOUJOURS et tout de suite, au lieu de
+    # dependre de l'ordre de passage.
+    ClasseurDouble.registre = None
 
 
 @pytest.fixture()
@@ -669,7 +683,7 @@ class TestCycleComplet:
 class TestModule:
 
     def test_la_garde_et_la_confirmation_sont_partagees_avec_relier(
-            self, app, peuple):
+            self, app, classeur, peuple):
         """A36. Une seule regle, deux portes d'entree.
 
         `relier(mode=reinitialiser)` et `effacer_donnees()` appellent la MEME

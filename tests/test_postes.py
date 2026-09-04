@@ -22,7 +22,7 @@ from pathlib import Path
 
 import pytest
 
-from werkzeug.security import generate_password_hash
+from climbcontest.comptes import _hacher as hacher
 
 from climbcontest import comptes, contest, fiches, plan_du_mur, qr
 from climbcontest.extensions import db
@@ -382,7 +382,7 @@ class TestLaRoute:
         """
         app.config["SECRET_KEY"] = "une-vraie-cle-de-test-suffisamment-longue"
         db.session.add(Utilisateur(identifiant="sans-role",
-                                   mot_de_passe_hache=generate_password_hash(MDP),
+                                   mot_de_passe_hache=hacher(MDP),
                                    actif=True))
         db.session.commit()
         client.post("/admin/connexion",

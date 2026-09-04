@@ -133,6 +133,18 @@ Config.API_KEYS = cles_depuis_environnement()
 
 
 class ConfigTest(Config):
+    # ⚠️ **Le seul endroit du dépôt qui affaiblit la dérivation**, et le seul
+    # qui ait le droit de le faire. `Config` — donc la production — n'en parle
+    # pas et garde `scrypt` ; il n'existe aucune variable d'environnement pour
+    # y toucher (voir `comptes.METHODE_HACHAGE`, et le garde
+    # `tests/test_hachage.py` qui échoue si ce réglage remonte dans `Config`).
+    #
+    # Pourquoi : la suite fait plusieurs centaines de connexions, chacune à
+    # deux dérivations. Mesuré le 04/09 — **39 s sur 123 s**, un tiers du temps
+    # passé à calculer une lenteur dont aucun de ces tests ne vérifie l'effet.
+    # Ceux dont le coût EST le sujet redemandent `scrypt` explicitement.
+    HACHAGE_MOT_DE_PASSE = "pbkdf2:sha256:1"
+
     SQLALCHEMY_DATABASE_URI = "sqlite://"   # en mémoire
     SHEETS_ACTIF = False                    # aucun accès réseau dans les tests
     API_KEYS = ("cle-de-test",)

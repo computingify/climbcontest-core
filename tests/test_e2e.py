@@ -34,6 +34,7 @@ import urllib.request
 from pathlib import Path
 
 import pytest
+from sqlalchemy import text
 
 RACINE = Path(__file__).resolve().parent.parent
 
@@ -49,6 +50,27 @@ def port_libre() -> int:
     with socket.socket() as s:
         s.bind(("127.0.0.1", 0))
         return s.getsockname()[1]
+
+
+#: Ce que gunicorn ECRIT quand il n'arrive pas a prendre le port. Releve tel
+#: quel le 04/09 sur gunicorn 26.2.0, en lui donnant un port deja ecoute :
+#:
+#:     [ERROR] Connection in use: ('127.0.0.1', 61968)
+#:     [ERROR] connection to ('127.0.0.1', 61968) failed: [Errno 48] Address
+#:             already in use
+#:     [ERROR] Can't connect to ('127.0.0.1', 61968)
+#:
+#: Deux formulations, on reconnait les deux : `Address already in use` vient du
+#: systeme et ne bougera pas, `in use` est le mot de gunicorn lui-meme.
+def dit_que_le_port_est_pris(journal: str) -> bool:
+    """Ce journal raconte-t-il un port deja pris, ou une vraie panne ?
+
+    La distinction n'est pas cosmetique : le premier cas se rattrape en
+    changeant de port, le second doit remonter tel quel. Confondre les deux
+    ferait soit boucler sur une panne reelle, soit abandonner sur une course
+    qu'on sait gagner.
+    """
+    return "Address already in use" in journal or "in use" in journal.lower()
 
 
 class PortDejaPris(RuntimeError):
@@ -129,7 +151,34 @@ class ServeurReel:
                 self.base = f"http://127.0.0.1:{self.port}"
                 self.journal = self.journal.with_name(f"gunicorn-{self.port}.log")
 
+    def _port_est_libre(self) -> bool:
+        """Le port repond-il encore de nous ?
+
+        ⚠️ Ce coup d'oeil vaut **cinq secondes par conflit**. Quand le port est
+        deja pris, gunicorn ne renonce pas tout de suite : son arbitre reessaie
+        le `bind` cinq fois, une seconde d'intervalle, avant de mourir. Il
+        avait raison de le faire -- une adresse peut se liberer -- mais nous
+        avons mieux a proposer qu'attendre : un autre port, tout de suite.
+
+        C'est le harnais qui s'ameliore, pas seulement le test : dans la vraie
+        course, celle ou deux serveurs demarrent en meme temps sur une machine
+        chargee, cette verification fait perdre des millisecondes au lieu de
+        cinq secondes. La detection dans le journal de gunicorn reste en place
+        derriere -- elle attrape le cas que ce coup d'oeil ne peut PAS voir :
+        le port pris entre notre `bind` et celui de gunicorn.
+        """
+        with socket.socket() as s:
+            s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+            try:
+                s.bind(("127.0.0.1", self.port))
+            except OSError:
+                return False
+        return True
+
     def _demarrer_une_fois(self) -> None:
+        if not self._port_est_libre():
+            raise PortDejaPris(self.port)
+
         env = {
             **os.environ,
             "CLIMBCONTEST_DATA_DIR": str(self.dossier),
@@ -155,7 +204,7 @@ class ServeurReel:
                 journal = self.lire_journal()
                 # Distingue « le port a ete pris sous nos pieds », qu'on sait
                 # rattraper, d'une vraie panne de demarrage, qu'il faut montrer.
-                if "Address already in use" in journal or "in use" in journal.lower():
+                if dit_que_le_port_est_pris(journal):
                     self.arreter()
                     raise PortDejaPris(self.port)
                 raise RuntimeError(f"gunicorn n'a pas demarre :\n{journal[-800:]}")
@@ -216,39 +265,116 @@ class ServeurReel:
 
 
 def peupler(dossier: Path) -> None:
-    """Crée une compétition minimale, hors serveur."""
-    env = {**os.environ, "CLIMBCONTEST_DATA_DIR": str(dossier),
-           "CLIMBCONTEST_SHEETS_ACTIF": "0", "PYTHONPATH": str(RACINE)}
-    env.pop("CLIMBCONTEST_TEST", None)
-    code = """
-from climbcontest import creer_app
-from climbcontest.extensions import db
-from climbcontest.models import Competition, Participant, Bloc, Circuit, BlocCircuit, EN_COURS
-app = creer_app()
-with app.app_context():
-    c = Competition(nom="E2E", statut=EN_COURS, active=True, spreadsheet_id="x")
-    db.session.add(c); db.session.commit()
-    circuit = Circuit(competition_id=c.id, nom="U11")
-    db.session.add(circuit); db.session.flush()
-    for i in range(1, 21):
-        b = Bloc(competition_id=c.id, tag=f"B{i}", numero=i, zone="Z", couleur="Jaune")
-        db.session.add(b); db.session.flush()
-        db.session.add(BlocCircuit(bloc_id=b.id, circuit_id=circuit.id))
-    for i in range(1, 41):
-        db.session.add(Participant(competition_id=c.id, nom=f"Nom{i}", prenom=f"Prenom{i}",
-                                   club="Club", categorie="U11 F", dossard=i, present=True))
-    db.session.commit()
-"""
-    r = subprocess.run([sys.executable, "-c", code], cwd=RACINE, env=env,
-                       capture_output=True, timeout=90)
-    if r.returncode:
-        raise RuntimeError(f"peuplement echoue :\n{r.stderr.decode()[-800:]}")
+    """Crée une compétition minimale, hors serveur.
+
+    ⚠️ **Dans CE processus, et non plus dans un interpréteur à part.** Le
+    peuplement passait par un `subprocess.run` qui réimportait Flask,
+    SQLAlchemy et toute l'application : **0,5 s**, payés vingt et une fois. La
+    raison d'être du sous-processus était d'échapper au `CLIMBCONTEST_TEST=1`
+    que `tests/conftest.py` pose à l'import — sans quoi `creer_app()` sans
+    argument choisit la base EN MÉMOIRE, et le peuplement n'atterrit nulle part.
+
+    Une classe de configuration explicite dit la même chose sans payer un
+    démarrage : la base est nommée, elle est sur le disque, et c'est
+    exactement celle que gunicorn ouvrira ensuite. Même idiome que
+    `test_navigateur_juge_claire.py`.
+    """
+    from climbcontest import creer_app
+    from climbcontest.config import Config
+    from climbcontest.extensions import db
+    from climbcontest.models import (
+        Bloc, BlocCircuit, Circuit, Competition, EN_COURS, Participant)
+
+    class ConfigE2E(Config):
+        SQLALCHEMY_DATABASE_URI = f"sqlite:///{dossier / 'climbcontest.db'}"
+        SHEETS_ACTIF = False          # aucun acces reseau
+        DOSSIER_DONNEES = dossier
+
+    app = creer_app(ConfigE2E)
+    with app.app_context():
+        c = Competition(nom="E2E", statut=EN_COURS, active=True, spreadsheet_id="x")
+        db.session.add(c)
+        db.session.commit()
+        circuit = Circuit(competition_id=c.id, nom="U11")
+        db.session.add(circuit)
+        db.session.flush()
+        for i in range(1, 21):
+            b = Bloc(competition_id=c.id, tag=f"B{i}", numero=i, zone="Z",
+                     couleur="Jaune")
+            db.session.add(b)
+            db.session.flush()
+            db.session.add(BlocCircuit(bloc_id=b.id, circuit_id=circuit.id))
+        for i in range(1, 41):
+            db.session.add(Participant(
+                competition_id=c.id, nom=f"Nom{i}", prenom=f"Prenom{i}",
+                club="Club", categorie="U11 F", dossard=i, present=True))
+        db.session.commit()
+
+        # ⚠️ **Le rabattement du journal, sans quoi la base est un fichier
+        # vide.** L'application ouvre SQLite en mode WAL (voir
+        # `climbcontest/sqlite_reglages.py`, et le banc qui le justifie) : ce
+        # qui vient d'etre commite vit dans `climbcontest.db-wal`, PAS dans
+        # `climbcontest.db`. Copier le seul `.db` donnait donc une base
+        # techniquement valide et vide de tout -- et les tests echouaient sur
+        # « 409 », loin de la cause.
+        db.session.execute(text("PRAGMA wal_checkpoint(TRUNCATE)"))
+        db.session.remove()
+        db.engine.dispose()
+
+
+@pytest.fixture(scope="session")
+def base_modele(tmp_path_factory) -> Path:
+    """La base peuplée, construite **une seule fois** pour toute la session.
+
+    Les vingt et un tests E2E veulent tous la même compétition de départ. La
+    construire à chaque fois était un travail refait à l'identique : ici on la
+    bâtit une fois, et chaque test en reçoit une **copie**. Un fichier SQLite de
+    cette taille se copie en une milliseconde, contre une cinquantaine pour le
+    bâtir — et chaque test garde sa base bien à lui, donc son isolement.
+    """
+    dossier = tmp_path_factory.mktemp("e2e-modele")
+    peupler(dossier)
+    modele = dossier / "climbcontest.db"
+
+    # Le modele est copie vingt et une fois : s'il est vide, VINGT ET UN tests
+    # echouent sur un « 409 » qui n'accuse personne. On le verifie ici, une
+    # fois, ou l'echec nomme le peuplement.
+    #
+    # ⚠️ Sur une COPIE, et surtout pas sur le modele en place. En mode WAL, un
+    # second lecteur ouvert dans le meme dossier voit aussi `climbcontest.db-wal`
+    # et compte donc les quarante participants — meme quand le `.db` seul est
+    # vide. Une sonde posee sur le modele passait au vert pendant que les tests
+    # tombaient : elle prouvait le contraire de ce qu'on lui demandait. Ce que
+    # les tests recoivent, c'est UNE COPIE DU SEUL `.db`, et c'est donc cela
+    # qu'il faut lire.
+    sonde = modele.with_name("sonde-du-modele.db")
+    shutil.copy(modele, sonde)
+    try:
+        cx = sqlite3.connect(sonde)
+        try:
+            compte = cx.execute("SELECT COUNT(*) FROM participant").fetchone()[0]
+        except sqlite3.Error as erreur:
+            # Journal pas rabattu du tout : le `.db` ne contient meme pas le
+            # schema. Sans cette branche, le message brut est « no such table:
+            # participant » -- vrai, mais il n'indique ni la cause ni ou
+            # corriger.
+            compte = f"une base illisible ({erreur})"
+        finally:
+            cx.close()
+    finally:
+        sonde.unlink(missing_ok=True)
+    assert compte == 40, (
+        f"une copie de la base modele donne {compte} au lieu de 40 "
+        "participants : le peuplement n'a pas ete rabattu dans "
+        "climbcontest.db, il dort encore dans le journal WAL. Voir `peupler` "
+        "-- c'est ce que font son `wal_checkpoint` et son `engine.dispose()`")
+    return modele
 
 
 @pytest.fixture()
-def dossier():
+def dossier(base_modele):
     d = Path(tempfile.mkdtemp(prefix="climbcontest-e2e-"))
-    peupler(d)
+    shutil.copy(base_modele, d / "climbcontest.db")
     yield d
     shutil.rmtree(d, ignore_errors=True)
 
@@ -452,6 +578,30 @@ class TestLotSousGunicorn:
 # --- Le catalogue -----------------------------------------------------------
 
 class TestCatalogue:
+    """Trois lectures du meme catalogue, sur UN seul serveur.
+
+    ⚠️ Le partage n'est legitime que parce que ces trois tests ne font que
+    LIRE : aucun n'ecrit une reussite, aucun ne touche au catalogue. Un
+    demarrage de gunicorn coute 580 ms -- l'import de Flask et de
+    l'application, quel que soit le nombre de workers -- et en payer trois pour
+    trois `GET` etait le prix de rien.
+
+    Ce n'est PAS un motif a etendre par confort au reste du fichier :
+    `TestLotSousGunicorn` et `TestParcoursDuJuge` ecrivent, et plusieurs de
+    leurs assertions portent sur le compteur cumule de `/health`. Partager leur
+    serveur ne les rendrait pas seulement dependants de l'ordre : il faudrait
+    aussi que leurs jeux de donnees ne se recouvrent pas, sans quoi
+    l'idempotence -- ce qu'ils verifient justement -- avalerait des insertions
+    et les comptes deviendraient faux pour une raison invisible.
+    """
+
+    @pytest.fixture(scope="class")
+    def serveur(self, tmp_path_factory, base_modele):
+        dossier = tmp_path_factory.mktemp("e2e-catalogue")
+        shutil.copy(base_modele, dossier / "climbcontest.db")
+        with ServeurReel(dossier) as s:
+            yield s
+
     def test_contenu_et_version(self, serveur):
         code, corps = appeler(serveur.base, "/api/v2/catalog", methode="GET")
         assert code == 200
@@ -644,6 +794,53 @@ class TestBancDeTest:
     pas le produit finit par etre relance sans etre lu -- et le jour ou il
     signale un vrai defaut, personne ne le croit.
     """
+
+    #: Le journal REEL de gunicorn 26.2.0 quand le port est deja ecoute,
+    #: releve le 04/09 en lui donnant un port squatte. Il est fige ici parce
+    #: que le reproduire coute CINQ SECONDES a chaque execution : l'arbitre de
+    #: gunicorn reessaie le `bind` cinq fois avant de renoncer.
+    JOURNAL_PORT_PRIS = (
+        "[2026-09-04 10:28:10 +0200] [74261] [INFO] Starting gunicorn 26.2.0\n"
+        "[2026-09-04 10:28:10 +0200] [74261] [ERROR] Connection in use:"
+        " ('127.0.0.1', 61968)\n"
+        "[2026-09-04 10:28:10 +0200] [74261] [ERROR] connection to"
+        " ('127.0.0.1', 61968) failed: [Errno 48] Address already in use\n"
+        "[2026-09-04 10:28:15 +0200] [74261] [ERROR] Can't connect to"
+        " ('127.0.0.1', 61968)\n"
+    )
+
+    #: Une vraie panne de demarrage : rien a voir avec un port.
+    JOURNAL_VRAIE_PANNE = (
+        "[2026-09-04 10:31:02 +0200] [74300] [INFO] Starting gunicorn 26.2.0\n"
+        "[2026-09-04 10:31:02 +0200] [74300] [ERROR] Exception in worker process\n"
+        "Traceback (most recent call last):\n"
+        "  File \"wsgi.py\", line 1, in <module>\n"
+        "ModuleNotFoundError: No module named 'climbcontest'\n"
+    )
+
+    def test_un_journal_de_port_pris_est_reconnu(self):
+        """La seconde ligne de defense, testee sans la payer.
+
+        Depuis que `_port_est_libre` regarde AVANT de lancer gunicorn, ce
+        chemin ne sert plus qu'a la vraie course : le port pris entre notre
+        `bind` et celui de gunicorn. Il ne se declenche donc presque jamais --
+        et une branche qui ne se declenche jamais, personne ne remarque qu'elle
+        est cassee.
+
+        On la teste sur le journal REEL, fige plus haut, au lieu de refaire
+        renoncer gunicorn pendant cinq secondes.
+        """
+        assert dit_que_le_port_est_pris(self.JOURNAL_PORT_PRIS)
+
+    def test_une_vraie_panne_n_est_pas_prise_pour_un_port_occupe(self):
+        """Le sens INVERSE, qui est celui qui coute cher quand il rate.
+
+        Prendre une panne reelle pour un conflit de port ferait reessayer trois
+        fois sur trois ports differents, puis remonter « port deja pris » --
+        et on chercherait un conflit de port pendant que l'application ne
+        s'importe simplement plus.
+        """
+        assert not dit_que_le_port_est_pris(self.JOURNAL_VRAIE_PANNE)
 
     def test_reprend_un_autre_port_si_le_sien_est_pris(self, tmp_path):
         serveur = ServeurReel(tmp_path, workers=1)

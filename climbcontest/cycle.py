@@ -24,6 +24,7 @@ from .classement_service import charge_publique
 from .contest import ErreurMetier
 from .extensions import db
 from .models import (
+    Inscription, SOURCE_CLASSEUR, SOURCE_HELLOASSO,
     Archive, Bloc, BlocCircuit, Circuit, EN_COURS, FORMAT_ARCHIVE, Participant,
     PREPARATION, ReaffectationDossard, Success, TERMINEE,
     prochaine_version_catalogue,
@@ -268,6 +269,12 @@ def vider_la_base(comp) -> dict:
 
     ReaffectationDossard.query.filter_by(competition_id=comp.id).delete(
         synchronize_session=False)
+    # Les inscriptions HelloAsso partent AVANT les participants : elles
+    # pointent vers eux, et SQLite applique l'integrite referentielle. Elles
+    # appartiennent a l'edition, comme tout le reste -- une salle d'attente qui
+    # survivrait a l'effacement ferait revenir des gens qu'on vient d'effacer.
+    Inscription.query.filter_by(competition_id=comp.id).delete(
+        synchronize_session=False)
     db.session.flush()
 
     # Suppression par objet, pas en masse : les cascades ORM emportent les
@@ -495,3 +502,62 @@ def supprimer(archive: Archive) -> None:
     db.session.delete(archive)
     db.session.commit()
     logger.info("archive %s (%s) supprimee", identifiant, nom)
+
+
+# --- D'ou viennent les inscrits (spec 008, demande du 04/09) -----------------
+
+#: Les deux sources possibles. Ce sont les memes constantes que
+#: `Participant.source` : une source qui alimente et une origine qu'on affiche
+#: sont la meme chose, et deux vocabulaires finiraient par diverger.
+SOURCES_POSSIBLES = (SOURCE_CLASSEUR, SOURCE_HELLOASSO)
+
+#: Par defaut, le classeur seul. C'est l'etat du monde aujourd'hui, et une
+#: edition qui existait avant ce reglage ne doit pas changer de comportement du
+#: jour ou le code arrive.
+SOURCES_PAR_DEFAUT = (SOURCE_CLASSEUR,)
+
+
+def sources_inscriptions(comp) -> list[str]:
+    """Les sources d'inscrits declarees pour cette edition.
+
+    ⚠️ Ce reglage porte sur les **participants**, et sur rien d'autre. Le
+    miroir vers le classeur -- qui y ecrit les REUSSITES -- ne le regarde pas,
+    et l'import des blocs et des circuits non plus : le classeur peut tres bien
+    ne plus fournir les inscrits tout en restant la carte du mur.
+
+    Les confondre reviendrait a eteindre le miroir en decochant une case qui ne
+    parle pas de lui.
+    """
+    valeur = lire_options(comp).get("sources_inscriptions")
+    if not isinstance(valeur, list):
+        return list(SOURCES_PAR_DEFAUT)
+    propres = [s for s in SOURCES_POSSIBLES if s in valeur]
+    return propres or list(SOURCES_PAR_DEFAUT)
+
+
+def source_active(comp, source: str) -> bool:
+    return source in sources_inscriptions(comp)
+
+
+def regler_sources(comp, noms) -> list[str]:
+    """Range les sources. Au moins une, sinon plus personne ne peut s'inscrire.
+
+    ⚠️ **Ne supprime RIEN.** Decocher HelloAsso masque son parametrage et
+    arrete son fil ; la cle, le formulaire et la correspondance restent en
+    place. Adrien l'a demande explicitement le 04/09 : « je veux qu'on conserve
+    les informations de connexion et settings, pour ne pas avoir a le refaire
+    lorsqu'on le reactivera ».
+
+    C'est aussi la bonne facon de le faire : un reglage qui efface en se
+    desactivant n'est pas un interrupteur, c'est un piege.
+    """
+    if not isinstance(noms, list):
+        raise ErreurMetier("Une liste de sources est attendue.")
+    propres = [s for s in SOURCES_POSSIBLES if s in noms]
+    if not propres:
+        raise ErreurMetier(
+            "Au moins une source est necessaire : sans elle, aucun inscrit ne "
+            "peut entrer dans l'edition.")
+    ecrire_options(comp, sources_inscriptions=propres)
+    logger.info("competition %s : sources d'inscrits = %s", comp.id, propres)
+    return propres

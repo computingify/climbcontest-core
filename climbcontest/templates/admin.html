@@ -65,6 +65,14 @@
     --sur-alerte: #FFFFFF;
 
     --ok: #2E7D4F; --alerte: #B3392A; --attention: #9A6B0B;
+
+    /* Les trois sources d'un participant (spec 008). Le bleu est celui de
+       Google, le vert celui de HelloAsso ; la saisie manuelle prend l'ocre de
+       la console, parce que c'est NOTRE source. Ce sont des jetons parce que
+       le contraste s'inverse entre les deux themes : du blanc sur un fond
+       sature en clair, de l'encre sombre sur un fond clair en sombre. */
+    --src-g: #1A73E8; --src-g-txt: #FFFFFF;
+    --src-h: #00875A; --src-h-txt: #FFFFFF;
     --titre: system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
     --chiffre: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
     --ombre: 0 10px 30px rgba(27, 26, 23, 0.10);
@@ -92,6 +100,8 @@
       --sur-accent: #1B1A17;
       --sur-alerte: #1B1A17;
       --ok: #6FC08A; --alerte: #F08A78; --attention: #E5B44A;
+      --src-g: #5B9BF8; --src-g-txt: #10233F;
+      --src-h: #3FD9A0; --src-h-txt: #06281C;
       --ombre: 0 18px 48px rgba(0, 0, 0, 0.5);
     }
   }
@@ -361,6 +371,170 @@
     margin: 0 0 4px; font-size: 1.02rem; font-weight: 700; letter-spacing: -0.01em;
   }
   .carte > h2 + .aide { margin-top: 0; }
+  /* --- Un verdict : une ligne, une pastille, un ton (spec 008) ------------ */
+  /*
+     ⚠️ Ces regles manquaient, et rien ne le disait : `.verdict-maj` existait
+     depuis la spec 031 mais `.verdict` tout court, non. Les six verdicts de la
+     spec 008 sortaient donc en texte noir sans pastille -- lisibles, mais muets
+     sur ce qu'ils annoncaient. Vu a l'ecran, jamais par un test.
+
+     Un verdict tient en UNE ligne : c'est la regle d'UX du 03/09. La couleur
+     porte l'etat, le texte ne le repete pas. */
+  .verdict {
+    display: flex; align-items: center; gap: 8px; margin: 12px 0 0;
+    font-size: 0.9rem; font-weight: 600;
+  }
+  .verdict .rond {
+    width: 9px; height: 9px; border-radius: 50%; flex: none;
+    background: var(--encre3);
+  }
+  .verdict.est-ok { color: var(--ok); }
+  .verdict.est-ok .rond { background: var(--ok); }
+  .verdict.est-attention { color: var(--attention); }
+  .verdict.est-attention .rond { background: var(--attention); }
+  .verdict.est-alerte { color: var(--alerte); }
+  .verdict.est-alerte .rond { background: var(--alerte); }
+
+  /* --- La salle d'attente des inscriptions (spec 008) --------------------- */
+
+  /* Le compteur d'une pile, dans son titre. Ocre quand il reste a faire,
+     gris quand c'est derriere nous : la couleur porte l'information, le texte
+     ne la repete pas. */
+  .compte {
+    font-family: var(--chiffre); font-size: 0.78rem; font-weight: 700;
+    background: var(--accent); color: var(--sur-accent);
+    border-radius: 999px; padding: 1px 8px; min-width: 22px; text-align: center;
+    display: inline-block;
+  }
+  .compte.calme { background: var(--surface3); color: var(--encre2); }
+  .carte h2 { display: flex; align-items: center; gap: 9px; }
+
+  /* Un cas a trancher. Encadre en ambre : il attend un geste, il n'est ni
+     normal ni en panne. */
+  .cas {
+    border: 1px solid color-mix(in srgb, var(--attention) 40%, var(--trait));
+    border-radius: 11px; padding: 14px; margin-bottom: 12px;
+    background: var(--surface2);
+  }
+  .cas:last-child { margin-bottom: 0; }
+  .cas .quoi {
+    display: flex; align-items: baseline; gap: 9px; flex-wrap: wrap;
+    margin-bottom: 10px;
+  }
+  .cas .quoi b { font-size: 0.98rem; }
+  .motif {
+    font-size: 0.74rem; font-weight: 700; letter-spacing: 0.04em;
+    text-transform: uppercase; border-radius: 999px; padding: 2px 9px;
+    color: var(--attention);
+    background: color-mix(in srgb, var(--attention) 14%, transparent);
+  }
+  .motif.rouge {
+    color: var(--alerte);
+    background: color-mix(in srgb, var(--alerte) 14%, transparent);
+  }
+
+  /* Les deux fiches COTE A COTE : c'est en les voyant qu'on decide, pas en
+     lisant un message qui resume l'une des deux. */
+  .face-a-face { display: grid; gap: 10px; grid-template-columns: 1fr 1fr; }
+  @media (max-width: 720px) { .face-a-face { grid-template-columns: 1fr; } }
+  .colonne {
+    background: var(--surface); border: 1px solid var(--trait);
+    border-radius: 9px; padding: 11px 13px;
+  }
+  .colonne h3 {
+    margin: 0 0 8px; font-size: 0.74rem; text-transform: uppercase;
+    letter-spacing: 0.06em; color: var(--encre3); font-weight: 700;
+  }
+  .colonne dl {
+    margin: 0; display: grid; grid-template-columns: max-content 1fr;
+    gap: 3px 12px; font-size: 0.85rem;
+  }
+  .colonne dt { color: var(--encre3); }
+  .colonne dd { margin: 0; }
+  .cas .boutons {
+    display: flex; gap: 9px; flex-wrap: wrap; align-items: center;
+    margin-top: 12px;
+  }
+
+  /* --- Les sources, la selection d'impression, l'edition en ligne (spec 008) */
+
+  .src {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 21px; height: 21px; border-radius: 6px; flex: none;
+    font-size: 0.72rem; font-weight: 800; line-height: 1;
+  }
+  .src.g { background: var(--src-g); color: var(--src-g-txt); }
+  .src.h { background: var(--src-h); color: var(--src-h-txt); }
+  .src.m { background: var(--accent); color: var(--sur-accent); }
+  .sources { display: inline-flex; gap: 5px; }
+  .legende {
+    display: flex; align-items: center; gap: 7px; flex-wrap: wrap;
+    margin: 14px 0 0; font-size: 0.8rem; color: var(--encre2);
+  }
+  .legende .src { margin-left: 9px; }
+  .legende .src:first-child { margin-left: 0; }
+
+  .outils { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin-bottom: 14px; }
+  .outils input { max-width: 260px; }
+  .outils select { max-width: 210px; }
+  .pousse { flex: 1 1 auto; }
+  .ico { width: 15px; height: 15px; vertical-align: -2px; margin-right: 6px; }
+
+  /* ⚠️ C'est cette bande qui dit qu'on est en train de CHOISIR quoi imprimer,
+     avec la colonne de cases et les lignes teintees. Aucune phrase ne
+     l'explique : un mode se montre, il ne se raconte pas. */
+  .bande-selection {
+    display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+    margin: 0 0 14px; padding: 10px 13px; border-radius: 11px;
+    background: color-mix(in srgb, var(--accent) 13%, transparent);
+    border: 1px solid color-mix(in srgb, var(--accent) 42%, transparent);
+    font-size: 0.88rem;
+  }
+  .bande-selection .tout {
+    display: inline-flex; align-items: center; gap: 7px; margin: 0;
+    font-weight: 600; color: var(--encre); font-size: 0.87rem; cursor: pointer;
+  }
+  .bande-selection .tout input { width: auto; }
+  .bande-selection b { color: var(--accent-texte); }
+  th.coche, td.coche { width: 34px; padding-right: 0; }
+  td.coche input { width: auto; }
+  tr.prise td { background: color-mix(in srgb, var(--accent) 8%, transparent); }
+  td.fin { text-align: right; white-space: nowrap; }
+  .paire { display: inline-flex; gap: 7px; }
+
+  .crayon {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 30px; height: 30px; border-radius: 8px; cursor: pointer;
+    border: 1px solid transparent; background: none; color: var(--encre3);
+  }
+  .crayon:hover { background: var(--surface2); color: var(--accent-texte); border-color: var(--trait); }
+  .crayon svg { width: 15px; height: 15px; }
+
+  /* La ligne ouverte porte un liseré ocre à gauche : de loin, on voit
+     laquelle est en train d'être modifiée. */
+  tr.edition td {
+    background: color-mix(in srgb, var(--accent) 8%, transparent);
+    padding-top: 7px; padding-bottom: 7px;
+  }
+  tr.edition td:first-child { box-shadow: inset 3px 0 0 var(--accent); }
+  /* Une largeur PLANCHER : sans elle, la cellule comprime le champ jusqu'a ce
+     qu'un nom de famille n'y tienne plus, et on modifie a l'aveugle. Le
+     tableau deborde alors sur les petits ecrans -- c'est voulu, `.scroll` est
+     la pour ca. */
+  .mini-champ { padding: 6px 9px; font-size: 0.86rem; border-radius: 7px; min-width: 130px; }
+  .mini-champ.num { max-width: 92px; min-width: 72px; font-family: var(--chiffre); }
+  .apercu { margin: 6px 0 0; font-size: 0.8rem; color: var(--accent-texte); }
+  .apercu b { color: var(--encre); }
+
+  .mini {
+    font: inherit; font-weight: 600; cursor: pointer; border-radius: 8px;
+    padding: 5px 11px; font-size: 0.81rem;
+    background: var(--surface); color: var(--encre); border: 1px solid var(--trait);
+  }
+  .mini.fort { background: var(--accent); color: var(--sur-accent); border-color: var(--accent); }
+
+  button[disabled] { opacity: 0.45; cursor: not-allowed; }
+
   .aide { color: var(--encre2); font-size: 0.87rem; line-height: 1.55; margin: 0 0 16px; max-width: 64ch; }
   .aide:last-child { margin-bottom: 0; }
 
@@ -991,9 +1165,18 @@
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
         <span class="quoi"><b>Participants</b><i>Inscrire, chercher, imprimer</i></span>
       </button>
+      <button data-vue="categories">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="M7 16V9"/><path d="M12 16v-5"/><path d="M17 16v-9"/></svg>
+        <span class="quoi"><b>Catégories</b><i>Le barème, et l'appliquer</i></span>
+      </button>
       <button data-vue="circuits">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2 4 7v10l8 5 8-5V7Z"/><path d="M12 22V12"/><path d="m20 7-8 5-8-5"/></svg>
         <span class="quoi"><b>Circuits</b><i>Les blocs, et ce qui cloche</i></span>
+      </button>
+
+      <button data-vue="inscriptions" id="navInscriptions" hidden>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M19 8v6"/><path d="M22 11h-6"/></svg>
+        <span class="quoi"><b>Inscriptions</b><i>Ce qui arrive de HelloAsso</i></span>
       </button>
 
       <button data-vue="reussites">
@@ -1011,6 +1194,10 @@
       <button data-vue="classeur" id="navClasseur" hidden>
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18"/><path d="M9 21V9"/></svg>
         <span class="quoi"><b>Classeur</b><i>La feuille, l'import, l'effacement</i></span>
+      </button>
+      <button data-vue="helloasso" id="navHelloasso" hidden>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16v12H5.2L4 18Z"/><path d="M8 9h8"/><path d="M8 13h5"/></svg>
+        <span class="quoi"><b>HelloAsso</b><i>La clé, le formulaire, le relevé</i></span>
       </button>
       <button data-vue="archives" id="navArchives">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="5" rx="1"/><path d="M4 9v10a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1V9"/><path d="M10 13h4"/></svg>
@@ -1056,6 +1243,17 @@
         </svg>
         <span id="pastilleMajTag"></span>
       </button>
+      <!-- La pastille des inscriptions (spec 008). Meme forme que celle des
+           mises a jour, meme ocre : les deux disent « il y a quelque chose a
+           faire ailleurs », et elles mènent la ou on le fait. -->
+      <button type="button" class="pastille" id="pastilleInscriptions" hidden>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"
+             stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/>
+          <path d="M19 8v6"/><path d="M22 11h-6"/>
+        </svg>
+        <span id="pastilleInscriptionsTexte"></span>
+      </button>
       <span class="jeton optionnel" id="qui"></span>
     </div>
   </div>
@@ -1074,11 +1272,19 @@
       <div class="carte">
         <h2>Ajouter un participant</h2>
         <p class="aide"><strong>Le dossard est attribué automatiquement</strong>
-           — le premier numéro libre. Il s'affiche après l'ajout : c'est
-           celui-là qu'il faut imprimer.</p>
+           — le premier numéro libre. Il s'affiche après l'ajout.</p>
         <div class="grille">
           <div><label for="pNom">Nom *</label><input id="pNom"></div>
           <div><label for="pPrenom">Prénom</label><input id="pPrenom"></div>
+          <!-- L'annee et la categorie se repondent (spec 008, decision D8).
+               L'une OU l'autre : taper l'annee propose la categorie, choisir la
+               categorie dit quelles annees on attend. Une categorie couvre deux
+               annees, donc le sens categorie -> annee ne peut qu'annoncer. -->
+          <div>
+            <label for="pAnnee">Année de naissance</label>
+            <input id="pAnnee" inputmode="numeric" maxlength="4" placeholder="2016">
+            <p class="apercu" id="pAnneeAide" hidden></p>
+          </div>
           <div>
             <label for="pClub">Club</label>
             <select id="pClub" data-autre="pClubAutre"></select>
@@ -1090,34 +1296,240 @@
             <select id="pCategorie" data-autre="pCategorieAutre"></select>
             <input id="pCategorieAutre" hidden placeholder="U13 F" style="margin-top:6px"
                    aria-label="Nouvelle catégorie">
+            <p class="apercu" id="pCategorieAide" hidden></p>
           </div>
         </div>
+        <!-- Le rappel d'homonyme (spec 008). Il paraît APRÈS une tentative,
+             jamais avant : prévenir à chaque frappe ferait du bruit, et le
+             bruit se cesse de lire. -->
+        <div id="rappelHomonyme" hidden></div>
         <button class="action" id="btnAjouter">Ajouter</button>
       </div>
 
       <div class="carte">
         <h2>La liste</h2>
-        <p class="aide">Le dossard se réaffecte à chaud — utile quand un
-           bracelet est perdu ou échangé.</p>
-        <input id="recherche" placeholder="Chercher un nom ou un dossard…" style="max-width:340px">
+        <div class="outils">
+          <input id="recherche" placeholder="Chercher un nom ou un dossard…">
+          <select id="filtreCategorie" aria-label="Filtrer par catégorie"></select>
+          <span class="pousse"></span>
+          <button class="secondaire" id="btnSelection">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"
+                 stroke-linecap="round" stroke-linejoin="round" class="ico" aria-hidden="true">
+              <path d="M9 11l3 3L22 4"/>
+              <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/>
+            </svg>
+            Sélectionner pour impression</button>
+        </div>
+
+        <!-- La bande dit qu'on est en train de CHOISIR quoi imprimer. C'est sa
+             teinte et la colonne de cases qui le disent, pas une phrase. -->
+        <div class="bande-selection" id="bandeSelection" hidden>
+          <label class="tout"><input type="checkbox" id="toutSelectionner"> Tout sélectionner</label>
+          <b id="compteSelection">0 sélectionné</b>
+          <span class="pousse"></span>
+          <button class="action" id="btnImprimerSelection" disabled>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"
+                 stroke-linecap="round" stroke-linejoin="round" class="ico" aria-hidden="true">
+              <path d="M6 9V2h12v7"/>
+              <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/>
+              <path d="M6 14h12v8H6z"/>
+            </svg>
+            Imprimer</button>
+          <button class="secondaire" id="btnAnnulerSelection">Annuler</button>
+        </div>
+
         <div class="scroll"><table>
-          <thead><tr><th>Dossard</th><th>Nom</th><th>Club</th><th>Catégorie</th>
-                     <th class="col-anonyme">Anonymisé</th><th></th></tr></thead>
+          <thead><tr id="enteteParticipants"></tr></thead>
           <tbody id="listeParticipants"></tbody>
         </table></div>
+        <p class="legende">
+          <span class="src g">G</span> classeur Google
+          <span class="src h">H</span> HelloAsso
+          <span class="src m">M</span> saisie manuelle
+        </p>
+      </div>
+
+      <!-- La carte ne paraît QUE s'il y a quelque chose à fusionner. Une carte
+           « aucun doublon » en permanence serait une ligne de plus à lire tous
+           les jours pour une information qui n'arrive presque jamais. -->
+      <div class="carte" id="carteDoublons" hidden>
+        <h2>Doublons <span class="compte" id="compteDoublons">0</span></h2>
+        <p class="aide">Même nom, même club. Choisis la fiche qui garde son
+           dossard — c'est celui qui est déjà imprimé.</p>
+        <div id="listeDoublons"></div>
+      </div>
+    </section>
+
+    <!-- ================= Catégories (spec 008) ================= -->
+    <section class="vue" id="vueCategories" hidden>
+      <div class="titre-vue">
+        <h1>Catégories</h1>
+        <p>Le barème n'est pas saisi : il se calcule. « U » veut dire <em>under</em>,
+           et c'est le plus petit qui l'emporte.</p>
       </div>
 
       <div class="carte">
-        <h2>Imprimer les fiches</h2>
-        <p class="aide">Numéro, QR, tous les blocs de son circuit et le plan de
-           la salle. <strong>Six par page.</strong> Imprime à l'échelle
-           <strong>100 %</strong>, sans « ajuster à la page » — sinon les QR
-           sortent trop petits pour être lus.</p>
-        <div class="grille" style="max-width:420px">
-          <div><label for="dCategorie">Une catégorie (vide = toutes)</label><select id="dCategorie"></select></div>
-          <div><label for="dUnSeul">Ou une seule fiche (dossard)</label><input id="dUnSeul" inputmode="numeric"></div>
+        <h2>Les catégories, par année de naissance</h2>
+        <dl class="etat" id="etatBareme"></dl>
+        <div class="scroll"><table>
+          <thead><tr><th>Catégorie</th><th>Années de naissance</th><th>Âge</th><th>Inscrits</th></tr></thead>
+          <tbody id="listeBareme"></tbody>
+        </table></div>
+        <p class="verdict" id="verdictBareme"></p>
+        <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:16px">
+          <button class="action" id="btnApercuBareme">Appliquer à tous les inscrits</button>
         </div>
-        <button class="action" id="btnImprimer">Ouvrir les fiches</button>
+        <div id="apercuBareme" hidden></div>
+      </div>
+
+      <!-- ⚠️ La porte de sortie du classeur Google, dont la disparition est
+           prévue. Les circuits ne viennent que de son import : sans cette
+           liste, une édition alimentée par HelloAsso seul n'aurait aucun Under
+           au premier relevé. -->
+      <div class="carte">
+        <h2>Les catégories de cette édition</h2>
+        <p class="aide">Elles se déduisent des inscrits et du classeur. Les
+           déclarer ici sert quand il n'y a encore ni l'un ni l'autre — et le
+           jour où le classeur ne sera plus là.</p>
+        <label for="categoriesDeclarees">Catégories, séparées par des virgules</label>
+        <input id="categoriesDeclarees" placeholder="U11 F, U11 H, U13 F, U13 H">
+        <div style="margin-top:14px">
+          <button class="action" id="btnDeclarerCategories">Enregistrer</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- ================= Inscriptions (spec 008) ================= -->
+    <section class="vue" id="vueInscriptions" hidden>
+      <div class="titre-vue">
+        <h1>Inscriptions</h1>
+        <p id="resumeInscriptions">Ce qui est arrivé de HelloAsso.</p>
+      </div>
+
+      <div class="carte" id="carteATrancher" hidden>
+        <h2>À trancher <span class="compte" id="compteATrancher">0</span></h2>
+        <div id="listeATrancher"></div>
+      </div>
+
+      <div class="carte" id="carteAImprimer" hidden>
+        <h2>À imprimer <span class="compte" id="compteAImprimer">0</span></h2>
+        <!-- Toute la pile s'imprime d'un coup : c'est le geste normal du matin,
+             et il n'y a rien à choisir. La sélection par cases reste sur la
+             liste des participants, où l'on imprime une partie. -->
+        <div class="bande-selection">
+          <b id="compteAImprimerBande">0 fiche</b>
+          <span class="pousse"></span>
+          <button class="action" id="btnImprimerInscriptions">Imprimer toute la pile</button>
+        </div>
+        <div class="scroll"><table>
+          <thead><tr><th>Dossard</th><th>Nom</th><th>Catégorie</th><th>Club</th>
+                     <th>Reçue</th><th></th></tr></thead>
+          <tbody id="listeAImprimer"></tbody>
+        </table></div>
+      </div>
+
+      <div class="carte" id="carteRienEnAttente" hidden>
+        <h2>Rien en attente</h2>
+        <dl class="etat" id="etatInscriptions"></dl>
+        <div style="margin-top:14px">
+          <button class="secondaire" id="btnRelever">Relever maintenant</button>
+        </div>
+      </div>
+
+      <div class="carte">
+        <h2>Faites <span class="compte calme" id="compteFaites">0</span></h2>
+        <div class="scroll"><table>
+          <thead><tr><th>Dossard</th><th>Nom</th><th>Catégorie</th><th>Reçue</th></tr></thead>
+          <tbody id="listeFaites"></tbody>
+        </table></div>
+      </div>
+    </section>
+
+    <!-- ================= HelloAsso (spec 008) ================= -->
+    <section class="vue" id="vueHelloasso" hidden>
+      <div class="titre-vue">
+        <h1>HelloAsso</h1>
+        <p>Les inscriptions en ligne. Réservé aux administrateurs.</p>
+      </div>
+
+      <div class="carte" id="carteRelier" hidden>
+        <h2>Relier le compte du club</h2>
+        <p class="aide">La clé se trouve sur le compte HelloAsso du club,
+           <strong>Mon Compte → Intégrations et API</strong>.</p>
+        <div class="grille">
+          <div><label for="haId">Identifiant client</label>
+               <input id="haId" autocapitalize="none" spellcheck="false"></div>
+          <div><label for="haSecret">Secret client</label>
+               <input id="haSecret" type="password" autocomplete="new-password"></div>
+          <div><label for="haEnv">Environnement</label>
+               <select id="haEnv">
+                 <option value="production">Production</option>
+                 <option value="sandbox">Bac à sable</option>
+               </select></div>
+        </div>
+        <button class="action" id="btnRelierHelloasso">Relier</button>
+      </div>
+
+      <div class="carte" id="carteCompteHelloasso" hidden>
+        <h2>Compte</h2>
+        <dl class="etat" id="etatHelloasso"></dl>
+        <p class="verdict" id="verdictHelloasso"></p>
+        <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:14px">
+          <button class="action" id="btnTesterHelloasso">Tester</button>
+          <button class="secondaire" id="btnRemplacerCle">Remplacer la clé</button>
+          <button class="secondaire" id="btnDebrancherHelloasso"
+                  style="border-color:var(--alerte);color:var(--alerte)">Débrancher</button>
+        </div>
+        <!-- « Est-ce que ça marche ? » se répond par des faits qu'on
+             reconnaît — le nom du club, un nombre de formulaires — pas par un
+             mot qui dit « relié » et pourrait désigner la mauvaise
+             association. -->
+        <dl class="etat" id="resultatTest" hidden style="margin-top:16px"></dl>
+      </div>
+
+      <div class="carte" id="carteFormulaire" hidden>
+        <h2>Formulaire de cette édition</h2>
+        <!-- ⚠️ Le nom court de l'association ne se saisit plus : la clé le
+             connaît (`/users/me/organizations`). Un champ à remplir à la main
+             aurait sa faute de frappe, et le symptôme aurait été « aucun
+             formulaire trouvé » — qui n'accuse personne. -->
+        <div class="grille" style="max-width:520px">
+          <div><label for="haForm">Formulaire</label>
+               <select id="haForm"></select>
+               <p class="apercu" id="haOrgaNom" hidden></p></div>
+        </div>
+        <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:14px">
+          <button class="action" id="btnChoisirFormulaire">Choisir ce formulaire</button>
+          <button class="secondaire" id="btnListerFormulaires">Rafraîchir la liste</button>
+        </div>
+      </div>
+
+      <div class="carte" id="carteChamps" hidden>
+        <h2>Les champs du formulaire</h2>
+        <p class="aide"><strong>L'année de naissance est obligatoire</strong> :
+           c'est elle qui fait la catégorie.</p>
+        <div class="grille">
+          <div><label for="chNaissance">Année de naissance</label>
+               <input id="chNaissance" placeholder="Date de naissance"></div>
+          <div><label for="chGenre">Genre</label>
+               <input id="chGenre" placeholder="Sexe"></div>
+          <div><label for="chClub">Club</label>
+               <input id="chClub" placeholder="Votre club"></div>
+        </div>
+        <label for="chValeurs" style="margin-top:14px">Réponses de genre</label>
+        <input id="chValeurs" placeholder="Fille=F, Garçon=H">
+        <p class="aide" style="margin-top:6px">Une réponse absente de cette liste
+           laisse l'inscription en attente — elle ne vaut jamais « H ».</p>
+        <button class="action" id="btnEnregistrerChamps">Enregistrer</button>
+      </div>
+
+      <div class="carte" id="carteReleve" hidden>
+        <h2>Relevé</h2>
+        <dl class="etat" id="etatReleve"></dl>
+        <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:14px">
+          <button class="secondaire" id="btnReleverHelloasso">Relever maintenant</button>
+          <button class="secondaire" id="btnReleverTout">Tout rejouer</button>
+        </div>
       </div>
     </section>
 
@@ -1502,6 +1914,41 @@
       </div>
 
       <div class="carte">
+        <h2>D'où viennent les inscrits</h2>
+        <p class="aide">Le classeur Google est <strong>temporaire</strong> : il
+           finira par disparaître. Ce réglage porte sur les <strong>participants
+           </strong> seulement — les blocs, les circuits et le miroir des
+           réussites continuent d'utiliser le classeur quoi qu'il arrive.</p>
+        <fieldset class="choix" id="choixSources">
+          <legend>Sources de cette édition</legend>
+          <label>
+            <input type="radio" name="sources" value="classeur">
+            <span class="quoi"><b>Le classeur Google seul</b>
+              <i>Ce qu'on fait aujourd'hui. Aucun réglage HelloAsso n'apparaît
+                 dans la console.</i></span>
+          </label>
+          <label>
+            <input type="radio" name="sources" value="helloasso">
+            <span class="quoi"><b>HelloAsso seul</b>
+              <i>Les inscriptions en ligne alimentent seules la liste. Le
+                 classeur reste la carte du mur.</i></span>
+          </label>
+          <label>
+            <input type="radio" name="sources" value="classeur,helloasso">
+            <span class="quoi"><b>Les deux</b>
+              <i>Les deux flux alimentent la même liste, et le rapprochement les
+                 fait se rencontrer : une personne présente des deux côtés n'est
+                 créée qu'une fois.</i></span>
+          </label>
+        </fieldset>
+        <p class="aide" style="margin-top:12px">Décocher HelloAsso
+           <strong>ne supprime rien</strong> : la clé, le formulaire et la
+           correspondance restent en place et reviennent tels quels si on le
+           réactive.</p>
+        <button class="action" id="btnSources">Enregistrer</button>
+      </div>
+
+      <div class="carte">
         <h2>L'édition</h2>
         <p class="aide">Affiché sur le vidéoprojecteur, et repris dans le nom du
            fichier d'archive.</p>
@@ -1791,7 +2238,14 @@
         throw { gere: true };
       }
       return r.json().catch(function () { return {}; }).then(function (d) {
-        if (!r.ok) throw { message: d.message || ("Erreur " + r.status) };
+        // ⚠️ Le CORPS voyage avec le refus, pas seulement le message.
+        //
+        // Un refus utile porte souvent de quoi agir : les fiches qui
+        // ressemblent quand on refuse un doublon (spec 008), et demain autre
+        // chose. Sans ça, l'appelant devrait redemander au serveur ce que le
+        // serveur vient de lui dire.
+        if (!r.ok) throw { message: d.message || ("Erreur " + r.status),
+                           statut: r.status, corps: d };
         return d;
       });
     });
@@ -1863,6 +2317,20 @@
     // « Archives » ne fait que consulter : tout le monde y a droit, et c'est
     // volontaire -- revoir l'edition de l'an dernier n'est pas un privilege.
     $("navGeneral").hidden = etat.moi.roles.indexOf("admin") === -1;
+    // ⚠️ HelloAsso : l'entree n'apparait que pour un administrateur -- elle
+    // manipule un secret -- et « Inscriptions » n'apparait QUE SI une cle est
+    // posee. Une integration non branchee ne doit pas laisser d'entree de menu
+    // qui mene a un ecran vide : c'est ce qui fait chercher une panne la ou il
+    // n'y a rien.
+    // ⚠️ Deux conditions, et elles ne disent pas la meme chose : la SOURCE
+    // (l'edition s'en sert-elle ?) et la CLE (est-elle posee ?). Une edition
+    // qui a decoche HelloAsso ne doit rien en voir, meme si la cle est la --
+    // c'est tout l'objet du reglage.
+    majMenusSources(etat.moi.sources_inscriptions || []);
+    if ((etat.moi.sources_inscriptions || []).indexOf("helloasso") !== -1
+        && etat.moi.helloasso_relie) {
+      chargerInscriptions();
+    }
     chargerReferentiels();
     // Sur QUOI on agit. Sans ca, rien a l'ecran ne distingue la competition
     // de novembre d'une competition de test restee active.
@@ -1906,6 +2374,10 @@
 
   var VUES = {
     participants: { titre: "Participants",         charge: chargerParticipants },
+    categories:   { titre: "Catégories",           charge: chargerBareme },
+    inscriptions: { titre: "Inscriptions",         charge: ouvrirInscriptions,
+                    quitte: fermerInscriptions },
+    helloasso:    { titre: "HelloAsso",            charge: chargerHelloasso },
     circuits:     { titre: "Circuits",             charge: chargerCircuits },
     reussites:    { titre: "Réussites",            charge: ouvrirReussites,
                     quitte: fermerReussites },
@@ -1922,6 +2394,53 @@
       chargerMaj(false);
     }
   }
+
+  // --- D'ou viennent les inscrits (spec 008) ---------------------------------
+  //
+  // Le reglage vit dans General parce qu'il decrit L'EDITION. Il commande la
+  // visibilite de tout le parametrage HelloAsso : « si helloasso n'est pas
+  // selectionne je ne veux voir aucun parametrage helloasso dans ma console »
+  // (Adrien, 04/09).
+
+  function dessinerSources(sources) {
+    var valeur = (sources || []).slice().sort().join(",");
+    // « classeur,helloasso » est la valeur des deux ; les deux autres sont
+    // simples. Trier evite que l'ordre du serveur decide de la case cochee.
+    var bouton = document.querySelector(
+      '#choixSources input[value="' + valeur + '"]');
+    if (bouton) bouton.checked = true;
+    majMenusSources(sources || []);
+  }
+
+  function majMenusSources(sources) {
+    var avecHelloasso = sources.indexOf("helloasso") !== -1;
+    var admin = etat.moi && etat.moi.roles.indexOf("admin") !== -1;
+    $("navHelloasso").hidden = !avecHelloasso || !admin;
+    $("navInscriptions").hidden = !avecHelloasso
+      || !(etat.moi && etat.moi.helloasso_relie);
+    if (!avecHelloasso) {
+      // La pastille disparait avec le reste : elle compterait des inscriptions
+      // d'une source qu'on vient d'eteindre.
+      $("pastilleInscriptions").hidden = true;
+      fermerInscriptions();
+    }
+  }
+
+  $("btnSources").addEventListener("click", function () {
+    var choisi = document.querySelector('#choixSources input:checked');
+    if (!choisi) { dire("Choisis une source.", "alerte"); return; }
+    var sources = choisi.value.split(",");
+    appeler("/admin/competition/sources", { methode: "POST",
+                                            corps: { sources: sources } })
+      .then(function (d) {
+        etat.moi.sources_inscriptions = d.sources;
+        dessinerSources(d.sources);
+        dire(d.sources.indexOf("helloasso") !== -1
+          ? "Enregistré. Le paramétrage HelloAsso est disponible."
+          : "Enregistré. Le paramétrage HelloAsso est masqué — rien n'est perdu.",
+          "ok");
+      }).catch(signaler);
+  });
 
   // --- Version du serveur (spec 031) ----------------------------------------
   //
@@ -2195,9 +2714,6 @@
     return appeler("/admin/referentiels").then(function (d) {
       remplir($("pClub"), d.clubs || [], "\u2014 aucun \u2014", true);
       remplir($("pCategorie"), d.categories || [], "\u2014 aucune \u2014", true);
-      // Pas d'« Autre… » a l'impression : on imprime pour une categorie QUI
-      // EXISTE, pas pour une qu'on vient d'inventer.
-      remplir($("dCategorie"), d.categories || [], "Toutes les cat\u00e9gories", false);
       // Les zones du PLAN, pas celles des blocs : un QR de poste existe pour
       // une zone meme si aucun bloc n'y est encore importe (spec 034).
       remplir($("pZone"), d.zones || [], "Toutes les zones", false);
@@ -2205,68 +2721,165 @@
       // Listes indisponibles : « Autre… » reste le chemin, le formulaire marche.
       remplir($("pClub"), [], "\u2014 aucun \u2014", true);
       remplir($("pCategorie"), [], "\u2014 aucune \u2014", true);
-      remplir($("dCategorie"), [], "Toutes les cat\u00e9gories", false);
       remplir($("pZone"), [], "Toutes les zones", false);
     });
   }
 
+  // --- Participants : la liste, la selection, l'edition en ligne ------------
+  //
+  // Trois gestes cohabitent dans le meme tableau, et un seul est actif a la
+  // fois : consulter, choisir quoi imprimer, modifier une ligne. Les melanger
+  // -- une case a cocher ET un crayon ET une ligne ouverte -- donnerait un
+  // ecran ou l'on ne sait plus ce qu'un clic va faire.
+
+  var selection = { active: false, dossards: {} };
+  var enEdition = null;                     // l'id du participant ouvert
+
   function chargerParticipants() {
     appeler("/admin/participants").then(function (d) {
       etat.participants = d.participants || [];
+      remplir($("filtreCategorie"), categoriesVues(), "Toutes les catégories", false);
       dessinerParticipants();
+      chargerDoublons();
     }).catch(signaler);
   }
 
-  function dessinerParticipants() {
+  function categoriesVues() {
+    var vues = {};
+    etat.participants.forEach(function (p) { if (p.categorie) vues[p.categorie] = 1; });
+    return Object.keys(vues).sort();
+  }
+
+  function participantsAffiches() {
     var q = $("recherche").value.trim().toLowerCase();
-    var liste = etat.participants.filter(function (p) {
+    var cat = $("filtreCategorie").value;
+    return etat.participants.filter(function (p) {
+      if (cat && p.categorie !== cat) return false;
       return !q || (p.nom || "").toLowerCase().indexOf(q) !== -1
                 || String(p.dossard || "").indexOf(q) !== -1;
     });
+  }
 
+  function pastillesSource(sources) {
+    var span = document.createElement("span");
+    span.className = "sources";
+    // ⚠️ La classe est ECRITE, pas deduite de la premiere lettre du nom de la
+    // source : « classeur » commence par un c et donnerait `.src.c`, qui
+    // n'existe pas -- la pastille perdait son fond, en silence.
+    var vues = {
+      classeur:  { lettre: "G", classe: "g", infobulle: "Classeur Google" },
+      helloasso: { lettre: "H", classe: "h", infobulle: "HelloAsso" },
+      manuel:    { lettre: "M", classe: "m", infobulle: "Saisie manuelle" }
+    };
+    (sources || []).forEach(function (s) {
+      if (!vues[s]) return;
+      var b = document.createElement("span");
+      b.className = "src " + vues[s].classe;
+      b.textContent = vues[s].lettre;
+      b.title = vues[s].infobulle;
+      span.appendChild(b);
+    });
+    return span;
+  }
+
+  // Spec 043 : la colonne de l'interrupteur. Nommee a part parce que
+  // `dessinerParticipants` doit lui poser sa classe -- elle est la seule.
+  var COL_ANONYME = "Anonymisé";
+  var COLONNES = ["Dossard", "Nom", "Année", "Club", "Catégorie", "Source",
+                  COL_ANONYME, ""];
+
+  function dessinerParticipants() {
+    var entete = $("enteteParticipants");
+    entete.innerHTML = "";
+    if (selection.active) {
+      var th0 = document.createElement("th");
+      th0.className = "coche";
+      entete.appendChild(th0);
+    }
+    COLONNES.forEach(function (nom) {
+      var th = document.createElement("th");
+      th.textContent = nom;
+      if (nom === COL_ANONYME) th.className = "col-anonyme";
+      entete.appendChild(th);
+    });
+
+    var liste = participantsAffiches();
     var corps = $("listeParticipants");
     corps.innerHTML = "";
     liste.forEach(function (p) {
-      var tr = document.createElement("tr");
-
-      var td = document.createElement("td");
-      td.className = "num";
-      if (p.dossard === null) {
-        td.className = "sans";
-        td.textContent = "aucun";
-      } else {
-        td.textContent = p.dossard;
-      }
-      tr.appendChild(td);
-
-      ["nom", "club", "categorie"].forEach(function (champ) {
-        var c = document.createElement("td");
-        c.textContent = p[champ] || "—";
-        // ⚠️ La console montre TOUJOURS le vrai nom, meme anonymise en public
-        // (spec 043) : c'est elle qui sert a retrouver la personne au
-        // telephone. Une pastille dit a cote ce que le public voit.
-        if (champ === "nom" && p.publication_refusee) {
-          var marque = document.createElement("span");
-          marque.className = "marque-anonyme";
-          marque.textContent = "publié : " + nomPublie(p);
-          c.appendChild(marque);
-        }
-        tr.appendChild(c);
-      });
-
-      tr.appendChild(celluleAnonymat(p));
-
-      var actions = document.createElement("td");
-      var b = document.createElement("button");
-      b.className = "discret";
-      b.textContent = p.dossard === null ? "Donner un dossard" : "Changer le dossard";
-      b.style.color = "var(--encre2)";
-      b.addEventListener("click", function () { reaffecter(p); });
-      actions.appendChild(b);
-      tr.appendChild(actions);
-
-      corps.appendChild(tr);
+      corps.appendChild(enEdition === p.id ? ligneEditable(p) : ligneNormale(p));
     });
+    majSelection();
+  }
+
+  function ligneNormale(p) {
+    var tr = document.createElement("tr");
+
+    if (selection.active) {
+      var tdc = document.createElement("td");
+      tdc.className = "coche";
+      if (p.dossard !== null) {
+        var case_ = document.createElement("input");
+        case_.type = "checkbox";
+        case_.checked = !!selection.dossards[p.dossard];
+        case_.addEventListener("change", function () {
+          if (case_.checked) selection.dossards[p.dossard] = 1;
+          else delete selection.dossards[p.dossard];
+          tr.classList.toggle("prise", case_.checked);
+          majSelection();
+        });
+        tdc.appendChild(case_);
+      }
+      tr.appendChild(tdc);
+      if (selection.dossards[p.dossard]) tr.className = "prise";
+    }
+
+    var td = document.createElement("td");
+    if (p.dossard === null) { td.className = "sans"; td.textContent = "aucun"; }
+    else { td.className = "num"; td.textContent = p.dossard; }
+    tr.appendChild(td);
+
+    ["nom", "annee_naissance", "club", "categorie"].forEach(function (champ) {
+      var c = document.createElement("td");
+      if (champ === "annee_naissance") c.className = "num";
+      c.textContent = p[champ] || "—";
+      // ⚠️ La console montre TOUJOURS le vrai nom, meme anonymise en public
+      // (spec 043) : c'est elle qui sert a retrouver la personne au
+      // telephone. Une pastille dit a cote ce que le public voit.
+      if (champ === "nom" && p.publication_refusee) {
+        var marque = document.createElement("span");
+        marque.className = "marque-anonyme";
+        marque.textContent = "publié : " + nomPublie(p);
+        c.appendChild(marque);
+      }
+      tr.appendChild(c);
+    });
+
+    var src = document.createElement("td");
+    src.appendChild(pastillesSource(p.sources));
+    tr.appendChild(src);
+
+    tr.appendChild(celluleAnonymat(p));
+
+    var actions = document.createElement("td");
+    actions.className = "fin";
+    if (!selection.active) {
+      var b = document.createElement("button");
+      b.className = "crayon";
+      b.type = "button";
+      b.setAttribute("aria-label", "Modifier " + (p.nom || ""));
+      b.title = "Modifier";
+      b.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" ' +
+        'stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">' +
+        '<path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>';
+      b.addEventListener("click", function () {
+        enEdition = p.id;
+        dessinerParticipants();
+      });
+      actions.appendChild(b);
+    }
+    tr.appendChild(actions);
+    return tr;
   }
 
   // Ce que la page publique affiche a la place du nom. La MEME regle que
@@ -2320,24 +2933,227 @@
     return td;
   }
 
-  function reaffecter(p) {
-    var valeur = prompt(
-      "Quel dossard donner à " + p.nom + " ?\n\n" +
-      "Rappel : un dossard qui porte déjà des réussites ne peut pas changer " +
-      "de main — il faudra en imprimer un neuf.",
-      p.dossard || "");
-    if (valeur === null || !valeur.trim()) return;
-    appeler("/admin/participants/" + p.id + "/dossard", {
-      methode: "POST", corps: { dossard: valeur.trim() },
-    }).then(function () {
-      dire("Dossard " + valeur.trim() + " attribué à " + p.nom + ".", "ok");
-      chargerParticipants();
-    }).catch(signaler);
+  // La ligne s'ouvre SUR PLACE, jamais dans une fenetre : on garde sous les
+  // yeux les voisins, et c'est souvent eux qui disent quelle est la bonne
+  // valeur -- le club d'un frere, la categorie d'un camarade.
+  function ligneEditable(p) {
+    var tr = document.createElement("tr");
+    tr.className = "edition";
+    var champs = {};
+
+    function cellule(construire) {
+      var td = document.createElement("td");
+      td.appendChild(construire());
+      tr.appendChild(td);
+      return td;
+    }
+
+    if (selection.active) tr.appendChild(document.createElement("td"));
+
+    cellule(function () {
+      champs.dossard = document.createElement("input");
+      champs.dossard.className = "mini-champ num";
+      champs.dossard.value = p.dossard === null ? "" : p.dossard;
+      champs.dossard.inputMode = "numeric";
+      return champs.dossard;
+    });
+    cellule(function () {
+      champs.nom = document.createElement("input");
+      champs.nom.className = "mini-champ";
+      champs.nom.value = p.nom || "";
+      return champs.nom;
+    });
+    cellule(function () {
+      champs.annee = document.createElement("input");
+      champs.annee.className = "mini-champ num";
+      champs.annee.value = p.annee_naissance || "";
+      champs.annee.inputMode = "numeric";
+      champs.annee.maxLength = 4;
+      return champs.annee;
+    });
+    cellule(function () {
+      champs.club = listeQuiCree(etat.clubs, p.club, "Nouveau club");
+      return champs.club;
+    });
+    cellule(function () {
+      champs.categorie = listeQuiCree(categoriesVues(), p.categorie,
+                                      "Nouvelle catégorie");
+      return champs.categorie;
+    });
+
+    var src = document.createElement("td");
+    src.appendChild(pastillesSource(p.sources));
+    tr.appendChild(src);
+
+    // La colonne d'anonymat existe aussi ici, mais VIDE : l'interrupteur part
+    // en base des qu'on le touche et redessine la liste, ce qui jetterait la
+    // saisie en cours. Il revient des que la ligne se referme.
+    var vide = document.createElement("td");
+    vide.className = "col-anonyme";
+    tr.appendChild(vide);
+
+    var actions = document.createElement("td");
+    actions.className = "fin";
+    var paire = document.createElement("span");
+    paire.className = "paire";
+
+    var ok = document.createElement("button");
+    ok.className = "mini fort";
+    ok.type = "button";
+    ok.textContent = "Enregistrer";
+    ok.addEventListener("click", function () { enregistrerLigne(p, champs); });
+
+    var non = document.createElement("button");
+    non.className = "mini";
+    non.type = "button";
+    non.textContent = "Annuler";
+    non.addEventListener("click", function () {
+      enEdition = null;
+      dessinerParticipants();
+    });
+
+    paire.appendChild(ok);
+    paire.appendChild(non);
+    actions.appendChild(paire);
+    tr.appendChild(actions);
+    return tr;
   }
 
-  $("recherche").addEventListener("input", dessinerParticipants);
+  // Une liste deroulante qui sait CREER. Le meme geste que « Autre… » du
+  // formulaire d'ajout, ramasse en un seul element pour tenir dans une cellule.
+  // Ce qui est cree passe par le formatage du serveur : « u13f » revient
+  // « U13 F », et c'est ce qui empeche « U13 M » de cohabiter avec « U13 H ».
+  function listeQuiCree(valeurs, courante, invite) {
+    var enveloppe = document.createElement("span");
+    var select = document.createElement("select");
+    select.className = "mini-champ";
+    var vues = (valeurs || []).slice();
+    if (courante && vues.indexOf(courante) === -1) vues.push(courante);
+    vues.sort();
+    vues.forEach(function (v) {
+      var o = document.createElement("option");
+      o.value = v; o.textContent = v;
+      if (v === courante) o.selected = true;
+      select.appendChild(o);
+    });
+    var vide = document.createElement("option");
+    vide.value = ""; vide.textContent = "—";
+    if (!courante) vide.selected = true;
+    select.insertBefore(vide, select.firstChild);
 
-  $("btnAjouter").addEventListener("click", function () {
+    var creer = document.createElement("option");
+    creer.value = "__creer__";
+    creer.textContent = "+ " + invite + "…";
+    select.appendChild(creer);
+
+    var saisie = document.createElement("input");
+    saisie.className = "mini-champ";
+    saisie.placeholder = invite;
+    saisie.hidden = true;
+    saisie.style.marginTop = "6px";
+
+    select.addEventListener("change", function () {
+      saisie.hidden = select.value !== "__creer__";
+      if (!saisie.hidden) saisie.focus();
+    });
+
+    enveloppe.appendChild(select);
+    enveloppe.appendChild(saisie);
+    enveloppe.valeur = function () {
+      return select.value === "__creer__" ? saisie.value.trim() : select.value;
+    };
+    return enveloppe;
+  }
+
+  function enregistrerLigne(p, champs) {
+    var corps = {};
+    var nom = champs.nom.value.trim();
+    if (nom !== (p.nom || "")) corps.nom = nom;
+
+    var annee = champs.annee.value.trim();
+    if (annee !== String(p.annee_naissance || "")) corps.annee_naissance = annee;
+
+    var club = champs.club.valeur();
+    if (club !== (p.club || "")) corps.club = club;
+
+    var cat = champs.categorie.valeur();
+    if (cat !== (p.categorie || "")) corps.categorie = cat;
+
+    var dossard = champs.dossard.value.trim();
+    if (dossard && dossard !== String(p.dossard || "")) corps.dossard = dossard;
+
+    if (!Object.keys(corps).length) {
+      enEdition = null;
+      dessinerParticipants();
+      return;
+    }
+
+    appeler("/admin/participants/" + p.id, { methode: "PATCH", corps: corps })
+      .then(function () {
+        enEdition = null;
+        dire("Modifié.", "ok");
+        chargerReferentiels();
+        chargerParticipants();
+      })
+      .catch(signaler);
+  }
+
+  // --- Choisir quoi imprimer ------------------------------------------------
+
+  function majSelection() {
+    var n = Object.keys(selection.dossards).length;
+    $("compteSelection").textContent =
+      n + " sélectionné" + (n > 1 ? "s" : "");
+    $("btnImprimerSelection").disabled = n === 0;
+    $("btnImprimerSelection").lastChild.nodeValue = n ? " Imprimer " + n + " fiche" + (n > 1 ? "s" : "") : " Imprimer";
+    var affiches = participantsAffiches().filter(function (p) { return p.dossard !== null; });
+    var tous = affiches.length > 0 && affiches.every(function (p) {
+      return selection.dossards[p.dossard];
+    });
+    $("toutSelectionner").checked = tous;
+    $("toutSelectionner").indeterminate = !tous && n > 0;
+  }
+
+  $("btnSelection").addEventListener("click", function () {
+    selection.active = true;
+    enEdition = null;
+    $("bandeSelection").hidden = false;
+    $("btnSelection").hidden = true;
+    dessinerParticipants();
+  });
+
+  $("btnAnnulerSelection").addEventListener("click", function () {
+    selection.active = false;
+    selection.dossards = {};
+    $("bandeSelection").hidden = true;
+    $("btnSelection").hidden = false;
+    dessinerParticipants();
+  });
+
+  // « Tout » veut dire tout CE QUI EST AFFICHE, filtre compris. C'est ce qui
+  // remplace le champ « une categorie (vide = toutes) » de la tuile retiree :
+  // on filtre, on coche tout, on imprime.
+  $("toutSelectionner").addEventListener("change", function () {
+    var affiches = participantsAffiches().filter(function (p) { return p.dossard !== null; });
+    affiches.forEach(function (p) {
+      if ($("toutSelectionner").checked) selection.dossards[p.dossard] = 1;
+      else delete selection.dossards[p.dossard];
+    });
+    dessinerParticipants();
+  });
+
+  $("btnImprimerSelection").addEventListener("click", function () {
+    var choisis = Object.keys(selection.dossards);
+    if (!choisis.length) return;
+    window.open("/admin/dossards?dossards=" + choisis.join(","), "_blank");
+  });
+
+  $("recherche").addEventListener("input", dessinerParticipants);
+  $("filtreCategorie").addEventListener("change", dessinerParticipants);
+
+  $("btnAjouter").addEventListener("click", function () { ajouterParticipant(false); });
+
+  function ajouterParticipant(forcer) {
     // Aucun dossard n'est envoye : le serveur attribue le premier numero libre
     // (spec 013). C'est lui qui sait lesquels sont pris, pas l'organisateur
     // debout devant la file.
@@ -2347,12 +3163,16 @@
         nom: $("pNom").value, prenom: $("pPrenom").value,
         club: valeurChoisie($("pClub")),
         categorie: valeurChoisie($("pCategorie")),
+        annee_naissance: $("pAnnee").value.trim(),
+        autoriser_homonyme: !!forcer,
       },
     }).then(function (d) {
+      montrerHomonymes(d.homonymes, false);
       dire(d.participant.nom + " ajouté avec le dossard " +
-           d.participant.dossard + ". C'est celui-là qu'il faut imprimer — " +
-           "les téléphones le verront dans quelques secondes.", "ok");
-      ["pNom", "pPrenom"].forEach(function (i) { $(i).value = ""; });
+           d.participant.dossard + ".", "ok");
+      ["pNom", "pPrenom", "pAnnee"].forEach(function (i) { $(i).value = ""; });
+      $("pAnneeAide").hidden = true;
+      $("pCategorieAide").hidden = true;
       ["pClubAutre", "pCategorieAutre"].forEach(function (i) {
         $(i).value = ""; $(i).hidden = true;
       });
@@ -2366,8 +3186,764 @@
         $("pCategorie").value = d.participant.categorie || "";
       });
       chargerParticipants();
+    }).catch(function (e) {
+      // Le refus porte deja les fiches qui ressemblent : on les montre, avec
+      // le bouton qui passe outre. Aucun aller-retour de plus.
+      if (e && e.corps && e.corps.homonymes) montrerHomonymes(e.corps.homonymes, true);
+      signaler(e);
+    });
+  }
+
+  // --- L'annee et la categorie se repondent (spec 008, decision D8) ---------
+  //
+  // Taper l'annee PROPOSE la categorie. Choisir la categorie ne peut
+  // qu'annoncer les annees attendues : une categorie en couvre deux, elle ne
+  // designe pas une annee.
+  //
+  // Le calcul se fait ici, avec le bareme que le serveur a deja envoye. Une
+  // requete par frappe pour ranger un nombre dans un intervalle serait du
+  // reseau pour rien, le matin ou il sert le plus.
+
+  function baremeCourant() { return (etat.bareme && etat.bareme.tranches) || []; }
+
+  function trancheDeLAnnee(annee) {
+    var n = parseInt(annee, 10);
+    if (!n) return null;
+    var trouvee = null;
+    baremeCourant().forEach(function (t) {
+      if (t.hors_bareme) return;
+      if (n >= t.annee_min && (t.annee_max === null || n <= t.annee_max)) trouvee = t;
+    });
+    return trouvee;
+  }
+
+  $("pAnnee").addEventListener("input", function () {
+    var aide = $("pAnneeAide");
+    var t = trancheDeLAnnee($("pAnnee").value.trim());
+    if (!t) { aide.hidden = true; return; }
+    aide.hidden = false;
+    aide.innerHTML = "Proposé — <b>" + t.circuit + "</b>";
+
+    // On preselectionne quand la categorie est encore vide, jamais par-dessus
+    // un choix deja fait : une frappe dans l'annee ne doit pas defaire ce que
+    // quelqu'un vient de choisir dans la liste.
+    var select = $("pCategorie");
+    if (select.value) return;
+    for (var k = 0; k < select.options.length; k++) {
+      if ((select.options[k].value || "").indexOf(t.circuit + " ") === 0) {
+        select.value = select.options[k].value;
+        break;
+      }
+    }
+  });
+
+  $("pCategorie").addEventListener("change", function () {
+    var aide = $("pCategorieAide");
+    var choisie = valeurChoisie($("pCategorie"));
+    var trouvee = null;
+    baremeCourant().forEach(function (t) {
+      if (!t.hors_bareme && (t.categories || []).indexOf(choisie) !== -1) trouvee = t;
+    });
+    if (!trouvee) { aide.hidden = true; return; }
+    aide.hidden = false;
+    aide.innerHTML = "Attendu — <b>" +
+      (trouvee.annee_max === null
+        ? trouvee.annee_min + " ou après"
+        : trouvee.annee_min + " ou " + trouvee.annee_max) + "</b>";
+    if (!$("pAnnee").value.trim()) {
+      $("pAnnee").placeholder = trouvee.annee_min;
+    }
+  });
+
+  // --- Catégories : le barème (spec 008) ------------------------------------
+
+  function chargerBareme() {
+    return appeler("/admin/categories").then(function (d) {
+      etat.bareme = d;
+      dessinerBareme();
+      return d;
+    }).catch(function () { /* pas de competition active : l'ecran reste vide */ });
+  }
+
+  function dessinerBareme() {
+    var d = etat.bareme || {};
+    $("etatBareme").innerHTML =
+      "<dt>Saison</dt><dd>" + (d.saison || "—") +
+      " · référence <b>" + (d.reference || "—") + "</b></dd>";
+
+    // Un verdict d'UNE ligne : ce que le bareme ne peut pas ranger. Le
+    // controle de coherence de la maquette a disparu avec la saisie -- un
+    // bareme derive ne peut pas avoir de trou.
+    var hors = d.hors_de_portee || {};
+    var verdict = $("verdictBareme");
+    var restes = [];
+    if (hors.sans_annee) restes.push(hors.sans_annee + " sans année");
+    if (hors.hors_bareme) restes.push(hors.hors_bareme + " hors barème");
+    if (restes.length) {
+      verdict.className = "verdict est-attention";
+      verdict.innerHTML = '<span class="rond"></span>' + restes.join(" · ") +
+        " — non touché(s) par le barème";
+    } else {
+      verdict.className = "verdict est-ok";
+      verdict.innerHTML = '<span class="rond"></span>Tout le monde est rangeable';
+    }
+
+    $("categoriesDeclarees").value = (d.declarees || []).join(", ");
+
+    var corps = $("listeBareme");
+    corps.innerHTML = "";
+    (d.tranches || []).forEach(function (t) {
+      var tr = document.createElement("tr");
+      var annees = t.hors_bareme ? "—"
+        : (t.annee_max === null ? t.annee_min + " et après"
+                                : t.annee_min + " – " + t.annee_max);
+      var ages = t.hors_bareme ? "hors barème"
+        : (t.age_min === null ? "jusqu'à " + t.age_max + " ans"
+                              : t.age_min + " – " + t.age_max + " ans");
+      [t.categories.join(", ") || t.circuit, annees, ages, t.inscrits]
+        .forEach(function (v, k) {
+          var td = document.createElement("td");
+          if (k === 1 || k === 3) td.className = "num";
+          if (k === 2) td.className = "discret";
+          td.textContent = v;
+          tr.appendChild(td);
+        });
+      corps.appendChild(tr);
+    });
+  }
+
+  $("btnDeclarerCategories").addEventListener("click", function () {
+    var noms = $("categoriesDeclarees").value.split(",")
+      .map(function (n) { return n.trim(); })
+      .filter(function (n) { return n; });
+    appeler("/admin/categories/declarees", { methode: "POST",
+                                             corps: { categories: noms } })
+      .then(function () { dire("Catégories enregistrées.", "ok"); chargerBareme(); })
+      .catch(signaler);
+  });
+
+  // Appliquer reecrit des categories : on montre l'avant / apres AVANT
+  // d'ecrire, et le bouton de confirmation se maintient (spec 027).
+  $("btnApercuBareme").addEventListener("click", function () {
+    appeler("/admin/categories/appliquer", { methode: "POST", corps: { apercu: true } })
+      .then(dessinerApercuBareme).catch(signaler);
+  });
+
+  function dessinerApercuBareme(d) {
+    var zone = $("apercuBareme");
+    zone.hidden = false;
+    zone.innerHTML = "";
+
+    if (!d.changements.length) {
+      var rien = document.createElement("p");
+      rien.className = "verdict est-ok";
+      rien.innerHTML = '<span class="rond"></span>Toutes les catégories sont à jour';
+      zone.appendChild(rien);
+      return;
+    }
+
+    var resume = document.createElement("dl");
+    resume.className = "etat";
+    var ig = d.ignores || {};
+    resume.innerHTML =
+      "<dt>Recalculés</dt><dd><b>" + d.changements.length + "</b></dd>" +
+      "<dt>Inchangés</dt><dd>" + d.inchanges + "</dd>" +
+      (ig.sans_annee ? "<dt>Sans année</dt><dd>" + ig.sans_annee +
+        " <span class='discret'>non touchés</span></dd>" : "") +
+      (ig.corrigees_a_la_main ? "<dt>Corrigées à la main</dt><dd>" +
+        ig.corrigees_a_la_main + " <span class='discret'>non touchées</span></dd>" : "") +
+      (ig.hors_bareme ? "<dt>Hors barème</dt><dd>" + ig.hors_bareme + "</dd>" : "");
+    zone.appendChild(resume);
+
+    var table = document.createElement("table");
+    table.innerHTML = "<thead><tr><th>Dossard</th><th>Nom</th>" +
+      "<th>Avant</th><th>Après</th></tr></thead>";
+    var tbody = document.createElement("tbody");
+    d.changements.forEach(function (c) {
+      var tr = document.createElement("tr");
+      tr.innerHTML = '<td class="num">' + (c.dossard === null ? "—" : c.dossard) +
+        "</td><td></td>" +
+        '<td class="discret"></td><td><b></b></td>';
+      tr.children[1].textContent = c.nom;
+      tr.children[2].textContent = c.avant || "—";
+      tr.children[3].firstChild.textContent = c.apres;
+      tbody.appendChild(tr);
+    });
+    table.appendChild(tbody);
+    var enveloppe = document.createElement("div");
+    enveloppe.className = "scroll";
+    enveloppe.style.marginTop = "14px";
+    enveloppe.appendChild(table);
+    zone.appendChild(enveloppe);
+
+    var boutons = document.createElement("div");
+    boutons.style.cssText = "display:flex;gap:10px;flex-wrap:wrap;margin-top:16px";
+    var valider = document.createElement("button");
+    valider.className = "action";
+    valider.textContent = "Appliquer à " + d.changements.length + " inscrit" +
+      (d.changements.length > 1 ? "s" : "");
+    valider.addEventListener("click", function () {
+      appeler("/admin/categories/appliquer", { methode: "POST", corps: {} })
+        .then(function (r) {
+          dire(r.changements.length + " catégorie(s) recalculée(s).", "ok");
+          zone.hidden = true;
+          chargerBareme();
+        }).catch(signaler);
+    });
+    var annuler = document.createElement("button");
+    annuler.className = "secondaire";
+    annuler.textContent = "Annuler";
+    annuler.addEventListener("click", function () { zone.hidden = true; });
+    boutons.appendChild(valider);
+    boutons.appendChild(annuler);
+    zone.appendChild(boutons);
+  }
+
+  // --- Inscriptions (spec 008) ---------------------------------------------
+  //
+  // C'est l'ecran qu'on laisse ouvert pendant la competition : il se rafraichit
+  // tout seul toutes les trente secondes. Le minuteur s'ARRETE quand on quitte
+  // la vue -- sinon il continuerait a interroger le serveur depuis un ecran que
+  // personne ne regarde, exactement le defaut que la vue Reussites a deja
+  // corrige.
+
+  var minuteurInscriptions = null;
+
+  function ouvrirInscriptions() {
+    chargerInscriptions();
+    if (minuteurInscriptions) clearInterval(minuteurInscriptions);
+    minuteurInscriptions = setInterval(chargerInscriptions, 30000);
+  }
+
+  function fermerInscriptions() {
+    if (minuteurInscriptions) clearInterval(minuteurInscriptions);
+    minuteurInscriptions = null;
+  }
+
+  var MOTIFS = {
+    club_different: "Même nom, autre club",
+    annee_absente: "Année absente",
+    annee_illisible: "Année illisible",
+    annee_hors_bareme: "Année hors barème",
+    genre_indetermine: "Genre indéterminé",
+    sans_nom: "Sans nom",
+    annulee_apres_coup: "Annulée chez HelloAsso"
+  };
+
+  function chargerInscriptions() {
+    appeler("/admin/inscriptions").then(function (d) {
+      etat.inscriptions = d;
+      dessinerInscriptions();
+      majPastilleInscriptions(d.en_attente);
+    }).catch(function () { /* pas de competition active */ });
+  }
+
+  function dessinerInscriptions() {
+    var d = etat.inscriptions || {};
+    var aTrancher = d.a_trancher || [], aImprimer = d.a_imprimer || [];
+    var faites = d.faites || [];
+
+    $("resumeInscriptions").textContent =
+      (d.en_attente || 0) + " en attente · " + faites.length + " faite(s)";
+
+    $("carteATrancher").hidden = !aTrancher.length;
+    $("carteAImprimer").hidden = !aImprimer.length;
+    $("carteRienEnAttente").hidden = (aTrancher.length + aImprimer.length) > 0;
+    $("compteATrancher").textContent = aTrancher.length;
+    $("compteAImprimer").textContent = aImprimer.length;
+    $("compteAImprimerBande").textContent =
+      aImprimer.length + " fiche" + (aImprimer.length > 1 ? "s" : "");
+    $("compteFaites").textContent = faites.length;
+
+    var zone = $("listeATrancher");
+    zone.innerHTML = "";
+    aTrancher.forEach(function (i) { zone.appendChild(carteATrancher(i)); });
+
+    var corps = $("listeAImprimer");
+    corps.innerHTML = "";
+    aImprimer.forEach(function (i) {
+      var tr = document.createElement("tr");
+      tr.innerHTML = '<td class="num"></td><td></td><td></td><td></td>' +
+        '<td class="discret"></td><td class="fin"></td>';
+      tr.children[0].textContent = dossardDe(i);
+      tr.children[1].textContent = i.nom;
+      tr.children[2].textContent = i.categorie || "—";
+      tr.children[3].textContent = i.club || "—";
+      tr.children[4].textContent = heureCourte(i.recue_le);
+      var remis = document.createElement("button");
+      remis.className = "mini";
+      remis.type = "button";
+      remis.textContent = "Déjà remis";
+      remis.addEventListener("click", function () { marquerRemise(i); });
+      tr.children[5].appendChild(remis);
+      corps.appendChild(tr);
+    });
+
+    var fait = $("listeFaites");
+    fait.innerHTML = "";
+    faites.slice(0, 50).forEach(function (i) {
+      var tr = document.createElement("tr");
+      tr.innerHTML = '<td class="num"></td><td></td><td></td><td class="discret"></td>';
+      tr.children[0].textContent = dossardDe(i);
+      tr.children[1].textContent = i.nom;
+      tr.children[2].textContent = i.categorie || "—";
+      tr.children[3].textContent = heureCourte(i.recue_le);
+      fait.appendChild(tr);
+    });
+
+    $("etatInscriptions").innerHTML =
+      "<dt>Aujourd'hui</dt><dd><b>" + (faites.length + aImprimer.length) +
+      "</b> inscription(s)</dd>";
+  }
+
+  function dossardDe(inscription) {
+    var trouve = (etat.participants || []).filter(function (p) {
+      return p.id === inscription.participant_id;
+    })[0];
+    return trouve && trouve.dossard !== null ? trouve.dossard : "—";
+  }
+
+  function heureCourte(iso) {
+    if (!iso) return "—";
+    var d = new Date(iso);
+    return isNaN(d) ? "—" : d.toTimeString().slice(0, 5);
+  }
+
+  // La carte d'un cas a trancher. Deux colonnes cote a cote quand il y a un
+  // homonyme : c'est en VOYANT les deux fiches qu'on decide, pas en lisant un
+  // message qui resume l'une des deux.
+  function carteATrancher(i) {
+    var cas = document.createElement("div");
+    cas.className = "cas";
+
+    var quoi = document.createElement("div");
+    quoi.className = "quoi";
+    var nom = document.createElement("b");
+    nom.textContent = i.nom || "Sans nom";
+    var motif = document.createElement("span");
+    motif.className = "motif" + (i.motif === "annulee_apres_coup" ? " rouge" : "");
+    motif.textContent = MOTIFS[i.motif] || i.motif || "À vérifier";
+    var repere = document.createElement("span");
+    repere.className = "discret";
+    repere.textContent = (i.annee_naissance ? "né en " + i.annee_naissance + " · " : "") +
+      "commande " + (i.commande_id || "—");
+    quoi.appendChild(nom); quoi.appendChild(motif); quoi.appendChild(repere);
+    cas.appendChild(quoi);
+
+    if ((i.ressemble_a || []).length) {
+      var face = document.createElement("div");
+      face.className = "face-a-face";
+      face.appendChild(colonne("HelloAsso", i));
+      (i.ressemble_a || []).forEach(function (p) {
+        face.appendChild(colonne("Déjà dans la liste — dossard " +
+                                 (p.dossard === null ? "aucun" : p.dossard), p));
+      });
+      cas.appendChild(face);
+    }
+
+    var boutons = document.createElement("div");
+    boutons.className = "boutons";
+    if (i.motif === "annulee_apres_coup") {
+      boutons.appendChild(bouton("Retirer le participant", "mini risque",
+                                 function () { trancher(i, "retirer"); }));
+      boutons.appendChild(bouton("Le garder", "mini",
+                                 function () { trancher(i, "garder"); }));
+    } else if ((i.ressemble_a || []).length) {
+      (i.ressemble_a || []).forEach(function (p) {
+        boutons.appendChild(bouton(
+          "La même personne (dossard " + (p.dossard === null ? "aucun" : p.dossard) + ")",
+          "mini fort",
+          function () { trancher(i, "meme_personne", { participant_id: p.id }); }));
+      });
+      boutons.appendChild(bouton("Deux personnes", "mini",
+                                 function () { trancher(i, "deux_personnes"); }));
+    } else {
+      // Categorie manquante : on la choisit ici, et le participant est cree
+      // avec. Le choix est marque « a la main » -- « Appliquer le bareme a
+      // tous » ne doit pas le defaire.
+      var liste = listeQuiCree(categoriesVues(), i.categorie, "Nouvelle catégorie");
+      liste.style.display = "inline-block";
+      liste.style.marginRight = "9px";
+      boutons.appendChild(liste);
+      boutons.appendChild(bouton("Ranger", "mini fort", function () {
+        var choisie = liste.valeur();
+        if (!choisie) { dire("Choisis une catégorie.", "alerte"); return; }
+        trancher(i, "categorie", { categorie: choisie });
+      }));
+    }
+    boutons.appendChild(bouton("Ignorer", "mini risque",
+                               function () { trancher(i, "ignorer"); }));
+    cas.appendChild(boutons);
+    return cas;
+  }
+
+  function colonne(titre, gens) {
+    var col = document.createElement("div");
+    col.className = "colonne";
+    var h = document.createElement("h3");
+    h.textContent = titre;
+    col.appendChild(h);
+    var dl = document.createElement("dl");
+    [["Nom", gens.nom], ["Club", gens.club || "—"],
+     ["Année", gens.annee_naissance || "—"],
+     ["Catégorie", gens.categorie || "—"]].forEach(function (paire) {
+      var dt = document.createElement("dt"); dt.textContent = paire[0];
+      var dd = document.createElement("dd"); dd.textContent = paire[1];
+      dl.appendChild(dt); dl.appendChild(dd);
+    });
+    col.appendChild(dl);
+    return col;
+  }
+
+  function bouton(texte, classe, action) {
+    var b = document.createElement("button");
+    b.className = classe; b.type = "button"; b.textContent = texte;
+    b.addEventListener("click", action);
+    return b;
+  }
+
+  function trancher(inscription, choix, extra) {
+    var corps = { choix: choix };
+    for (var k in (extra || {})) corps[k] = extra[k];
+    appeler("/admin/inscriptions/" + inscription.id + "/trancher",
+            { methode: "POST", corps: corps })
+      .then(function () {
+        dire("Traité.", "ok");
+        chargerParticipants();
+        chargerInscriptions();
+      }).catch(signaler);
+  }
+
+  function marquerRemise(inscription) {
+    appeler("/admin/inscriptions/" + inscription.id + "/remise", { methode: "POST" })
+      .then(function () { chargerInscriptions(); }).catch(signaler);
+  }
+
+  $("btnImprimerInscriptions").addEventListener("click", function () {
+    var numeros = (etat.inscriptions || {}).a_imprimer_dossards || [];
+    if (!numeros.length) { dire("Aucun dossard à imprimer.", "alerte"); return; }
+    window.open("/admin/dossards?dossards=" + numeros.join(","), "_blank");
+  });
+
+  $("btnRelever").addEventListener("click", function () { relever(false); });
+
+  function majPastilleInscriptions(combien) {
+    var pastille = $("pastilleInscriptions");
+    if (!combien) { pastille.hidden = true; return; }
+    pastille.hidden = false;
+    $("pastilleInscriptionsTexte").textContent =
+      combien + " inscription" + (combien > 1 ? "s" : "");
+  }
+
+  $("pastilleInscriptions").addEventListener("click", function () {
+    montrerVue("inscriptions");
+  });
+
+  // --- HelloAsso : la clé, le formulaire, les champs -------------------------
+
+  function chargerHelloasso() {
+    return appeler("/admin/helloasso").then(function (d) {
+      etat.helloasso = d;
+      dessinerHelloasso();
+      // La liste des formulaires se remplit toute seule a l'ouverture : c'est
+      // un appel reseau, mais il evite un bouton a cliquer avant de pouvoir
+      // faire quoi que ce soit.
+      if (d.configure) {
+        appeler("/admin/helloasso/formulaires")
+          .then(remplirFormulaires)
+          .catch(function () { /* le releve dira ce qui ne va pas */ });
+      }
+    }).catch(signaler);
+  }
+
+  function dessinerHelloasso() {
+    var d = etat.helloasso || {};
+    var relie = !!d.configure;
+
+    $("carteRelier").hidden = relie;
+    $("carteCompteHelloasso").hidden = !relie;
+    $("carteFormulaire").hidden = !relie;
+    $("carteChamps").hidden = !relie;
+    $("carteReleve").hidden = !relie;
+    if (!relie) return;
+
+    $("etatHelloasso").innerHTML =
+      "<dt>Environnement</dt><dd>" +
+      (d.environnement === "sandbox" ? "Bac à sable" : "Production") + "</dd>" +
+      "<dt>Clé</dt><dd><b>" + (d.cle || "—") + "</b></dd>";
+
+    var verdict = $("verdictHelloasso");
+    if (d.derniere_erreur) {
+      verdict.className = "verdict est-alerte";
+      verdict.innerHTML = '<span class="rond"></span>' + d.derniere_erreur;
+    } else {
+      verdict.className = "verdict est-ok";
+      verdict.innerHTML = '<span class="rond"></span>Reliée';
+    }
+
+    var f = d.formulaire || {};
+    var champs = f.champs || {};
+    $("chNaissance").value = champs.naissance || "";
+    $("chGenre").value = champs.genre || "";
+    $("chClub").value = champs.club || "";
+    $("chValeurs").value = Object.keys(f.genre_valeurs || {})
+      .map(function (k) { return k + "=" + f.genre_valeurs[k]; }).join(", ");
+
+    $("etatReleve").innerHTML =
+      "<dt>Formulaire</dt><dd>" + (f.form_slug || "aucun") + "</dd>" +
+      "<dt>Dernier relevé</dt><dd>" +
+      (d.dernier_releve ? heureCourte(d.dernier_releve) : "jamais") + "</dd>";
+  }
+
+  $("btnRelierHelloasso").addEventListener("click", function () {
+    appeler("/admin/helloasso/cle", { methode: "POST", corps: {
+      client_id: $("haId").value.trim(),
+      client_secret: $("haSecret").value.trim(),
+      environnement: $("haEnv").value,
+    }}).then(function (d) {
+      // Le secret ne reste pas dans le champ : il n'a aucune raison de rester
+      // lisible sur un ecran ouvert toute la journee.
+      $("haSecret").value = "";
+      $("haId").value = "";
+      // Poser la cle a DECOUVERT l'association : on le dit tout de suite, avec
+      // son nom. C'est la seule preuve qui interesse celui qui vient de coller
+      // deux chaines illisibles.
+      var asso = (d.organisations || [])[0];
+      dire(asso ? "Relié à " + asso.nom + " — " +
+                  (d.formulaires || []).length + " formulaire(s) trouvé(s)."
+                : "Clé posée.", "ok");
+      remplirFormulaires(d);
+      chargerHelloasso();
     }).catch(signaler);
   });
+
+  function remplirFormulaires(d) {
+    var select = $("haForm");
+    select.innerHTML = "";
+    (d.formulaires || []).forEach(function (f) {
+      var o = document.createElement("option");
+      o.value = f.type + "|" + f.slug;
+      o.textContent = f.nom + " — " + f.type;
+      select.appendChild(o);
+    });
+    var asso = (d.organisations || [])[0];
+    $("haOrgaNom").hidden = !asso;
+    if (asso) $("haOrgaNom").innerHTML = "Association — <b>" + asso.nom + "</b>";
+  }
+
+  // « Est-ce que ca marche ? » se repond par des faits qu'on reconnait.
+  $("btnTesterHelloasso").addEventListener("click", function () {
+    appeler("/admin/helloasso/tester", { methode: "POST" }).then(function (d) {
+      var zone = $("resultatTest");
+      zone.hidden = false;
+      var lignes = "<dt>Association</dt><dd><b>" + d.association + "</b></dd>";
+      if (d.formulaires !== null && d.formulaires !== undefined) {
+        lignes += "<dt>Formulaires</dt><dd>" + d.formulaires + "</dd>";
+      }
+      if (d.formulaire) {
+        lignes += "<dt>Formulaire choisi</dt><dd>" + d.formulaire + "</dd>" +
+                  "<dt>Inscriptions vues</dt><dd><b>" + d.inscriptions + "</b></dd>";
+      }
+      zone.innerHTML = lignes;
+      dire("Accès vérifié : " + d.association + ".", "ok");
+    }).catch(signaler);
+  });
+
+  $("btnRemplacerCle").addEventListener("click", function () {
+    $("carteRelier").hidden = false;
+    $("haId").focus();
+  });
+
+  $("btnDebrancherHelloasso").addEventListener("click", function () {
+    if (!confirm("Débrancher HelloAsso ? Les inscriptions déjà reçues restent.")) return;
+    appeler("/admin/helloasso/cle", { methode: "DELETE" })
+      .then(function () { dire("HelloAsso débranché.", "ok"); chargerHelloasso(); })
+      .catch(signaler);
+  });
+
+  $("btnListerFormulaires").addEventListener("click", function () {
+    appeler("/admin/helloasso/formulaires").then(function (d) {
+      remplirFormulaires(d);
+      dire((d.formulaires || []).length + " formulaire(s) trouvé(s).", "ok");
+    }).catch(signaler);
+  });
+
+  $("btnChoisirFormulaire").addEventListener("click", function () {
+    var choisi = ($("haForm").value || "").split("|");
+    if (choisi.length !== 2) { dire("Choisis un formulaire.", "alerte"); return; }
+    appeler("/admin/helloasso/formulaire", { methode: "POST", corps: {
+      form_type: choisi[0], form_slug: choisi[1],
+    }}).then(function (d) {
+      // Ce qui a ete RECONNU se dit, sinon l'automatisme ressemble a de la
+      // magie -- et une magie qui se trompe ne s'explique pas.
+      var trouves = d.trouves || [];
+      dire(trouves.length
+        ? "Formulaire choisi. Reconnu tout seul : " + trouves.join(", ") + "."
+        : "Formulaire choisi. Aucun champ reconnu — à régler à la main.", "ok");
+      chargerHelloasso();
+    }).catch(signaler);
+  });
+
+  $("btnEnregistrerChamps").addEventListener("click", function () {
+    var valeurs = {};
+    $("chValeurs").value.split(",").forEach(function (paire) {
+      var morceaux = paire.split("=");
+      if (morceaux.length === 2 && morceaux[0].trim()) {
+        valeurs[morceaux[0].trim()] = morceaux[1].trim();
+      }
+    });
+    appeler("/admin/helloasso/champs", { methode: "POST", corps: {
+      champs: { naissance: $("chNaissance").value, genre: $("chGenre").value,
+                club: $("chClub").value },
+      genre_valeurs: valeurs,
+    }}).then(function () {
+      dire("Champs enregistrés.", "ok");
+      chargerHelloasso();
+    }).catch(signaler);
+  });
+
+  function relever(tout) {
+    appeler("/admin/helloasso/relever", { methode: "POST", corps: { tout: !!tout } })
+      .then(function (d) {
+        dire(d.vus + " article(s) relevé(s) : " + d.nouvelles + " nouvelle(s), " +
+             d.en_attente + " en attente.", "ok");
+        chargerInscriptions();
+        chargerParticipants();
+      }).catch(signaler);
+  }
+
+  $("btnReleverHelloasso").addEventListener("click", function () { relever(false); });
+  $("btnReleverTout").addEventListener("click", function () { relever(true); });
+
+  // --- Doublons (spec 008) --------------------------------------------------
+  //
+  // Le formatage unifie et la garde d'ajout empechent d'en CREER de nouveaux.
+  // Cette carte traite ceux qui sont deja la : une base qui a vecu avant le
+  // 04/09, ou un classeur ecrit a la main.
+
+  function chargerDoublons() {
+    appeler("/admin/doublons").then(function (d) {
+      var groupes = d.doublons || [];
+      $("carteDoublons").hidden = groupes.length === 0;
+      $("compteDoublons").textContent = groupes.length;
+      var zone = $("listeDoublons");
+      zone.innerHTML = "";
+      groupes.forEach(function (groupe) { zone.appendChild(carteDoublon(groupe)); });
+    }).catch(function () { $("carteDoublons").hidden = true; });
+  }
+
+  function carteDoublon(groupe) {
+    var cas = document.createElement("div");
+    cas.className = "cas";
+
+    var quoi = document.createElement("div");
+    quoi.className = "quoi";
+    var nom = document.createElement("b");
+    nom.textContent = groupe.participants[0].nom;
+    var motif = document.createElement("span");
+    motif.className = "motif";
+    motif.textContent = "Même nom, même club";
+    quoi.appendChild(nom); quoi.appendChild(motif);
+    cas.appendChild(quoi);
+
+    var face = document.createElement("div");
+    face.className = "face-a-face";
+    groupe.participants.forEach(function (p) {
+      var col = document.createElement("div");
+      col.className = "colonne";
+      var h = document.createElement("h3");
+      h.textContent = "Dossard " + (p.dossard === null ? "aucun" : p.dossard);
+      col.appendChild(h);
+      var dl = document.createElement("dl");
+      [["Club", p.club || "—"], ["Catégorie", p.categorie || "—"],
+       ["Année", p.annee_naissance || "—"],
+       ["Réussites", p.reussites]].forEach(function (paire) {
+        var dt = document.createElement("dt"); dt.textContent = paire[0];
+        var dd = document.createElement("dd"); dd.textContent = paire[1];
+        dl.appendChild(dt); dl.appendChild(dd);
+      });
+      col.appendChild(dl);
+      face.appendChild(col);
+    });
+    cas.appendChild(face);
+
+    // Un bouton par fiche a GARDER : c'est l'organisateur qui sait lequel des
+    // deux dossards est deja imprime et distribue, le serveur ne peut pas le
+    // deviner.
+    var boutons = document.createElement("div");
+    boutons.className = "boutons";
+    groupe.participants.forEach(function (garde) {
+      var autres = groupe.participants.filter(function (p) { return p.id !== garde.id; });
+      autres.forEach(function (absorbe) {
+        var b = document.createElement("button");
+        b.className = "mini fort";
+        b.type = "button";
+        b.textContent = "Garder le dossard " +
+          (garde.dossard === null ? "sans numéro" : garde.dossard);
+        b.addEventListener("click", function () {
+          appeler("/admin/doublons/fusionner", { methode: "POST", corps: {
+            garder: garde.id, absorber: absorbe.id } })
+            .then(function (r) {
+              dire("Fusionné" + (r.reussites_deplacees
+                ? " — " + r.reussites_deplacees + " réussite(s) déplacée(s)." : "."), "ok");
+              chargerParticipants();
+            }).catch(signaler);
+        });
+        boutons.appendChild(b);
+      });
+    });
+    cas.appendChild(boutons);
+    return cas;
+  }
+
+  // Les homonymes que le serveur signale a l'ajout. Ils viennent AVEC la
+  // reponse : aucune requete de plus pour les montrer.
+  function montrerHomonymes(liste, refuse) {
+    var zone = $("rappelHomonyme");
+    if (!liste || !liste.length) { zone.hidden = true; return; }
+    zone.hidden = false;
+    zone.className = "";
+    zone.innerHTML = "";
+
+    var titre = document.createElement("p");
+    titre.className = "verdict est-attention";
+    titre.innerHTML = '<span class="rond"></span>' +
+      (refuse ? "Cette personne est déjà inscrite"
+              : liste.length + " personne(s) du même nom déjà inscrite(s)");
+    zone.appendChild(titre);
+
+    var scroll = document.createElement("div");
+    scroll.className = "scroll";
+    var table = document.createElement("table");
+    table.innerHTML = "<thead><tr><th>Dossard</th><th>Nom</th><th>Club</th>" +
+      "<th>Catégorie</th></tr></thead>";
+    var corps = document.createElement("tbody");
+    liste.forEach(function (p) {
+      var tr = document.createElement("tr");
+      tr.innerHTML = '<td class="num"></td><td></td><td></td><td></td>';
+      tr.children[0].textContent = p.dossard === null ? "aucun" : p.dossard;
+      tr.children[1].textContent = p.nom;
+      tr.children[2].textContent = p.club || "—";
+      tr.children[3].textContent = p.categorie || "—";
+      corps.appendChild(tr);
+    });
+    table.appendChild(corps);
+    scroll.appendChild(table);
+    zone.appendChild(scroll);
+
+    if (refuse) {
+      var boutons = document.createElement("div");
+      boutons.className = "boutons";
+      boutons.style.marginTop = "12px";
+      var forcer = document.createElement("button");
+      forcer.className = "mini";
+      forcer.type = "button";
+      forcer.textContent = "Ce sont deux personnes différentes — ajouter quand même";
+      forcer.addEventListener("click", function () { ajouterParticipant(true); });
+      boutons.appendChild(forcer);
+      zone.appendChild(boutons);
+    }
+  }
 
   // --- Saisie manuelle ------------------------------------------------------
 
@@ -2431,15 +4007,6 @@
     var url = "/admin/etiquettes";
     if (bloc) url += "?bloc=" + encodeURIComponent(bloc);
     else if (zone) url += "?zone=" + encodeURIComponent(zone);
-    window.open(url, "_blank");
-  });
-
-  $("btnImprimer").addEventListener("click", function () {
-    var un = $("dUnSeul").value.trim();
-    var cat = $("dCategorie").value.trim();
-    var url = "/admin/dossards";
-    if (un) url += "?dossard=" + encodeURIComponent(un);
-    else if (cat) url += "?categorie=" + encodeURIComponent(cat);
     window.open(url, "_blank");
   });
 
@@ -3395,6 +4962,7 @@
     etat.competitionReglages = d;
     $("nomCompetition").value = d.competition ? d.competition.nom : "";
     $("dateCompetition").value = (d.competition && d.competition.date) || "";
+    dessinerSources(d.sources_inscriptions);
 
     var masques = d.groupes_masques || [];
     var bloc = $("listeGroupes");

@@ -408,7 +408,7 @@ class TestLesRolesEtLesReparationsSontVisibles:
         `test_audit_novembre` protège pour le réimport, et il vaut ici aussi :
         dessiner le mur réécrit ce que cent vingt dossards vont porter.
         """
-        from werkzeug.security import generate_password_hash
+        from climbcontest.comptes import _hacher as hacher
 
         from climbcontest.models import Utilisateur
 
@@ -418,7 +418,7 @@ class TestLesRolesEtLesReparationsSontVisibles:
         # la défense en profondeur — même un compte apparu par un chemin
         # imprévu ne doit pas pouvoir redessiner le mur.
         db.session.add(Utilisateur(identifiant="sans_droit",
-                                   mot_de_passe_hache=generate_password_hash(MDP),
+                                   mot_de_passe_hache=hacher(MDP),
                                    actif=True))
         db.session.commit()
         client.post("/admin/connexion", json={"identifiant": "sans_droit",

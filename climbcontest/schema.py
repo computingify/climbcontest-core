@@ -264,6 +264,13 @@ COLONNES_AJOUTEES = {
         # oppose, c'est ne pas s'etre oppose. Les lignes existantes passent donc
         # a 0, c'est-a-dire « publiable », ce qui est l'etat d'avant.
         "publication_refusee": "BOOLEAN NOT NULL DEFAULT 0",
+        # Spec 008. L'ANNEE seule, pas la date : c'est tout ce que la regle
+        # FFME demande (`categories.py`), et c'est la donnee la plus reduite
+        # qui la satisfasse -- il s'agit de mineurs.
+        "annee_naissance": "INTEGER",
+        # Quelqu'un a range cette personne a la main : « Appliquer le bareme a
+        # tous » ne doit pas defaire son travail en silence.
+        "categorie_forcee": "BOOLEAN",
     },
 }
 

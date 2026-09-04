@@ -63,6 +63,94 @@ qu'on ne met pas à jour le matin d'une compétition :
 
 ### Ajouté
 
+- **Les inscriptions HelloAsso arrivent toutes seules** (spec 008). La
+  plateforme d'inscription du club alimente désormais une **salle d'attente**
+  dans la console : c'est elle qui décide si un participant est créé, jamais le
+  réseau. Trois piles dans l'ordre où on les traite — *à trancher*, *à
+  imprimer*, *faites* — sur un écran rafraîchi toutes les trente secondes,
+  qu'on laisse ouvert pendant la compétition. Une pastille dans le bandeau
+  compte ce qui attend, depuis n'importe quel écran.
+
+  **La catégorie se calcule.** « U » veut dire *under* : U13, ce sont les moins
+  de 13 ans, et c'est le plus petit Under qui l'emporte. L'année de référence
+  est celle où **finit** la saison FFME — septembre à août — ce qui est
+  exactement ce qui fait qu'un grimpeur démarre l'année dans une catégorie et y
+  reste. Le barème ne se saisit plus : il se déduit de la date de la compétition
+  et des catégories de l'édition, et un écran **Catégories** permet de
+  l'appliquer à tous les inscrits, avec son aperçu avant / après.
+
+  **Deux mécanismes distincts, et il ne faut pas les confondre.** Ne pas
+  réimporter tient à une contrainte SQL sur l'**article** HelloAsso ; rapprocher
+  une personne déjà connue se fait sur nom + prénom + club. Le numéro de
+  commande, lui, ne peut pas servir de clé anti-doublon : une commande porte
+  souvent **deux enfants**, et s'en servir perdrait le second.
+
+  Le relevé ne garde **rien du payeur** — ni nom, ni courriel, ni adresse — et
+  seulement l'**année** de naissance de l'inscrit, qui est tout ce que la règle
+  demande. Ce sont des mineurs.
+
+- **La liste des participants change de geste** (spec 008). Une colonne
+  **Source** dit d'où vient chacun — `G` classeur Google, `H` HelloAsso, `M`
+  saisie au guichet — et deux pastilles sur une ligne veulent dire que le
+  rapprochement a fait son travail. Un **crayon** ouvre la ligne sur place, avec
+  des listes déroulantes qui savent créer une valeur. La **sélection par cases**
+  remplace la tuile « Imprimer les fiches » : on filtre par catégorie, on coche,
+  on imprime. Le formulaire d'ajout apprend l'**année de naissance**, et l'année
+  et la catégorie se répondent l'une l'autre.
+
+- **Un seul formatage, et plus de doublons** (spec 008). Le formatage
+  s'applique désormais à **toutes** les sources, l'import du classeur compris —
+  la spec 013 l'en tenait à l'écart, et c'est ce qui fabriquait des doublons :
+  « ANNONAY ESCALADE » importé et « annonay escalade » tapé au guichet étaient
+  deux clubs. Quand un club existe déjà sous une forme, **c'est la sienne qui
+  fait référence**, quelle que soit la façon dont on vient de l'écrire.
+
+  Créer quelqu'un qui porte le même nom **et** le même club est refusé, avec sa
+  fiche à l'écran pour la reprendre d'un clic. Même nom mais club différent
+  reste possible — deux « Martin Lea » existent vraiment — et se signale. Une
+  carte **Doublons** paraît quand la base en porte déjà, et laisse choisir
+  laquelle des deux fiches garde son dossard : c'est celui qui est déjà imprimé.
+
+- **Les catégories d'une édition peuvent se déclarer** (spec 008). Le barème se
+  déduisait des inscrits et des circuits — et les circuits ne viennent que de
+  l'import du classeur Google, qui est temporaire et finira par disparaître. Une
+  édition alimentée par HelloAsso seul n'aurait donc eu aucune catégorie
+  calculable au premier relevé. Une ligne dans l'écran **Catégories** suffit
+  désormais à les annoncer, et le calcul cesse de dépendre du classeur.
+
+- **D'où viennent les inscrits se règle** (spec 008). Dans **Général**, trois
+  positions : le classeur Google seul — ce qu'on fait aujourd'hui, et le défaut
+  —, HelloAsso seul, ou les deux. Tant que HelloAsso n'est pas choisi,
+  **aucun** écran ni aucune pastille HelloAsso n'apparaît dans la console.
+
+  Le réglage porte sur les **participants** et sur rien d'autre : le miroir
+  continue d'écrire les réussites dans le classeur, et l'import continue d'y
+  lire les blocs et les circuits. Le classeur peut cesser de fournir les
+  inscrits tout en restant la carte du mur.
+
+  **Décocher n'efface rien** : la clé, le formulaire et la correspondance
+  reviennent tels quels à la réactivation. Pour effacer, il y a « Débrancher »,
+  qui dit ce qu'il fait.
+
+- **Relier HelloAsso tient en deux champs** (spec 008). On colle l'identifiant
+  et le secret, et la console **trouve l'association toute seule** — son nom
+  s'affiche aussitôt, avec la liste de ses formulaires. Plus de nom court à
+  taper, donc plus de faute de frappe dont le seul symptôme aurait été « aucun
+  formulaire trouvé ».
+
+  Un bouton **Tester** répond à « est-ce que ça marche ? » par des faits qu'on
+  reconnaît : le nom du club, le nombre de formulaires, et le nombre
+  d'inscriptions vues sur celui qui est choisi. Un verdict qui dirait seulement
+  « relié » ne prouverait rien — il pourrait désigner la mauvaise association.
+
+- **L'import HelloAsso devine ses champs** (spec 008). Choisir le formulaire lit
+  un échantillon et reconnaît tout seul l'année de naissance, le genre et le
+  club — par le nom du champ, et à défaut **par ses réponses** : un champ dont
+  toutes les réponses sont « Fille » ou « Garçon » est un champ de genre, quel
+  que soit son intitulé. « Fille », « F », « Féminin », « Girl » sont reconnus
+  d'origine. Rien n'est deviné en silence : la console dit ce qu'elle a trouvé,
+  et liste les réponses qu'elle n'a pas su ranger.
+
 - **L'application juge choisit son thème** (spec 040). Trois pastilles dans les
   Réglages — *Système*, *Clair*, *Sombre*. « Système » reste la position de
   départ : rien ne change pour un juge qui n'y touche pas. Le choix est appliqué
@@ -188,9 +276,87 @@ l'application.
 - **Le circuit « Noir » garde sa carte en papier.** C'est le seul dont la teinte
   est déjà l'encre : sa carte teintée virait au gris quand toutes les autres
   prennent leur couleur, et le liseré de sa pastille se confondait avec l'aplat.
+- **Le job de CI passe de 4 min 39 à ~1 min 10**, et son étape « Tests » de
+  4 min 15 à **43 s** — mesuré sur le runner, pas extrapolé. En
+  local : 2 min 26 → 45 s **en série**, 13 s en parallèle. Aucun test retiré,
+  dix-sept ajoutés (1 872, tous verts). Le parallélisme est un multiplicateur ;
+  les deux tiers du gain viennent du travail supprimé.
+  - **Un tiers de la suite dérivait des mots de passe.** `scrypt` est lent à
+    dessein (54 ms), et chaque fixture de connexion en payait deux — création
+    du compte, puis vérification — soit ~105 ms, quatre cents fois. La
+    configuration de test dérive désormais au minimum. **Le défaut reste
+    `scrypt` partout ailleurs**, et aucune variable d'environnement ne peut
+    l'affaiblir ; les deux tests dont le *coût* est le sujet redemandent la
+    vraie méthode. `tests/test_hachage.py` échoue si l'allégement déborde du
+    test.
+  - **Une application Flask était rebâtie à chaque test** (11,8 ms × 1 200) :
+    Werkzeug y recompilait ses soixante-sept règles de routage, ce qui pesait
+    78 % du coût. Elle est construite une fois ; la base, la configuration et
+    la classe de client sont remises à neuf avant chaque test. Deux gardes
+    tiennent l'isolement — un refus de sortie si un test modifie l'application
+    partagée, et `tests/test_isolation.py`, qui salit puis vérifie **dans
+    n'importe quel ordre**.
+  - **Le test le plus cher de la suite testait le harnais** : 7,5 s, dont 5 s
+    passées à regarder gunicorn renoncer à prendre un port occupé. Le harnais
+    vérifie maintenant que le port est libre *avant* de lancer gunicorn — un
+    vrai gain aussi hors des tests — et le test tombe à 0,6 s.
+  - **Une sonde navigateur dormait 2,4 s pour constater qu'il ne se passait
+    rien.** C'était lent *et* faux : sur une machine lente, la feuille aurait
+    pu s'ouvrir après le réveil sans que le test la voie. Le harnais attend
+    désormais une condition — plus aucune requête en vol, puis deux
+    rafraîchissements d'écran — et le test passe de 2,5 s à 0,13 s.
+  - **Deux serveurs de test se fermaient en 0,5 s chacun** : `serve_forever`
+    sonde son drapeau d'arrêt à cet intervalle par défaut, une attente logée
+    dans le *teardown* où personne ne lit les durées.
+  - **Les tests E2E ne relancent plus un interpréteur Python par test** pour
+    peupler leur base : elle est bâtie une fois, puis copiée.
+  - **Quatre parcours navigateur pour quatre sondes** de l'écran Réglages du
+    juge : quatre démarrages de l'application pour rejouer chaque fois la même
+    ouverture. Un seul parcours, 4,8 s → 2,3 s. Les sondes restent quatre
+    textes séparés — deux PR qui en touchent deux différentes ne se disputent
+    toujours rien — et chacune tourne dans son propre `try` : une sonde qui
+    casse ne fait pas tomber les trois autres.
+  - **Le navigateur de la CI change** : `/usr/bin/chromium` est un paquet
+    confiné dont le premier lancement coûte **9,6 à 22,2 s** — le même geste,
+    du simple au double, mesuré sur cinq passages. Le Chrome de la même image
+    est un paquet ordinaire : **7,2 s**, et sans cette variance qui a fait
+    échouer deux jobs sur le budget par test. Même moteur, donc rien ne change
+    de ce que les tests mesurent — une cascade CSS, un `display` calculé. Une
+    étape de CI nomme désormais le binaire retenu et chronomètre son démarrage :
+    l'en-tête de pytest, qui l'aurait dit, est masqué par le `-q` de `addopts`.
+    ⚠️ Cette étape paie le premier lancement, si bien qu'une part du gain de
+    l'étape « Tests » est un **déplacement** — le job entier, lui, ne ment pas.
+  - **Ce premier lancement était facturé au premier test navigateur** par ordre
+    alphabétique — le même geste, du simple au double selon la charge — et
+    ce prix était facturé au premier test navigateur par ordre alphabétique —
+    qui affichait 20 s en CI contre 0,13 s sur le Mac, et faisait échouer le
+    budget par test en accusant un innocent. Il est rendu à un test dont c'est
+    le sujet, placé en tête du groupe ; les autres trouvent un navigateur
+    chaud. Le harnais nomme désormais ce démarrage dans son avertissement : il
+    se produisait *avant* le chronomètre, donc rien ne le voyait.
+  - **La suite tourne en parallèle par défaut** (`pytest-xdist`, `-n logical
+    --dist loadgroup`). `pytest -n 0` revient à l'exécution en série.
+  - **Un seul chromium pour toute l'exécution**, au lieu d'un par fichier.
+    Chaque parcours ouvre un **contexte isolé** — cookies, `localStorage` et
+    service workers propres, comme un profil neuf, mais en 2 à 5 ms au lieu de
+    300. Les tests navigateur sont regroupés sur un même worker pour que ce
+    « un seul » reste vrai en parallèle.
+  - `test_navigateur_fiche.py` **rejoint le harnais partagé** : il portait sa
+    propre copie de `piloter`, donc son propre chromium.
 
 ### Corrigé
 
+- **Un test passait en héritant du voisin.**
+  `test_la_garde_et_la_confirmation_sont_partagees_avec_relier` ne demandait
+  pas la fixture `classeur` : il lisait le registre laissé par un test
+  précédent. Lancé seul, il échouait déjà sur `master` — le parallélisme n'a
+  fait que le montrer. La fixture remet désormais le registre à `None` en
+  sortant, si bien que l'oubli échoue **toujours**, au lieu de dépendre de
+  l'ordre de passage.
+- **`piloter` remet le verdict à zéro** avant chaque parcours. Sans ça, un
+  second appel sur le même dictionnaire trouvait la valeur du premier, rendait
+  un verdict périmé, n'ouvrait aucun navigateur — et le test passait au vert
+  sur les mesures du parcours précédent, sans rien dire.
 - **La pulsation du bouton « Envoyer » effaçait son ombre** deux fois par
   seconde : `box-shadow` est une propriété unique, et les images-clés du souffle
   la réécrivaient entièrement. Elles reportent désormais l'ombre et ne font
