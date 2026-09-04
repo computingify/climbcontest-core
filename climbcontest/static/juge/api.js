@@ -12,6 +12,30 @@
 
 export const ENTETE_CLE = "X-Api-Key";
 
+/**
+ * Ce que le téléphone dit de lui en téléchargeant le catalogue (spec 030).
+ *
+ * ⚠️ Des **en-têtes**, et non des paramètres d'URL. Le nom d'un poste — « Mur
+ * jaune » — n'a rien à faire dans le journal d'accès du proxy : la spec 014 a
+ * justement dû y poser un filtre pour en retirer le jeton du juge. Un en-tête
+ * n'y est pas journalisé.
+ *
+ * `encodeURIComponent` parce qu'un en-tête HTTP ne transporte pas sûrement les
+ * accents, et que « Entrée » ou « Dévers » en portent. Le serveur décode ; un
+ * décodage raté lui coûte le nom, jamais la requête.
+ *
+ * Tout est facultatif : sans annonce, la requête est **exactement** celle
+ * d'avant la spec 030. C'est ce qui permet à l'application Android, qui n'en
+ * envoie aucun, de continuer sans rien changer.
+ */
+function entetesDAnnonce(annonce) {
+  if (!annonce || !annonce.id) return {};
+  const entetes = { "X-Device-Id": annonce.id };
+  if (annonce.nom) entetes["X-Device-Name"] = encodeURIComponent(annonce.nom);
+  if (annonce.app) entetes["X-App-Version"] = annonce.app;
+  return entetes;
+}
+
 export class Api {
   constructor({ jeton, fetch: fetchInjecte } = {}) {
     this.jeton = jeton || null;
@@ -108,18 +132,36 @@ export class Api {
     }
   }
 
-  /** Le catalogue. `304` quand rien n'a bougé : ~150 octets. */
-  async telechargerCatalogue(versionConnue) {
-    const entetes = this._entetes();
+  /**
+   * Le catalogue. `304` quand rien n'a bougé : ~150 octets.
+   *
+   * ⚠️ **`versionConnue` à `null` force un `200` complet**, et c'est le bouton
+   * « Retélécharger maintenant » des réglages. C'est le SEUL moyen propre
+   * d'obtenir un catalogue neuf : le serveur décide du `304` par égalité
+   * stricte, et un client qui annoncerait un autre numéro pour le forcer ne
+   * serait pas « en avance » à ses yeux — il viendrait d'ailleurs, d'une autre
+   * compétition ou d'une base restaurée. Une requête nue ne pose pas la
+   * question, donc ne peut pas recevoir un `304`.
+   *
+   * Rend aussi `serveur` : la version que le backend exécute, lue dans un
+   * en-tête présent sur les DEUX branches. C'est ce qui permet aux réglages de
+   * dire « ta coquille est en retard » sans appeler `/health`, que le proxy
+   * ferme aux téléphones.
+   */
+  async telechargerCatalogue(versionConnue, annonce = null) {
+    const entetes = this._entetes(entetesDAnnonce(annonce));
     delete entetes["Content-Type"];
     if (versionConnue) entetes["If-None-Match"] = `"${versionConnue}"`;
     try {
       const r = await this._fetch("/api/v2/catalog", { method: "GET", headers: entetes });
-      if (r.status === 304) return { etat: "deja-a-jour" };
-      if (!r.ok) return { etat: "echec", code: r.status, reseau: r.status >= 500 };
-      return { etat: "recu", catalogue: await r.json() };
+      // `?.` : les tests injectent un `fetch` factice sans objet `headers`, et
+      // une version serveur inconnue est un cas prévu — pas une erreur.
+      const serveur = r.headers?.get?.("X-Server-Version") || null;
+      if (r.status === 304) return { etat: "deja-a-jour", serveur };
+      if (!r.ok) return { etat: "echec", code: r.status, reseau: r.status >= 500, serveur };
+      return { etat: "recu", catalogue: await r.json(), serveur };
     } catch (e) {
-      return { etat: "echec", code: 0, reseau: true };
+      return { etat: "echec", code: 0, reseau: true, serveur: null };
     }
   }
 }

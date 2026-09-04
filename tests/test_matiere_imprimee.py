@@ -110,3 +110,53 @@ class TestLeCircuitNoirGardeSaCarteEnPapier:
         assert "#" not in regle.group(1), (
             "une couleur est ecrite en dur dans la regle du « Noir » : elle ne "
             "suivra pas le theme impose par la spec 040")
+
+
+@pytest.fixture(scope="module")
+def sw() -> str:
+    """Le service worker de l'application juge."""
+    chemin = (Path(__file__).resolve().parents[1] / "climbcontest" / "static"
+              / "juge" / "sw.js")
+    return chemin.read_text(encoding="utf-8")
+
+
+class TestLaCoquilleEstCoherenteAvecSonJournal:
+    """Le numero de coquille et le commentaire qui l'explique disent la meme chose.
+
+    ⚠️ **Trois collisions de suite sur ce numero, le meme jour.** Les specs 040
+    et 041 ont toutes deux revendique `v7` ; puis les specs 030 et 041 ont
+    toutes deux revendique `v8`. Chaque branche l'ecrit sans savoir l'autre, et
+    git ne l'a signale que parce que les COMMENTAIRES differaient — deux
+    branches qui poseraient le meme commentaire fusionneraient en silence.
+
+    Ce qui est en jeu n'est pas cosmetique : `activate` ne supprime que les
+    caches dont le NOM differe. Deux specs sous un meme numero, et les
+    telephones deja installes gardent l'ancienne coquille de l'une des deux,
+    sans que rien ne casse visiblement.
+
+    Ce garde ne peut pas empecher la collision — elle nait sur deux branches a
+    la fois. Il attrape sa CONSEQUENCE la plus probable : une resolution qui
+    garde les deux commentaires et oublie de faire monter la constante.
+    """
+
+    def test_la_constante_porte_le_plus_haut_numero_documente(self, sw):
+        documentes = [int(n) for n in re.findall(r"^// v(\d+) ", sw, re.M)]
+        assert documentes, (
+            "plus aucun commentaire `// vN` dans sw.js : le journal des "
+            "coquilles a disparu, et avec lui le seul moyen de voir une "
+            "collision de numero entre deux branches")
+        constante = re.search(r'const CACHE = "climbcontest-juge-v(\d+)"', sw)
+        assert constante, "le nom du cache a change de forme"
+        assert int(constante.group(1)) == max(documentes), (
+            f"la coquille s'appelle v{constante.group(1)} alors que son journal "
+            f"documente jusqu'a v{max(documentes)}. C'est la trace d'une fusion "
+            "resolue a moitie : les telephones deja installes garderont "
+            "l'ancienne coquille de l'une des deux specs")
+
+    def test_aucun_numero_n_est_revendique_deux_fois(self, sw):
+        documentes = [int(n) for n in re.findall(r"^// v(\d+) ", sw, re.M)]
+        doublons = sorted({n for n in documentes if documentes.count(n) > 1})
+        assert doublons == [], (
+            f"le journal des coquilles revendique {doublons} plus d'une fois : "
+            "deux specs se sont croisees sur le meme numero et la resolution "
+            "n'a fait monter aucune des deux")

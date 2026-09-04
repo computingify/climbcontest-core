@@ -532,3 +532,53 @@ class Archive(db.Model):
 
     def __repr__(self) -> str:
         return f"<Archive {self.id} {self.nom!r} du {self.date}>"
+
+
+class Appareil(db.Model):
+    """Un telephone de juge, vu par le serveur (spec 030).
+
+    ⚠️ **Cette table n'est PAS la source de verite des reussites.** Une reussite
+    porte deja, denormalises, l'identifiant et le nom de l'appareil qui l'a
+    envoyee : c'est ce qui permet de retrouver un scan des mois plus tard, meme
+    si le telephone a disparu. Cette table-ci ne sert qu'a repondre a une
+    question du present : « ce telephone-la tourne-t-il sur la meme version et
+    le meme catalogue que le serveur ? »
+
+    **Globale, pas par competition.** Un telephone traverse les editions ; le
+    rattachement a une edition se fait par les reussites qu'il a envoyees.
+
+    ⚠️ **Deux horodatages, et il ne faut surtout pas les fusionner.** `vu_le`
+    avance a n'importe quel contact -- telechargement du catalogue ou envoi d'un
+    lot. `catalogue_vu_le` n'avance QUE sur un echange de catalogue. C'est leur
+    ECART qui trahit un cache pose devant `/api/v2/catalog` : le telephone
+    envoie ses lots (POST, jamais mis en cache) mais ne s'annonce plus (GET,
+    absorbe par le cache). Avec un seul horodatage, cette panne serait
+    invisible -- et elle rendrait faux tout le tableau des appareils sans que
+    rien ne bronche. Voir specs/030-versions-visibles/spec.md, F8.
+    """
+
+    __tablename__ = "appareil"
+
+    # L'identifiant tire par le telephone lui-meme (`identite.js`, `crypto
+    # .randomUUID`). C'est le meme que celui recopie sur chaque reussite.
+    id = Column(String(40), primary_key=True)
+    nom = Column(String(60))
+
+    # Ce que la coquille dit executer. `None` pour un client qui ne s'annonce
+    # pas -- l'application Android du Play Store, aujourd'hui.
+    version_app = Column(String(20))
+
+    # ⚠️ Le numero que le telephone DETIENT a la fin de l'echange, c'est-a-dire
+    # le numero courant du serveur au moment du contact -- et non celui qu'il a
+    # annonce. Un `304` signifie qu'ils sont egaux ; un `200` que le telephone
+    # vient de recevoir le courant. Enregistrer le numero ANNONCE ferait
+    # clignoter en ambre, apres chaque import, des telephones qui viennent
+    # precisement de se mettre a jour.
+    catalogue_version = Column(Integer)
+    catalogue_vu_le = Column(DateTime)
+
+    premiere_vue_le = Column(DateTime, nullable=False, default=func.now())
+    vu_le = Column(DateTime, nullable=False, default=func.now(), index=True)
+
+    def __repr__(self) -> str:
+        return f"<Appareil {self.id!r} {self.nom!r} {self.version_app}>"

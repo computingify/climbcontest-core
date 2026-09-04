@@ -167,6 +167,28 @@ fonction. Il nomme le fichier et la fixture. Vérifié en réintroduisant le
 défaut. La règle épargne `test_navigateur_reglages_resultats.py`, dont les cinq
 tests pilotent **cinq parcours différents** : sa portée fonction est correcte.
 
+### 5.6 Trois branches, trois fois le même numéro de coquille
+
+Les specs **040 et 041** ont toutes deux revendiqué `climbcontest-juge-v7`.
+Puis les specs **030 et 041** ont toutes deux revendiqué `v8`. Trois collisions
+sur la même constante, le même jour, entre trois sessions qui ne se voyaient
+pas.
+
+Ce n'est pas cosmétique : `activate` ne supprime que les caches dont le **nom**
+diffère. Deux specs sous un même numéro, et les téléphones déjà installés
+gardent l'ancienne coquille de l'une des deux — sans que rien ne casse
+visiblement, et sans que personne voie le changement livré.
+
+⚠️ Git ne l'a signalée que parce que les **commentaires** différaient. Deux
+branches qui poseraient le même commentaire au-dessus de la même valeur
+fusionneraient **en silence**.
+
+Un garde ne peut pas empêcher la collision — elle naît sur deux branches à la
+fois. `tests/test_matiere_imprimee.py` attrape donc sa **conséquence la plus
+probable** : une résolution qui garde les deux commentaires et oublie de faire
+monter la constante. Il échoue en disant « la coquille s'appelle v8 alors que
+son journal documente jusqu'à v9 ». Vérifié en réintroduisant le défaut.
+
 ## 6. Le réglage qu'Adrien a rouvert
 
 La direction A demandait « une ombre franche de 5 px ». Implémentée telle
@@ -199,6 +221,7 @@ délibéré : la spec 035 décrivait une intention, le rendu a tranché la valeu
 | A12 | Aucune variable CSS déclarée sans lecteur | `tests/test_matiere_imprimee.py`, vérifié en réintroduisant le défaut |
 | A13 | Le souffle ne peut plus effacer l'ombre | Idem : le test tombe si une étape cesse de la reporter |
 | A14 | Aucune fixture ne relance un navigateur par test | `tests/test_harnais_navigateur.py`, vérifié en réintroduisant le défaut |
+| A15 | La coquille porte le plus haut numéro que son journal documente | `tests/test_matiere_imprimee.py`, idem |
 
 ## 8. Hors périmètre
 

@@ -22,6 +22,8 @@ from flask import (
     send_from_directory,
 )
 
+from ..version import VERSION
+
 logger = logging.getLogger(__name__)
 bp = Blueprint("pwa", __name__, url_prefix="/juge")
 
@@ -44,8 +46,16 @@ def application():
     # Le lien vers le manifeste porte le jeton (spec 014) : c'est CE
     # manifeste-la que le navigateur lit au moment ou il propose d'installer,
     # et c'est de la que l'application installee tirera son `start_url`.
+    # ⚠️ La version est GRAVEE DANS LA COQUILLE, et c'est tout l'interet.
+    # Le service worker sert la coquille depuis son cache et la rafraichit
+    # derriere : ce que le telephone execute peut avoir un lancement de retard
+    # sur ce que le serveur sert. La version affichee dans les reglages est
+    # donc celle de la coquille EN CACHE -- la version du code qui tourne
+    # vraiment. Aller la chercher par un appel dirait « a jour » a un telephone
+    # qui ne l'est pas, ce qui est exactement la panne que la spec 030 supprime.
     reponse = make_response(render_template(
-        "juge.html", suffixe_manifeste=_suffixe(_jeton_demande())))
+        "juge.html", suffixe_manifeste=_suffixe(_jeton_demande()),
+        version=VERSION))
     reponse.headers["Cache-Control"] = "no-cache, must-revalidate"
     return reponse
 

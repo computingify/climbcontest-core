@@ -44,13 +44,21 @@
 // theme avant la peinture) ET le nouveau module `theme.js` : sans changement
 // de nom, un telephone deja installe rouvrirait une page sans le reglage, et
 // le module manquerait a la coquille hors ligne.
-// v8 le 03/09 (spec 041) -- la MATIERE imprimee : lisere d'encre et ombre du
+// v8 le 03/09 (spec 030) -- la coquille gagne `versions.js`, et le gabarit
+// `/juge` porte les deux nouvelles sections des Reglages. ⚠️ Ce numero est le
+// SEUL endroit ou la fusion pouvait se tromper sans bruit : la liste
+// `COQUILLE` fusionne ligne a ligne -- `theme.js` et `versions.js` s'y
+// retrouvent tous les deux sans conflit -- mais le NOM du cache est une seule
+// ligne, et git garde celle d'un des deux cotes. Reste a v7, et un telephone
+// deja installe garde une coquille sans `versions.js` : les boutons des
+// nouvelles sections plantent au premier appui, hors ligne.
+// v9 le 04/09 (spec 041) -- la MATIERE imprimee : lisere d'encre et ombre du
 // bouton. Tout est dans le CSS du gabarit `/juge`, que la coquille porte : sans
 // changement de nom, un telephone deja installe rouvrirait l'ancienne feuille
 // et ne verrait rien. Et `couleurs.js` gagne `estLeNoir`, que `juge.js` importe
 // desormais : une coquille qui melangerait l'ancien module et le nouveau
 // `juge.js` planterait au premier bloc scanne.
-const CACHE = "climbcontest-juge-v8";
+const CACHE = "climbcontest-juge-v9";
 
 /**
  * Ce qu'on garde pour pouvoir démarrer sans réseau.
@@ -75,6 +83,9 @@ const COQUILLE = [
   "/static/juge/file.js",
   "/static/juge/idb.js",
   "/static/juge/catalogue.js",
+  // ⚠️ `juge.js` l'IMPORTE : absent de la coquille, l'application ne demarrerait
+  // pas hors ligne. Toute ajout de module doit passer par cette liste.
+  "/static/juge/versions.js",
   "/static/juge/couleurs.js",
   "/static/juge/archivo.ttf",
   "/static/juge/expediteur.js",
@@ -104,6 +115,21 @@ self.addEventListener("install", (evenement) => {
   );
 });
 
+// ⚠️ AVANT D'AJOUTER UN ECOUTEUR `sync` OU `periodicsync` ICI -- vider la file
+// en arriere-plan est une evolution naturelle pour une application hors ligne,
+// et elle casserait un detecteur situe a l'autre bout du systeme.
+//
+// La console repere un cache pose devant `/api/v2/catalog` en croisant deux
+// signaux : des lots qui arrivent, et des annonces qui n'arrivent plus
+// (`contest._annonce_perdue`). Ce croisement n'est valable que parce
+// qu'AUCUN lot ne part hors du premier plan : la boucle de `juge.js` teste
+// `visibilityState`, et les autres chemins d'envoi sont des gestes du juge.
+//
+// Un envoi en arriere-plan romprait ce lien : des lots partiraient sans
+// annonce, et la console accuserait un cache sur un telephone en veille
+// parfaitement sain. Si on ajoute cette synchronisation, il faut rendre
+// l'annonce solidaire de l'envoi -- ou changer le detecteur, en connaissance
+// de cause.
 self.addEventListener("activate", (evenement) => {
   evenement.waitUntil(
     caches.keys()
@@ -113,6 +139,51 @@ self.addEventListener("activate", (evenement) => {
       .then(() => self.clients.claim()),
   );
 });
+
+/**
+ * « Mettre a jour et redemarrer », demande par l'ecran des reglages (spec 030).
+ *
+ * ⚠️ **On ne vide RIEN avant d'avoir recu.** Un `caches.delete` suivi d'un
+ * telechargement qui echoue laisserait le telephone sans application hors
+ * ligne -- exactement la panne que ce fichier existe pour empecher. Chaque
+ * fichier n'est remplace que quand sa version fraiche est arrivee ; sans
+ * reseau, rien ne bouge et la coquille precedente reste servie.
+ *
+ * `cache: "reload"` court-circuite le cache HTTP du navigateur : sans lui, on
+ * remettrait dans le cache du service worker la meme reponse que celle qu'on
+ * cherche a remplacer.
+ */
+self.addEventListener("message", (evenement) => {
+  const message = evenement.data;
+  if (!message || message.type !== "rafraichir-la-coquille") return;
+  evenement.waitUntil(rafraichirLaCoquille().then((bilan) => {
+    // On repond sur le port fourni par la page : elle attend ce bilan pour
+    // decider si elle recharge. Sans reponse, elle ne recharge pas.
+    if (evenement.ports && evenement.ports[0]) {
+      evenement.ports[0].postMessage(bilan);
+    }
+  }));
+});
+
+async function rafraichirLaCoquille() {
+  const cache = await caches.open(CACHE);
+  let remplaces = 0;
+  let echecs = 0;
+  await Promise.all(COQUILLE.map(async (url) => {
+    try {
+      const reponse = await fetch(url, { cache: "reload" });
+      if (reponse && reponse.ok) {
+        await cache.put(url, reponse.clone());
+        remplaces += 1;
+      } else {
+        echecs += 1;
+      }
+    } catch {
+      echecs += 1;
+    }
+  }));
+  return { remplaces, echecs };
+}
 
 self.addEventListener("fetch", (evenement) => {
   const requete = evenement.request;

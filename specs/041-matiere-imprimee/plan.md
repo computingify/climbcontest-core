@@ -40,6 +40,10 @@ Master a bougé **deux fois** pendant le travail.
       pour y porter les versions, garder l'autre côté les aurait écrasées
 - [x] `#116` (spec 040, le thème au choix) : les **deux** branches avaient
       revendiqué la coquille `v7`. La 040 la garde, la 041 passe à **v8**
+- [x] `#117` (spec 030, les versions se voient) : **encore** la coquille, `v8`
+      cette fois. La 030 la garde, la 041 passe à **v9**. Trois collisions sur
+      la même constante en un jour — c'est un motif, pas un accident, et il a
+      désormais son garde
 - [x] ⚠️ `juge.html`, `juge.js` et `couleurs.js` ont fusionné **sans conflit**,
       et c'est là qu'était le vrai risque : la 040 a ressuscité
       `--trait-circuit` en recopiant le bloc sombre. Re-supprimée, et le piège

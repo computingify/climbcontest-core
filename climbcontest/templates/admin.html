@@ -285,6 +285,10 @@
   .tiroir nav button[aria-current="page"] svg { color: var(--accent); }
   .tiroir nav button[aria-current="page"] .quoi i { color: var(--encre2); }
   .tiroir .pied { padding: 12px; border-top: 1px solid var(--trait); }
+  .tiroir .version {
+    padding: 10px 14px 2px; color: var(--encre3); font-size: 0.76rem;
+    font-family: var(--chiffre); line-height: 1.5;
+  }
   .tiroir .pied button {
     display: flex; align-items: center; gap: 13px; width: 100%;
     cursor: pointer; font: inherit; background: transparent;
@@ -513,6 +517,17 @@
   tr.muet td:first-child { box-shadow: inset 3px 0 0 var(--alerte); }
   .silence { color: var(--alerte); font-weight: 600; }
   .frais { color: var(--ok); }
+
+  /* Les versions (spec 030). ⚠️ La pastille ne porte JAMAIS l'information a
+     elle seule : le numero divergent est ECRIT a cote, et colore. Meme regle
+     que le voyant de connexion de l'app juge -- le vert et l'ambre seuls sont
+     indistinguables pour environ 8 % des hommes. */
+  .etatVersion { display: inline-block; width: 7px; height: 7px; border-radius: 50%;
+                 margin-right: 7px; vertical-align: 1px; }
+  .etatVersion.ok { background: var(--ok); }
+  .etatVersion.att { background: var(--attention); }
+  .etatVersion.abs { background: var(--encre3); }
+  td .ecart { color: var(--attention); font-weight: 600; }
   .ref { font-family: var(--chiffre); color: var(--encre2); }
 
   /* Les COULEURS, montrees plutot qu'ecrites (demande d'Adrien du 02/09).
@@ -993,6 +1008,12 @@
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="m16 17 5-5-5-5"/><path d="M21 12H9"/></svg>
         <span class="quoi"><b>Se déconnecter</b></span>
       </button>
+      <!-- La version, sur TOUS les ecrans (spec 030). Discrete : on ne la
+           consulte pas tous les jours, mais le jour ou on se demande « est-ce
+           que la VM a bien tire la derniere version ? », il ne faut pas avoir a
+           la chercher. Le numero de catalogue est a cote parce que c'est
+           l'autre moitie de la meme question. -->
+      <div class="version" id="versionConsole">ClimbContest {{ version }}</div>
     </div>
   </aside>
 
@@ -1203,6 +1224,27 @@
         <button class="action" id="btnPostes">Ouvrir les QR de poste</button>
       </div>
 
+      <!-- Versions en circulation (spec 030) -->
+      <div class="carte">
+        <h2>Versions en circulation</h2>
+        <p class="aide">Ce que sert le serveur, et ce que chaque téléphone a
+           vraiment. Un téléphone qui n'a pas la même ligne que le serveur
+           travaille sur d'autres données que les autres juges.</p>
+        <dl class="etat" id="etatVersions"></dl>
+        <!-- Le retard NORMAL : juste apres un import ou un plan redessine,
+             tous les telephones sont en retard d'un numero pendant quelques
+             minutes, et ils le rattrapent seuls. Sans cette phrase, un
+             organisateur qui vient d'enregistrer son plan voit sa flotte
+             entiere virer a l'ambre et croit avoir tout casse. -->
+        <p class="aide" id="rattrapageAnnonces" hidden
+           style="border-left:4px solid var(--accent);padding-left:12px;margin-top:14px"></p>
+        <!-- Le detecteur de cache. Invisible en marche normale : s'il
+             s'affiche, c'est qu'un intermediaire absorbe les requetes de
+             catalogue, et la cause est nommee plutot que laissee a deviner. -->
+        <p class="aide" id="alerteAnnonces" hidden
+           style="border-left:4px solid var(--alerte);padding-left:12px;margin-top:14px"></p>
+      </div>
+
       <div class="carte">
         <h2>Qui envoie quoi</h2>
         <p class="aide">Un téléphone <strong>muet depuis plus de dix
@@ -1215,8 +1257,8 @@
            les distingue. Le juge le lit dans ses réglages.</p>
         <button class="secondaire" id="btnRafraichirAppareils" style="margin-top:0">Rafraîchir</button>
         <div class="scroll"><table>
-          <thead><tr><th>Téléphone</th><th>Réussites</th><th>Dernier envoi</th><th>Identifiant</th></tr></thead>
-          <tbody id="corpsAppareils"><tr><td colspan="4" class="sans">Chargement…</td></tr></tbody>
+          <thead><tr><th>Téléphone</th><th>Application</th><th>Catalogue</th><th>Réussites</th><th>Dernier envoi</th><th>Identifiant</th></tr></thead>
+          <tbody id="corpsAppareils"><tr><td colspan="6" class="sans">Chargement…</td></tr></tbody>
         </table></div>
       </div>
     </section>
@@ -2431,16 +2473,95 @@
   $("filtreAppareil").addEventListener("change", chargerDernieres);
 
   function chargerAppareils() {
+    chargerVersions();
     appeler("/admin/appareils").then(function (d) {
       var corps = $("corpsAppareils");
       corps.innerHTML = "";
       if (!d.appareils.length) {
-        corps.appendChild(ligneVide(4,
-          "Aucun téléphone n'a encore envoyé de réussite."));
+        corps.appendChild(ligneVide(6,
+          "Aucun téléphone ne s'est encore manifesté."));
         return;
       }
       d.appareils.forEach(function (a) { corps.appendChild(ligneAppareil(a)); });
     }).catch(signaler);
+  }
+
+  // --- Versions (spec 030) --------------------------------------------------
+
+  /** Ce que sert le serveur, et le compte des telephones. */
+  function chargerVersions() {
+    appeler("/admin/versions").then(function (d) {
+      etat.versions = d;
+      peindreVersions(d);
+      // Le pied de tiroir dit la MEME chose, sur tous les ecrans : la version
+      // est gravee dans la page (elle ne peut pas changer sans rechargement),
+      // le numero de catalogue vient d'ici (il change en cours de journee).
+      $("versionConsole").textContent =
+        "ClimbContest " + d.serveur.version + " · catalogue n° " + d.catalogue.version;
+    }).catch(function () {
+      // Sans competition active, cette route repond 409. Ce n'est pas une
+      // erreur a signaler ici : la vue entiere n'a rien a montrer.
+    });
+  }
+
+  function peindreVersions(d) {
+    var liste = $("etatVersions");
+    liste.innerHTML = "";
+    ajouterEtat(liste, "Serveur", d.serveur.version
+      + (d.serveur.posee_le ? " — posée le " + dateEtHeure(d.serveur.posee_le) : ""));
+    ajouterEtat(liste, "Catalogue", "n° " + d.catalogue.version + " — "
+      + d.catalogue.participants + " grimpeurs, " + d.catalogue.blocs + " blocs");
+    var a = d.appareils;
+    ajouterEtat(liste, "Téléphones", a.vus === 0
+      ? "aucun vu aujourd'hui"
+      : a.a_jour + " à jour · " + a.en_retard + " en retard, sur " + a.vus
+        + " vu" + (a.vus > 1 ? "s" : "") + " aujourd'hui");
+
+    // ⚠️ Le detecteur de cache (spec 030, F8). Il attrape une faute commise
+    // HORS du depot -- un cache active dans la configuration du proxy -- que
+    // nul test ne peut voir. Sans lui, le tableau ci-dessous se viderait tout
+    // seul et on croirait les telephones eteints.
+    // Le retard qui se repare tout seul. Affiche AVANT l'alerte, parce que
+    // c'est le cas frequent et benin : un import, un plan redessine.
+    var rattrapage = a.rattrapage || 0;
+    var calme = $("rattrapageAnnonces");
+    calme.hidden = rattrapage === 0;
+    if (rattrapage > 0) {
+      // ⚠️ Deux populations, et pas un delai unique. Un telephone EN SERVICE
+      // reprend le catalogue en moins d'une minute -- la boucle de l'app
+      // rafraichit toutes les trente secondes, et tout de suite si la reponse
+      // d'un envoi lui a appris le nouveau numero. Mais un telephone EN VEILLE
+      // ne fait RIEN : sa boucle sort des la premiere ligne quand l'ecran est
+      // eteint. Promettre « rien a faire » enverrait un organisateur attendre
+      // devant trois telephones poses sur une table, alors que le geste utile
+      // -- rallumer l'ecran -- tient en une seconde.
+      calme.textContent = "Le catalogue vient de changer : " + rattrapage
+        + (rattrapage > 1 ? " téléphones ne l'ont" : " téléphone ne l'a")
+        + " pas encore repris. Ceux qui sont en service le reprennent en moins"
+        + " d'une minute ; un téléphone en veille attend qu'on rallume son"
+        + " écran — c'est le seul geste utile.";
+    }
+
+    var perdues = a.annonces_perdues || 0;
+    var alerte = $("alerteAnnonces");
+    alerte.hidden = perdues === 0;
+    if (perdues > 0) {
+      alerte.textContent = perdues + (perdues > 1
+        ? " téléphones envoient des réussites mais ne s'annoncent plus."
+        : " téléphone envoie des réussites mais ne s'annonce plus.")
+        + " C'est la signature d'un cache posé devant /api/v2/catalog :"
+        + " les envois passent, les téléchargements de catalogue non."
+        + " Tant que ça dure, les colonnes de version ci-dessous sont périmées.";
+    }
+  }
+
+  function ajouterEtat(liste, cle, valeur) {
+    var dt = document.createElement("dt");
+    dt.textContent = cle;
+    var dd = document.createElement("dd");
+    dd.textContent = valeur;
+    liste.appendChild(dt);
+    liste.appendChild(dd);
   }
 
   // --- Circuits (spec 019) ---------------------------------------------------
@@ -2685,14 +2806,31 @@
     if (!a.nom) nom.className = "sans";
     tr.appendChild(nom);
 
+    // Les deux colonnes de version (spec 030). `null` n'est PAS un retard :
+    // c'est un telephone qui ne dit pas sa version -- l'application Android du
+    // Play Store. Le marquer « en retard » serait une accusation gratuite.
+    tr.appendChild(celluleVersion(a.version_app, a.app_a_jour));
+    tr.appendChild(celluleVersion(
+      a.catalogue_version === null || a.catalogue_version === undefined
+        ? null : "n° " + a.catalogue_version,
+      a.catalogue_a_jour));
+
     var n = document.createElement("td");
     n.className = "num";
     n.textContent = a.reussites;
     tr.appendChild(n);
 
     var quand = document.createElement("td");
-    quand.textContent = depuis(a.silence_s) + (a.derniere_le ? " (" + heure(a.derniere_le) + ")" : "");
-    quand.className = a.silencieux ? "silence" : "frais";
+    if (!a.derniere_le) {
+      // Vu, mais rien envoye : le cas du matin. C'est un renseignement, pas un
+      // manque -- le telephone est la, il attend la premiere grimpe.
+      quand.textContent = "rien envoyé"
+        + (a.vu_le ? " · vu " + depuis(ageEnSecondes(a.vu_le)) : "");
+      quand.className = "sans";
+    } else {
+      quand.textContent = depuis(a.silence_s) + " (" + heure(a.derniere_le) + ")";
+      quand.className = a.silencieux ? "silence" : "frais";
+    }
     tr.appendChild(quand);
 
     var id = document.createElement("td");
@@ -2703,6 +2841,31 @@
     tr.appendChild(id);
 
     return tr;
+  }
+
+  /** Une cellule de version : la pastille, ET le numero ecrit a cote. */
+  function celluleVersion(texte, aJour) {
+    var td = document.createElement("td");
+    var pastille = document.createElement("span");
+    pastille.className = "etatVersion "
+      + (aJour === true ? "ok" : aJour === false ? "att" : "abs");
+    td.appendChild(pastille);
+    var valeur = document.createElement("span");
+    if (texte) {
+      valeur.textContent = texte;
+      // Ecrit ET colore : la couleur seule ne porte jamais l'information.
+      if (aJour === false) valeur.className = "ecart";
+    } else {
+      valeur.textContent = "ne le dit pas";
+      valeur.className = "sans";
+    }
+    td.appendChild(valeur);
+    return td;
+  }
+
+  function ageEnSecondes(iso) {
+    var t = Date.parse(iso);
+    return isNaN(t) ? null : Math.max(0, Math.round((Date.now() - t) / 1000));
   }
 
   /** « il y a 3 min ». Un nombre de secondes ne se lit pas d'un coup d'oeil. */
@@ -2719,6 +2882,15 @@
     var d = new Date(iso);
     return isNaN(d) ? iso : d.toLocaleTimeString("fr-FR",
       { hour: "2-digit", minute: "2-digit" });
+  }
+
+  /** Le jour ET l'heure. Une release posee avant-hier ne doit pas s'afficher
+   *  comme une heure seule : c'est justement ce qu'on cherche a savoir. */
+  function dateEtHeure(iso) {
+    var d = new Date(iso);
+    if (isNaN(d)) return iso;
+    return d.toLocaleDateString("fr-FR", { day: "2-digit", month: "2-digit" })
+      + " à " + heure(iso);
   }
 
   function chercherRef() {
