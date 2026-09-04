@@ -14,7 +14,7 @@ import pytest
 
 from climbcontest.auth import compteurs
 from climbcontest.contest import (
-    enregistrer_reussite, reaffecter_dossard, reussites_suspectes,
+    enregistrer_reussite, reussites_suspectes,
 )
 from climbcontest.extensions import db
 from climbcontest.models import Participant, ReaffectationDossard, Success
@@ -222,16 +222,40 @@ class TestReaffectationEtFileDAttente:
     """Le cas que la file d'attente rend possible, et la decision d'Adrien.
 
     Un juge scanne le dossard 42 ; la reussite reste quelques secondes dans le
-    telephone ; entre-temps un organisateur donne le 42 a quelqu'un d'autre.
-    La reussite arrive et se colle au nouveau porteur.
+    telephone ; entre-temps le dossard 42 a change de main. La reussite arrive
+    et se colle au nouveau porteur.
 
     Decision du 28/08 : **on autorise**, sans barriere. Ces tests verifient donc
     deux choses distinctes : que ca passe (la decision est respectee), et que ca
     laisse une trace (le cas ne disparait pas en silence).
+
+    ⚠️ Depuis le 05/09, la console ne peut plus reaffecter un dossard :
+    `reaffecter_dossard()` a ete supprimee. Ces tests ne verifient donc plus
+    l'ECRITURE de la trace -- il n'y a plus personne pour l'ecrire -- mais sa
+    LECTURE, qui reste necessaire : les bases de production portent deja des
+    lignes posees avant cette date, et une reussite suspecte doit continuer a
+    se voir. Le montage pose donc l'etat qu'une reaffectation passee a laisse.
     """
 
     def _reaffecter(self, jeu, vers_index=2, dossard=1):
-        reaffecter_dossard(jeu["participants"][vers_index], dossard)
+        """L'etat laisse par une reaffectation d'avant le 05/09."""
+        nouveau = jeu["participants"][vers_index]
+        ancien = next((p for p in jeu["participants"]
+                       if p.dossard == dossard and p.id != nouveau.id), None)
+        if ancien is not None:
+            ancien.dossard = None
+            db.session.add(ancien)
+            db.session.flush()
+        nouveau.dossard = dossard
+        db.session.add(nouveau)
+        db.session.add(ReaffectationDossard(
+            competition_id=jeu["competition"].id,
+            dossard=dossard,
+            ancien_participant_id=ancien.id if ancien is not None else None,
+            nouveau_participant_id=nouveau.id,
+            effectuee_le=datetime.now(),
+        ))
+        db.session.commit()
 
     def test_la_reussite_en_retard_est_acceptee(self, client, jeu):
         scan = datetime.now() - timedelta(seconds=30)
@@ -283,22 +307,12 @@ class TestReaffectationEtFileDAttente:
         envoyer(client, [{"ref": "a", "bib": "1", "bloc": "ZJ6"}])
         assert reussites_suspectes(jeu["competition"]) == []
 
-    def test_la_reaffectation_est_journalisee(self, client, jeu):
-        self._reaffecter(jeu)
-        j = ReaffectationDossard.query.one()
-        assert j.dossard == 1
-        assert j.nouveau_participant_id == jeu["participants"][2].id
-        assert j.ancien_participant_id == jeu["participants"][0].id
-
-    def test_la_regle_metier_d_origine_tient_toujours(self, client, jeu):
-        """Un dossard qui porte deja des reussites ENREGISTREES reste intouchable.
-
-        La decision du 28/08 porte sur la file d'attente, pas sur cette regle-la.
-        """
-        from climbcontest.contest import ErreurMetier
-        enregistrer_reussite(jeu["participants"][0], jeu["blocs"][0])
-        with pytest.raises(ErreurMetier):
-            reaffecter_dossard(jeu["participants"][2], 1)
+    def test_plus_aucun_dossard_ne_change_de_main(self, client, jeu):
+        """La regle du 28/08 -- « jamais un dossard qui porte des reussites » --
+        n'a plus rien a garder : depuis le 05/09, aucun dossard ne change de
+        main. Ce test garde la porte fermee."""
+        from climbcontest import contest
+        assert not hasattr(contest, "reaffecter_dossard")
 
 
 class TestHorsCircuit:

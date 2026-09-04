@@ -10,7 +10,7 @@ aucune. La rendre obligatoire aujourd'hui la casserait.
 import pytest
 
 from climbcontest.auth import compteurs
-from climbcontest.contest import reaffecter_dossard
+from climbcontest.contest import incrementer_catalogue
 from climbcontest.extensions import db
 from climbcontest.models import Participant
 
@@ -47,9 +47,12 @@ class TestCatalogue:
         assert r.status_code == 200
         assert any(p["dossard"] == 42 for p in r.get_json()["participants"])
 
-    def test_la_reaffectation_incremente_la_version(self, client, jeu):
+    def test_une_modification_incremente_la_version(self, client, jeu):
+        """Le dossard ne change plus (05/09) ; le reste, si. C'est
+        `incrementer_catalogue()` qui previent les telephones."""
         version = client.get("/api/v2/catalog").get_json()["version"]
-        reaffecter_dossard(jeu["participants"][2], 2)
+        jeu["participants"][2].club = "CAF Vivarais"
+        incrementer_catalogue(jeu["competition"])
         assert client.get("/api/v2/catalog").get_json()["version"] > version
 
     def test_sans_competition_active(self, client, app):
@@ -317,10 +320,10 @@ class TestEtagCatalogue:
         assert r.get_json()["participants"]
 
     def test_l_etiquette_change_quand_le_catalogue_change(self, client, jeu):
-        from climbcontest.contest import reaffecter_dossard
         avant = client.get("/api/v2/catalog").headers["ETag"]
 
-        reaffecter_dossard(jeu["participants"][2], 42)
+        jeu["participants"][2].club = "CAF Vivarais"
+        incrementer_catalogue(jeu["competition"])
 
         apres = client.get("/api/v2/catalog").headers["ETag"]
         assert apres != avant, "un participant a change : l'etiquette doit bouger"

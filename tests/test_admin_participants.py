@@ -111,41 +111,40 @@ class TestAjout:
         assert r.status_code == 400
 
 
-class TestReaffectation:
+class TestLaReaffectationAEteRetiree:
+    """Le dossard ne se change plus depuis la console — décision du 05/09.
 
-    def test_un_dossard_vierge_change_de_main(self, connecte, jeu):
-        absent = jeu["participants"][2]          # sans dossard
-        r = connecte.post(f"/admin/participants/{absent.id}/dossard", json={"dossard": 1})
-        assert r.status_code == 200
-        db.session.refresh(absent)
-        assert absent.dossard == 1
+    La route existait pour donner le dossard d'un absent à un arrivant de
+    dernière minute. Elle fabriquait le doublon que la spec 008 promet
+    d'empêcher : l'absent repartait sans numéro, et l'import du classeur, qui ne
+    le retrouvait plus, **recréait sa fiche**.
 
-    def test_un_dossard_avec_des_reussites_est_refuse(self, connecte, jeu):
-        """La regle metier d'Adrien : jamais sur un dossard en cours de
-        participation. Elle est ecrite depuis la spec 002 ; on l'expose."""
-        enregistrer_reussite(jeu["participants"][0], jeu["blocs"][0])
+    Le remplacement n'est pas une gêne : `ajouter_participant_numerote()` donne
+    le premier numéro libre, et la console imprime la fiche.
+    """
+
+    def test_la_route_n_existe_plus(self, connecte, jeu):
         absent = jeu["participants"][2]
+        r = connecte.post(f"/admin/participants/{absent.id}/dossard",
+                          json={"dossard": 1})
+        assert r.status_code == 404
+        db.session.refresh(absent)
+        assert absent.dossard is None
 
-        r = connecte.post(f"/admin/participants/{absent.id}/dossard", json={"dossard": 1})
-
+    def test_le_crayon_ne_la_remplace_pas(self, connecte, jeu):
+        """Retirer une route et rouvrir le même geste ailleurs ne protégerait
+        rien : c'est exactement comme ça que les règles reviennent."""
+        absent = jeu["participants"][2]
+        r = connecte.patch(f"/admin/participants/{absent.id}", json={"dossard": 1})
         assert r.status_code == 409
-        assert "reussite" in r.get_json()["message"].lower()
+        db.session.refresh(absent)
+        assert absent.dossard is None
 
-    def test_un_participant_inconnu_donne_404(self, connecte, jeu):
-        assert connecte.post("/admin/participants/99999/dossard",
-                             json={"dossard": 7}).status_code == 404
-
-    def test_sans_le_champ_dossard_c_est_400(self, connecte, jeu):
-        p = jeu["participants"][2]
-        assert connecte.post(f"/admin/participants/{p.id}/dossard",
-                             json={}).status_code == 400
-
-    def test_le_catalogue_bouge_aussi(self, connecte, jeu):
-        avant = jeu["competition"].catalogue_version
-        connecte.post(f"/admin/participants/{jeu['participants'][2].id}/dossard",
-                      json={"dossard": 1})
-        db.session.refresh(jeu["competition"])
-        assert jeu["competition"].catalogue_version > avant
+    def test_la_fonction_metier_a_disparu_avec_elle(self):
+        """Une fonction laissée en place se rebranche un jour « puisqu'elle est
+        là ». Celle-ci est supprimée, pas neutralisée."""
+        from climbcontest import contest
+        assert not hasattr(contest, "reaffecter_dossard")
 
 
 class TestListe:
@@ -175,7 +174,6 @@ class TestAccesRefuse:
     @pytest.mark.parametrize("methode,chemin", [
         ("get", "/admin/participants"),
         ("post", "/admin/participants"),
-        ("post", "/admin/participants/1/dossard"),
     ])
     def test_sans_session_c_est_refuse(self, client, app, jeu, methode, chemin):
         app.config["SECRET_KEY"] = "une-vraie-cle-de-test-suffisamment-longue"

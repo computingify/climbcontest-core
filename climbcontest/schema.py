@@ -271,6 +271,9 @@ COLONNES_AJOUTEES = {
         # Quelqu'un a range cette personne a la main : « Appliquer le bareme a
         # tous » ne doit pas defaire son travail en silence.
         "categorie_forcee": "BOOLEAN",
+        # Les champs corriges dans la console, separes par des virgules.
+        # L'import du classeur ne les reecrit plus (decision du 05/09).
+        "champs_forces": "TEXT",
     },
 }
 

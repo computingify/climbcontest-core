@@ -121,38 +121,52 @@ class TestLEditionEnLigne:
         assert jeu["competition"].catalogue_version > avant
 
 
-class TestLeDossardResteFerme:
-    def test_le_dossard_se_change_quand_il_est_libre(self, connecte, jeu):
+class TestLeDossardNeSeChangePlus:
+    """Décision d'Adrien du 05/09 : aucun changement de dossard, nulle part.
+
+    Il est imprimé sur un QR code déjà distribué, et le classeur Google porte
+    le sien. Deux écritures d'un même numéro finissaient toujours par se
+    contredire — et c'est cette contradiction qui fabriquait les doublons.
+    """
+
+    def test_le_crayon_refuse_un_dossard_libre(self, connecte, jeu):
         p = un_participant(jeu["competition"])
         r = connecte.patch(f"/admin/participants/{p.id}", json={"dossard": 201})
-        assert r.status_code == 200
+        assert r.status_code == 409
+        assert "doublon" in r.get_json()["message"]
         db.session.refresh(p)
-        assert p.dossard == 201
+        assert p.dossard == 200, "rien n'a bouge"
 
-    def test_le_dossard_qui_porte_des_reussites_refuse(self, connecte, jeu):
-        """La règle de la spec 002 ne doit pas se contourner par un écran.
-
-        Le dossard 1 du jeu de test porte une réussite : le reprendre pour
-        quelqu'un d'autre mélangerait deux grimpeurs dans un classement.
-        """
+    def test_le_crayon_refuse_un_dossard_occupe(self, connecte, jeu):
         occupant = Participant.query.filter_by(
             competition_id=jeu["competition"].id, dossard=1).one()
         enregistrer_reussite(occupant, jeu["blocs"][0])
         db.session.commit()
 
         p = un_participant(jeu["competition"])
-        r = connecte.patch(f"/admin/participants/{p.id}", json={"dossard": 1})
-        assert r.status_code == 409
-        assert "reussites" in r.get_json()["message"]
+        assert connecte.patch(f"/admin/participants/{p.id}",
+                              json={"dossard": 1}).status_code == 409
         db.session.refresh(p)
-        assert p.dossard == 200
+        db.session.refresh(occupant)
+        assert (p.dossard, occupant.dossard) == (200, 1)
 
-    def test_le_meme_dossard_ne_declenche_rien(self, connecte, jeu):
-        """Réenvoyer la valeur inchangée ne doit pas journaliser une
-        réaffectation ni frôler la règle."""
+    def test_le_meme_dossard_passe(self, connecte, jeu):
+        """Renvoyer la valeur inchangée n'est pas un changement.
+
+        La console envoie ce qui a bougé, mais un appel écrit à la main peut
+        très bien repasser le dossard courant : le refuser rendrait la route
+        impossible à utiliser en PUT-like sans rien protéger de plus.
+        """
         p = un_participant(jeu["competition"])
         assert connecte.patch(f"/admin/participants/{p.id}",
                               json={"dossard": 200}).status_code == 200
+
+    def test_la_route_de_reaffectation_n_existe_plus(self, connecte, jeu):
+        """Elle a été supprimée, pas neutralisée : une route qui répond 4xx
+        finit toujours par être rebranchée « puisqu'elle est là »."""
+        p = un_participant(jeu["competition"])
+        r = connecte.post(f"/admin/participants/{p.id}/dossard", json={"dossard": 201})
+        assert r.status_code == 404
 
 
 class TestLaListe:
