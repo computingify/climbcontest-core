@@ -1,24 +1,39 @@
 # Spec 043 — architecture
 
-## 1. Une seule colonne, et rien d'autre côté données
+## 1. Une seule colonne, et pas par un fichier `.sql`
 
-```sql
--- migrations/001_publication_refusee.sql
-ALTER TABLE participant ADD COLUMN publication_refusee BOOLEAN NOT NULL DEFAULT 0;
+```python
+# schema.py — COLONNES_AJOUTEES
+"participant": {
+    "publication_refusee": "BOOLEAN NOT NULL DEFAULT 0",
+},
 ```
 
-SQLite ajoute une colonne avec `DEFAULT` sans réécrire la table : les
-participants existants passent à `0`, c'est-à-dire « pas d'opposition ». La
-migration est jouée par `schema.py`, en ordre et une seule fois, sous verrou.
+⚠️ **Correction apportée pendant l'implémentation.** Cette spec prévoyait
+d'abord `migrations/001_publication_refusee.sql`. C'était faux, et
+`schema.py` le dit déjà en toutes lettres :
+
+> Un fichier `.sql` ne conviendrait pas ici : le lanceur de migrations joue
+> chaque fichier une fois, mais sur une base NEUVE `create_all` a déjà créé la
+> colonne, et l'ALTER échouerait sur « duplicate column ».
+
+Le défaut aurait été **vert là où on regarde et rouge là où on ne regarde
+pas** : sur la VM de production, la table existe sans la colonne et l'`ALTER`
+serait passé ; sur une base neuve — un poste de développement, la CI, une VM
+réinstallée — `create_all()` crée la colonne d'après `models.py`, l'`ALTER`
+lève, et **l'application ne démarre pas** (aucun `except` n'entoure la boucle
+des migrations). Constaté au premier lancement des tests.
+
+`COLONNES_AJOUTEES` lit `PRAGMA table_info` et n'ajoute que ce qui manque :
+idempotent dans les deux sens. C'est déjà le chemin qu'a pris la spec 019 pour
+`bloc.couleur_prises`.
 
 ⚠️ **`NOT NULL DEFAULT 0` et non `NULL`.** Un booléen à trois états
 (`vrai`/`faux`/`inconnu`) obligerait chaque lecture à décider ce que vaut
-`NULL` — et deux lectures finiraient par en décider différemment. Le vide n'est
-pas un doute ici : ne pas s'être opposé, c'est ne pas s'être opposé.
-
-⚠️ **`001_` est réservé pour cette spec.** Le dossier `migrations/` ne contient
-aujourd'hui qu'un `README.md`; la spec 008, en cours sur une autre branche,
-ajoute elle aussi des colonnes. Elle prendra `002_`.
+`NULL`, et deux lectures finiraient par en décider différemment. Pour une
+opposition RGPD, « personne ne s'est opposé » et « on ne sait pas » doivent être
+la **même chose** — sinon il faudrait interpréter un `NULL` le jour d'un
+contrôle. Les lignes existantes passent à `0`, c'est-à-dire l'état d'avant.
 
 **La forme de la charge publique ne change pas** : aucun champ de plus, aucun
 champ de moins (critère A12). Seule la *valeur* de `nom` change, pour les
@@ -161,7 +176,7 @@ est à jour (critère A11).
 
 | Fichier | Nature |
 | --- | --- |
-| `migrations/001_publication_refusee.sql` | **nouveau** — la colonne |
+| `climbcontest/schema.py` | la colonne dans `COLONNES_AJOUTEES` |
 | `climbcontest/models.py` | la colonne sur `Participant` |
 | `climbcontest/classement_service.py` | `anonymiser=` dans `charge_publique` |
 | `climbcontest/suivi.py` | même règle sur la fiche |

@@ -148,6 +148,17 @@ class Participant(db.Model):
     present = Column(Boolean, nullable=False, default=False)
     source = Column(String(20), nullable=False, default=SOURCE_CLASSEUR)
 
+    # Spec 043 — le droit d'opposition (art. 21 RGPD). Vrai quand ce grimpeur,
+    # ou son representant legal, refuse que son nom paraisse sur la page
+    # publique. La ligne reste au classement, avec son rang et son score : elle
+    # s'y affiche « Dossard N ».
+    #
+    # ⚠️ « refusee » et non « autorisee ». L'article 21 est un droit
+    # d'OPPOSITION, pas un consentement : on publie sauf refus. Nomme dans
+    # l'autre sens, le champ ferait taire tous ceux qui n'ont rien exprime --
+    # c'est-a-dire presque tous.
+    publication_refusee = Column(Boolean, nullable=False, default=False)
+
     cree_le = Column(DateTime, nullable=False, default=func.now())
 
     competition = relationship("Competition", back_populates="participants")

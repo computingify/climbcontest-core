@@ -3,6 +3,14 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<!-- ⚠️ Spec 043 — cette page ne s'indexe pas.
+     Les résultats nomment des grimpeurs, dont une majorité de mineurs. Le
+     micro et le dossard les nomment aussi, mais ils s'éteignent à 18 h et ne
+     se cherchent pas par nom : un moteur de recherche, lui, garde. La balise
+     dit « ne me garde pas », `robots.txt` dit « ne viens pas », et
+     `X-Robots-Tag` dit la même chose aux réponses JSON, qui n'ont pas de
+     balise. Les trois ne se remplacent pas. -->
+<meta name="robots" content="noindex, nofollow">
 <title>Résultats — ClimbContest</title>
 <!-- Favicon en ligne : evite un 404 a chaque chargement, sans dependre d'un
      fichier de plus. Une prise d'escalade, tiree du sujet. -->
@@ -444,6 +452,23 @@
 
   /* La zone qui défile doucement quand le plateau déborde. */
   #defile { flex: 1; min-height: 0; overflow: hidden; }
+
+  /* Spec 043 — la mention legale. Discrete par construction : elle n'existe
+     qu'une fois la derniere ligne passee, et elle emprunte `--encre2`, la
+     couleur des sous-titres, sans en introduire de nouvelle.
+
+     ⚠️ Absente du mode mur. L'ecran de la salle est accroche en hauteur,
+     personne ne le touchera de la journee : un lien y serait du bruit. La
+     mention vit la ou elle sert, dans la main du spectateur. */
+  #mentions {
+    padding: 14px 16px 22px; text-align: center;
+    font-size: 0.78rem; line-height: 1.5; color: var(--encre2);
+    border-top: 1px solid var(--trait);
+  }
+  body.mur #mentions { display: none; }
+  #mentions a { color: inherit; text-decoration: underline; text-underline-offset: 2px; }
+  #mentions a:hover { color: var(--encre); }
+  #mentions .sep { opacity: 0.5; margin: 0 8px; }
   /* Et qui CENTRE quand il ne la remplit pas. Vu en production le 31/08 sur la
      compétition de test : trois grimpeurs, trois lignes collées en haut, et
      les trois quarts du mur vides — ça se lit comme un écran cassé, pas comme
@@ -1094,7 +1119,19 @@
   <div id="attente" hidden></div>
   <div id="podium"></div>
   <div id="entetes"></div>
-  <div id="defile"><div id="liste"></div></div>
+  <div id="defile"><div id="liste"></div>
+    <!-- ⚠️ Spec 043 — le pied est DANS `#defile`, pas apres `<main>`.
+         `body` est une colonne flex et `main` vaut `flex: 1` : sur telephone,
+         `#defile` passe en `overflow: visible` et la liste DEBORDE de la boite
+         de `main`. Un pied place apres `main` se rend a ~790 px du haut, sous
+         le classement qui le recouvre -- verifie dans le navigateur avant
+         d'ecrire cette ligne. -->
+    <footer id="mentions">
+      <a href="/confidentialite">Confidentialité</a>
+      <span class="sep" aria-hidden="true">·</span>
+      <a href="/confidentialite#opposition">Retirer un nom des résultats</a>
+    </footer>
+  </div>
   <div id="message"></div>
 </main>
 

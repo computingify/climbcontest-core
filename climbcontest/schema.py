@@ -256,6 +256,15 @@ COLONNES_AJOUTEES = {
         # spec 019. Distincte de `couleur`, qui est la difficulte.
         "couleur_prises": "TEXT",
     },
+    "participant": {
+        # Le droit d'opposition de la spec 043 (art. 21 RGPD). `NOT NULL
+        # DEFAULT 0` et non `NULL` : un booleen a trois etats obligerait chaque
+        # lecture a decider ce que vaut `NULL`, et deux lectures finiraient par
+        # en decider differemment. Le vide n'est pas un doute -- ne pas s'etre
+        # oppose, c'est ne pas s'etre oppose. Les lignes existantes passent donc
+        # a 0, c'est-a-dire « publiable », ce qui est l'etat d'avant.
+        "publication_refusee": "BOOLEAN NOT NULL DEFAULT 0",
+    },
 }
 
 # Les index qui accompagnent ces colonnes.

@@ -13,13 +13,54 @@ ete retires le meme jour.
 """
 import logging
 
-from flask import Blueprint, render_template
+from flask import Blueprint, Response, render_template
 
 from ..suivi import plan_public
 from ..version import VERSION
 
 logger = logging.getLogger(__name__)
 bp = Blueprint("pages", __name__)
+
+
+# L'adresse a qui ecrire pour exercer ses droits. Choix d'Adrien du 04/09 :
+# « pour le moment laisse la mienne ». Une adresse d'association survivrait
+# mieux a un changement de benevole -- le jour ou elle existe, c'est ici qu'on
+# la change, et a un seul endroit.
+CONTACT = "adrien.jouve@adn-dev.fr"
+
+
+# Le contenu est ecrit ici, en clair, plutot que servi depuis un fichier
+# statique : une regle d'indexation est une decision, elle se relit dans le code
+# qui la porte et un test la lit.
+ROBOTS = "User-agent: *\nDisallow: /\n"
+
+
+@bp.get("/robots.txt")
+def robots():
+    """Ce site ne s'indexe pas. Spec 043.
+
+    `Disallow: /` demande de ne pas VISITER. La balise `noindex` des gabarits
+    demande de ne pas GARDER, et l'en-tete `X-Robots-Tag` dit la meme chose aux
+    reponses JSON. Les trois ne se remplacent pas : un robot qui n'a pas visite
+    ne lit aucune balise, et un robot qui ignore ce fichier lit la balise.
+    """
+    return Response(ROBOTS, mimetype="text/plain")
+
+
+@bp.get("/confidentialite")
+def confidentialite():
+    """Ce qui est publie, pourquoi, et comment s'y opposer. Spec 043.
+
+    Servie par l'application et non depuis un site exterieur : elle est
+    versionnee avec le code qu'elle decrit, elle reste joignable si le wifi de
+    la salle ne sort pas, et elle suit le theme de la page de resultats.
+
+    ⚠️ A ne pas confondre avec la politique du depot
+    `climbcontestConfidentiality`, qui couvre l'application juge du Play Store
+    et dit « aucune donnee personnelle n'est collectee » : exact pour le juge,
+    faux pour le systeme. Sa reecriture est un autre chantier.
+    """
+    return render_template("confidentialite.html", contact=CONTACT)
 
 
 @bp.get("/console")

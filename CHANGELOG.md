@@ -19,6 +19,36 @@ qu'on ne met pas à jour le matin d'une compétition :
 
 ## [Non publié]
 
+### Ajouté
+
+- **La page de résultats ne s'indexe plus, et dit ce qu'elle publie**
+  (spec 043). Elle nomme des grimpeurs, dont une majorité de mineurs. Cet
+  affichage est légitime — c'est l'objet d'une compétition, et le micro les
+  nomme aussi — mais le micro s'éteint à 18 h et ne se cherche pas par nom,
+  alors qu'un moteur de recherche garde. Trois consignes qui ne se remplacent
+  pas : `robots.txt` (« ne viens pas »), une balise `noindex` sur les pages
+  HTML (« ne garde pas »), et un en-tête `X-Robots-Tag` sur `/api/public/*`,
+  seul canal d'une réponse JSON — **y compris ses réponses d'erreur**, qui sont
+  exactement les adresses qu'un robot fabrique en balayant. Le tout est posé
+  dans l'application et non dans le proxy : la configuration de `edge` est
+  recopiée à la main, elle dérive, et aucun test ne la lit.
+- **Une mention discrète en pied de la page de résultats**, vers une page
+  `/confidentialite` qui dit ce qui est publié, sur quelle base, et comment s'y
+  opposer. Absente du mode mur : l'écran de la salle est accroché en hauteur,
+  personne n'y cliquera. Elle se place à la fin de `#defile` et non après
+  `<main>`, dont la boîte s'arrête bien avant le bas de la page.
+- **Le droit d'opposition, exerçable depuis la console** (art. 21 RGPD). Un
+  interrupteur « Anonymisé » dans la liste des participants : la ligne **reste**
+  au classement, avec le même rang et le même score, et son nom devient
+  « Dossard 42 ». La retirer décalerait tous les suivants — et un rang qui saute
+  de 3 à 5 est une information sur celui qui manque. La console, elle, continue
+  d'afficher le vrai nom : c'est elle qui sert à retrouver la personne au
+  téléphone. L'archive fige le nom **réel** : elle n'est servie qu'après
+  connexion d'un organisateur. On fige complet, on rend anonymisé.
+- **Un registre des traitements** (`docs/registre-des-traitements.md`),
+  obligatoire même pour une petite association (art. 30).
+
+
 ### Corrigé
 
 - **Le harnais des tests navigateur pouvait rendre un verdict qu'il n'avait pas

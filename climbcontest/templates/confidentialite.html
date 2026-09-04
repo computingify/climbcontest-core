@@ -1,0 +1,135 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<!-- ⚠️ Spec 043 — page de service, pas un contenu à référencer. Elle porte la
+     même balise que la page de résultats : rien de ce site n'entre dans un
+     moteur de recherche. -->
+<meta name="robots" content="noindex, nofollow">
+<title>Confidentialité — ClimbContest</title>
+<style>
+  /* Les jetons de la page de résultats, repris à l'identique : cette page en
+     est le prolongement, elle doit s'ouvrir sans changement de décor. Aucune
+     police téléchargée, aucune requête sortante — si la box tombe, la page
+     s'affiche quand même. */
+  :root {
+    --fond: #F1F4F8; --carte: #FFFFFF; --trait: #D8DEE7;
+    --encre: #0E1420; --encre2: #5A6472; --accent: #2F6BB0;
+    --titre: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --fond: #10141C; --carte: #171C26; --trait: #2A313D;
+      --encre: #EDF1F6; --encre2: #97A1B0; --accent: #6D9FD6;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--fond); color: var(--encre);
+    font-family: var(--titre); line-height: 1.62; font-size: 1rem;
+  }
+  .page { max-width: 44rem; margin: 0 auto; padding: 32px 20px 64px; }
+  h1 { font-size: clamp(1.5rem, 5vw, 2rem); letter-spacing: -0.02em; margin: 0 0 6px; }
+  .sous { color: var(--encre2); margin: 0 0 28px; }
+  h2 {
+    font-size: 1.12rem; letter-spacing: -0.01em; margin: 34px 0 6px;
+    padding-top: 18px; border-top: 1px solid var(--trait);
+  }
+  p, li { max-width: 62ch; }
+  ul { padding-left: 20px; }
+  a { color: var(--accent); }
+  .carte {
+    background: var(--carte); border: 1px solid var(--trait);
+    border-radius: 12px; padding: 16px 18px; margin: 18px 0;
+  }
+  .carte p:first-child { margin-top: 0; }
+  .carte p:last-child { margin-bottom: 0; }
+  .retour { display: inline-block; margin-top: 34px; color: var(--encre2); }
+  code {
+    font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 0.9em;
+    background: var(--carte); border: 1px solid var(--trait);
+    border-radius: 5px; padding: 1px 5px;
+  }
+</style>
+</head>
+<body>
+<div class="page">
+
+<h1>Confidentialité</h1>
+<p class="sous">Ce que la page de résultats publie, pourquoi, et comment s'y
+opposer.</p>
+
+<h2>Qui est responsable</h2>
+<p>Le club organisateur de la compétition, joignable à
+<a href="mailto:{{ contact }}">{{ contact }}</a>. C'est à cette adresse que
+s'adressent toutes les demandes décrites ci-dessous.</p>
+
+<h2>Ce qui est publié</h2>
+<p>La page de résultats affiche, pour chaque participant qui figure à un
+classement :</p>
+<ul>
+  <li>son <strong>nom et prénom</strong> ;</li>
+  <li>son <strong>club</strong> et sa <strong>catégorie</strong> (« U13 F ») ;</li>
+  <li>son <strong>numéro de dossard</strong> ;</li>
+  <li>son <strong>rang</strong>, son <strong>score</strong> et le nombre de
+      blocs réussis.</li>
+</ul>
+<p>Rien d'autre. Aucune adresse, aucun numéro de téléphone, aucune date de
+naissance, aucune photographie ne figure sur cette page.</p>
+
+<h2>Pourquoi</h2>
+<p>Publier les résultats d'une compétition est l'objet même de la compétition :
+les participants et leurs familles viennent pour les voir. Le traitement repose
+sur l'<strong>intérêt légitime</strong> du club (article 6.1.f du RGPD). Ce
+n'est pas un consentement : personne n'a à cocher quoi que ce soit pour
+apparaître au classement — mais chacun peut s'y opposer, et c'est l'objet de la
+section suivante.</p>
+
+<div class="carte">
+<p><strong>Cette page n'est pas indexée par les moteurs de recherche.</strong>
+Les résultats sont consultables par qui en a l'adresse, pendant et après la
+compétition ; ils ne remontent pas dans une recherche par nom, et ne sont pas
+destinés à laisser une trace durable sur Internet.</p>
+</div>
+
+<h2 id="opposition">S'opposer à la publication de son nom</h2>
+<p>Tout participant — ou son représentant légal s'il est mineur — peut demander
+que son nom n'apparaisse pas sur la page de résultats. Écrivez à
+<a href="mailto:{{ contact }}?subject=Retirer%20un%20nom%20des%20r%C3%A9sultats">{{ contact }}</a>
+en indiquant le nom et, si vous le connaissez, le numéro de dossard.</p>
+<p>Ce qui se passe ensuite :</p>
+<ul>
+  <li>la ligne <strong>reste au classement</strong>, avec le même rang et le
+      même score — la retirer décalerait le classement de tous les autres ;</li>
+  <li>le nom est remplacé par « <strong>Dossard 42</strong> » ;</li>
+  <li>la <strong>catégorie et le club</strong> restent affichés : ils sont
+      nécessaires pour lire le classement, et ils ne nomment personne.
+      Quelqu'un présent dans la salle peut faire le rapprochement avec un
+      bracelet — c'est déjà le cas de ce qui est annoncé au micro ;</li>
+  <li>pendant une compétition, la demande est appliquée
+      <strong>immédiatement</strong>. En dehors, elle est traitée sous un mois
+      au plus.</li>
+</ul>
+
+<h2>Vos autres droits</h2>
+<p>Vous pouvez demander l'accès à vos données, leur rectification, leur
+effacement, et vous opposer à leur traitement. Écrivez à la même adresse ; la
+réponse est due dans un délai d'<strong>un mois</strong>.</p>
+<p>Les données collectées lorsqu'une personne était <strong>mineure</strong>
+bénéficient d'un droit à l'effacement renforcé : la demande est traitée dans les
+meilleurs délais.</p>
+<p>Si la réponse ne vous convient pas, ou en son absence, vous pouvez saisir la
+Commission nationale de l'informatique et des libertés (CNIL),
+<a href="https://www.cnil.fr" rel="noreferrer">www.cnil.fr</a>.</p>
+
+<h2>Combien de temps</h2>
+<p>Les résultats d'une édition sont conservés par le club pour tenir
+l'historique de ses compétitions. Les éditions passées ne sont pas publiques :
+elles ne sont consultables que par les organisateurs, après connexion.</p>
+
+<a class="retour" href="/">← Retour aux résultats</a>
+
+</div>
+</body>
+</html>

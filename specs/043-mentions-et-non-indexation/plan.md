@@ -9,7 +9,7 @@
 - [ ] 5. Gabarit `confidentialite.html` + route `GET /confidentialite`
 - [ ] 6. Le pied `#mentions` dans `resultats.html`, à la fin de `#defile`, avec sa règle `body.mur`
 - [ ] 7. `docs/registre-des-traitements.md`
-- [ ] 7 bis. La colonne `publication_refusee` : migration, modèle, `charge_publique(anonymiser=)`, `suivi.fiche`, `cycle.archiver`
+- [ ] 7 bis. La colonne `publication_refusee` : `COLONNES_AJOUTEES`, modèle, `charge_publique(anonymiser=)`, `suivi.fiche`, `cycle.archiver`
 - [ ] 7 ter. La route `POST /admin/participants/<id>/publication` et l'invalidation du cache
 - [ ] 7 quater. La colonne « Anonymisé » dans la liste des participants de la console
 - [ ] 8. Tests (tableau ci-dessous)
@@ -36,7 +36,7 @@
 | navigateur | avec et sans le pied | le nombre de `.ligne` rendues est identique | A10 |
 | `contrat` | charge de `/api/public/classement` | ensemble des clés **inchangé** par rapport à la référence | A12 |
 | dépôt | `docs/registre-des-traitements.md` | existe, cite les trois traitements | A11 |
-| `schema` | migration jouée deux fois | colonne présente, aucune erreur, aucune donnée touchée | A13 |
+| `schema` | préparation jouée deux fois, et sur une base NEUVE | colonne présente, aucune erreur — c'est le cas « base neuve » qui a fait tomber la première version | A13 |
 | `modele` | participant existant après migration | `publication_refusee` vaut `False` | A13 |
 | `admin` | `POST /admin/participants/<id>/publication` `{refusee:true}` | `200`, l'état est en base | A15 |
 | `admin` | même appel sans session, puis avec un rôle insuffisant | `401` puis `403` | — |

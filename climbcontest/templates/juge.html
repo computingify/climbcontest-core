@@ -3,6 +3,14 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<!-- ⚠️ Spec 043 — cette page ne s'indexe pas.
+     Les résultats nomment des grimpeurs, dont une majorité de mineurs. Le
+     micro et le dossard les nomment aussi, mais ils s'éteignent à 18 h et ne
+     se cherchent pas par nom : un moteur de recherche, lui, garde. La balise
+     dit « ne me garde pas », `robots.txt` dit « ne viens pas », et
+     `X-Robots-Tag` dit la même chose aux réponses JSON, qui n'ont pas de
+     balise. Les trois ne se remplacent pas. -->
+<meta name="robots" content="noindex, nofollow">
 <!-- La barre du navigateur suit le theme. Le CLAIR est en PREMIER :
      un navigateur qui ignore l'attribut `media` -- les iOS anterieurs
      a 15.4, donc des telephones de benevoles -- garde le premier, et
