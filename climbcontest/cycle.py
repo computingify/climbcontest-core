@@ -382,7 +382,11 @@ def archiver(comp, par: str | None = None) -> tuple[Archive, list[str]]:
     N'efface rien : l'archive et les données coexistent. Effacer est un geste
     séparé, qu'on fait quand on veut, ou jamais.
     """
-    charge = charge_publique(comp, forcer=True)
+    # ⚠️ `anonymiser=False` : l'archive fige les noms REELS (spec 043).
+    # Elle n'est servie que par `/admin/archives/<id>/classement`, derriere la
+    # session organisateur — c'est un usage interne legitime du club, et une
+    # archive amputee serait irreparable. On fige complet, on rend anonymise.
+    charge = charge_publique(comp, forcer=True, anonymiser=False)
     compte = compteurs(comp)
     avertissements = []
 

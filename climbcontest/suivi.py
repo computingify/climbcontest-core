@@ -18,7 +18,7 @@ ne parle qu'à la base, et tout se teste sans client HTTP.
 """
 
 from . import fiches
-from .classement_service import blocs_du_grimpeur
+from .classement_service import blocs_du_grimpeur, nom_publie
 
 # --- Le contrat du plan, versionné ------------------------------------------
 #
@@ -137,7 +137,10 @@ def fiche(comp, participant) -> dict:
         "participant": {
             "id": participant.id,
             "dossard": participant.dossard,
-            "nom": participant.nom_complet,
+            # Le MEME nom que le classement (spec 043) : sans ca, le reglage
+            # se contournerait en touchant une ligne du classement pour ouvrir
+            # la fiche.
+            "nom": nom_publie(participant),
             "club": participant.club,
             "categorie": participant.categorie,
             "circuit": circuit,

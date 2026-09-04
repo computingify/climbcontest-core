@@ -3,6 +3,14 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<!-- ⚠️ Spec 043 — cette page ne s'indexe pas.
+     Les résultats nomment des grimpeurs, dont une majorité de mineurs. Le
+     micro et le dossard les nomment aussi, mais ils s'éteignent à 18 h et ne
+     se cherchent pas par nom : un moteur de recherche, lui, garde. La balise
+     dit « ne me garde pas », `robots.txt` dit « ne viens pas », et
+     `X-Robots-Tag` dit la même chose aux réponses JSON, qui n'ont pas de
+     balise. Les trois ne se remplacent pas. -->
+<meta name="robots" content="noindex, nofollow">
 <title>Console — ClimbContest</title>
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='7' fill='%237A4F99'/><circle cx='16' cy='12' r='5' fill='%23EEF1F5'/><path d='M11 19h10l-2 8h-6z' fill='%23EEF1F5'/></svg>">
 <style>
@@ -902,6 +910,17 @@
      montrerait RIEN. */
   label.bascule input:focus-visible + .glissiere {
     outline: 2px solid var(--accent); outline-offset: 2px;
+  }
+  /* Spec 043 — la colonne d'anonymisation de la liste des participants.
+     L'interrupteur y est seul, sans libelle : c'est l'en-tete de colonne qui
+     nomme, une fois pour cent lignes. */
+  th.col-anonyme, td.col-anonyme { text-align: center; }
+  td.col-anonyme label.bascule { justify-content: center; padding: 0; }
+  .marque-anonyme {
+    display: inline-block; margin-left: 8px; padding: 1px 8px;
+    font-size: 0.74rem; font-weight: 600; letter-spacing: 0.03em;
+    border-radius: 999px; color: var(--encre2);
+    background: var(--surface3); border: 1px solid var(--trait);
   }
   label.bascule .quoi { flex: 1; min-width: 0; }
   label.bascule .combien { color: var(--encre2); font-size: 0.86rem; }
@@ -2763,7 +2782,11 @@
     return span;
   }
 
-  var COLONNES = ["Dossard", "Nom", "Année", "Club", "Catégorie", "Source", ""];
+  // Spec 043 : la colonne de l'interrupteur. Nommee a part parce que
+  // `dessinerParticipants` doit lui poser sa classe -- elle est la seule.
+  var COL_ANONYME = "Anonymisé";
+  var COLONNES = ["Dossard", "Nom", "Année", "Club", "Catégorie", "Source",
+                  COL_ANONYME, ""];
 
   function dessinerParticipants() {
     var entete = $("enteteParticipants");
@@ -2776,6 +2799,7 @@
     COLONNES.forEach(function (nom) {
       var th = document.createElement("th");
       th.textContent = nom;
+      if (nom === COL_ANONYME) th.className = "col-anonyme";
       entete.appendChild(th);
     });
 
@@ -2819,12 +2843,23 @@
       var c = document.createElement("td");
       if (champ === "annee_naissance") c.className = "num";
       c.textContent = p[champ] || "—";
+      // ⚠️ La console montre TOUJOURS le vrai nom, meme anonymise en public
+      // (spec 043) : c'est elle qui sert a retrouver la personne au
+      // telephone. Une pastille dit a cote ce que le public voit.
+      if (champ === "nom" && p.publication_refusee) {
+        var marque = document.createElement("span");
+        marque.className = "marque-anonyme";
+        marque.textContent = "publié : " + nomPublie(p);
+        c.appendChild(marque);
+      }
       tr.appendChild(c);
     });
 
     var src = document.createElement("td");
     src.appendChild(pastillesSource(p.sources));
     tr.appendChild(src);
+
+    tr.appendChild(celluleAnonymat(p));
 
     var actions = document.createElement("td");
     actions.className = "fin";
@@ -2845,6 +2880,57 @@
     }
     tr.appendChild(actions);
     return tr;
+  }
+
+  // Ce que la page publique affiche a la place du nom. La MEME regle que
+  // `classement_service.nom_publie` -- ecrite deux fois faute de pouvoir la
+  // partager entre Python et le navigateur, donc marquee des deux cotes.
+  // Le repli sans dossard n'est pas theorique : `dossard` est nullable.
+  function nomPublie(p) {
+    return p.dossard ? "Dossard " + p.dossard : "Participant";
+  }
+
+  function celluleAnonymat(p) {
+    var td = document.createElement("td");
+    td.className = "col-anonyme";
+
+    // Le motif de la spec 021, repris tel quel : la case NATIVE est conservee
+    // sous le visuel -- elle garde le clavier, le focus et le lecteur d'ecran,
+    // que `role="switch"` fait annoncer « interrupteur » et non « case ».
+    var label = document.createElement("label");
+    label.className = "bascule";
+    var input = document.createElement("input");
+    input.type = "checkbox";
+    input.setAttribute("role", "switch");
+    input.checked = !!p.publication_refusee;
+    input.setAttribute("aria-label",
+      "Anonymiser " + p.nom + " sur la page publique");
+    var glissiere = document.createElement("span");
+    glissiere.className = "glissiere";
+    glissiere.setAttribute("aria-hidden", "true");
+    label.appendChild(input);
+    label.appendChild(glissiere);
+    td.appendChild(label);
+
+    input.addEventListener("change", function () {
+      var voulu = input.checked;
+      appeler("/admin/participants/" + p.id + "/publication", {
+        methode: "POST", corps: { refusee: voulu },
+      }).then(function () {
+        dire(voulu
+          ? p.nom + " n\u2019apparait plus sous son nom : « " + nomPublie(p) + " »."
+          : "Le nom de " + p.nom + " est de nouveau publie.", "ok");
+        chargerParticipants();
+      }).catch(function (e) {
+        // L'interrupteur revient a son etat REEL. Sans ca, il resterait
+        // bascule alors que rien n'a change en base -- et l'organisateur
+        // croirait avoir honore une demande qu'il n'a pas honoree.
+        input.checked = !voulu;
+        signaler(e);
+      });
+    });
+
+    return td;
   }
 
   // La ligne s'ouvre SUR PLACE, jamais dans une fenetre : on garde sous les
@@ -2898,6 +2984,13 @@
     var src = document.createElement("td");
     src.appendChild(pastillesSource(p.sources));
     tr.appendChild(src);
+
+    // La colonne d'anonymat existe aussi ici, mais VIDE : l'interrupteur part
+    // en base des qu'on le touche et redessine la liste, ce qui jetterait la
+    // saisie en cours. Il revient des que la ligne se referme.
+    var vide = document.createElement("td");
+    vide.className = "col-anonyme";
+    tr.appendChild(vide);
 
     var actions = document.createElement("td");
     actions.className = "fin";

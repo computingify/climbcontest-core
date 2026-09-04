@@ -18,6 +18,30 @@ logger = logging.getLogger(__name__)
 bp = Blueprint("public", __name__, url_prefix="/api/public")
 
 
+@bp.after_request
+def _pas_d_indexation(reponse):
+    """Aucune reponse publique n'entre dans un moteur de recherche. Spec 043.
+
+    Une reponse JSON n'a pas de balise `meta` : cet en-tete est le SEUL canal
+    par lequel on peut le dire. Il porte les noms de tous les grimpeurs classes.
+
+    ⚠️ Pose sur le BLUEPRINT, pas sur l'application. `/admin` et `/api/v2` ne
+    sont pas concernes, et un crochet global finirait par etre lu comme une
+    regle generale qu'il n'est pas.
+
+    ⚠️ Il s'applique AUSSI aux reponses d'erreur de ces vues -- le 404 d'un
+    groupe inconnu, le 409 d'une competition absente. Ce sont exactement les
+    adresses qu'un robot fabrique en balayant.
+
+    ⚠️ Pose ICI et non dans le Caddyfile de `edge` : cette reponse est mise en
+    cache 5 s par le proxy, donc l'en-tete doit etre DEDANS. Et la
+    configuration du proxy est recopiee a la main, elle derive, aucun test ne
+    la lit. Caddy peut doubler ; il ne doit pas porter seul.
+    """
+    reponse.headers["X-Robots-Tag"] = "noindex"
+    return reponse
+
+
 @bp.get("/classement")
 def classement():
     """Tous les classements, ou un seul avec ?groupe=U13%20F.

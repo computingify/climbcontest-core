@@ -238,18 +238,49 @@ def ordre(classement):
             0 if classement.type == "circuit" else 1, classement.groupe)
 
 
-def charge_publique(comp: Competition, forcer: bool = False) -> dict:
+def nom_publie(participant, anonymiser: bool = True) -> str:
+    """Le nom sous lequel ce grimpeur paraît en public. Spec 043.
+
+    Un grimpeur qui s'est opposé à la publication de son nom (art. 21 RGPD)
+    garde sa ligne, son rang et son score : seule son IDENTITE change. Retirer
+    la ligne décalerait le rang de tous les suivants, et un rang qui saute de 3
+    à 5 est une information sur celui qui manque.
+
+    ⚠️ Le repli quand il n'y a pas de dossard n'est pas une politesse.
+    `Participant.dossard` est nullable — c'est ainsi qu'un inscrit absent est
+    représenté. « Dossard None » s'afficherait tel quel sur la page projetée.
+    """
+    if not anonymiser or not participant.publication_refusee:
+        return participant.nom_complet
+    return f"Dossard {participant.dossard}" if participant.dossard else "Participant"
+
+
+def charge_publique(comp: Competition, forcer: bool = False,
+                    anonymiser: bool = True) -> dict:
     """Tous les classements de cette compétition, prêts à être servis.
 
     Le nom des participants est inclus : la page resultats doit les afficher,
     et ils sont deja publics -- affiches sur les dossards et annonces au micro.
+    Cet argument vaut DANS LA SALLE ; sur Internet, il justifie d'afficher, pas
+    de publier durablement. C'est pourquoi la spec 043 ajoute la non-indexation
+    et le droit d'opposition autour de cette charge, sans en changer la forme.
+
+    `anonymiser=False` rend les noms RÉELS. Un seul appelant l'utilise :
+    `cycle.archiver`, qui fige l'édition. L'archive est servie derrière la
+    session organisateur, c'est un usage interne légitime — et une archive
+    amputée serait irréparable. La règle tient en une phrase : **on fige
+    complet, on rend anonymisé.**
+
+    ⚠️ Le défaut protège. L'inverse — un défaut permissif qu'il faudrait penser
+    à restreindre — s'oublierait au premier nouvel appelant.
     """
     tous, calcule_le = classements(comp, forcer=forcer)
 
     # Les noms, en une seule requete plutot qu'une par ligne.
     from .models import Participant, Success
     noms = {
-        p.id: {"nom": p.nom_complet, "club": p.club, "categorie": p.categorie}
+        p.id: {"nom": nom_publie(p, anonymiser), "club": p.club,
+               "categorie": p.categorie}
         for p in Participant.query.filter_by(competition_id=comp.id).all()
     }
 

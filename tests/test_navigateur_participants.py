@@ -41,9 +41,10 @@ MDP = "un-mot-de-passe-assez-long"
 #: Toutes les mesures que la sonde doit poser. Le test de completude s'en sert.
 ATTENDUES = (
     "fondG fondH fondM lettresLea "
+    "colonnesEntete cellulesLigneNormale basculesAnonymat "
     "selectionAvant selectionApres bandeVisible casesVisibles "
     "toutCoche prisesTeintees "
-    "editionOuverte champsDansLaLigne bordureOcre "
+    "editionOuverte champsDansLaLigne bordureOcre cellulesLigneEditable "
     "baremeReference baremeU13 apercuChangements"
 ).split()
 
@@ -74,13 +75,26 @@ SONDE = r"""
     note("lettresLea", [...ligneLea.querySelectorAll(".src")]
                        .map((s) => s.textContent).join(""));
 
+    // --- 1 bis. La grille tient debout ----------------------------------
+    // L'entete est DESSINE (spec 008) et la colonne d'anonymat s'y ajoute
+    // (spec 043) : deux sources pour une meme grille. Si l'une des deux oublie
+    // l'autre, les colonnes se decalent sans que rien ne se plaigne.
+    note("colonnesEntete", $$("#enteteParticipants th").length);
+    note("cellulesLigneNormale", ligneLea.querySelectorAll("td").length);
+    note("basculesAnonymat",
+      $$('#listeParticipants td.col-anonyme input[type="checkbox"]').length);
+
     // --- 2. Le mode selection -------------------------------------------
     note("selectionAvant", visible($("#bandeSelection")));
     $("#btnSelection").click();
     await attendre("bande affichee", () => visible($("#bandeSelection")));
     note("selectionApres", visible($("#btnSelection")));
     note("bandeVisible", visible($("#bandeSelection")));
-    note("casesVisibles", $$('#listeParticipants input[type="checkbox"]').length);
+    // ⚠️ Scope a `td.coche` : depuis la spec 043 chaque ligne porte AUSSI
+    // l'interrupteur d'anonymat, qui est une case a cocher. Non scope, le
+    // compte double et ce test ne parlerait plus de la selection.
+    note("casesVisibles",
+      $$('#listeParticipants td.coche input[type="checkbox"]').length);
 
     $("#toutSelectionner").click();
     await attendre("tout coche", () => $$("#listeParticipants tr.prise").length > 0);
@@ -101,6 +115,9 @@ SONDE = r"""
     // Le lisere ocre a gauche : de loin, on voit LAQUELLE est modifiee.
     note("bordureOcre",
       vue().getComputedStyle(ouverte.querySelector("td")).boxShadow !== "none");
+    // La ligne ouverte pose EXACTEMENT autant de cellules que l'entete : la
+    // cellule d'anonymat y est vide, mais elle y est.
+    note("cellulesLigneEditable", ouverte.querySelectorAll("td").length);
 
     // --- 4. Le bareme ----------------------------------------------------
     $('[data-vue="categories"]').click();
@@ -241,6 +258,27 @@ class TestLesPastillesDeSource:
         assert mesures["lettresLea"] == "GH"
 
 
+class TestLaGrilleTientDebout:
+    """La spec 008 dessine l'en-tête, la spec 043 y ajoute une colonne.
+
+    Deux sources pour une seule grille : rien dans le HTML ne les oblige à
+    s'accorder, et un décalage de colonnes ne fait échouer aucun autre test —
+    la page reste valide, elle ment simplement sur ce qu'elle montre.
+    """
+
+    def test_l_entete_et_la_ligne_ont_le_meme_nombre_de_colonnes(self, mesures):
+        assert int(mesures["cellulesLigneNormale"]) == int(mesures["colonnesEntete"])
+
+    def test_la_ligne_ouverte_aussi(self, mesures):
+        """La cellule d'anonymat y est vide, mais elle y est."""
+        assert int(mesures["cellulesLigneEditable"]) == int(mesures["colonnesEntete"])
+
+    def test_un_interrupteur_d_anonymat_par_ligne(self, mesures):
+        """Spec 043 : le geste qui rend l'opposition exerçable un samedi matin.
+        La fusion avec la spec 008 a réécrit toute la ligne — il survit."""
+        assert int(mesures["basculesAnonymat"]) == 3
+
+
 class TestLeModeSelection:
     def test_la_bande_est_cachee_au_depart(self, mesures):
         assert mesures["selectionAvant"] == "false"
@@ -250,6 +288,8 @@ class TestLeModeSelection:
         assert mesures["bandeVisible"] == "true"
 
     def test_une_case_par_ligne(self, mesures):
+        """Une case de SÉLECTION par ligne — l'interrupteur d'anonymat de la
+        spec 043 en est une aussi, et ne doit pas entrer dans ce compte."""
         assert int(mesures["casesVisibles"]) == 3
 
     def test_tout_selectionner_prend_tout_l_affiche(self, mesures):

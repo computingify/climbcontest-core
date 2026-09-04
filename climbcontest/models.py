@@ -150,6 +150,17 @@ class Participant(db.Model):
     present = Column(Boolean, nullable=False, default=False)
     source = Column(String(20), nullable=False, default=SOURCE_CLASSEUR)
 
+    # Spec 043 — le droit d'opposition (art. 21 RGPD). Vrai quand ce grimpeur,
+    # ou son representant legal, refuse que son nom paraisse sur la page
+    # publique. La ligne reste au classement, avec son rang et son score : elle
+    # s'y affiche « Dossard N ».
+    #
+    # ⚠️ « refusee » et non « autorisee ». L'article 21 est un droit
+    # d'OPPOSITION, pas un consentement : on publie sauf refus. Nomme dans
+    # l'autre sens, le champ ferait taire tous ceux qui n'ont rien exprime --
+    # c'est-a-dire presque tous.
+    publication_refusee = Column(Boolean, nullable=False, default=False)
+
     # L'ANNÉE de naissance, et rien de plus — décision D9 du 03/09.
     #
     # C'est tout ce que la règle FFME demande (`categories.py`) : la catégorie
@@ -247,6 +258,11 @@ class Participant(db.Model):
             "annee_naissance": self.annee_naissance,
             "categorie_forcee": bool(self.categorie_forcee),
             "sources": self.sources,
+            # Spec 043. Ici et NON dans `to_dict()` : celle-la alimente le
+            # catalogue des vingt-cinq telephones des juges et reste maigre --
+            # un test echoue si on l'elargit. Une serialisation par audience,
+            # jamais une seule qu'on etend.
+            "publication_refusee": bool(self.publication_refusee),
         }
 
     def __repr__(self) -> str:

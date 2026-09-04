@@ -398,6 +398,9 @@ def lister_participants():
     participants.sort(key=lambda p: (p.dossard is None, p.dossard or 0, p.nom))
     return jsonify({
         "success": True,
+        # `pour_la_console()` porte `publication_refusee` (spec 043) : la
+        # serialisation de la console, distincte de `to_dict()` qui alimente le
+        # catalogue des vingt-cinq telephones des juges et doit rester maigre.
         "participants": [p.pour_la_console() for p in participants],
     }), 200
 
@@ -631,6 +634,45 @@ def reaffecter_dossard_route(participant_id):
     logger.info("dossard %s attribue a %s par %s",
                 dossard, p.nom_complet, g.utilisateur.identifiant)
     return jsonify({"success": True, "participant": p.to_dict()}), 200
+
+
+@bp.post("/participants/<int:participant_id>/publication")
+@exige_role(ORGANISATEUR)
+def publication_participant_route(participant_id):
+    """{"refusee": true} -> ce grimpeur ne parait plus sous son nom. Spec 043.
+
+    C'est le geste qui rend le droit d'opposition (art. 21 RGPD) exercable un
+    samedi matin, au telephone. Sans lui, satisfaire un parent supposait de
+    SUPPRIMER le grimpeur -- ce qui decale le rang de tous ceux qui le suivent.
+
+    Ici, la ligne reste : seul son nom devient « Dossard N » sur la page
+    publique. La console, elle, continue d'afficher le vrai nom -- c'est elle
+    qui sert a retrouver la personne.
+    """
+    corps = _corps_objet()
+    if corps is None or "refusee" not in corps:
+        return jsonify({"success": False, "message": "Champ « refusee » attendu"}), 400
+
+    p = db.session.get(Participant, participant_id)
+    if p is None:
+        return jsonify({"success": False, "message": "Participant inconnu"}), 404
+
+    p.publication_refusee = bool(corps["refusee"])
+    db.session.add(p)
+    db.session.commit()
+
+    # ⚠️ Sans cette invalidation, le changement n'arriverait qu'au bout des 5 s
+    # du cache de classement, plus les 5 s du cache de Caddy. L'organisateur
+    # vient de raccrocher avec un parent : il regarde la page TOUT DE SUITE, et
+    # un ecran qui n'obeit pas se lit comme une panne.
+    classement_service.invalider(p.competition_id)
+
+    logger.info("publication du nom %s pour %s par %s",
+                "refusee" if p.publication_refusee else "retablie",
+                p.nom_complet, g.utilisateur.identifiant)
+    return jsonify({"success": True,
+                    "participant": {**p.to_dict(),
+                                    "publication_refusee": p.publication_refusee}}), 200
 
 
 # --- Saisie manuelle --------------------------------------------------------

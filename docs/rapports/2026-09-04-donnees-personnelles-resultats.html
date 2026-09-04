@@ -1,0 +1,670 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Nommer des enfants sur une page publique — ce que la loi impose</title>
+<meta name="description" content="Étude préalable à la spec 043 : ce que /api/public/* expose des grimpeurs mineurs, ce que le RGPD et la CNIL imposent réellement à une association sportive, et le plan en quatre niveaux — dont aucune mesure obligatoire ne coûte quoi que ce soit aux spectateurs.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,600;12..96,800&family=Newsreader:ital,opsz,wght@0,6..72,300;0,6..72,400;0,6..72,600;1,6..72,400&family=IBM+Plex+Mono:wght@400;600&display=swap">
+<style>
+  /* La même identité que les rapports du 28/08 et du 30/08 : les six couleurs
+     de circuit du club, du plus facile au plus difficile — elles codent ici la
+     gravité, et le rouge est réservé à ce qui est obligatoire et manquant. */
+  :root {
+    --jaune: #C8901F; --vert: #4E9A5A; --bleu: #2F6BB0;
+    --mauve: #7A4F99; --rouge: #B33F33; --noir: #24252C;
+    --jaune-txt: #8A6109; --vert-txt: #357044; --bleu-txt: #2F6BB0;
+    --mauve-txt: #7A4F99; --rouge-txt: #B33F33;
+    --fond: #F3F4F7; --surface: #FFFFFF; --surface-2: #EAECF1;
+    --encre: #191C22; --encre-2: #545C6B; --trait: #D6DAE3;
+    --accent: var(--bleu); --accent-doux: #E4EDF8;
+    --serif: "Newsreader", Georgia, "Times New Roman", serif;
+    --grot: "Bricolage Grotesque", "Helvetica Neue", Arial, sans-serif;
+    --mono: "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, monospace;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --fond: #101319; --surface: #171B23; --surface-2: #1E232D;
+      --encre: #EEF1F5; --encre-2: #9AA4B4; --trait: #2B313D;
+      --accent-doux: #1A2634;
+      --jaune-txt: #D9A83E; --vert-txt: #6FBA7D; --bleu-txt: #6D9FD6;
+      --mauve-txt: #A97FC8; --rouge-txt: #D0685C;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--fond); color: var(--encre);
+    font-family: var(--serif); font-size: 1.06rem; line-height: 1.65;
+    -webkit-font-smoothing: antialiased;
+  }
+  .rail { height: 6px; display: flex; }
+  .rail span { flex: 1; }
+  header.page { max-width: 880px; margin: 0 auto; padding: 56px 24px 12px; }
+  .surtitre {
+    font-family: var(--grot); font-weight: 600; font-size: 0.8rem;
+    letter-spacing: 0.14em; text-transform: uppercase; color: var(--encre-2);
+  }
+  h1 {
+    font-family: var(--grot); font-weight: 800; font-size: clamp(1.9rem, 5vw, 2.9rem);
+    line-height: 1.12; letter-spacing: -0.015em; margin: 10px 0 14px;
+    text-wrap: balance;
+  }
+  .chapo { font-size: 1.15rem; color: var(--encre-2); max-width: 62ch; margin: 0; }
+  main { max-width: 880px; margin: 0 auto; padding: 8px 24px 80px; }
+  h2 {
+    font-family: var(--grot); font-weight: 800; font-size: 1.45rem;
+    letter-spacing: -0.01em; margin: 52px 0 6px; text-wrap: balance;
+  }
+  h2 .n { color: var(--accent); font-variant-numeric: tabular-nums; margin-right: 8px; }
+  h3 { font-family: var(--grot); font-weight: 600; font-size: 1.05rem; margin: 28px 0 4px; }
+  p { max-width: 68ch; }
+  code, .mono { font-family: var(--mono); font-size: 0.86em; }
+  code { background: var(--surface-2); border-radius: 5px; padding: 1px 6px; }
+  pre {
+    background: var(--surface-2); border-radius: 10px; padding: 14px 16px;
+    overflow-x: auto; font-family: var(--mono); font-size: 0.82rem; line-height: 1.6;
+  }
+  pre code { background: none; padding: 0; }
+  a { color: var(--bleu-txt); }
+  blockquote {
+    margin: 16px 0; padding: 2px 0 2px 18px; border-left: 3px solid var(--trait);
+    color: var(--encre-2); font-style: italic; max-width: 66ch;
+  }
+
+  .chiffres {
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 12px; margin: 30px 0 8px;
+  }
+  .chiffre {
+    background: var(--surface); border: 1px solid var(--trait);
+    border-radius: 12px; padding: 16px 18px;
+  }
+  .chiffre b {
+    display: block; font-family: var(--grot); font-weight: 800;
+    font-size: 1.7rem; letter-spacing: -0.02em; font-variant-numeric: tabular-nums;
+  }
+  .chiffre span { color: var(--encre-2); font-size: 0.92rem; }
+
+  table { border-collapse: collapse; width: 100%; margin: 18px 0; font-size: 0.95rem; }
+  .defiler { overflow-x: auto; }
+  th {
+    font-family: var(--grot); font-weight: 600; font-size: 0.78rem;
+    text-transform: uppercase; letter-spacing: 0.09em; color: var(--encre-2);
+    text-align: left; padding: 8px 12px 8px 0; border-bottom: 2px solid var(--trait);
+  }
+  td { padding: 10px 12px 10px 0; border-bottom: 1px solid var(--trait); vertical-align: top; }
+  td.num { font-family: var(--mono); font-size: 0.85rem; white-space: nowrap;
+           font-variant-numeric: tabular-nums; }
+
+  .pastille {
+    display: inline-block; font-family: var(--grot); font-weight: 600;
+    font-size: 0.74rem; letter-spacing: 0.05em; border-radius: 999px;
+    padding: 2px 10px; white-space: nowrap;
+  }
+  .p-rouge { color: var(--rouge-txt); background: color-mix(in srgb, var(--rouge) 14%, transparent); }
+  .p-jaune { color: var(--jaune-txt); background: color-mix(in srgb, var(--jaune) 16%, transparent); }
+  .p-bleu  { color: var(--bleu-txt);  background: color-mix(in srgb, var(--bleu) 13%, transparent); }
+  .p-vert  { color: var(--vert-txt);  background: color-mix(in srgb, var(--vert) 14%, transparent); }
+  .p-gris  { color: var(--encre-2);   background: var(--surface-2); }
+
+  .note {
+    background: var(--accent-doux); border-left: 4px solid var(--accent);
+    border-radius: 0 10px 10px 0; padding: 12px 18px; margin: 18px 0;
+    font-size: 0.98rem;
+  }
+  .note.alerte { border-left-color: var(--rouge); background: color-mix(in srgb, var(--rouge) 9%, var(--surface)); }
+  .note.bien   { border-left-color: var(--vert); background: color-mix(in srgb, var(--vert) 9%, var(--surface)); }
+  .note p:last-child { margin-bottom: 0; }
+  .note p:first-child { margin-top: 0; }
+
+  /* Les trois façons d'écrire un nom, côte à côte : c'est la décision qui
+     coûte le plus cher à défaire, et la seule qu'on ne peut pas juger sur une
+     phrase. On la regarde. */
+  .rendus {
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(232px, 1fr));
+    gap: 14px; margin: 22px 0 6px;
+  }
+  .rendu {
+    background: var(--surface); border: 1px solid var(--trait); border-radius: 14px;
+    padding: 14px 14px 16px; font-family: var(--grot);
+  }
+  .rendu .titre {
+    font-size: 0.74rem; letter-spacing: 0.08em; text-transform: uppercase;
+    color: var(--encre-2); font-weight: 600; margin-bottom: 10px;
+  }
+  .lg { display: grid; grid-template-columns: 26px 1fr auto; align-items: baseline;
+        gap: 8px; padding: 7px 0; border-bottom: 1px solid var(--trait); }
+  .lg:last-of-type { border-bottom: 0; }
+  .lg .r { font-weight: 800; color: var(--encre-2); font-variant-numeric: tabular-nums;
+           font-size: 0.9rem; }
+  .lg .n { font-weight: 700; font-size: 0.98rem; line-height: 1.2; }
+  .lg .n small { display: block; font-weight: 400; font-size: 0.76rem; color: var(--encre-2); }
+  .lg .s { font-weight: 800; font-variant-numeric: tabular-nums; }
+  .lg.or .r { color: var(--jaune-txt); }
+  .verdict { font-family: var(--serif); font-size: 0.9rem; color: var(--encre-2);
+             margin: 12px 0 0; font-style: italic; }
+
+  ul.cocher { list-style: none; padding-left: 0; }
+  ul.cocher li {
+    padding: 10px 0 10px 34px; position: relative; border-bottom: 1px solid var(--trait);
+    max-width: 72ch;
+  }
+  ul.cocher li::before {
+    content: ""; position: absolute; left: 4px; top: 15px;
+    width: 15px; height: 15px; border: 2px solid var(--encre-2); border-radius: 4px;
+  }
+  ul.cocher li.fait::before { background: var(--vert); border-color: var(--vert); }
+  ul.cocher li.fait::after {
+    content: "✓"; position: absolute; left: 7px; top: 9px; color: #fff;
+    font-size: 0.8rem; font-weight: 700;
+  }
+  .qui {
+    font-family: var(--grot); font-weight: 600; font-size: 0.72rem;
+    letter-spacing: 0.08em; text-transform: uppercase; color: var(--encre-2);
+    margin-right: 8px;
+  }
+  footer { max-width: 880px; margin: 0 auto; padding: 0 24px 60px;
+           color: var(--encre-2); font-size: 0.9rem; }
+</style>
+</head>
+<body>
+<div class="rail" aria-hidden="true">
+  <span style="background:var(--jaune)"></span><span style="background:var(--vert)"></span>
+  <span style="background:var(--bleu)"></span><span style="background:var(--mauve)"></span>
+  <span style="background:var(--rouge)"></span><span style="background:var(--noir)"></span>
+</div>
+
+<header class="page">
+  <p class="surtitre">ClimbContest · étude préalable à la spec 043 · 4 septembre 2026</p>
+  <h1>Nommer des enfants sur une page ouverte à Internet</h1>
+  <p class="chapo">Ce que <code>/api/public/*</code> laisse sortir aujourd'hui,
+  ce que le RGPD et la CNIL imposent <em>réellement</em> à une association
+  sportive qui publie ses résultats — et le plan en quatre niveaux qui répond à
+  la contrainte d'Adrien&nbsp;: <strong>aucune des mesures obligatoires ne coûte
+  un geste au spectateur</strong>. <span class="pastille p-bleu">arbitré le
+  4&nbsp;septembre</span> — les décisions sont au §7.</p>
+
+  <div class="chiffres">
+    <div class="chiffre"><b>4</b><span>routes publiques sans aucune
+      authentification, exemptées de CrowdSec</span></div>
+    <div class="chiffre"><b>nom + club + âge</b><span>le triplet qui sort de
+      <code>/api/public/classement</code>, pour ~200 grimpeurs
+      majoritairement mineurs</span></div>
+    <div class="chiffre"><b>0</b><span>geste demandé au spectateur par les
+      mesures obligatoires — la friction est facultative</span></div>
+  </div>
+</header>
+
+<main>
+
+<h2><span class="n">1</span>Ce qui sort aujourd'hui</h2>
+
+<p>Quatre routes JSON et deux pages HTML sont servies sans authentification,
+exemptées de CrowdSec et mises en cache 5&nbsp;s par Caddy. Elles sont
+joignables depuis n'importe où sur Internet — la décision D4 de la feuille de
+route (« page résultats publique ou réservée au réseau de la salle ») est
+tranchée de fait&nbsp;: elle est sur Internet.</p>
+
+<div class="defiler"><table>
+  <tr><th>Route</th><th>Ce qui en sort</th><th>Donnée personnelle&nbsp;?</th></tr>
+  <tr><td class="mono">GET /</td>
+      <td>la page de résultats, plus le plan de la salle</td>
+      <td><span class="pastille p-vert">non</span> — la page va chercher les données elle-même</td></tr>
+  <tr><td class="mono">GET /api/public/classement</td>
+      <td>par grimpeur classé&nbsp;: <code>participant_id</code>,
+          <code>dossard</code>, <strong>nom + prénom</strong>,
+          <strong>club</strong>, <strong>catégorie</strong> (« U11 F »), score,
+          rang, nombre de blocs</td>
+      <td><span class="pastille p-rouge">oui, et de mineurs</span></td></tr>
+  <tr><td class="mono">GET /api/public/grimpeur/&lt;id&gt;</td>
+      <td>ses blocs grimpés, crédités et restants, avec leur zone au mur</td>
+      <td><span class="pastille p-jaune">oui</span> — rattaché à un identifiant
+          déjà nommé par la route précédente</td></tr>
+  <tr><td class="mono">GET /api/public/groupes</td>
+      <td>les catégories et leur effectif</td>
+      <td><span class="pastille p-vert">non</span></td></tr>
+  <tr><td class="mono">GET /api/public/reglages</td>
+      <td>nom de l'édition, statut, classements masqués</td>
+      <td><span class="pastille p-vert">non</span></td></tr>
+  <tr><td class="mono">GET /console/archives/&lt;id&gt;/resultats</td>
+      <td>le gabarit seul&nbsp;; les données passent par
+          <code>/admin/archives/&lt;id&gt;/classement</code></td>
+      <td><span class="pastille p-vert">non</span> — la route de données exige
+          une session. <em>Ce point est déjà bien traité.</em></td></tr>
+</table></div>
+
+<p>Le cœur du sujet tient donc dans une seule réponse&nbsp;:
+<code>charge_publique()</code>. Elle joint <code>nom_complet</code>,
+<code>club</code> et <code>categorie</code> à chaque ligne de classement.</p>
+
+<div class="note alerte">
+<p><strong>Ce n'est pas « un nom » qui sort, c'est un triplet.</strong> La
+catégorie ne dit pas seulement <em>qui</em>, elle dit <em>quel âge</em>
+— « U11&nbsp;F » se lit « une fille de 9 ou 10 ans ». Le club dit <em>où la
+trouver le mercredi après-midi</em>. Nom + âge + lieu de pratique, en accès
+libre et indexable, c'est exactement la combinaison sur laquelle la CNIL
+demande une vigilance particulière lorsqu'il s'agit de mineurs.</p>
+<p>Et la spec 008, en cours sur une autre branche, ajoute
+<code>Participant.annee_naissance</code>&nbsp;: la minorité cessera d'être
+déduite d'un libellé pour devenir une donnée exacte en base. Elle ne doit
+jamais atteindre la charge publique — ce point est traité au §6.</p>
+</div>
+
+<h2><span class="n">2</span>L'argument qui est déjà dans le code, et où il s'arrête</h2>
+
+<p><code>public.py</code> porte sa justification en commentaire, et elle est
+honnête&nbsp;:</p>
+
+<blockquote>Le nom des participants est inclus&nbsp;: la page résultats doit les
+afficher, et ils sont déjà publics — affichés sur les dossards et annoncés au
+micro.</blockquote>
+
+<p>C'est vrai <strong>dans la salle</strong>. Ça cesse de l'être sur Internet,
+pour trois raisons qui sont précisément celles que le droit regarde&nbsp;:</p>
+
+<div class="defiler"><table>
+  <tr><th></th><th>Le micro et le dossard</th><th>Une page web</th></tr>
+  <tr><td>Qui&nbsp;?</td><td>les gens présents</td><td>n'importe qui, de partout</td></tr>
+  <tr><td>Combien de temps&nbsp;?</td><td>jusqu'à 18&nbsp;h</td><td>indéfiniment, et en cache chez des tiers</td></tr>
+  <tr><td>Retrouvable par nom&nbsp;?</td><td>non</td><td><strong>oui</strong> — aucun <code>robots.txt</code> ni <code>noindex</code> n'existe aujourd'hui</td></tr>
+</table></div>
+
+<p>Autrement dit&nbsp;: l'argument justifie <strong>d'afficher</strong> les
+noms, pas de les <strong>publier durablement</strong>. Le droit ne conclut pas
+« il faut fermer »&nbsp;; il conclut « il faut informer, minimiser, permettre de
+s'y opposer, et ne pas laisser de trace ».</p>
+
+<div class="note bien">
+<p><strong>Cette distinction n'est pas neuve dans le dépôt&nbsp;: elle est déjà
+appliquée aux archives.</strong> La page
+<code>/console/archives/&lt;id&gt;/resultats</code> est servie sans session
+parce qu'elle ne porte aucune donnée, tandis que la route qui porte les noms,
+<code>/admin/archives/&lt;id&gt;/classement</code>, exige le rôle
+<em>organisateur</em>. Son commentaire dit déjà le raisonnement de cette
+étude, presque mot pour mot&nbsp;:</p>
+<blockquote>Derrière la session, contrairement à la page publique&nbsp;: le
+classement d'une édition passée n'a pas à être servi à qui passe, et il porte
+des noms de mineurs.</blockquote>
+<p>Cette étude ne propose donc pas un principe neuf. Elle constate qu'il a été
+appliqué au <em>passé</em> et pas au <em>présent</em>, et demande de l'étendre.
+C'est aussi pourquoi rien de ce qui suit ne casse les archives&nbsp;: elles ont
+déjà leur propre porte.</p>
+</div>
+
+<h2><span class="n">3</span>Ce que la loi impose, ligne par ligne</h2>
+
+<p>Le club est <strong>responsable de traitement</strong> au sens du RGPD. La
+publication en ligne des résultats est une <em>finalité</em> distincte de la
+gestion de la compétition, et la CNIL lui consacre un jeu de réponses dédié pour
+le sport amateur. Voici les huit obligations, avec l'état de ClimbContest en
+face.</p>
+
+<div class="defiler"><table>
+  <tr><th>#</th><th>Obligation</th><th>Texte</th><th>Aujourd'hui</th></tr>
+
+  <tr><td class="num">1</td>
+      <td><strong>Informer</strong> les inscrits (et les représentants légaux
+          des mineurs)&nbsp;: qui traite, pourquoi, ce qui sera publié en ligne,
+          combien de temps, quels droits, quel contact</td>
+      <td class="num">art. 13 RGPD</td>
+      <td><span class="pastille p-rouge">manquant</span> La politique de
+          confidentialité ne couvre que l'app juge Android et affirme
+          « aucune donnée personnelle liée à l'utilisateur n'est collectée ».
+          C'est exact pour le <em>juge</em>&nbsp;; c'est faux pour le
+          <em>système</em>.</td></tr>
+
+  <tr><td class="num">2</td>
+      <td><strong>Permettre de s'opposer simplement</strong> à la publication —
+          la CNIL cite en exemple <em>une case à cocher sur le formulaire de
+          participation</em>. En cas d'opposition, le résultat n'est pas publié,
+          ou il est retiré.</td>
+      <td class="num">art. 21 RGPD<br>doctrine CNIL « sport amateur »</td>
+      <td><span class="pastille p-rouge">manquant</span> Rien dans le classeur,
+          rien en base, rien dans la console. Un parent qui appelle le samedi
+          matin ne peut être satisfait qu'en supprimant le grimpeur — ce qui
+          fausse le classement.</td></tr>
+
+  <tr><td class="num">3</td>
+      <td><strong>Base légale</strong> — l'intérêt légitime suffit pour publier
+          des résultats de compétition, <em>à condition</em> que l'opposition
+          soit possible et l'atteinte proportionnée</td>
+      <td class="num">art. 6.1.f</td>
+      <td><span class="pastille p-jaune">tenable</span> mais suspendue au
+          point 2&nbsp;: sans opposition possible, l'intérêt légitime ne tient
+          plus.</td></tr>
+
+  <tr><td class="num">4</td>
+      <td><strong>Minimiser</strong> — ne publier que ce qui sert la finalité</td>
+      <td class="num">art. 5.1.c</td>
+      <td><span class="pastille p-jaune">à resserrer</span> Pour qu'un parent
+          retrouve son enfant au classement, « Léa&nbsp;M. » + club +
+          catégorie suffit. Le patronyme entier ne sert qu'à l'annonce du
+          podium, qui se fait au micro.</td></tr>
+
+  <tr><td class="num">5</td>
+      <td><strong>Limiter la conservation</strong> — la CNIL recommande trois
+          ans maximum après la fin de l'adhésion</td>
+      <td class="num">art. 5.1.e</td>
+      <td><span class="pastille p-rouge">manquant</span>
+          <code>cycle.archiver</code> fige <code>charge_publique</code>
+          <em>avec les noms</em>, et <strong>rien ne purge jamais une
+          archive</strong>. Les archives sont bien protégées par session, mais
+          elles s'accumulent sans terme.</td></tr>
+
+  <tr><td class="num">6</td>
+      <td><strong>Effacement renforcé pour les données collectées pendant la
+          minorité</strong> — « dans les meilleurs délais », réponse sous
+          <strong>un mois</strong>, à défaut la CNIL peut être saisie et se
+          prononce en trois semaines</td>
+      <td class="num">art. 17 RGPD<br>art. 51 loi 78-17</td>
+      <td><span class="pastille p-rouge">manquant</span> Aucune adresse de
+          contact sur la page publique, aucun geste dans la console pour
+          retirer un grimpeur d'une archive.</td></tr>
+
+  <tr><td class="num">7</td>
+      <td><strong>Registre des traitements</strong></td>
+      <td class="num">art. 30</td>
+      <td><span class="pastille p-rouge">manquant</span> Obligatoire même pour
+          une petite association. Un fichier dans <code>docs/</code> y répond.</td></tr>
+
+  <tr><td class="num">8</td>
+      <td><strong>Sécurité proportionnée</strong></td>
+      <td class="num">art. 32</td>
+      <td><span class="pastille p-vert">bon</span> HTTPS, console à session et
+          rôles, clé d'API juges, jeton juge filtré des journaux Caddy,
+          archives derrière session. C'est le volet le mieux tenu du dossier.</td></tr>
+</table></div>
+
+<div class="note bien">
+<p><strong>Ce que la loi n'impose pas, et c'est la bonne nouvelle&nbsp;:
+aucune authentification.</strong> Rien dans le RGPD n'exige de mettre un mot de
+passe devant des résultats de compétition. Les cinq manquements ci-dessus se
+règlent <em>sans demander un seul geste au spectateur</em>. Toute friction
+ajoutée (jeton, compte, QR d'entrée) relèverait d'un choix du club, pas d'une
+obligation.</p>
+</div>
+
+<h2><span class="n">4</span>Le plan, en quatre niveaux</h2>
+
+<p>Rangés du moins coûteux au plus coûteux <em>pour le spectateur</em>. Les
+niveaux&nbsp;0 à 2 ferment tout le dossier légal&nbsp;; le niveau&nbsp;3 est
+une question de goût, pas de droit.</p>
+
+<h3>Niveau 0 — le socle obligatoire, zéro friction</h3>
+<ul class="cocher">
+  <li><strong>Pas d'indexation.</strong> <code>robots.txt</code>, balise
+    <code>&lt;meta name="robots" content="noindex,nofollow"&gt;</code> sur la
+    page de résultats, en-tête <code>X-Robots-Tag: noindex</code> sur
+    <code>/api/public/*</code>. C'est la mesure la plus rentable du lot&nbsp;:
+    elle transforme une publication durable en affichage du jour, et elle ne
+    change rien pour qui a l'adresse.</li>
+  <li><strong>Une mention « Confidentialité » en pied de la page de
+    résultats</strong>, vers un texte court&nbsp;: ce qui est affiché, pourquoi,
+    combien de temps, comment s'y opposer, à quelle adresse écrire.</li>
+  <li><strong>Réécrire la politique de confidentialité</strong> du dépôt
+    <code>climbcontestConfidentiality</code> pour couvrir <em>tout</em> le
+    système — la phrase « aucune donnée personnelle n'est collectée » doit
+    disparaître.</li>
+  <li><strong>Registre des traitements</strong> dans <code>docs/</code>&nbsp;:
+    une page, trois traitements (inscriptions, compétition, publication).</li>
+</ul>
+
+<h3>Niveau 1 — la minimisation de l'affichage <span class="pastille p-gris">écartée le 04/09</span></h3>
+<p>La question posée était&nbsp;: faut-il abréger les noms sur la page publique&nbsp;?
+Les trois rendus ont été mis côte à côte pour être jugés à l'œil plutôt que sur
+une description — noms fictifs&nbsp;:</p>
+
+<div class="rendus">
+  <div class="rendu">
+    <p class="titre">Complet — aujourd'hui</p>
+    <div class="lg or"><span class="r">1</span><span class="n">Delacroix-Martin Alexandre<small>Annonay Escalade</small></span><span class="s">1420</span></div>
+    <div class="lg"><span class="r">2</span><span class="n">Bonnefoy Léa<small>Vals Vertical</small></span><span class="s">1310</span></div>
+    <div class="lg"><span class="r">3</span><span class="n">Nguyen Tho<small>Annonay Escalade</small></span><span class="s">1180</span></div>
+    <p class="verdict">Identifie une personne. Recherchable par son nom si la
+      page est indexée. <strong>Retenu par Adrien le 04/09.</strong></p>
+  </div>
+  <div class="rendu">
+    <p class="titre">Abrégé — proposé, non retenu</p>
+    <div class="lg or"><span class="r">1</span><span class="n">Alexandre D.<small>Annonay Escalade</small></span><span class="s">1420</span></div>
+    <div class="lg"><span class="r">2</span><span class="n">Léa B.<small>Vals Vertical</small></span><span class="s">1310</span></div>
+    <div class="lg"><span class="r">3</span><span class="n">Tho N.<small>Annonay Escalade</small></span><span class="s">1180</span></div>
+    <p class="verdict">Un parent reconnaît son enfant en trois secondes. Un
+      inconnu n'a plus de patronyme à recouper.</p>
+  </div>
+  <div class="rendu">
+    <p class="titre">Dossard seul — conservé comme rendu de l'opposition</p>
+    <div class="lg or"><span class="r">1</span><span class="n">Dossard 42<small>Annonay Escalade</small></span><span class="s">1420</span></div>
+    <div class="lg"><span class="r">2</span><span class="n">Dossard 17<small>Vals Vertical</small></span><span class="s">1310</span></div>
+    <div class="lg"><span class="r">3</span><span class="n">Dossard 8<small>Annonay Escalade</small></span><span class="s">1180</span></div>
+    <p class="verdict">Aucune donnée nominative ne sort. Trop pauvre pour toute
+      une édition — mais c'est exactement la forme que prend une ligne dont la
+      publication a été refusée (niveau&nbsp;2).</p>
+  </div>
+</div>
+
+<div class="note alerte">
+<p><strong>Décision du 04/09&nbsp;: le nom complet reste affiché</strong>, sur
+les téléphones comme sur le mur. Ce choix est tenable — la CNIL n'interdit pas
+de publier des résultats nominatifs — mais il a une conséquence qu'il faut
+écrire&nbsp;: <strong>les trois autres mesures cessent d'être des options.</strong></p>
+<p>La minimisation était l'amortisseur du dossier. Sans elle, ce sont le
+<code>noindex</code>, la fenêtre de publication et le droit d'opposition qui
+portent seuls la proportionnalité de l'article&nbsp;6.1.f — c'est-à-dire la base
+légale elle-même. Un manquement sur l'un des trois ne se rattrape plus ailleurs.</p>
+<p>Effet secondaire favorable&nbsp;: la question du podium projeté disparaît. La
+réponse JSON étant mise en cache pour tout le monde, elle ne pouvait pas
+dépendre de qui regarde&nbsp;; puisque le nom complet est retenu partout, aucune
+route séparée pour le mur n'est à construire.</p>
+</div>
+
+<h3>Niveau 2 — l'opposition, zéro friction</h3>
+<ul class="cocher">
+  <li><strong>Une colonne dans le classeur</strong> (et, avec la spec 008, une
+    case au formulaire HelloAsso — le type <code>YesNo</code> de leur API v5,
+    posée <em>par participant</em>, existe et se lit comme le club et l'année de
+    naissance), importée en base comme
+    <code>Participant.publication_refusee</code>, <strong>fausse par
+    défaut</strong>.</li>
+  <li><strong>Le nom du champ dit le sens de la case, et le sens décide de ce que
+    vaut le vide.</strong> L'article&nbsp;21 est un droit d'<em>opposition</em>,
+    pas un consentement&nbsp;: on publie sauf refus. Une case « j'accepte »
+    inverserait la charge et rendrait muet tout inscrit qui n'a rien coché —
+    c'est-à-dire presque tous. D'où <code>publication_refusee</code> et non
+    <code>diffusion_autorisee</code>&nbsp;: le champ le plus bavard est celui
+    qu'on ne peut pas lire à l'envers.</li>
+  <li><strong>Un interrupteur par grimpeur dans la console</strong> — pour
+    traiter l'appel d'un parent le samedi matin sans toucher au classeur.</li>
+  <li><strong>Le classement ne bouge pas.</strong> Le grimpeur garde son rang,
+    son score et son dossard&nbsp;; seule son identité devient
+    « Dossard&nbsp;42 ». Retirer la ligne fausserait les rangs de tous les
+    suivants — et se remarquerait davantage que ce qu'elle prétend cacher.</li>
+  <li><strong>Le geste doit atteindre les archives déjà figées</strong>, sinon
+    l'opposition ne vaut que pour l'avenir, ce qui n'est pas ce que dit
+    l'article&nbsp;17.</li>
+</ul>
+
+<h3>Niveau 3 — restreindre l'accès (facultatif, non obligatoire)</h3>
+<div class="defiler"><table>
+  <tr><th>Mesure</th><th>Ce qu'elle apporte</th><th>Coût pour le spectateur</th><th>Avis</th></tr>
+  <tr><td><strong>Fenêtre de publication</strong> — les noms ne sortent que
+        pendant la compétition et N jours après&nbsp;; ensuite la page rend les
+        scores sans identité</td>
+      <td>répond à l'article 5.1.e sans rien enlever au jour J</td>
+      <td class="num">nul</td>
+      <td><span class="pastille p-vert">retenu — 7 jours</span></td></tr>
+  <tr><td><strong>Jeton dans le lien</strong> — un QR à l'entrée de la salle
+        mène à <code>/?s=…</code>, comme le jeton des juges</td>
+      <td>plus de découverte au hasard, plus d'indexation possible</td>
+      <td class="num">un scan</td>
+      <td><span class="pastille p-gris">écarté</span> le lien se partage&nbsp;:
+        ça ralentit, ça ne ferme pas — et ça complique le cache</td></tr>
+  <tr><td><strong>Réserver au wifi de la salle</strong></td>
+      <td>—</td><td class="num">rédhibitoire</td>
+      <td><span class="pastille p-rouge">à écarter</span> la moitié des
+        spectateurs sont en 4G</td></tr>
+  <tr><td><strong>Compte spectateur</strong></td>
+      <td>—</td><td class="num">rédhibitoire</td>
+      <td><span class="pastille p-rouge">à écarter</span> et non exigé par la loi</td></tr>
+</table></div>
+
+<h2><span class="n">5</span>Le tableau qui répond à la question d'Adrien</h2>
+
+<p>« Il faut que ça reste simple pour les spectateurs ». Voici ce que chaque
+mesure leur coûte, en gestes.</p>
+
+<div class="defiler"><table>
+  <tr><th>Mesure</th><th>Gestes demandés au spectateur</th><th>Statut</th></tr>
+  <tr><td>Pas d'indexation (<code>noindex</code> + <code>robots.txt</code>)</td><td class="num">0</td><td><span class="pastille p-rouge">nécessaire</span> depuis Q1 et Q5</td></tr>
+  <tr><td>Mention et page « Confidentialité »</td><td class="num">0</td><td><span class="pastille p-rouge">obligatoire</span></td></tr>
+  <tr><td>Droit d'opposition</td><td class="num">0</td><td><span class="pastille p-rouge">obligatoire</span></td></tr>
+  <tr><td>Nom abrégé « Prénom N. »</td><td class="num">0</td><td><span class="pastille p-gris">écarté le 04/09</span></td></tr>
+  <tr><td>Fenêtre de publication — 7 jours</td><td class="num">0</td><td><span class="pastille p-vert">retenu le 04/09</span></td></tr>
+  <tr><td>Purge des archives</td><td class="num">0</td><td><span class="pastille p-rouge">obligatoire</span></td></tr>
+  <tr><td>Registre des traitements</td><td class="num">0</td><td><span class="pastille p-rouge">obligatoire</span></td></tr>
+  <tr><td>Jeton dans le lien</td><td class="num">1 scan</td><td><span class="pastille p-gris">écarté le 04/09</span></td></tr>
+  <tr><td>Compte spectateur</td><td class="num">beaucoup</td><td><span class="pastille p-gris">écarté</span></td></tr>
+</table></div>
+
+<h2><span class="n">6</span>Cinq points d'architecture à ne pas rater</h2>
+
+<h3>1. Une sérialisation par audience, jamais une qu'on élargit</h3>
+<p>Le motif existe déjà dans le dépôt&nbsp;: <code>Participant.to_dict()</code>
+reste volontairement maigre parce qu'il alimente le catalogue des juges, et un
+test échoue si quelqu'un y ajoute un champ. La charge publique mérite le même
+verrou&nbsp;: une fonction dédiée, une <strong>liste blanche explicite</strong>
+de champs, et un test qui échoue à l'ajout d'un champ non déclaré. Sans lui,
+<code>annee_naissance</code> (spec 008) atteindra la page publique le jour où
+quelqu'un joindra une colonne de plus « pour la console ».</p>
+
+<h3>2. Abréger à l'affichage, pas à l'archivage</h3>
+<p><code>cycle.archiver</code> fige <code>charge_publique</code>. Si on abrège
+en amont, l'archive perd les noms complets — or l'archive est protégée par
+session et sert à l'usage interne légitime du club. La règle&nbsp;: <strong>on
+fige complet, on rend abrégé</strong>, et c'est la purge (point&nbsp;5 du §3)
+qui traite la conservation.</p>
+
+<h3>3. Le <code>noindex</code> se pose dans l'application, pas dans Caddy</h3>
+<p>La configuration de <code>edge</code> est recopiée à la main et dérive dans
+les deux sens. Un en-tête posé dans Flask voyage avec le code, se relit dans le
+dépôt et se teste. Caddy peut le doubler&nbsp;; il ne doit pas le porter seul.</p>
+
+<h3>4. L'opposition ne doit pas déplacer un rang</h3>
+<p>Anonymiser une ligne, jamais la retirer. Un rang qui saute de 3 à 5 est une
+information sur celui qui manque.</p>
+
+<h3>5. La fiche du grimpeur suit le même réglage</h3>
+<p><code>/api/public/grimpeur/&lt;id&gt;</code> est déjà bien gardée&nbsp;: elle
+refuse un grimpeur d'une autre édition, et refuse un grimpeur qui n'apparaît
+dans aucun classement — ce qui empêche de balayer <code>1..N</code> pour
+reconstituer le trombinoscope. Ce garde tient&nbsp;; il faut simplement que le
+nom qu'elle rend soit abrégé de la même façon, sans quoi le réglage se contourne
+en un clic.</p>
+
+<h2><span class="n">7</span>Ce qui a été décidé le 4 septembre</h2>
+
+<p>Deux tours d'arbitrage. Le premier a répondu aux six questions&nbsp;; le
+second a <strong>réduit le périmètre à quatre livrables</strong> et écarté tout
+le reste, y compris deux mesures retenues au tour précédent.</p>
+
+<div class="defiler"><table>
+  <tr><th>Question</th><th>Décision</th><th>Ce que ça implique</th></tr>
+  <tr><td>Affichage des noms</td>
+      <td><strong>Nom complet</strong>, inchangé</td>
+      <td>Rien à coder. L'abrègement est écarté.</td></tr>
+  <tr><td>Le mur affiche-t-il la même chose&nbsp;?</td>
+      <td><strong>Oui</strong>, et le micro annonce</td>
+      <td>Aucune route séparée pour le vidéoprojecteur.</td></tr>
+  <tr><td>Pas d'indexation</td>
+      <td><span class="pastille p-vert">retenu</span></td>
+      <td><code>robots.txt</code>, <code>noindex</code> sur la page,
+          <code>X-Robots-Tag</code> sur <code>/api/public/*</code>.</td></tr>
+  <tr><td>Mention et page de confidentialité</td>
+      <td><span class="pastille p-vert">retenu</span> — accessible depuis la
+          page de résultats par une <strong>mention discrète</strong></td>
+      <td>Un pied de page qui ne prend pas la place du classement, et une page
+          qui dit ce qui est publié, pourquoi, et comment s'y opposer.</td></tr>
+  <tr><td>Droit d'opposition</td>
+      <td><span class="pastille p-vert">retenu</span> — même traitement&nbsp;:
+          atteignable depuis la page de résultats</td>
+      <td>Le chemin pour l'exercer est écrit et joignable. <em>Comment une
+          opposition reçue est honorée reste à trancher — voir l'encadré.</em></td></tr>
+  <tr><td>Registre des traitements</td>
+      <td><span class="pastille p-vert">retenu</span></td>
+      <td>Un document dans <code>docs/</code>. Aucun code.</td></tr>
+  <tr><td>Fenêtre de publication de 7 jours</td>
+      <td><span class="pastille p-gris">écartée</span> au second tour</td>
+      <td>Les noms restent en ligne sans terme.</td></tr>
+  <tr><td>Purge des archives à un an</td>
+      <td><span class="pastille p-gris">écartée</span> au second tour</td>
+      <td>Les archives continuent de s'accumuler avec leurs noms — derrière la
+          session organisateur.</td></tr>
+  <tr><td>Jeton dans le lien</td>
+      <td><span class="pastille p-gris">écarté</span></td>
+      <td>La page reste ouverte à qui a l'adresse.</td></tr>
+</table></div>
+
+<div class="note alerte">
+<p><strong>Le point qui reste ouvert, et qui décide si le droit d'opposition est
+réel&nbsp;: comment l'honore-t-on&nbsp;?</strong> Offrir le chemin sans pouvoir
+le suivre ne vaut rien — l'article&nbsp;21 dit que le résultat n'est pas publié,
+ou qu'il est retiré. Aujourd'hui, satisfaire un parent qui appelle le samedi
+matin suppose de <em>supprimer le grimpeur</em>, ce qui décale le rang de tous
+ceux qui le suivent et se remarque davantage que ce qu'on voulait cacher.</p>
+<p>Le geste minimal qui rend le droit exerçable est un <strong>interrupteur par
+grimpeur dans la console</strong>&nbsp;: la ligne s'affiche « Dossard&nbsp;42 »,
+le rang et le score ne bougent pas. Il n'est pas dans le périmètre arrêté&nbsp;;
+il tient en peu de code, et sans lui la page annonce un droit que rien ne
+sert.</p>
+</div>
+
+<h2><span class="n">8</span>Le périmètre de la spec 043</h2>
+
+<ul class="cocher">
+  <li><strong>Pas d'indexation</strong> — <code>robots.txt</code> servi par
+    l'application, <code>&lt;meta name="robots"&gt;</code> sur la page de
+    résultats, en-tête <code>X-Robots-Tag: noindex</code> sur
+    <code>/api/public/*</code>. Posé dans Flask et non dans Caddy&nbsp;: la
+    configuration de <code>edge</code> est recopiée à la main et dérive, un
+    en-tête écrit ici voyage avec le code et se teste.</li>
+  <li><strong>Une mention discrète</strong> en pied de la page de résultats,
+    qui mène à la page de confidentialité. Elle ne doit rien prendre au
+    classement, ni sur le vidéoprojecteur, ni sur un téléphone&nbsp;: le rendu
+    sera montré avant d'être codé.</li>
+  <li><strong>Une page de confidentialité</strong> qui dit ce qui est publié,
+    sur quelle base, qui en est responsable, et <strong>comment s'opposer à la
+    publication de son nom</strong> — le même chemin sert les deux mentions.</li>
+  <li><strong>Un registre des traitements</strong> dans <code>docs/</code>
+    (art.&nbsp;30) — trois traitements&nbsp;: inscriptions, compétition,
+    publication des résultats.</li>
+</ul>
+
+<p><strong>Hors périmètre, et écarté explicitement</strong>&nbsp;: abrègement
+des noms, fenêtre de publication, purge des archives, jeton dans le lien, et le
+verrou par liste blanche de la charge publique. Le numéro 043 est réservé —
+vérifié auprès des deux autres sessions en cours sur le dépôt.</p>
+
+<div class="note">
+<p><strong>Ce que cette réduction laisse debout, dit sans détour.</strong> Le
+socle documentaire (information, page de confidentialité, registre) ferme les
+manquements formels, et le <code>noindex</code> empêche la trace durable dans
+les moteurs de recherche — c'est le gain réel, et il est important. Restent
+ouverts&nbsp;: la conservation sans terme (art.&nbsp;5.1.e), et un droit
+d'opposition annoncé mais qu'aucun mécanisme ne sert encore. Les deux se
+rouvrent en une spec chacun, le jour où on le décide.</p>
+</div>
+
+</main>
+
+<footer>
+<p><span class="qui">Sources</span>
+<a href="https://www.cnil.fr/fr/sport-amateur-hors-contrat/questions-reponses">CNIL — Questions-réponses sur la protection des données dans le sport amateur</a> ·
+<a href="https://www.cnil.fr/sites/cnil/files/atoms/files/cnil-guide_association.pdf">CNIL — Guide de sensibilisation au RGPD pour les associations</a> ·
+<a href="https://www.legifrance.gouv.fr/loda/article_lc/LEGIARTI000037823120">Légifrance — article 51 de la loi n° 78-17</a> ·
+<a href="https://www.cnil.fr/fr/comprendre-mes-droits/le-droit-leffacement-supprimer-vos-donnees-en-ligne">CNIL — le droit à l'effacement</a></p>
+<p>Étude préalable à la spec 043 — ClimbContest, 4 septembre 2026. Aucune donnée
+réelle ne figure dans ce document&nbsp;: les noms des exemples sont fictifs.</p>
+</footer>
+</body>
+</html>
