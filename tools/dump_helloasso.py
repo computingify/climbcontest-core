@@ -58,7 +58,9 @@ def _client():
     if secret is None:
         usage("Aucune cle trouvee. Poser helloasso.json dans le dossier des "
               "secrets, ou definir CLIMBCONTEST_SECRETS_DIR.")
-    return ha.ClientHelloAsso({**secret, "environnement": environnement})
+    # `sans_base` : ce script n'a ni contexte Flask ni base de donnees.
+    return ha.ClientHelloAsso({**secret, "environnement": environnement},
+                              sans_base=True)
 
 
 def formulaires(slug: str) -> None:

@@ -254,7 +254,19 @@ class ClientHelloAsso:
     est une intégration qui peut, un jour, écrire par erreur.
     """
 
-    def __init__(self, secret: dict | None = None):
+    def __init__(self, secret: dict | None = None, sans_base: bool = False):
+        """`sans_base` : garder le jeton en memoire, pour un outil a un coup.
+
+        ⚠️ Le jeton vit en base et sous verrou pour UNE raison : quatre workers
+        gunicorn qui le rafraichissent en meme temps se revoquent l'un l'autre.
+        Un script lance depuis le Mac n'a ni les quatre workers, ni de contexte
+        Flask, ni de base -- et `tools/dump_helloasso.py` tombait donc sur
+        « working outside of application context » des le premier appel. Trouve
+        en le lancant, pas en le relisant.
+
+        Dans ce mode le jeton vit le temps du processus, ce qui est exactement
+        sa duree utile : deux appels, puis on sort.
+        """
         self.secret = secret or lire_secret()
         if not self.secret:
             raise ErreurHelloAsso(
@@ -262,6 +274,8 @@ class ClientHelloAsso:
                 code=409)
         self.hote = HOTES.get(self.secret.get("environnement") or PRODUCTION,
                               HOTES[PRODUCTION])
+        self.sans_base = sans_base
+        self._jeton_en_memoire: dict = {}
 
     # --- authentification ---------------------------------------------------
 
@@ -294,6 +308,15 @@ class ClientHelloAsso:
 
     def jeton(self) -> str:
         """Un access_token valide. Ne fait un appel réseau que s'il le faut."""
+        if self.sans_base:
+            if _encore_valide(self._jeton_en_memoire):
+                return self._jeton_en_memoire["access_token"]
+            self._jeton_en_memoire = self._demander_jeton({
+                "grant_type": "client_credentials",
+                "client_id": self.secret["client_id"],
+                "client_secret": self.secret["client_secret"]})
+            return self._jeton_en_memoire["access_token"]
+
         actuel = _lire_jeton()
         if _encore_valide(actuel):
             return actuel["access_token"]
@@ -348,7 +371,10 @@ class ClientHelloAsso:
         if reponse.status_code == 401 and reessai:
             # Le jeton a expire entre la lecture et l'appel. UN seul reessai :
             # boucler ici sur une cle morte brulerait le quota.
-            _ecrire_jeton({**_lire_jeton(), "expire_le": ""})
+            if self.sans_base:
+                self._jeton_en_memoire = {}
+            else:
+                _ecrire_jeton({**_lire_jeton(), "expire_le": ""})
             return self._get(chemin, params, reessai=False)
         if reponse.status_code in (401, 403):
             raise ErreurHelloAsso(

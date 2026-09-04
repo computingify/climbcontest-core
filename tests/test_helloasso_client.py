@@ -244,3 +244,57 @@ class TestLesAppels:
         with pytest.raises(ha.ErreurHelloAsso) as e:
             list(ha.ClientHelloAsso().articles("club", "Event", "bp"))
         assert e.value.reconnecter is False
+
+
+class TestSansBase:
+    """Le mode des outils lancés depuis le Mac — spec 008.
+
+    ⚠️ Le défaut que ce mode ferme a été trouvé **en lançant l'outil**, pas en
+    le relisant : `tools/dump_helloasso.py` tombait sur « working outside of
+    application context » dès le premier appel, parce que le jeton vit en base.
+
+    Le jeton vit en base pour UNE raison — quatre workers gunicorn qui le
+    rafraîchissent en même temps se révoquent l'un l'autre. Un script à un coup
+    n'a ni les quatre workers, ni contexte Flask, ni base ; le jeton y vit donc
+    en mémoire, le temps du processus, qui est exactement sa durée utile.
+    """
+
+    def test_le_jeton_ne_touche_pas_la_base(self, secrets, monkeypatch):
+        appels = []
+
+        def faux_post(url, data=None, **k):
+            appels.append(data)
+            return Reponse(200, {"access_token": "AAA", "refresh_token": "RRR",
+                                 "expires_in": 1799})
+        monkeypatch.setattr(ha.requests, "post", faux_post)
+        monkeypatch.setattr(ha, "_lire_jeton",
+                            lambda: pytest.fail("la base ne doit pas etre lue"))
+        monkeypatch.setattr(ha, "_ecrire_jeton",
+                            lambda d: pytest.fail("la base ne doit pas etre ecrite"))
+        client = ha.ClientHelloAsso(
+            {"client_id": "a", "client_secret": "b", "environnement": ha.BAC_A_SABLE},
+            sans_base=True)
+        assert client.jeton() == "AAA"
+        assert appels[0]["grant_type"] == "client_credentials"
+
+    def test_le_jeton_est_garde_le_temps_du_processus(self, secrets, monkeypatch):
+        appels = []
+
+        def faux_post(url, data=None, **k):
+            appels.append(1)
+            return Reponse(200, {"access_token": "AAA", "refresh_token": "R",
+                                 "expires_in": 1799})
+        monkeypatch.setattr(ha.requests, "post", faux_post)
+        client = ha.ClientHelloAsso(
+            {"client_id": "a", "client_secret": "b"}, sans_base=True)
+        client.jeton()
+        client.jeton()
+        assert len(appels) == 1
+
+    def test_une_cle_refusee_le_dit(self, secrets, monkeypatch):
+        monkeypatch.setattr(ha.requests, "post", lambda *a, **k: Reponse(401, {}))
+        client = ha.ClientHelloAsso(
+            {"client_id": "a", "client_secret": "b"}, sans_base=True)
+        with pytest.raises(ha.ErreurHelloAsso) as e:
+            client.jeton()
+        assert e.value.reconnecter is True
