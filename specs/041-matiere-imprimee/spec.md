@@ -109,6 +109,29 @@ liseré d'encre sur l'aplat noir. Elle est **indiscernable** de N2 — un contou
 noir autour d'un aplat noir ne se voit pas plus qu'un contour blanc. Elle a été
 remplacée par une teinte à 6 %, qui, elle, se distingue.
 
+### 5.4 La fusion avec la spec 040 a ressuscité une variable morte
+
+Découvert **après coup**, et c'est le point le plus instructif du lot.
+
+La 041 avait supprimé `--trait-circuit`, devenue sans lecteur une fois la carte
+du bloc cerclée d'encre. La [spec 040](../040-theme-au-choix/), partie d'un
+master antérieur, a recopié le bloc sombre pour en faire
+`:root[data-theme="sombre"]` — **avec la variable dedans**.
+
+Git a gardé les deux gestes et **n'a signalé aucun conflit** : la suppression
+dans deux blocs, la copie dans un troisième. La variable est donc revenue dans
+**un bloc sur trois**, où elle ne se lit plus comme un oubli mais comme un
+réglage propre au thème imposé.
+
+Une variable qui survit à son dernier lecteur ne dort pas : elle **ment**. La
+prochaine lecture croit que le bord de la carte suit le circuit, change la
+valeur, et ne voit rien bouger.
+
+⚠️ Le piège n'est pas seulement réparé, il est rendu **détectable** :
+`tests/test_matiere_imprimee.py` échoue désormais dès qu'une variable déclarée
+dans la feuille du gabarit n'a plus aucun `var()` qui la lise. Vérifié en
+réintroduisant le défaut : le test tombe, et il nomme la variable.
+
 ## 6. Le réglage qu'Adrien a rouvert
 
 La direction A demandait « une ombre franche de 5 px ». Implémentée telle
@@ -137,6 +160,9 @@ délibéré : la spec 035 décrivait une intention, le rendu a tranché la valeu
 | A8 | « Noir » se reconnaît par son **nom**, jamais par sa valeur | `tests/js/couleurs.test.mjs` |
 | A9 | Les téléphones déjà installés reçoivent la nouvelle feuille | `CACHE` passe à `climbcontest-juge-v7` |
 | A10 | Aucune donnée personnelle dans les captures | Relecture : « Alix Ferrand », nom inventé |
+| A11 | La matière suit le thème **imposé** par la spec 040, pas seulement celui du système | Mesuré sur les **six** croisements système × réglage × circuit |
+| A12 | Aucune variable CSS déclarée sans lecteur | `tests/test_matiere_imprimee.py`, vérifié en réintroduisant le défaut |
+| A13 | Le souffle ne peut plus effacer l'ombre | Idem : le test tombe si une étape cesse de la reporter |
 
 ## 8. Hors périmètre
 

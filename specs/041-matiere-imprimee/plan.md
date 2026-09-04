@@ -30,7 +30,23 @@
 - [x] `sw.js` : la coquille passe en **v7**
 - [x] Deux tests sur `estLeNoir`
 
-## Étape 4 — Ce qui ne se fait pas depuis un Mac
+## Étape 4 — Fusionner avec ce qui a bougé pendant (fait)
+
+Master a bougé **deux fois** pendant le travail.
+
+- [x] `#115` (la documentation dit l'état réel) : conflits sur `CHANGELOG.md` et
+      `docs/specs-index.md`, les deux fichiers de la spec 038. Pour l'index, le
+      bloc de master est repris **en entier** — #115 a réécrit les 37 lignes
+      pour y porter les versions, garder l'autre côté les aurait écrasées
+- [x] `#116` (spec 040, le thème au choix) : les **deux** branches avaient
+      revendiqué la coquille `v7`. La 040 la garde, la 041 passe à **v8**
+- [x] ⚠️ `juge.html`, `juge.js` et `couleurs.js` ont fusionné **sans conflit**,
+      et c'est là qu'était le vrai risque : la 040 a ressuscité
+      `--trait-circuit` en recopiant le bloc sombre. Re-supprimée, et le piège
+      rendu **détectable** par un test
+- [x] Mesurer l'intégration des deux specs sur les **six** croisements
+
+## Étape 5 — Ce qui ne se fait pas depuis un Mac
 
 - [ ] Essai sur un vrai téléphone, en salle, avant la mise en production
 - [ ] L'éblouissement (D2 de la 035) : jamais mesuré, toujours pas mesuré ici
@@ -61,6 +77,24 @@ l'état posé comme `redessiner()`, puis `getComputedStyle`.
 | M6 | Pastille, circuit Jaune, sombre | liseré `rgb(244, 243, 240)` — de la craie, pas du noir invisible |
 | M7 | Carte du bloc, circuit **Noir**, clair | `rgb(252, 251, 249)` — du papier, pas de gris (N2) |
 | M8 | Carte du bloc, circuit **Noir**, sombre | `rgb(27, 30, 40)` — la carte active du thème sombre |
+
+### La couture avec la spec 040 — les six croisements
+
+Le juge peut désormais **imposer** un thème depuis les Réglages. La matière
+doit suivre ce choix, et pas le thème du système. Mesuré, pas raisonné :
+
+| Système | Imposé | Circuit | Fond obtenu | Liseré |
+| --- | --- | --- | --- | --- |
+| clair | *(aucun)* | Jaune | `#F3EEE3` | encre |
+| clair | **sombre** | Jaune | `#15161B` | craie |
+| sombre | **clair** | Jaune | `#F3EEE3` | encre |
+| sombre | *(aucun)* | Jaune | `#15161B` | craie |
+| clair | **sombre** | Noir | `#15161B` | la carte du thème sombre |
+| sombre | **clair** | Noir | `#F3EEE3` | le papier |
+
+L'ombre et le liseré sont présents dans les six cas. C'est la conséquence
+directe du choix d'architecture : tout est pris sur des **jetons**, donc rien
+n'a eu à être ajouté pour que la 041 suive la 040.
 
 ### Ce qui n'est couvert par aucun test
 
