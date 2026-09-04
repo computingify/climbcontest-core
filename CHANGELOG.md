@@ -158,10 +158,11 @@ l'application.
 - **Le circuit « Noir » garde sa carte en papier.** C'est le seul dont la teinte
   est déjà l'encre : sa carte teintée virait au gris quand toutes les autres
   prennent leur couleur, et le liseré de sa pastille se confondait avec l'aplat.
-- **La suite de tests passe de 2 min 26 à 13 s**, et — ce qui compte
-  davantage — de 2 min 26 à **45 s en série**, sans parallélisme. Aucun test
-  retiré, quinze ajoutés (1 870, tous verts). Le parallélisme est un
-  multiplicateur ; les deux tiers du gain viennent du travail supprimé.
+- **L'étape « Tests » de la CI passe de 4 min 15 à 51 s** — mesuré sur le
+  runner, pas extrapolé ; le job entier tombe de 4 min 39 à **1 min 14**. En
+  local : 2 min 26 → 45 s **en série**, 13 s en parallèle. Aucun test retiré,
+  dix-sept ajoutés (1 872, tous verts). Le parallélisme est un multiplicateur ;
+  les deux tiers du gain viennent du travail supprimé.
   - **Un tiers de la suite dérivait des mots de passe.** `scrypt` est lent à
     dessein (54 ms), et chaque fixture de connexion en payait deux — création
     du compte, puis vérification — soit ~105 ms, quatre cents fois. La
@@ -197,6 +198,13 @@ l'application.
     textes séparés — deux PR qui en touchent deux différentes ne se disputent
     toujours rien — et chacune tourne dans son propre `try` : une sonde qui
     casse ne fait pas tomber les trois autres.
+  - **Le premier lancement de chromium coûte 17 s sur un runner GitHub**, et
+    ce prix était facturé au premier test navigateur par ordre alphabétique —
+    qui affichait 20 s en CI contre 0,13 s sur le Mac, et faisait échouer le
+    budget par test en accusant un innocent. Il est rendu à un test dont c'est
+    le sujet, placé en tête du groupe ; les autres trouvent un navigateur
+    chaud. Le harnais nomme désormais ce démarrage dans son avertissement : il
+    se produisait *avant* le chronomètre, donc rien ne le voyait.
   - **La suite tourne en parallèle par défaut** (`pytest-xdist`, `-n logical
     --dist loadgroup`). `pytest -n 0` revient à l'exécution en série.
   - **Un seul chromium pour toute l'exécution**, au lieu d'un par fichier.
