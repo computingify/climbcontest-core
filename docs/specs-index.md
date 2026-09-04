@@ -12,6 +12,7 @@ méthode.
 | [005](../specs/005-admin-console/) | `admin-console` | ✅ **livrée** (29/08) | Console sur `/console` : comptes et rôles, participants à chaud, saisie manuelle, impression des dossards. Joignable depuis Internet, avec frein anti-force-brute |
 | [006](../specs/006-live-results-page/) | `live-results-page` | ✅ **livrée** (28/08) | La page projetée dans la salle et ouverte par les spectateurs. Deux modes, aucune dépendance externe, recherche toutes catégories |
 | [007](../specs/007-pwa-juge/) | `pwa-juge` | ✅ **livrée** (29/08) — les 4 itérations, portée au niveau de l'app Android en `v0.7.0`. Le scan sur un vrai téléphone a été fait, et refait plusieurs fois depuis | L'application juge sur iPhone, sans payer de store. Une PWA servie par le backend, jeton dans le lien, jsQR versé dans le dépôt. File hors ligne en IndexedDB : le juge n'attend plus le réseau |
+| [008](../specs/008-helloasso-import/) | `helloasso-import` | 🟡 **codée, en attente de relecture** (04/09) — maquette validée par Adrien, lots 1 à 7 livrés ; reste la **recette sur le bac à sable**, qui demande une clé d'API | Les inscriptions HelloAsso alimentent une **salle d'attente** : c'est elle qui décide si un participant est créé, jamais le réseau. Trois piles, une pastille dans le bandeau, et la **catégorie calculée par la règle FFME** — U13 = moins de 13 ans, le plus petit Under l'emporte, l'année de référence est celle où **finit** la saison. La liste des participants gagne la **source** de chacun (G/H/M), la **sélection par cases** pour l'impression et l'**édition en ligne**. Ne pas réimporter et rapprocher sont deux mécanismes distincts : l'article HelloAsso pour l'un, nom + prénom + club pour l'autre — le numéro de commande n'en est pas la clé, une commande portant souvent deux enfants |
 | [010](../specs/010-classement-club/) | `classement-club` | ✅ **livrée** (29/08) | Somme des scores de tous les grimpeurs du club, dérivée des classements par catégorie. Chaque grimpeur compte une fois, par sa catégorie |
 | [011](../specs/011-tracabilite-des-scans/) | `tracabilite-des-scans` | ✅ **livrée** (29/08) — les 3 itérations | Le journal complet des scans sur le téléphone, l'appareil et la référence client gardés côté serveur, et une page de contrôle qui dit si un scan précis est arrivé |
 | [012](../specs/012-cle-api-juges/) | `cle-api-juges` | ✅ **livrée** (29/08) | L'application envoie sa clé, le serveur l'exige. Mode strict par défaut, plusieurs clés acceptées pour en changer sans coupure. Le plan de repli porte l'étape qui rouvre l'API au gel `V3.1.4` |
@@ -55,7 +56,6 @@ prochaine compétition).
 
 | # prévu | Nom pressenti | Chantier | Bloqué par |
 | --- | --- | --- | --- |
-| 008 | `helloasso-import` | import des inscriptions en ligne, rapprochement avec les inscriptions sur place | 005 |
 | 009 | `finales` | **tours de finale.** Format tranché le 28/08 : les **N meilleurs de chaque catégorie regrimpent des blocs dédiés**, et le classement final ne tient compte **que du second tour** — le score de qualification ne se reporte pas. Reste à fixer : la valeur de N, et si elle varie selon la catégorie | 004 |
 
 

@@ -1,11 +1,15 @@
 # Spec 008 — Les inscriptions en ligne arrivent toutes seules
 
-> **Statut : rédigée le 03/09/2026, reprise le 04/09. Onze décisions posées,
-> neuf tranchées (§7). Porte 2 non franchie, aucune ligne de code écrite.**
+> **Statut : maquette validée par Adrien le 04/09 (« c'est nickel, implémente »),
+> lots 1 à 7 livrés le jour même. Reste le lot 8 — la recette sur le bac à
+> sable — qui demande une clé d'API et n'est donc pas de moi.**
+>
+> **D10 et D11 sont restées sans réponse** : mes propositions ont été appliquées
+> — une catégorie corrigée à la main est protégée, et le vert de la maquette est
+> conservé. Un mot suffit pour changer l'une ou l'autre.
 >
 > La maquette de tous les écrans est dans
-> [`maquettes/inscriptions.html`](maquettes/inscriptions.html) — c'est elle qui
-> se valide en premier.
+> [`maquettes/inscriptions.html`](maquettes/inscriptions.html).
 >
 > Numéro **008** : réservé depuis le 28/08 dans
 > [`docs/specs-index.md`](../../docs/specs-index.md) sous le nom
