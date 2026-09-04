@@ -37,7 +37,45 @@ import pytest
 # `test_le_regroupement_arrive_bien_jusqu_a_xdist` de lire son propre
 # identifiant : un garde du regroupement doit etre DANS le groupe qu'il
 # surveille, sinon il ne prouve rien.
-from tests.navigateur import CHROME, GROUPE, piloter
+from tests.navigateur import CHROME, GROUPE, NAVIGATEUR, piloter
+
+
+#: Le nom du test qui paie le demarrage. `tests/conftest.py` le fait passer en
+#: TETE du groupe navigateur -- c'est la seule raison d'etre de cette constante,
+#: et le garde ci-dessous verifie qu'elle designe bien quelque chose.
+DEMARRE_LE_NAVIGATEUR = "test_le_navigateur_demarre_et_repond"
+
+
+@pytest.mark.skipif(CHROME is None,
+                    reason="aucun navigateur : ce test se saute, il n'echoue pas")
+def test_le_navigateur_demarre_et_repond():
+    """Le premier test du groupe, et celui qui paie le demarrage a froid.
+
+    ⚠️ **Ce n'est pas un test de complaisance.** Le premier lancement de
+    chromium coute **17,1 s sur un runner GitHub** -- mesure le 04/09, ou
+    l'image fournit un chromium en paquet confine. Ce prix etait facture au
+    premier test navigateur venu, par ordre alphabetique : celui de la couture
+    des zones affichait 20 s en CI contre 0,13 s sur le Mac, et faisait echouer
+    le budget par test en accusant un test qui n'attendait rien.
+
+    C'est exactement le defaut que la chauffe corrigeait AVANT le parallelisme.
+    Sous `pytest-xdist`, elle ne marche plus : le processus qui chauffait n'est
+    plus celui qui joue les tests, et chauffer dans CHAQUE worker lance quatre
+    chromium a froid en concurrence -- mesure aussi, c'est pire (30 s).
+
+    Alors on ne cache plus le prix : on le rend a un test dont c'est le SUJET.
+    Celui-ci verifie que le harnais sait ouvrir un navigateur et lui parler --
+    ce qui, aujourd'hui, ne se decouvrait qu'a travers l'echec confus d'un test
+    de contraste. `tests/conftest.py` le place en tete du groupe ; les autres
+    trouvent un navigateur chaud, a 0,3 s.
+    """
+    NAVIGATEUR.demarrer()
+    version = NAVIGATEUR.appeler("Browser.getVersion")
+    assert version.get("product", "").lower().startswith(("chrome", "headless")), (
+        f"le navigateur a repondu {version!r} : le harnais parle bien CDP, mais "
+        "pas a un chromium")
+    assert NAVIGATEUR.processus.poll() is None, (
+        "le navigateur s'est arrete juste apres avoir repondu")
 
 
 def _analyser(fichier: Path) -> ast.Module:
@@ -292,3 +330,16 @@ def test_le_regroupement_arrive_bien_jusqu_a_xdist(request):
         "demarrera son propre chromium. La cause est presque toujours le "
         "`@pytest.hookimpl(tryfirst=True)` du crochet, retire ou dépassé par "
         "un autre greffon qui se declare plus tot encore")
+
+
+def test_le_test_qui_chauffe_existe_bien():
+    """`tests/conftest.py` place un test nomme en tete du groupe navigateur.
+
+    S'il etait renomme ou supprime, le placement deviendrait un `for` qui ne
+    trouve rien : silencieux, et le demarrage a froid retomberait sur le
+    premier test venu -- exactement le defaut qu'on vient de retirer.
+    """
+    assert DEMARRE_LE_NAVIGATEUR in globals(), (
+        f"« {DEMARRE_LE_NAVIGATEUR} » n'existe plus dans ce fichier, alors que "
+        "tests/conftest.py le cherche pour le mettre en tete du groupe "
+        "navigateur")

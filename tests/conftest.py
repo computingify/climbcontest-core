@@ -336,6 +336,22 @@ def pytest_collection_modifyitems(session, config, items):
     for item in pilotes:
         item.add_marker(pytest.mark.xdist_group(GROUPE_NAVIGATEUR))
 
+    # ⚠️ Le demarrage a froid de chromium coute 17,1 s sur un runner GitHub, et
+    # il est paye par le PREMIER test navigateur -- qui, par ordre
+    # alphabetique, n'a rien demande. On met donc en tete celui dont c'est le
+    # sujet : `test_le_navigateur_demarre_et_repond`. Les autres trouvent un
+    # navigateur chaud.
+    #
+    # Le placement porte sur l'ordre de `items`, que le repartiteur respecte a
+    # l'interieur d'un groupe. `tests/test_harnais_navigateur.py` verifie que
+    # le test cherche existe toujours : sans lui, ce `next` ne trouverait rien,
+    # en silence.
+    chauffeur = next((i for i in pilotes
+                      if i.name == "test_le_navigateur_demarre_et_repond"), None)
+    if chauffeur is not None and pilotes[0] is not chauffeur:
+        items.remove(chauffeur)
+        items.insert(items.index(pilotes[0]), chauffeur)
+
     if not pilotes:
         return
 
