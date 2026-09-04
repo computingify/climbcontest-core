@@ -21,12 +21,20 @@ logger = logging.getLogger(__name__)
 
 
 class ErreurMetier(Exception):
-    """Erreur attendue, avec un message destiné à l'utilisateur."""
+    """Erreur attendue, avec un message destiné à l'utilisateur.
 
-    def __init__(self, message: str, code: int = 400):
+    `doublon` distingue le refus « cette personne est déjà inscrite » de tous
+    les autres 409. Sans lui, `ajouter_participant_numerote` reessaie cinq fois
+    -- il prend tout 409 pour une course sur le dossard -- et rend finalement
+    « trop de saisies simultanees », qui n'a aucun rapport avec ce qui s'est
+    passe. Le message le plus utile serait alors perdu.
+    """
+
+    def __init__(self, message: str, code: int = 400, doublon: bool = False):
         super().__init__(message)
         self.message = message
         self.code = code
+        self.doublon = doublon
 
 
 def competition_active() -> Competition:
@@ -149,11 +157,79 @@ def verifier_annee(valeur) -> int | None:
     return annee
 
 
+def club_canonique(comp, nom_du_club: str | None) -> str | None:
+    """L'orthographe DEJA EN BASE pour ce club, sinon celle qu'on vient de taper.
+
+    ⚠️ C'est la piece qui ferme le dernier chemin par lequel un doublon
+    revenait, et elle a ete trouvee par un test : `formatage.club()` ne preserve
+    un sigle que s'il est DEJA en capitales. « CAF Vivarais » importe du
+    classeur survit donc, mais « caf vivarais » tape au guichet devient « Caf
+    Vivarais » -- deux clubs dans la liste deroulante, et le rapprochement qui
+    echoue entre les deux.
+
+    Aucune liste de sigles connus ne reglerait ca : il faudrait la tenir a jour
+    pour chaque club de la region. La regle retenue est plus simple et plus
+    juste : **la premiere orthographe fait reference**. Le club existe deja sous
+    une forme ? On reprend la sienne, quelle que soit la facon dont on vient de
+    l'ecrire.
+    """
+    propre = formatage.club(nom_du_club)
+    if not propre:
+        return propre
+    ma_cle = formatage.identite_club(propre)
+    for (existant,) in db.session.query(Participant.club).filter(
+            Participant.competition_id == comp.id,
+            Participant.club.isnot(None)).distinct():
+        if existant and formatage.identite_club(existant) == ma_cle:
+            return existant
+    return propre
+
+
+def participant_identique(comp, nom, prenom=None, club=None):
+    """Le participant qui EST deja cette personne, ou None.
+
+    Meme identite normalisee **et** meme club. C'est la seule combinaison qui
+    autorise a parler de doublon : deux homonymes de clubs differents existent
+    vraiment (risque R5), et les confondre en perdrait une.
+
+    Un club absent d'un cote ne suffit pas a conclure -- on rend None, et
+    l'appelant demande. Deviner ici ferait fusionner deux personnes sur la seule
+    foi d'un champ vide.
+    """
+    ma_cle = formatage.identite(nom, prenom)
+    if not ma_cle:
+        return None
+    mon_club = formatage.identite_club(club)
+    if not mon_club:
+        return None
+    for autre in Participant.query.filter_by(competition_id=comp.id):
+        if (formatage.identite(autre.nom, autre.prenom) == ma_cle
+                and formatage.identite_club(autre.club) == mon_club):
+            return autre
+    return None
+
+
+def homonymes(comp, nom, prenom=None, sauf=None) -> list:
+    """Tous ceux qui portent le meme nom, quel que soit leur club.
+
+    Sert a PREVENIR, pas a refuser : la console montre la fiche existante et
+    laisse choisir. C'est ce que la contrainte metier §3 demande -- « detection
+    de doublon [...] avec validation humaine ».
+    """
+    ma_cle = formatage.identite(nom, prenom)
+    if not ma_cle:
+        return []
+    return [p for p in Participant.query.filter_by(competition_id=comp.id)
+            if formatage.identite(p.nom, p.prenom) == ma_cle
+            and (sauf is None or p.id != sauf)]
+
+
 def ajouter_participant(nom: str, prenom: str | None = None,
                         club: str | None = None, categorie: str | None = None,
                         dossard: int | None = None,
                         source: str = SOURCE_MANUEL,
-                        annee_naissance=None) -> Participant:
+                        annee_naissance=None,
+                        autoriser_homonyme: bool = False) -> Participant:
     """Ajoute un participant a la competition en cours.
 
     Le cas reel : quelqu'un s'inscrit a 8 h 45, ou pendant la competition. Sans
@@ -177,6 +253,32 @@ def ajouter_participant(nom: str, prenom: str | None = None,
 
     comp = competition_active()
 
+    prenom = formatage.nom(prenom)
+    club = club_canonique(comp, club)
+
+    # ⚠️ La garde anti-doublon (04/09 : « je ne veux pas de doublon »).
+    #
+    # Elle porte sur l'IDENTITE NORMALISEE **et le club**, jamais sur le nom
+    # seul. Le modele autorise deux homonymes depuis la spec 002, et c'est
+    # volontaire : deux « Martin Lea » de deux clubs differents existent
+    # vraiment, et le risque R5 est precisement d'en perdre une. Ce qui n'existe
+    # pas, c'est deux « Martin Lea » du MEME club.
+    #
+    # Elle se leve explicitement -- `autoriser_homonyme` -- parce que le cas
+    # rarissime doit rester possible : deux cousins homonymes au meme club, ca
+    # se voit une fois, et l'organisateur doit pouvoir passer outre depuis la
+    # console plutot que d'aller modifier la base.
+    if not autoriser_homonyme:
+        jumeau = participant_identique(comp, nom, prenom, club)
+        if jumeau is not None:
+            raise ErreurMetier(
+                f"{jumeau.nom_complet} est deja inscrit"
+                + (f" ({jumeau.club})" if jumeau.club else "")
+                + (f", dossard {jumeau.dossard}" if jumeau.dossard else "")
+                + ". Reprendre sa fiche, ou forcer l'ajout si ce sont deux "
+                  "personnes differentes.",
+                code=409, doublon=True)
+
     if dossard is not None:
         try:
             dossard = int(str(dossard).strip())
@@ -194,8 +296,8 @@ def ajouter_participant(nom: str, prenom: str | None = None,
     p = Participant(
         competition_id=comp.id,
         nom=nom,
-        prenom=formatage.nom(prenom),
-        club=formatage.club(club),
+        prenom=prenom,
+        club=club,
         categorie=formatage.categorie(categorie),
         dossard=dossard,
         present=dossard is not None,
@@ -250,7 +352,8 @@ def ajouter_participant_numerote(nom: str, prenom: str | None = None,
                                  categorie: str | None = None,
                                  essais: int = 5,
                                  source: str = SOURCE_MANUEL,
-                                 annee_naissance=None) -> Participant:
+                                 annee_naissance=None,
+                                 autoriser_homonyme: bool = False) -> Participant:
     """Ajoute un participant en lui attribuant le prochain dossard libre.
 
     **La politique « toute inscription recoit un numero » est ici, pas dans
@@ -276,10 +379,13 @@ def ajouter_participant_numerote(nom: str, prenom: str | None = None,
             return ajouter_participant(nom, prenom=prenom, club=club,
                                        categorie=categorie, dossard=numero,
                                        source=source,
-                                       annee_naissance=annee_naissance)
+                                       annee_naissance=annee_naissance,
+                                       autoriser_homonyme=autoriser_homonyme)
         except ErreurMetier as e:
-            if e.code != 409:
-                raise                   # « nom obligatoire » : retenter n'y changerait rien
+            if e.code != 409 or e.doublon:
+                # « nom obligatoire », ou « deja inscrit » : retenter n'y
+                # changerait rien, et masquerait le vrai message.
+                raise
             derniere = e
         except IntegrityError as e:
             db.session.rollback()

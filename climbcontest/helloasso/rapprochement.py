@@ -33,8 +33,9 @@ bloquerait le cas le plus banal — un classeur importé avant que le barème n'
 été appliqué.
 """
 
-import unicodedata
 from collections import namedtuple
+
+from .. import formatage
 
 #: Ce qu'on sait d'une personne, d'où qu'elle vienne.
 Personne = namedtuple("Personne", "identifiant nom prenom club categorie")
@@ -48,33 +49,19 @@ Verdict = namedtuple("Verdict", "quoi identifiant motif categorie_differente")
 
 MOTIF_CLUB_DIFFERENT = "club_different"
 
-# Les memes separateurs que `formatage.SEPARATEURS` : espace, trait d'union et
-# les deux apostrophes. « Jean-Luc », « Jean Luc » et « JEAN-LUC » doivent
-# tomber sur la meme cle, sinon le rapprochement ne rapproche rien.
-_SEPARATEURS = " -'’"
-
-
-def _sans_accent(texte: str) -> str:
-    decompose = unicodedata.normalize("NFD", texte)
-    return "".join(c for c in decompose if not unicodedata.combining(c))
-
-
-def cle(nom: str | None, prenom: str | None = None) -> str:
-    """« DUPONT Jean-Luc » et « dupont jean luc » rendent la même chaîne."""
-    brut = f"{nom or ''} {prenom or ''}"
-    sans = _sans_accent(brut).lower()
-    for separateur in _SEPARATEURS:
-        sans = sans.replace(separateur, " ")
-    return " ".join(sans.split())
-
-
-def cle_club(club: str | None) -> str:
-    """La même normalisation, pour comparer deux clubs.
-
-    « Roc N'Potes » et « roc n'potes » sont le même club : le classeur écrit
-    l'un, un parent tape l'autre.
-    """
-    return cle(club)
+# ⚠️ La cle d'identite n'est PAS definie ici : elle vit dans `formatage.py`,
+# avec les regles de mise en forme qui la rendent vraie.
+#
+# Elle y a ete deplacee le 04/09, quand Adrien a demande « uniformise le
+# formatage, je ne veux pas de doublon ». La raison tient en une phrase : si la
+# mise en forme et la comparaison vivent dans deux modules, elles derivent --
+# l'une gagne une regle que l'autre n'a pas -- et le doublon revient par la
+# porte qu'on n'a pas refermee.
+#
+# Les deux alias ci-dessous existent pour que ce module se lise sans aller
+# chercher ailleurs, et pour que les appelants n'aient pas a changer.
+cle = formatage.identite
+cle_club = formatage.identite_club
 
 
 def confronter(candidat: Personne, existants) -> Verdict:

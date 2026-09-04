@@ -68,6 +68,27 @@ qu'on ne met pas à jour le matin d'une compétition :
   on imprime. Le formulaire d'ajout apprend l'**année de naissance**, et l'année
   et la catégorie se répondent l'une l'autre.
 
+- **Un seul formatage, et plus de doublons** (spec 008). Le formatage
+  s'applique désormais à **toutes** les sources, l'import du classeur compris —
+  la spec 013 l'en tenait à l'écart, et c'est ce qui fabriquait des doublons :
+  « ANNONAY ESCALADE » importé et « annonay escalade » tapé au guichet étaient
+  deux clubs. Quand un club existe déjà sous une forme, **c'est la sienne qui
+  fait référence**, quelle que soit la façon dont on vient de l'écrire.
+
+  Créer quelqu'un qui porte le même nom **et** le même club est refusé, avec sa
+  fiche à l'écran pour la reprendre d'un clic. Même nom mais club différent
+  reste possible — deux « Martin Lea » existent vraiment — et se signale. Une
+  carte **Doublons** paraît quand la base en porte déjà, et laisse choisir
+  laquelle des deux fiches garde son dossard : c'est celui qui est déjà imprimé.
+
+- **L'import HelloAsso devine ses champs** (spec 008). Choisir le formulaire lit
+  un échantillon et reconnaît tout seul l'année de naissance, le genre et le
+  club — par le nom du champ, et à défaut **par ses réponses** : un champ dont
+  toutes les réponses sont « Fille » ou « Garçon » est un champ de genre, quel
+  que soit son intitulé. « Fille », « F », « Féminin », « Girl » sont reconnus
+  d'origine. Rien n'est deviné en silence : la console dit ce qu'elle a trouvé,
+  et liste les réponses qu'elle n'a pas su ranger.
+
 - **L'application juge choisit son thème** (spec 040). Trois pastilles dans les
   Réglages — *Système*, *Clair*, *Sombre*. « Système » reste la position de
   départ : rien ne change pour un juge qui n'y touche pas. Le choix est appliqué

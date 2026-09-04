@@ -363,6 +363,30 @@
     margin: 0 0 4px; font-size: 1.02rem; font-weight: 700; letter-spacing: -0.01em;
   }
   .carte > h2 + .aide { margin-top: 0; }
+  /* --- Un verdict : une ligne, une pastille, un ton (spec 008) ------------ */
+  /*
+     ⚠️ Ces regles manquaient, et rien ne le disait : `.verdict-maj` existait
+     depuis la spec 031 mais `.verdict` tout court, non. Les six verdicts de la
+     spec 008 sortaient donc en texte noir sans pastille -- lisibles, mais muets
+     sur ce qu'ils annoncaient. Vu a l'ecran, jamais par un test.
+
+     Un verdict tient en UNE ligne : c'est la regle d'UX du 03/09. La couleur
+     porte l'etat, le texte ne le repete pas. */
+  .verdict {
+    display: flex; align-items: center; gap: 8px; margin: 12px 0 0;
+    font-size: 0.9rem; font-weight: 600;
+  }
+  .verdict .rond {
+    width: 9px; height: 9px; border-radius: 50%; flex: none;
+    background: var(--encre3);
+  }
+  .verdict.est-ok { color: var(--ok); }
+  .verdict.est-ok .rond { background: var(--ok); }
+  .verdict.est-attention { color: var(--attention); }
+  .verdict.est-attention .rond { background: var(--attention); }
+  .verdict.est-alerte { color: var(--alerte); }
+  .verdict.est-alerte .rond { background: var(--alerte); }
+
   /* --- La salle d'attente des inscriptions (spec 008) --------------------- */
 
   /* Le compteur d'une pile, dans son titre. Ocre quand il reste a faire,
@@ -1256,6 +1280,10 @@
             <p class="apercu" id="pCategorieAide" hidden></p>
           </div>
         </div>
+        <!-- Le rappel d'homonyme (spec 008). Il paraît APRÈS une tentative,
+             jamais avant : prévenir à chaque frappe ferait du bruit, et le
+             bruit se cesse de lire. -->
+        <div id="rappelHomonyme" hidden></div>
         <button class="action" id="btnAjouter">Ajouter</button>
       </div>
 
@@ -1301,6 +1329,16 @@
           <span class="src m">M</span> saisie manuelle
         </p>
       </div>
+
+      <!-- La carte ne paraît QUE s'il y a quelque chose à fusionner. Une carte
+           « aucun doublon » en permanence serait une ligne de plus à lire tous
+           les jours pour une information qui n'arrive presque jamais. -->
+      <div class="carte" id="carteDoublons" hidden>
+        <h2>Doublons <span class="compte" id="compteDoublons">0</span></h2>
+        <p class="aide">Même nom, même club. Choisis la fiche qui garde son
+           dossard — c'est celui qui est déjà imprimé.</p>
+        <div id="listeDoublons"></div>
+      </div>
     </section>
 
     <!-- ================= Catégories (spec 008) ================= -->
@@ -1318,6 +1356,7 @@
           <thead><tr><th>Catégorie</th><th>Années de naissance</th><th>Âge</th><th>Inscrits</th></tr></thead>
           <tbody id="listeBareme"></tbody>
         </table></div>
+        <p class="verdict" id="verdictBareme"></p>
         <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:16px">
           <button class="action" id="btnApercuBareme">Appliquer à tous les inscrits</button>
         </div>
@@ -2121,7 +2160,14 @@
         throw { gere: true };
       }
       return r.json().catch(function () { return {}; }).then(function (d) {
-        if (!r.ok) throw { message: d.message || ("Erreur " + r.status) };
+        // ⚠️ Le CORPS voyage avec le refus, pas seulement le message.
+        //
+        // Un refus utile porte souvent de quoi agir : les fiches qui
+        // ressemblent quand on refuse un doublon (spec 008), et demain autre
+        // chose. Sans ça, l'appelant devrait redemander au serveur ce que le
+        // serveur vient de lui dire.
+        if (!r.ok) throw { message: d.message || ("Erreur " + r.status),
+                           statut: r.status, corps: d };
         return d;
       });
     });
@@ -2563,6 +2609,7 @@
       etat.participants = d.participants || [];
       remplir($("filtreCategorie"), categoriesVues(), "Toutes les catégories", false);
       dessinerParticipants();
+      chargerDoublons();
     }).catch(signaler);
   }
 
@@ -2899,7 +2946,9 @@
   $("recherche").addEventListener("input", dessinerParticipants);
   $("filtreCategorie").addEventListener("change", dessinerParticipants);
 
-  $("btnAjouter").addEventListener("click", function () {
+  $("btnAjouter").addEventListener("click", function () { ajouterParticipant(false); });
+
+  function ajouterParticipant(forcer) {
     // Aucun dossard n'est envoye : le serveur attribue le premier numero libre
     // (spec 013). C'est lui qui sait lesquels sont pris, pas l'organisateur
     // debout devant la file.
@@ -2910,8 +2959,10 @@
         club: valeurChoisie($("pClub")),
         categorie: valeurChoisie($("pCategorie")),
         annee_naissance: $("pAnnee").value.trim(),
+        autoriser_homonyme: !!forcer,
       },
     }).then(function (d) {
+      montrerHomonymes(d.homonymes, false);
       dire(d.participant.nom + " ajouté avec le dossard " +
            d.participant.dossard + ".", "ok");
       ["pNom", "pPrenom", "pAnnee"].forEach(function (i) { $(i).value = ""; });
@@ -2930,8 +2981,13 @@
         $("pCategorie").value = d.participant.categorie || "";
       });
       chargerParticipants();
-    }).catch(signaler);
-  });
+    }).catch(function (e) {
+      // Le refus porte deja les fiches qui ressemblent : on les montre, avec
+      // le bouton qui passe outre. Aucun aller-retour de plus.
+      if (e && e.corps && e.corps.homonymes) montrerHomonymes(e.corps.homonymes, true);
+      signaler(e);
+    });
+  }
 
   // --- L'annee et la categorie se repondent (spec 008, decision D8) ---------
   //
@@ -3009,6 +3065,23 @@
     $("etatBareme").innerHTML =
       "<dt>Saison</dt><dd>" + (d.saison || "—") +
       " · référence <b>" + (d.reference || "—") + "</b></dd>";
+
+    // Un verdict d'UNE ligne : ce que le bareme ne peut pas ranger. Le
+    // controle de coherence de la maquette a disparu avec la saisie -- un
+    // bareme derive ne peut pas avoir de trou.
+    var hors = d.hors_de_portee || {};
+    var verdict = $("verdictBareme");
+    var restes = [];
+    if (hors.sans_annee) restes.push(hors.sans_annee + " sans année");
+    if (hors.hors_bareme) restes.push(hors.hors_bareme + " hors barème");
+    if (restes.length) {
+      verdict.className = "verdict est-attention";
+      verdict.innerHTML = '<span class="rond"></span>' + restes.join(" · ") +
+        " — non touché(s) par le barème";
+    } else {
+      verdict.className = "verdict est-ok";
+      verdict.innerHTML = '<span class="rond"></span>Tout le monde est rangeable';
+    }
 
     var corps = $("listeBareme");
     corps.innerHTML = "";
@@ -3483,6 +3556,136 @@
 
   $("btnReleverHelloasso").addEventListener("click", function () { relever(false); });
   $("btnReleverTout").addEventListener("click", function () { relever(true); });
+
+  // --- Doublons (spec 008) --------------------------------------------------
+  //
+  // Le formatage unifie et la garde d'ajout empechent d'en CREER de nouveaux.
+  // Cette carte traite ceux qui sont deja la : une base qui a vecu avant le
+  // 04/09, ou un classeur ecrit a la main.
+
+  function chargerDoublons() {
+    appeler("/admin/doublons").then(function (d) {
+      var groupes = d.doublons || [];
+      $("carteDoublons").hidden = groupes.length === 0;
+      $("compteDoublons").textContent = groupes.length;
+      var zone = $("listeDoublons");
+      zone.innerHTML = "";
+      groupes.forEach(function (groupe) { zone.appendChild(carteDoublon(groupe)); });
+    }).catch(function () { $("carteDoublons").hidden = true; });
+  }
+
+  function carteDoublon(groupe) {
+    var cas = document.createElement("div");
+    cas.className = "cas";
+
+    var quoi = document.createElement("div");
+    quoi.className = "quoi";
+    var nom = document.createElement("b");
+    nom.textContent = groupe.participants[0].nom;
+    var motif = document.createElement("span");
+    motif.className = "motif";
+    motif.textContent = "Même nom, même club";
+    quoi.appendChild(nom); quoi.appendChild(motif);
+    cas.appendChild(quoi);
+
+    var face = document.createElement("div");
+    face.className = "face-a-face";
+    groupe.participants.forEach(function (p) {
+      var col = document.createElement("div");
+      col.className = "colonne";
+      var h = document.createElement("h3");
+      h.textContent = "Dossard " + (p.dossard === null ? "aucun" : p.dossard);
+      col.appendChild(h);
+      var dl = document.createElement("dl");
+      [["Club", p.club || "—"], ["Catégorie", p.categorie || "—"],
+       ["Année", p.annee_naissance || "—"],
+       ["Réussites", p.reussites]].forEach(function (paire) {
+        var dt = document.createElement("dt"); dt.textContent = paire[0];
+        var dd = document.createElement("dd"); dd.textContent = paire[1];
+        dl.appendChild(dt); dl.appendChild(dd);
+      });
+      col.appendChild(dl);
+      face.appendChild(col);
+    });
+    cas.appendChild(face);
+
+    // Un bouton par fiche a GARDER : c'est l'organisateur qui sait lequel des
+    // deux dossards est deja imprime et distribue, le serveur ne peut pas le
+    // deviner.
+    var boutons = document.createElement("div");
+    boutons.className = "boutons";
+    groupe.participants.forEach(function (garde) {
+      var autres = groupe.participants.filter(function (p) { return p.id !== garde.id; });
+      autres.forEach(function (absorbe) {
+        var b = document.createElement("button");
+        b.className = "mini fort";
+        b.type = "button";
+        b.textContent = "Garder le dossard " +
+          (garde.dossard === null ? "sans numéro" : garde.dossard);
+        b.addEventListener("click", function () {
+          appeler("/admin/doublons/fusionner", { methode: "POST", corps: {
+            garder: garde.id, absorber: absorbe.id } })
+            .then(function (r) {
+              dire("Fusionné" + (r.reussites_deplacees
+                ? " — " + r.reussites_deplacees + " réussite(s) déplacée(s)." : "."), "ok");
+              chargerParticipants();
+            }).catch(signaler);
+        });
+        boutons.appendChild(b);
+      });
+    });
+    cas.appendChild(boutons);
+    return cas;
+  }
+
+  // Les homonymes que le serveur signale a l'ajout. Ils viennent AVEC la
+  // reponse : aucune requete de plus pour les montrer.
+  function montrerHomonymes(liste, refuse) {
+    var zone = $("rappelHomonyme");
+    if (!liste || !liste.length) { zone.hidden = true; return; }
+    zone.hidden = false;
+    zone.className = "";
+    zone.innerHTML = "";
+
+    var titre = document.createElement("p");
+    titre.className = "verdict est-attention";
+    titre.innerHTML = '<span class="rond"></span>' +
+      (refuse ? "Cette personne est déjà inscrite"
+              : liste.length + " personne(s) du même nom déjà inscrite(s)");
+    zone.appendChild(titre);
+
+    var scroll = document.createElement("div");
+    scroll.className = "scroll";
+    var table = document.createElement("table");
+    table.innerHTML = "<thead><tr><th>Dossard</th><th>Nom</th><th>Club</th>" +
+      "<th>Catégorie</th></tr></thead>";
+    var corps = document.createElement("tbody");
+    liste.forEach(function (p) {
+      var tr = document.createElement("tr");
+      tr.innerHTML = '<td class="num"></td><td></td><td></td><td></td>';
+      tr.children[0].textContent = p.dossard === null ? "aucun" : p.dossard;
+      tr.children[1].textContent = p.nom;
+      tr.children[2].textContent = p.club || "—";
+      tr.children[3].textContent = p.categorie || "—";
+      corps.appendChild(tr);
+    });
+    table.appendChild(corps);
+    scroll.appendChild(table);
+    zone.appendChild(scroll);
+
+    if (refuse) {
+      var boutons = document.createElement("div");
+      boutons.className = "boutons";
+      boutons.style.marginTop = "12px";
+      var forcer = document.createElement("button");
+      forcer.className = "mini";
+      forcer.type = "button";
+      forcer.textContent = "Ce sont deux personnes différentes — ajouter quand même";
+      forcer.addEventListener("click", function () { ajouterParticipant(true); });
+      boutons.appendChild(forcer);
+      zone.appendChild(boutons);
+    }
+  }
 
   // --- Saisie manuelle ------------------------------------------------------
 

@@ -24,15 +24,19 @@ from ..comptes import ADMIN, ORGANISATEUR, ErreurCompte, verifier
 from .. import qr
 from .. import classement_service
 from ..extensions import db
-from ..models import Bloc, SOURCE_MANUEL, Competition, Participant, Utilisateur
+from ..models import (Bloc, SOURCE_MANUEL, Competition, Participant,
+                      Success, Utilisateur)
 from ..contest import (
     ErreurMetier, ajouter_participant, ajouter_participant_numerote, appareils,
-    bloc_par_tag, competition_active, enregistrer_reussite, incrementer_catalogue,
+    bloc_par_tag, club_canonique, competition_active,
+    enregistrer_reussite, homonymes,
+    incrementer_catalogue,
     participant_par_dossard, reaffecter_dossard, reussites_tracees,
     supprimer_reussite, verifier_annee,
 )
 from .. import bareme as bareme_module
 from ..helloasso import client as ha_client
+from ..helloasso import correspondance as ha_correspondance
 from ..helloasso import planificateur as ha_planificateur
 from ..helloasso import releve as ha_releve
 from ..helloasso import salle as ha_salle
@@ -400,6 +404,25 @@ def ajouter_participant_route():
     corps = _corps_objet()
     if corps is None:
         return jsonify({"success": False, "message": "Corps JSON attendu"}), 400
+
+    # ⚠️ Le doublon se PREVIENT avant de se refuser (04/09).
+    #
+    # La garde de `ajouter_participant` refuse un homonyme du meme club. Mais
+    # un homonyme d'un club DIFFERENT, ou dont le club n'est pas encore saisi,
+    # passe -- et c'est voulu, deux « Martin Lea » existent vraiment. Reste que
+    # l'organisateur doit le savoir AVANT de creer : la route rend donc les
+    # homonymes avec la reponse, et la console propose de reprendre la fiche
+    # plutot que d'en ouvrir une seconde.
+    #
+    # C'est ce que la contrainte metier §3 demande : « detection de doublon
+    # [...] avec validation humaine ».
+    try:
+        comp = competition_active()
+        deja_la = [p.pour_la_console() for p in homonymes(
+            comp, corps.get("nom", ""), corps.get("prenom"))]
+    except ErreurMetier:
+        deja_la = []
+
     # Le dossard n'est plus saisi (spec 013) : il est attribue. Un corps qui en
     # porte un quand meme est honore -- la route reste compatible avec les
     # appels existants, et avec ses propres tests.
@@ -409,6 +432,7 @@ def ajouter_participant_route():
                 nom=corps.get("nom", ""), prenom=corps.get("prenom"),
                 club=corps.get("club"), categorie=corps.get("categorie"),
                 annee_naissance=corps.get("annee_naissance"),
+                autoriser_homonyme=bool(corps.get("autoriser_homonyme")),
             )
         else:
             p = ajouter_participant(
@@ -416,12 +440,17 @@ def ajouter_participant_route():
                 club=corps.get("club"), categorie=corps.get("categorie"),
                 dossard=corps.get("dossard"),
                 annee_naissance=corps.get("annee_naissance"),
+                autoriser_homonyme=bool(corps.get("autoriser_homonyme")),
             )
     except ErreurMetier as e:
-        return jsonify({"success": False, "message": e.message}), e.code
+        # Le refus porte les fiches qui ressemblent : la console peut proposer
+        # « Reprendre » sans un aller-retour de plus.
+        return jsonify({"success": False, "message": e.message,
+                        "homonymes": deja_la}), e.code
 
     logger.info("participant ajoute par %s : %s", g.utilisateur.identifiant, p.nom_complet)
-    return jsonify({"success": True, "participant": p.pour_la_console()}), 201
+    return jsonify({"success": True, "participant": p.pour_la_console(),
+                    "homonymes": deja_la}), 201
 
 
 @bp.patch("/participants/<int:participant_id>")
@@ -473,7 +502,10 @@ def modifier_participant(participant_id):
         if "prenom" in corps:
             p.prenom = formatage.nom(corps["prenom"])
         if "club" in corps:
-            p.club = formatage.club(corps["club"])
+            # L'orthographe deja en base fait reference : « caf vivarais »
+            # corrige a la main ne doit pas fabriquer un second « Caf Vivarais »
+            # a cote du « CAF Vivarais » du classeur.
+            p.club = club_canonique(comp, corps["club"])
         if "annee_naissance" in corps:
             p.annee_naissance = verifier_annee(corps["annee_naissance"])
         if "categorie" in corps:
@@ -514,6 +546,7 @@ def categories_bareme():
         "reference": reference,
         "saison": f"{reference - 1}-{reference}",
         "tranches": bareme_module.tranches(comp),
+        "hors_de_portee": bareme_module.hors_de_portee(comp),
     }), 200
 
 
@@ -1829,7 +1862,21 @@ def helloasso_formulaires():
 @bp.post("/helloasso/formulaire")
 @exige_role(ORGANISATEUR)
 def helloasso_choisir_formulaire():
-    """Choisit le formulaire de l'edition."""
+    """Choisit le formulaire de l'edition, et DEVINE ce que veulent dire ses champs.
+
+    « Lors des imports je veux un maximum d'automatisation » (Adrien, 04/09).
+    Choisir le formulaire lit un echantillon d'articles, reconnait les champs
+    -- par leur nom, et a defaut par leurs reponses -- et pre-remplit la
+    correspondance. Il ne reste a l'organisateur qu'a regarder et corriger.
+
+    ⚠️ Rien n'est devine EN SILENCE : la reponse porte `trouves`, et la console
+    dit ce qu'elle a reconnu toute seule. Une reconnaissance muette
+    transformerait une erreur de colonne en cent inscriptions mal rangees, sans
+    que personne sache ou regarder.
+
+    Un formulaire encore vide -- aucune inscription -- ne fait pas echouer le
+    choix : on enregistre, et la reconnaissance se refera au premier releve.
+    """
     corps = _corps_objet() or {}
     try:
         comp = competition_active()
@@ -1843,15 +1890,41 @@ def helloasso_choisir_formulaire():
         return jsonify({"success": False,
                         "message": "Association, type et formulaire sont attendus"}), 400
 
+    ancien = ha_releve.reglages(comp)
+    devine = {"champs": {}, "genre_valeurs": {}, "trouves": [],
+              "genres_inconnus": []}
+    champs_vus = {}
+    try:
+        client = ha_client.ClientHelloAsso()
+        articles = client.echantillon(organisation, type_de_formulaire, slug)
+        champs_vus = ha_correspondance.champs_du_formulaire(articles)
+        devine = ha_correspondance.deviner(champs_vus)
+    except ha_client.ErreurHelloAsso as e:
+        # Le formulaire s'enregistre quand meme : on ne perd pas le choix pour
+        # une reconnaissance qui n'a pas pu se faire.
+        logger.info("reconnaissance des champs impossible : %s", e.message)
+
+    # Ce qui a ete regle A LA MAIN n'est jamais ecrase par une proposition.
+    champs_retenus = dict(devine["champs"])
+    for role, valeur in (ancien.get("champs") or {}).items():
+        if valeur:
+            champs_retenus[role] = valeur
+
     cycle.ecrire_options(comp, helloasso={
-        **ha_releve.reglages(comp),
+        **ancien,
         "organisation": organisation,
         "form_type": type_de_formulaire,
         "form_slug": slug,
+        "champs": champs_retenus,
+        "genre_valeurs": {**devine["genre_valeurs"],
+                          **(ancien.get("genre_valeurs") or {})},
     })
-    logger.info("formulaire HelloAsso choisi par %s : %s",
-                g.utilisateur.identifiant, slug)
-    return jsonify({"success": True, "formulaire": ha_releve.reglages(comp)}), 200
+    logger.info("formulaire HelloAsso choisi par %s : %s (reconnu : %s)",
+                g.utilisateur.identifiant, slug, ", ".join(devine["trouves"]) or "rien")
+    return jsonify({"success": True, "formulaire": ha_releve.reglages(comp),
+                    "trouves": devine["trouves"],
+                    "genres_inconnus": devine["genres_inconnus"],
+                    "champs_vus": champs_vus}), 200
 
 
 @bp.post("/helloasso/champs")
@@ -1941,3 +2014,133 @@ def inscription_remise(identifiant):
     except ErreurMetier as e:
         return jsonify({"success": False, "message": e.message}), e.code
     return jsonify({"success": True, "inscription": inscription.to_dict()}), 200
+
+
+# --- Les doublons (spec 008, 04/09) ------------------------------------------
+#
+# « Je ne veux pas de doublon. » Le formatage unifie et la garde d'ajout
+# empechent d'en CREER de nouveaux ; ces deux routes traitent ceux qui sont
+# deja la -- une base qui a vecu avant le 04/09, ou un import de classeur ecrit
+# a la main.
+
+@bp.get("/doublons")
+@exige_role(ORGANISATEUR)
+def doublons_lister():
+    """Les groupes de participants qui sont probablement la meme personne.
+
+    Meme identite normalisee **et** meme club : c'est la seule combinaison qui
+    autorise a parler de doublon. Deux homonymes de clubs differents existent
+    vraiment (risque R5), et les melanger en perdrait un.
+    """
+    try:
+        comp = competition_active()
+    except ErreurMetier as e:
+        return jsonify({"success": False, "message": e.message}), e.code
+
+    groupes = {}
+    for p in Participant.query.filter_by(competition_id=comp.id):
+        cle = (formatage.identite(p.nom, p.prenom), formatage.identite_club(p.club))
+        if not cle[0] or not cle[1]:
+            continue                       # sans nom ou sans club : on ne conclut pas
+        groupes.setdefault(cle, []).append(p)
+
+    doubles = []
+    for (identite, _), gens in sorted(groupes.items()):
+        if len(gens) < 2:
+            continue
+        gens.sort(key=lambda p: (p.dossard is None, p.dossard or 0, p.id))
+        doubles.append({
+            "identite": identite,
+            "participants": [{
+                **p.pour_la_console(),
+                "reussites": len(p.reussites),
+            } for p in gens],
+        })
+    return jsonify({"success": True, "doublons": doubles}), 200
+
+
+@bp.post("/doublons/fusionner")
+@exige_role(ORGANISATEUR)
+def doublons_fusionner():
+    """Fusionne deux participants. `{"garder": id, "absorber": id}`.
+
+    Ce que ca fait, dans cet ordre :
+
+    1. les REUSSITES de l'absorbe passent au gardé -- sauf celles qui feraient
+       doublon sur un meme bloc, qui sont simplement supprimees. La contrainte
+       `uq_reussite` interdirait l'insertion, et perdre une reussite deja
+       presente chez l'autre ne perd rien ;
+    2. les champs vides du gardé sont completes par ceux de l'absorbe ;
+    3. les inscriptions HelloAsso de l'absorbe sont rattachees au gardé ;
+    4. l'absorbe est supprime, et son dossard redevient libre.
+
+    ⚠️ On ne choisit PAS lequel garder : c'est l'organisateur qui le dit. Le
+    dossard survivant est celui qui est deja imprime et distribue -- le serveur
+    n'a aucun moyen de savoir lequel.
+    """
+    corps = _corps_objet() or {}
+    try:
+        comp = competition_active()
+    except ErreurMetier as e:
+        return jsonify({"success": False, "message": e.message}), e.code
+
+    garde = db.session.get(Participant, corps.get("garder"))
+    absorbe = db.session.get(Participant, corps.get("absorber"))
+    if garde is None or absorbe is None:
+        return jsonify({"success": False, "message": "Participant inconnu"}), 404
+    if garde.id == absorbe.id:
+        return jsonify({"success": False,
+                        "message": "Les deux fiches sont la meme"}), 400
+    if comp.id not in (garde.competition_id, absorbe.competition_id) \
+            or garde.competition_id != absorbe.competition_id:
+        return jsonify({"success": False,
+                        "message": "Les deux fiches ne sont pas de la meme competition"}), 409
+
+    # ⚠️ Les reussites se deplacent par une MISE A JOUR, pas en reaffectant
+    # `participant_id` sur des objets encore accroches a `absorbe.reussites`.
+    #
+    # La relation porte `cascade="all, delete-orphan"` : tant qu'un objet est
+    # dans la collection, supprimer le participant l'emporte -- meme si sa cle
+    # etrangere vient d'etre changee. Le test l'a montre : les reussites
+    # disparaissaient au lieu de changer de main, ce qui est exactement le
+    # contraire de ce que « fusionner » promet.
+    deja = {r.bloc_id for r in garde.reussites}
+    a_deplacer = [r.id for r in absorbe.reussites if r.bloc_id not in deja]
+    en_double = [r.id for r in absorbe.reussites if r.bloc_id in deja]
+    deplacees, doublons_de_reussite = len(a_deplacer), len(en_double)
+
+    if en_double:
+        # Perdre une reussite deja presente chez l'autre ne perd rien : la
+        # contrainte `uq_reussite` interdirait de toute facon l'insertion.
+        Success.query.filter(Success.id.in_(en_double)).delete(
+            synchronize_session=False)
+    if a_deplacer:
+        Success.query.filter(Success.id.in_(a_deplacer)).update(
+            {"participant_id": garde.id}, synchronize_session=False)
+    db.session.expire(absorbe)
+    db.session.expire(garde)
+
+    for champ in ("prenom", "club", "categorie", "annee_naissance"):
+        if getattr(garde, champ) in (None, "") and getattr(absorbe, champ):
+            setattr(garde, champ, getattr(absorbe, champ))
+    if garde.dossard is None and absorbe.dossard is not None:
+        garde.dossard = absorbe.dossard
+        absorbe.dossard = None
+
+    for inscription in list(absorbe.inscriptions):
+        inscription.participant_id = garde.id
+        db.session.add(inscription)
+
+    db.session.add(garde)
+    db.session.flush()
+    db.session.delete(absorbe)
+    incrementer_catalogue(comp)
+    db.session.commit()
+
+    logger.info("doublon fusionne par %s : %s absorbe dans %s "
+                "(%d reussite(s) deplacee(s), %d en double)",
+                g.utilisateur.identifiant, absorbe.id, garde.id,
+                deplacees, doublons_de_reussite)
+    return jsonify({"success": True, "participant": garde.pour_la_console(),
+                    "reussites_deplacees": deplacees,
+                    "reussites_en_double": doublons_de_reussite}), 200

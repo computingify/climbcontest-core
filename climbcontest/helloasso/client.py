@@ -376,6 +376,21 @@ class ClientHelloAsso:
             f"/organizations/{slug}/forms/{type_de_formulaire}/"
             f"{slug_formulaire}/public")
 
+    def echantillon(self, slug: str, type_de_formulaire: str,
+                    slug_formulaire: str, combien: int = 60) -> list[dict]:
+        """Les premiers articles, pour RECONNAITRE les champs du formulaire.
+
+        On n'en lit qu'une poignee : reconnaitre une colonne ne demande pas de
+        tout telecharger, et ce geste se fait depuis la console, en attendant
+        devant l'ecran.
+        """
+        vus = []
+        for article in self.articles(slug, type_de_formulaire, slug_formulaire):
+            vus.append(article)
+            if len(vus) >= combien:
+                break
+        return vus
+
     def articles(self, slug: str, type_de_formulaire: str, slug_formulaire: str,
                  depuis: datetime | None = None):
         """Les articles vendus, page par page. **Un article = un inscrit.**

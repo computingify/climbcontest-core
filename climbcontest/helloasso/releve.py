@@ -37,7 +37,7 @@ from ..models import (
     MOTIF_CLUB_DIFFERENT, MOTIF_GENRE_INDETERMINE, MOTIF_SANS_NOM,
     Participant, SOURCE_HELLOASSO,
 )
-from . import rapprochement
+from . import correspondance, rapprochement
 from .client import ClientHelloAsso, ErreurHelloAsso
 
 logger = logging.getLogger(__name__)
@@ -124,10 +124,19 @@ def annee_de(reponse) -> int | None:
 def genre_de(reponse, table: dict) -> str | None:
     """« Fille » → « F ». Une réponse inconnue rend None, **jamais « H »**.
 
-    « Fille », « F », « Féminin » sont trois écritures de la même chose, et
-    aucune règle générale ne les couvre toutes : c'est l'organisateur qui les
-    range, une fois, depuis la console. Prendre une valeur par défaut ferait
-    entrer des grimpeuses dans un classement masculin sans que rien ne le dise.
+    Deux sources, dans cet ordre :
+
+    1. la **table de l'édition**, rangée depuis la console. Elle gagne toujours,
+       parce que c'est un humain qui l'a écrite ;
+    2. à défaut, la **table intégrée** de `correspondance.GENRES_CONNUS` —
+       « Fille », « F », « Féminin », « Girl » sont quatre écritures de la même
+       chose, et les faire saisir à chaque édition serait du paramétrage pour
+       une information que tout le monde écrit pareil.
+
+    ⚠️ Ce qui n'est reconnu par aucune des deux rend None, et l'inscription part
+    en attente. Prendre une valeur par défaut ferait entrer des grimpeuses dans
+    un classement masculin sans que rien ne le dise — l'erreur qu'on ne
+    remarquerait qu'au podium.
     """
     if reponse is None:
         return None
@@ -135,7 +144,7 @@ def genre_de(reponse, table: dict) -> str | None:
     for vue, range_en in (table or {}).items():
         if vue.strip().lower() == brut.lower():
             return (range_en or "").strip() or None
-    return None
+    return correspondance.genre_connu(brut)
 
 
 def lire_article(article: dict, commande: dict, config: dict,
@@ -307,10 +316,15 @@ def poser(comp, lu: dict, rapport: Rapport) -> Inscription:
     # Rien d'ambigu : le participant est cree par le MEME chemin que le bouton
     # « Ajouter » de la console (decision D2). Deux chemins de creation
     # divergeraient au premier correctif.
+    # ⚠️ `autoriser_homonyme` : le rapprochement vient de dire NOUVEAU, et il
+    # regarde PLUS LARGE que la garde de `ajouter_participant` -- il tient
+    # compte des inscriptions encore en attente, pas seulement des participants
+    # deja crees. Laisser la garde reposer la question ferait echouer l'article,
+    # qui serait retente a chaque tour de soixante secondes, pour toujours.
     participant = ajouter_participant_numerote(
         nom=lu["nom"], prenom=lu["prenom"], club=lu["club"],
         categorie=lu["categorie"], source=SOURCE_HELLOASSO,
-        annee_naissance=lu["annee_naissance"])
+        annee_naissance=lu["annee_naissance"], autoriser_homonyme=True)
     inscription.participant_id = participant.id
     inscription.etat = A_IMPRIMER
     inscription.motif = None

@@ -145,6 +145,29 @@ def tranches(comp) -> list[dict]:
     return lignes
 
 
+def hors_de_portee(comp) -> dict:
+    """Ce que le barème ne peut ranger, et pourquoi. Une ligne à l'écran.
+
+    ⚠️ Le contrôle de cohérence annoncé dans la maquette — recouvrement, trou,
+    circuit vide — n'a plus lieu d'être : depuis que le barème se **dérive** de
+    l'ensemble des Under au lieu d'être saisi, il partitionne les années par
+    construction. Un trou ou un recouvrement y sont inexprimables.
+
+    Ce qui reste vrai et utile, c'est ceci : combien de personnes le barème ne
+    peut pas ranger, et pour quelle raison. C'est actionnable — l'une se règle
+    en saisissant une année, l'autre en admettant qu'un adulte n'a pas de U.
+    """
+    ref = reference(comp)
+    liste_unders = unders(comp)
+    sans_annee = hors = 0
+    for p in Participant.query.filter_by(competition_id=comp.id):
+        if p.annee_naissance is None:
+            sans_annee += 1
+        elif categories.circuit(p.annee_naissance, ref, liste_unders) is None:
+            hors += 1
+    return {"sans_annee": sans_annee, "hors_bareme": hors}
+
+
 def apercu(comp, forcer: bool = False) -> dict:
     """Ce que « Appliquer » changerait. **N'écrit rien.**
 

@@ -237,3 +237,43 @@ class TestVerifierAnnee:
     def test_ce_qui_est_refuse(self, brut):
         with pytest.raises(ErreurMetier):
             bareme.verifier_annee(brut)
+
+
+class TestCeQueLeBaremeNePeutPasRanger:
+    """Le verdict d'une ligne, à l'écran des Catégories.
+
+    ⚠️ Le contrôle de cohérence annoncé dans la maquette — recouvrement, trou,
+    circuit vide — a disparu avec la saisie : un barème **dérivé** de
+    l'ensemble des Under partitionne les années par construction, et un trou y
+    est inexprimable. Ce qui reste vrai et utile, c'est ce qu'il ne peut pas
+    ranger.
+    """
+
+    def test_personne_a_ranger(self, app, competition):
+        poser(competition, "A", "U13 F", annee=2015)
+        assert bareme.hors_de_portee(competition) == {
+            "sans_annee": 0, "hors_bareme": 0}
+
+    def test_sans_annee(self, app, competition):
+        poser(competition, "A", "U13 F", annee=2015)
+        poser(competition, "B", "U13 F")
+        assert bareme.hors_de_portee(competition)["sans_annee"] == 1
+
+    def test_hors_bareme(self, app, competition):
+        poser(competition, "A", "U13 F", annee=2015)
+        poser(competition, "B", "Senior H", annee=1990)
+        assert bareme.hors_de_portee(competition)["hors_bareme"] == 1
+
+    def test_le_bareme_derive_ne_peut_pas_avoir_de_trou(self, app, competition):
+        """La preuve par la construction : chaque année entre la plus âgée et
+        la plus jeune tombe dans exactement une tranche."""
+        poser(competition, "A", "U11 F", annee=2018)
+        poser(competition, "B", "U15 H", annee=2013)
+        tranches = bareme.tranches(competition)
+        couvertes = [t for t in tranches if not t["hors_bareme"]]
+        plus_agee = min(t["annee_min"] for t in couvertes)
+        for annee in range(plus_agee, 2028):
+            portee = [t for t in couvertes
+                      if t["annee_min"] <= annee
+                      and (t["annee_max"] is None or annee <= t["annee_max"])]
+            assert len(portee) == 1, (annee, [t["circuit"] for t in portee])

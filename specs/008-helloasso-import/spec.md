@@ -169,6 +169,100 @@ La comparaison passe par les normalisations de `formatage.py` : minuscules,
 accents retirés, tirets et apostrophes en séparateurs. « DUPONT Jean-Luc » et
 « dupont jean luc » sont le même nom.
 
+
+## 5 bis. Un seul formatage, et aucun doublon
+
+> Demande d'Adrien le 04/09, après la livraison des sept lots : « débrouille-toi
+> pour uniformiser le formatage, je ne veux pas de doublon ».
+
+Un doublon naît toujours du même écart : **deux écritures d'un même nom qui ne
+tombent pas sur la même clé**. Quatre chemins pouvaient le produire ; ils sont
+fermés un par un.
+
+### La clé d'identité vit avec les règles de mise en forme
+
+`formatage.identite()` et `formatage.identite_club()` sont désormais dans
+`formatage.py`, à côté des règles qui les rendent vraies — et non plus dans le
+module qui rapproche les inscriptions. Si la mise en forme et la comparaison
+vivent dans deux fichiers, elles dérivent : l'une gagne une règle que l'autre
+n'a pas, et le doublon revient par la porte qu'on n'a pas refermée.
+
+### Le classeur passe par le formatage
+
+**Changement de doctrine.** La spec 013 tenait `sheets/importer.py` à l'écart,
+au motif que « le classeur fait autorité sur ses propres lignes ». Ce
+raisonnement se retourne : une erreur de casse dans le classeur n'est pas une
+erreur qu'on veut voir, c'est une erreur qui **fabrique** un doublon.
+« ANNONAY ESCALADE » importé et « annonay escalade » tapé au guichet donnaient
+deux clubs, deux entrées dans la liste déroulante, et un rapprochement qui
+échoue.
+
+Ce qui reste vrai de la réserve d'origine : le formatage ne corrige que la
+**forme**. Un nom mal orthographié, une catégorie inexistante, un dossard en
+double restent signalés par le rapport d'import.
+
+### La première orthographe fait référence
+
+`formatage.club()` ne préserve un sigle que s'il est **déjà** en capitales :
+« caf vivarais » devient donc « Caf Vivarais », à côté du « CAF Vivarais » du
+classeur. Aucune liste de sigles connus ne réglerait ça — il faudrait la tenir à
+jour pour chaque club de la région.
+
+La règle retenue est plus simple et plus juste : **le club existe déjà sous une
+forme, on reprend la sienne**. `contest.club_canonique()`, appliqué à l'import,
+à la saisie et à l'édition en ligne.
+
+### La garde à l'ajout
+
+Créer un participant de même identité **et même club** est refusé — `409`, avec
+le nom de celui qui est déjà là.
+
+| Cas | Ce qui se passe |
+| --- | --- |
+| Même nom, **même club** | **Refusé.** La console montre la fiche et propose de la reprendre |
+| Même nom, **club différent** | **Créé**, et signalé. Deux « Martin Lea » existent vraiment — c'est le risque R5 |
+| Même nom, **club absent** d'un côté | **Créé**, et signalé. Deviner sur un champ vide ferait fusionner deux personnes |
+| Refus forcé à la main | **Créé.** Deux cousins homonymes au même club, ça se voit une fois |
+
+### Ce qui est déjà là
+
+Une base qui a vécu avant le 04/09 porte peut-être des doublons. Une carte
+**Doublons** paraît dans la vue Participants — et seulement s'il y en a. Elle
+montre les fiches côte à côte et laisse choisir **laquelle garde son dossard** :
+c'est celui qui est déjà imprimé et distribué, et le serveur n'a aucun moyen de
+le savoir.
+
+La fusion déplace les réussites, complète les champs vides, rattache les
+inscriptions, et supprime la fiche absorbée.
+
+## 5 ter. L'import devine
+
+> « Lors des imports je veux un maximum d'automatisation. »
+
+`helloasso/correspondance.py` reconnaît les champs du formulaire, de deux
+façons — et la seconde est celle qui sert le plus :
+
+1. **par le nom** : *date de naissance*, *né(e) le*, *sexe*, *genre*, *club*,
+   *association*… ;
+2. **par les réponses** : un champ dont **toutes** les réponses sont des
+   écritures de genre connues *est* un champ de genre, quel que soit son
+   intitulé. C'est le filet qui rattrape « Votre enfant est » et tous les
+   libellés qu'aucune liste de mots-clés ne prévoira.
+
+Une table intégrée reconnaît « Fille », « F », « Féminin », « Girl » — quatre
+écritures de la même chose, qu'il serait absurde de faire saisir à chaque
+édition. La table de l'édition, elle, **gagne toujours** : c'est un humain qui
+l'a écrite.
+
+Deux garde-fous, et ils comptent autant que l'automatisation :
+
+- **un intrus suffit à disqualifier.** « La plupart ressemblent à des genres »
+  ne vaut jamais reconnaissance : une erreur de colonne rangerait tout un
+  formulaire de travers, et personne ne saurait où regarder ;
+- **rien n'est deviné en silence.** Choisir le formulaire rend la liste de ce
+  qui a été reconnu, et les réponses qu'on n'a **pas** su ranger. Ce sont les
+  seules lignes qui demandent encore un geste.
+
 ## 6. Les trois sources, montrées
 
 | | Vient de | `Participant.source` |

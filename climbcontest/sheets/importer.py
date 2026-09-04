@@ -25,6 +25,8 @@ Structure du classeur : docs/technical/classeur-google.md.
 import logging
 from dataclasses import dataclass, field
 
+from .. import formatage
+from ..contest import club_canonique
 from ..extensions import db
 from ..models import (
     Bloc, BlocCircuit, Circuit, Competition, Participant, SOURCE_CLASSEUR,
@@ -153,10 +155,20 @@ def importer_participants(comp: Competition, classeur, rapport: Rapport,
                 f"Listes L{n} : dossard « {dossard_brut} » illisible pour « {nom_complet} »")
             continue
 
-        nom = _texte(ligne, I_NOM) or nom_complet
-        prenom = _texte(ligne, I_PRENOM)
-        club = _texte(ligne, I_CLUB)
-        categorie = _texte(ligne, I_CATEGORIE)
+        # ⚠️ Le formatage s'applique ICI DEPUIS LE 04/09, et c'est un
+        # changement de doctrine assume -- voir l'en-tete de `formatage.py`.
+        #
+        # Sans lui, « ANNONAY ESCALADE » venu du classeur et « Annonay
+        # Escalade » tape au guichet sont deux clubs : deux entrees dans la
+        # liste deroulante, et un rapprochement qui echoue. C'est-a-dire un
+        # doublon, fabrique par une difference de casse.
+        #
+        # Il ne corrige que la FORME : un nom mal orthographie ou une categorie
+        # inexistante restent signales par le rapport, plus bas.
+        nom = formatage.nom(_texte(ligne, I_NOM) or nom_complet)
+        prenom = formatage.nom(_texte(ligne, I_PRENOM))
+        club = club_canonique(comp, _texte(ligne, I_CLUB))
+        categorie = formatage.categorie(_texte(ligne, I_CATEGORIE))
 
         # Facultatif, mais on le dit — c'est ce qui manquait avant.
         if not categorie:

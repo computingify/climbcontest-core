@@ -102,12 +102,16 @@ def trancher(comp, identifiant, choix: str, par: str | None = None,
         inscription.etat = A_IMPRIMER
 
     elif choix == "deux_personnes":
+        # `autoriser_homonyme` : c'est litteralement ce que ce bouton dit. Un
+        # humain vient de regarder les deux fiches cote a cote et d'affirmer
+        # qu'il s'agit de deux personnes ; la garde n'a plus rien a decider.
         participant = ajouter_participant_numerote(
             nom=inscription.nom, prenom=inscription.prenom,
             club=inscription.club,
             categorie=categorie or inscription.categorie,
             source=SOURCE_HELLOASSO,
-            annee_naissance=inscription.annee_naissance)
+            annee_naissance=inscription.annee_naissance,
+            autoriser_homonyme=True)
         inscription.participant_id = participant.id
         inscription.etat = A_IMPRIMER
 
@@ -119,7 +123,8 @@ def trancher(comp, identifiant, choix: str, par: str | None = None,
             nom=inscription.nom, prenom=inscription.prenom,
             club=inscription.club, categorie=categorie,
             source=SOURCE_HELLOASSO,
-            annee_naissance=inscription.annee_naissance)
+            annee_naissance=inscription.annee_naissance,
+            autoriser_homonyme=True)
         # Range a la main : « Appliquer le bareme a tous » ne doit pas defaire
         # ce choix (decision D10).
         participant.categorie_forcee = True
