@@ -6,32 +6,32 @@ L'ordre n'est pas indifférent : **le serveur d'abord**, parce que les deux
 clients lisent ce qu'il expose, et qu'un écran branché sur un contrat qui n'existe
 pas encore se teste avec des données inventées.
 
-- [ ] **1. `version.py`** — module neuf : `VERSION`, `posee_le()`. `sante.py`
+- [x] **1. `version.py`** — module neuf : `VERSION`, `posee_le()`. `sante.py`
       l'importe et cesse de lire le fichier lui-même. Aucun changement de
       comportement de `/health`.
-- [ ] **2. La table `appareil`** — modèle, et `contest.enregistrer_annonce()`.
+- [x] **2. La table `appareil`** — modèle, et `contest.enregistrer_annonce()`.
       Vérifier d'abord `grep -rn "class Appareil\|def enregistrer_annonce"` :
       deux sessions ont déjà, cette semaine, ajouté le même nom dans un fichier
       partagé sans que git ne signale rien.
-- [ ] **3. `routes/catalogue.py`** — l'annonce **avant** la garde `a_jour`,
+- [x] **3. `routes/catalogue.py`** — l'annonce **avant** la garde `a_jour`,
       `X-Server-Version` et `Cache-Control: no-cache, private` sur les **deux**
       branches. Rien de ce qui est ajouté ne peut lever : l'annonce est
       enveloppée, un échec se journalise et le catalogue part quand même.
-- [ ] **3 bis. `routes/lot.py`** — la même annonce à la réception d'un lot, mais
+- [x] **3 bis. `routes/lot.py`** — la même annonce à la réception d'un lot, mais
       **sans** `catalogue_version` : recevoir un lot ne prouve rien sur le
       catalogue détenu. C'est la redondance de F8, celle qu'aucun cache
       n'absorbe.
-- [ ] **4. `contest.appareils()`** — union des téléphones vus et des téléphones
+- [x] **4. `contest.appareils()`** — union des téléphones vus et des téléphones
       qui ont envoyé, avec les nouveaux champs.
-- [ ] **5. `GET /admin/versions`** et `/admin/appareils` étendue, avec le
+- [x] **5. `GET /admin/versions`** et `/admin/appareils` étendue, avec le
       compte `annonces_perdues` — la détection de F8.
-- [ ] **6. La console** — pied de tiroir, carte « Versions en circulation »,
+- [x] **6. La console** — pied de tiroir, carte « Versions en circulation »,
       deux colonnes dans le tableau.
-- [ ] **7. La PWA — affichage** — `meta` de version, sections « Catalogue » et
+- [x] **7. La PWA — affichage** — `meta` de version, sections « Catalogue » et
       « Application », verdicts.
-- [ ] **8. La PWA — les deux boutons** — « Retélécharger maintenant », puis
+- [x] **8. La PWA — les deux boutons** — « Retélécharger maintenant », puis
       « Mettre à jour et redémarrer » avec son message de service worker.
-- [ ] **9. Relire le diff en entier** (porte 5), `CHANGELOG.md`, index des specs.
+- [x] **9. Relire le diff en entier** (porte 5), `CHANGELOG.md`, index des specs.
 
 ## Plan de test
 
@@ -104,9 +104,19 @@ pas encore se teste avec des données inventées.
 
 ## Vérifications manuelles (celles qu'aucun test ne remplace)
 
+> **Reprises le 04/09/2026, avant publication.** Deux des trois se jouent
+> désormais dans un navigateur — donc à chaque CI, et plus une seule fois. La
+> troisième reste à Adrien : aucun harnais ne remplace un iPhone.
+
 - [ ] Sur un vrai iPhone : l'écran Réglages, le bouton de retéléchargement, puis
       la mise à jour et le redémarrage.
-- [ ] Mode avion : les deux boutons refusent proprement, l'application reste
+      <br>↳ **Reste à faire, et c'est le seul qui vaut preuve** pour Safari iOS.
+- [x] Mode avion : les deux boutons refusent proprement, l'application reste
       utilisable et la file intacte.
-- [ ] Deux téléphones, dont un laissé sur l'ancienne coquille : la console
+      <br>↳ Automatisé : `test_navigateur_versions_pwa.py` met `fetch` en échec
+      et vérifie le message, le catalogue local et le bouton encore utilisable.
+- [x] Deux téléphones, dont un laissé sur l'ancienne coquille : la console
       montre bien lequel est en retard.
+      <br>↳ Tenu par `test_versions.py::TestListeDesAppareils` (trois téléphones,
+      dont un muet), et regardé à l'écran le 04/09 sur une console de
+      démonstration.

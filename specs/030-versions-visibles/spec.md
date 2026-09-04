@@ -218,43 +218,67 @@ simplification qu'une relecture pressée propose.
 
 ## 4. Critères d'acceptation
 
-- [ ] **A1** — `GET /api/v2/catalog` répond avec `X-Server-Version` en `200`
+> **Repris un par un le 04/09/2026**, sur `master`, avant publication : dix-sept
+> étaient tenus, **A9 ne l'était pas** — le pied du tiroir n'affichait le numéro
+> de catalogue qu'après un passage par l'écran « Téléphones ». Corrigé, et sept
+> critères qui ne tenaient que par un relevé à la main ont désormais leur test.
+> Le détail : [rapport du 04/09](../../docs/rapports/2026-09-04-verification-030-040.html).
+
+- [x] **A1** — `GET /api/v2/catalog` répond avec `X-Server-Version` en `200`
       **et** en `304`.
-- [ ] **A2** — Une requête portant `X-Device-Id` crée ou met à jour une ligne
+      <br>↳ *Tenu par* : `test_versions.py::TestEntetesDeReponse`, et relevé au `curl` sur les deux branches.
+- [x] **A2** — Une requête portant `X-Device-Id` crée ou met à jour une ligne
       `appareil`, **y compris quand la réponse est un `304`**.
-- [ ] **A3** — Une requête sans aucun de ces en-têtes se comporte exactement
+      <br>↳ *Tenu par* : `TestAnnonce::test_l_annonce_est_enregistree_meme_sur_un_304`.
+- [x] **A3** — Une requête sans aucun de ces en-têtes se comporte exactement
       comme avant : même corps, même ETag, même code.
-- [ ] **A4** — L'écran Réglages de la PWA affiche le numéro de catalogue local,
+      <br>↳ *Tenu par* : `TestAnnonce::test_sans_en_tete_rien_ne_change`.
+- [x] **A4** — L'écran Réglages de la PWA affiche le numéro de catalogue local,
       le nombre de grimpeurs et de blocs, et l'âge de la dernière réception.
-- [ ] **A5** — Il affiche la version de l'application, et le dit quand le
+      <br>↳ *Tenu par* : `test_navigateur_versions_pwa.py` — les trois valeurs lues dans un vrai navigateur.
+- [x] **A5** — Il affiche la version de l'application, et le dit quand le
       serveur en sert une autre.
-- [ ] **A6** — « Retélécharger maintenant » émet une requête **sans**
+      <br>↳ *Tenu par* : `test_navigateur_versions_pwa.py`, **dans les deux états** : le serveur ment sur `X-Server-Version` pour jouer « une version d'avance ».
+- [x] **A6** — « Retélécharger maintenant » émet une requête **sans**
       `If-None-Match` et **sans** `?depuis`, et remplace le catalogue local.
-- [ ] **A7** — Hors ligne, ce bouton laisse le catalogue local intact et le dit.
-- [ ] **A8** — « Mettre à jour et redémarrer » n'apparaît que si la coquille est
+      <br>↳ *Tenu par* : `test_navigateur_versions_pwa.py` — la requête est observée **côté serveur**, ni `If-None-Match` ni chaîne de requête.
+- [x] **A7** — Hors ligne, ce bouton laisse le catalogue local intact et le dit.
+      <br>↳ *Tenu par* : `test_navigateur_versions_pwa.py` — `fetch` mis en échec, message affiché, catalogue local intact.
+- [x] **A8** — « Mettre à jour et redémarrer » n'apparaît que si la coquille est
       en retard ; hors ligne, il ne détruit rien.
-- [ ] **A9** — Le pied du tiroir de la console affiche la version et le numéro
+      <br>↳ *Tenu par* : `test_navigateur_versions_pwa.py` — caché et de hauteur nulle quand la coquille est à jour, visible quand le serveur en sert une autre.
+- [x] **A9** — Le pied du tiroir de la console affiche la version et le numéro
       de catalogue, sur tous les écrans.
-- [ ] **A10** — La vue Téléphones affiche, par téléphone, sa version
+      <br>↳ *Tenu par* : `test_navigateur_console_versions.py` — mesuré **sans ouvrir l'écran Téléphones**. ⚠️ Ce critère n'était **pas tenu** avant le 04/09 : voir le rapport de vérification.
+- [x] **A10** — La vue Téléphones affiche, par téléphone, sa version
       d'application et son numéro de catalogue, et marque ceux qui divergent.
-- [ ] **A11** — Un téléphone qui s'est annoncé **sans envoyer de réussite**
+      <br>↳ *Tenu par* : `TestListeDesAppareils`, et vu à l'écran sur trois téléphones semés.
+- [x] **A11** — Un téléphone qui s'est annoncé **sans envoyer de réussite**
       apparaît dans le tableau, avec 0 réussite.
-- [ ] **A12** — Un téléphone qui n'annonce rien (app Android) apparaît avec
+      <br>↳ *Tenu par* : `TestListeDesAppareils::test_un_telephone_annonce_sans_reussite_apparait`.
+- [x] **A12** — Un téléphone qui n'annonce rien (app Android) apparaît avec
       « ne le dit pas », et ses colonnes existantes restent justes.
-- [ ] **A13** — En développement, sans fichier `VERSION`, la console et le
+      <br>↳ *Tenu par* : `TestListeDesAppareils::test_un_telephone_qui_envoie_sans_s_annoncer`.
+- [x] **A13** — En développement, sans fichier `VERSION`, la console et le
       téléphone affichent `dev` sans rien casser.
-- [ ] **A14** — La réponse du catalogue porte `Cache-Control: no-cache, private`
+      <br>↳ *Tenu par* : `TestModuleVersion::test_sans_fichier_la_version_vaut_dev`, et vu à l'écran.
+- [x] **A14** — La réponse du catalogue porte `Cache-Control: no-cache, private`
       en `200` **et** en `304`.
-- [ ] **A15** — Un lot envoyé avec une version d'application met à jour la ligne
+      <br>↳ *Tenu par* : `TestPasDeCache`, et relevé au `curl` sur les deux branches.
+- [x] **A15** — Un lot envoyé avec une version d'application met à jour la ligne
       `appareil` **sans** toucher à `catalogue_version` ni à `catalogue_vu_le`.
-- [ ] **A16** — Un téléphone qui envoie des réussites mais ne s'est plus annoncé
+      <br>↳ *Tenu par* : `TestAnnonceDepuisUnLot::test_un_lot_ne_renseigne_JAMAIS_le_catalogue`.
+- [x] **A16** — Un téléphone qui envoie des réussites mais ne s'est plus annoncé
       depuis un quart d'heure est signalé dans la console, avec la cause nommée.
-- [ ] **A17** — Un téléphone en retard sur le catalogue mais annoncé il y a
+      <br>↳ *Tenu par* : `TestDetecteurDeCache`, cinq tests dont les trois cas qui ne doivent **pas** déclencher.
+- [x] **A17** — Un téléphone en retard sur le catalogue mais annoncé il y a
       moins de six minutes est présenté comme **en train de rattraper**, pas
       comme une panne — et un téléphone dont les annonces sont absorbées par un
       cache ne l'est **jamais**, même si ses lots continuent d'arriver.
-- [ ] **A18** — Aucun écran ne promet « rien à faire » : la phrase du
+      <br>↳ *Tenu par* : `TestRattrapage`, trois tests.
+- [x] **A18** — Aucun écran ne promet « rien à faire » : la phrase du
       rattrapage nomme le geste qui débloque un téléphone en veille.
+      <br>↳ *Tenu par* : `test_navigateur_console_versions.py::TestLaPhraseDuRattrapageNommeLeGeste`.
 
 ## 5. Cas limites
 
