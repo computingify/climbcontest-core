@@ -131,10 +131,29 @@ def enregistrer_reussite(participant: Participant, bloc: Bloc,
         raise
 
 
+def verifier_annee(valeur) -> int | None:
+    """Une année de naissance saisie à la main. Rend None pour un champ vide.
+
+    Les bornes sont larges à dessein : ce n'est pas ici qu'on juge si l'année
+    est plausible — `categories.circuit()` le fait, et met l'inscription en
+    attente. Ici on refuse seulement ce qui n'est pas une année.
+    """
+    if valeur is None or str(valeur).strip() == "":
+        return None
+    try:
+        annee = int(str(valeur).strip())
+    except (TypeError, ValueError):
+        raise ErreurMetier(f"Annee de naissance invalide : {valeur!r}")
+    if not 1900 <= annee <= 2100:
+        raise ErreurMetier(f"Annee de naissance invalide : {annee}")
+    return annee
+
+
 def ajouter_participant(nom: str, prenom: str | None = None,
                         club: str | None = None, categorie: str | None = None,
                         dossard: int | None = None,
-                        source: str = SOURCE_MANUEL) -> Participant:
+                        source: str = SOURCE_MANUEL,
+                        annee_naissance=None) -> Participant:
     """Ajoute un participant a la competition en cours.
 
     Le cas reel : quelqu'un s'inscrit a 8 h 45, ou pendant la competition. Sans
@@ -150,6 +169,11 @@ def ajouter_participant(nom: str, prenom: str | None = None,
     nom = formatage.nom(nom)
     if not nom:
         raise ErreurMetier("Le nom est obligatoire")
+
+    # Verifiee ICI et non dans la route : un appel direct a l'API doit passer
+    # par le meme controle que le formulaire. C'est le raisonnement du
+    # formatage juste au-dessus, applique a la validation.
+    annee_naissance = verifier_annee(annee_naissance)
 
     comp = competition_active()
 
@@ -176,6 +200,7 @@ def ajouter_participant(nom: str, prenom: str | None = None,
         dossard=dossard,
         present=dossard is not None,
         source=source,
+        annee_naissance=annee_naissance,
     )
     db.session.add(p)
     # Sans cette incrementation, les telephones ne verraient jamais le nouveau
@@ -223,7 +248,9 @@ def prochain_dossard(comp: Competition) -> int:
 def ajouter_participant_numerote(nom: str, prenom: str | None = None,
                                  club: str | None = None,
                                  categorie: str | None = None,
-                                 essais: int = 5) -> Participant:
+                                 essais: int = 5,
+                                 source: str = SOURCE_MANUEL,
+                                 annee_naissance=None) -> Participant:
     """Ajoute un participant en lui attribuant le prochain dossard libre.
 
     **La politique « toute inscription recoit un numero » est ici, pas dans
@@ -247,7 +274,9 @@ def ajouter_participant_numerote(nom: str, prenom: str | None = None,
         numero = prochain_dossard(comp)
         try:
             return ajouter_participant(nom, prenom=prenom, club=club,
-                                       categorie=categorie, dossard=numero)
+                                       categorie=categorie, dossard=numero,
+                                       source=source,
+                                       annee_naissance=annee_naissance)
         except ErreurMetier as e:
             if e.code != 409:
                 raise                   # « nom obligatoire » : retenter n'y changerait rien

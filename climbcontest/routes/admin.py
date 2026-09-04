@@ -27,10 +27,12 @@ from ..extensions import db
 from ..models import Bloc, SOURCE_MANUEL, Competition, Participant, Utilisateur
 from ..contest import (
     ErreurMetier, ajouter_participant, ajouter_participant_numerote, appareils,
-    bloc_par_tag, competition_active, enregistrer_reussite,
+    bloc_par_tag, competition_active, enregistrer_reussite, incrementer_catalogue,
     participant_par_dossard, reaffecter_dossard, reussites_tracees,
-    supprimer_reussite,
+    supprimer_reussite, verifier_annee,
 )
+from .. import bareme as bareme_module
+from .. import formatage
 from .. import circuits as circuits_module
 from .. import cascade as cascade_module
 from .. import cycle
@@ -362,17 +364,24 @@ def lister_participants():
         participants = [p for p in participants
                         if q in p.nom_complet.lower() or q == str(p.dossard or "")]
 
+    # Le filtre par categorie sert la SELECTION D'IMPRESSION (spec 008) :
+    # filtrer, tout selectionner, imprimer. C'est ce qui remplace le champ
+    # « une categorie (vide = toutes) » de la tuile d'impression retiree.
+    categorie = (request.args.get("categorie") or "").strip()
+    if categorie:
+        participants = [p for p in participants if (p.categorie or "") == categorie]
+
     participants.sort(key=lambda p: (p.dossard is None, p.dossard or 0, p.nom))
     return jsonify({
         "success": True,
-        "participants": [{**p.to_dict(), "present": p.present} for p in participants],
+        "participants": [p.pour_la_console() for p in participants],
     }), 200
 
 
 @bp.post("/participants")
 @exige_role(ORGANISATEUR)
 def ajouter_participant_route():
-    """{"nom", "prenom", "club", "categorie", "dossard"} -> le participant cree."""
+    """{"nom", "prenom", "club", "categorie", "dossard", "annee_naissance"}."""
     corps = _corps_objet()
     if corps is None:
         return jsonify({"success": False, "message": "Corps JSON attendu"}), 400
@@ -384,18 +393,137 @@ def ajouter_participant_route():
             p = ajouter_participant_numerote(
                 nom=corps.get("nom", ""), prenom=corps.get("prenom"),
                 club=corps.get("club"), categorie=corps.get("categorie"),
+                annee_naissance=corps.get("annee_naissance"),
             )
         else:
             p = ajouter_participant(
                 nom=corps.get("nom", ""), prenom=corps.get("prenom"),
                 club=corps.get("club"), categorie=corps.get("categorie"),
                 dossard=corps.get("dossard"),
+                annee_naissance=corps.get("annee_naissance"),
             )
     except ErreurMetier as e:
         return jsonify({"success": False, "message": e.message}), e.code
 
     logger.info("participant ajoute par %s : %s", g.utilisateur.identifiant, p.nom_complet)
-    return jsonify({"success": True, "participant": p.to_dict()}), 201
+    return jsonify({"success": True, "participant": p.pour_la_console()}), 201
+
+
+@bp.patch("/participants/<int:participant_id>")
+@exige_role(ORGANISATEUR)
+def modifier_participant(participant_id):
+    """L'edition en ligne : la ligne de la liste devient modifiable (spec 008).
+
+    Ne touche QUE les champs presents dans le corps. Envoyer `{"club": "X"}` ne
+    doit pas effacer la categorie -- c'est la difference entre un PATCH et un
+    PUT, et la console n'envoie que ce qui a bouge.
+
+    ⚠️ Le dossard passe par `reaffecter_dossard()`, pas par une affectation
+    directe. C'est lui qui porte la regle de la spec 002 : un dossard qui
+    porte des reussites ne change pas de main. L'ouvrir ici, meme par
+    inadvertance, rendrait la regle contournable depuis un ecran.
+    """
+    corps = _corps_objet()
+    if corps is None:
+        return jsonify({"success": False, "message": "Corps JSON attendu"}), 400
+
+    p = db.session.get(Participant, participant_id)
+    if p is None:
+        return jsonify({"success": False, "message": "Participant inconnu"}), 404
+
+    try:
+        comp = competition_active()
+        if p.competition_id != comp.id:
+            return jsonify({"success": False,
+                            "message": "Ce participant n'est pas de la competition active"}), 409
+
+        if "dossard" in corps:
+            if corps["dossard"] in (None, ""):
+                return jsonify({"success": False,
+                                "message": "Un dossard vide ne se retire pas ici"}), 400
+            try:
+                nouveau = int(str(corps["dossard"]).strip())
+            except (TypeError, ValueError):
+                return jsonify({"success": False,
+                                "message": f"Dossard invalide : {corps['dossard']!r}"}), 400
+            if nouveau != p.dossard:
+                reaffecter_dossard(p, nouveau)
+
+        if "nom" in corps:
+            nom = formatage.nom(corps["nom"])
+            if not nom:
+                return jsonify({"success": False,
+                                "message": "Le nom est obligatoire"}), 400
+            p.nom = nom
+        if "prenom" in corps:
+            p.prenom = formatage.nom(corps["prenom"])
+        if "club" in corps:
+            p.club = formatage.club(corps["club"])
+        if "annee_naissance" in corps:
+            p.annee_naissance = verifier_annee(corps["annee_naissance"])
+        if "categorie" in corps:
+            # Passe par le bareme : c'est lui qui pose la trace du geste, pour
+            # que « Appliquer a tous » ne defasse pas ce choix (decision D10).
+            bareme_module.regler_a_la_main(p, corps["categorie"])
+
+        db.session.add(p)
+        incrementer_catalogue(comp)
+        db.session.commit()
+    except ErreurMetier as e:
+        db.session.rollback()
+        return jsonify({"success": False, "message": e.message}), e.code
+
+    logger.info("participant %s modifie par %s", p.id, g.utilisateur.identifiant)
+    return jsonify({"success": True, "participant": p.pour_la_console()}), 200
+
+
+@bp.get("/categories")
+@exige_role(ORGANISATEUR)
+def categories_bareme():
+    """Le bareme de l'edition : calcule, jamais saisi (spec 008).
+
+    Il se deduit de la date de la competition -- qui donne la saison, donc
+    l'annee de reference -- et des categories que portent les participants.
+    Rien n'est stocke : un bareme enregistre pourrait un jour contredire la
+    regle, et personne ne saurait lequel des deux fait autorite.
+    """
+    try:
+        comp = competition_active()
+    except ErreurMetier as e:
+        return jsonify({"success": False, "message": e.message}), e.code
+
+    reference = bareme_module.reference(comp)
+    return jsonify({
+        "success": True,
+        "date": comp.date.isoformat() if comp.date else None,
+        "reference": reference,
+        "saison": f"{reference - 1}-{reference}",
+        "tranches": bareme_module.tranches(comp),
+    }), 200
+
+
+@bp.post("/categories/appliquer")
+@exige_role(ORGANISATEUR)
+def categories_appliquer():
+    """{"apercu": true} montre; sans lui, ecrit.
+
+    L'apercu et l'application partagent la MEME fonction de decision : un
+    apercu calcule par un autre chemin finirait par annoncer ce qui ne se
+    produit pas.
+    """
+    corps = _corps_objet() or {}
+    try:
+        comp = competition_active()
+    except ErreurMetier as e:
+        return jsonify({"success": False, "message": e.message}), e.code
+
+    forcer = bool(corps.get("forcer"))
+    if corps.get("apercu"):
+        rapport = bareme_module.apercu(comp, forcer=forcer)
+    else:
+        rapport = bareme_module.appliquer(
+            comp, par=g.utilisateur.identifiant, forcer=forcer)
+    return jsonify({"success": True, **rapport}), 200
 
 
 @bp.post("/participants/<int:participant_id>/dossard")
