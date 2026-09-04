@@ -93,7 +93,6 @@
        reconnaissable, le texte redevient lisible. L'APLAT, lui, garde la
        couleur exacte du circuit : c'est lui qu'on lit a deux metres. */
     --circuit-texte: color-mix(in srgb, var(--circuit) 50%, var(--encre));
-    --trait-circuit: color-mix(in srgb, var(--circuit) 62%, var(--trait-fait));
   }
   /* ⚠️ Le sombre est ecrit DEUX FOIS, et c'est voulu (spec 040) : une fois
      pour le telephone qui le demande, une fois pour le juge qui le demande.
@@ -124,7 +123,6 @@
       /* Sur un fond sombre, la teinte du circuit est deja lisible telle
          quelle : on n'y touche pas. */
       --circuit-texte: var(--circuit);
-      --trait-circuit: color-mix(in srgb, var(--circuit) 50%, transparent);
     }
   }
   /* La MEME chose, quand c'est le JUGE qui l'a demande dans les
@@ -149,7 +147,6 @@
       /* Sur un fond sombre, la teinte du circuit est deja lisible telle
          quelle : on n'y touche pas. */
       --circuit-texte: var(--circuit);
-      --trait-circuit: color-mix(in srgb, var(--circuit) 50%, transparent);
   }
   :root {
     /* --- CE QUI NE DEPEND PAS DU THEME -------------------------------- */
@@ -297,8 +294,42 @@
     border-width: 2px;
   }
   .carte.fait { background: var(--carte-faite); border-color: var(--trait-fait); }
-  /* la carte du bloc prend la couleur de SON circuit */
-  #carteBloc.fait { border-color: var(--trait-circuit); }
+
+  /* ── LA MATIERE IMPRIMEE (spec 041) ──────────────────────────────────────
+     La spec 039 a pris la PALETTE de la direction « Plein Jour » (spec 035) —
+     papier sable, encre presque noire. Voici sa MATIERE : le lisere d'encre et
+     l'ombre franche qui donnent aux surfaces l'aspect des etiquettes de blocs
+     collees au mur (spec 024). Adrien a tranche la direction A le 03/09.
+
+     ⚠️ Tout est pris sur `--encre`, jamais sur la valeur en dur qu'ecrivait la
+     maquette : c'est ce qui fait que la matiere devient de la CRAIE sur
+     l'ardoise au lieu de disparaitre. Un seul jeu de regles pour les deux
+     themes -- et le garde-fou de la spec 039 le verifie, commentaires
+     compris. */
+
+  /* Les cartes se decollent du papier d'un cheveu. */
+  .carte { box-shadow: 0 2px 0 color-mix(in srgb, var(--encre) 6%, transparent); }
+
+  /* La carte du bloc prend la couleur de SON circuit -- en APLAT dilue, et
+     plus seulement en trait. De loin, c'est la carte qui dit le circuit. */
+  #carteBloc.fait {
+    background: color-mix(in srgb, var(--circuit) 13%, var(--carte-active));
+    border-color: var(--encre); border-width: 2.5px;
+  }
+  /* La pastille cerclee d'un lisere d'encre : l'etiquette du mur, exactement. */
+  #carteBloc.fait .valeur:not(.attente) { border: 2px solid var(--encre); }
+
+  /* ⚠️ Le circuit « Noir » est le seul dont la teinte EST deja l'encre. Teintee
+     a 13 % de noir, sa carte vire au GRIS quand toutes les autres sont teintees
+     de leur couleur, et le lisere de la pastille se confond avec l'aplat. Sur
+     lui seul, la carte reste donc du papier et le lisere s'efface : l'aplat
+     noir porte seul la couleur du circuit. Choix d'Adrien sur maquette
+     (spec 041, variante N2). La classe est posee par `juge.js`, qui lit le NOM
+     du circuit -- le CSS ne sait pas comparer deux couleurs. */
+  #carteBloc.fait.encre {
+    background: var(--carte-active);
+  }
+  #carteBloc.fait.encre .valeur:not(.attente) { border-color: var(--carte-active); }
 
   .carte .quoi {
     font-size: 0.72rem; letter-spacing: 0.2em; text-transform: uppercase;
@@ -373,26 +404,53 @@
   }
 
   #envoyer {
-    width: 100%; height: 104px; border-radius: 22px; font: inherit;
+    width: 100%; height: 104px; border-radius: 18px; font: inherit;
     font-size: 1.9rem; font-weight: 800; letter-spacing: 0.12em;
     text-transform: uppercase; text-indent: 0.12em;
     color: var(--encre-circuit);
     background: var(--circuit); border: 0; cursor: pointer;
     transition: background .25s ease;
   }
+  /* Le bouton IMPRIME : un aplat, un lisere d'encre, et une ombre COURTE PUIS
+     FLOUE -- une arete de 3 px tres pale posee sur un halo. La premiere version
+     portait l'ombre franche de 5 px de la maquette ; Adrien l'a jugee « trop
+     franche » sur rendu, et a choisi celle-ci parmi cinq (spec 041, S3). */
+  #envoyer:not(:disabled) {
+    border: 2px solid var(--encre);
+    box-shadow: 0 3px 0 color-mix(in srgb, var(--encre) 26%, transparent),
+                0 9px 20px -8px color-mix(in srgb, var(--encre) 50%, transparent);
+  }
   /* Desactive, il ne doit PAS ressembler a une carte de scan a remplir : vide
      et cercle d'un trait, il se lit comme un emplacement qui attend. */
   #envoyer:disabled {
-    background: var(--carte-attente); border: 1.5px solid var(--trait-attente);
+    background: var(--carte-attente); border: 2px dashed var(--trait-attente);
     color: var(--encre3); cursor: default;
+    /* ⚠️ L'ombre du bouton ACTIF est posee par `#envoyer:not(:disabled)`, mais
+       le souffle, lui, ecrit `box-shadow` en ANIMATION -- et une animation bat
+       toute regle ordinaire. Elle est coupee ci-dessous quand le bouton est
+       desactive ; cette remise a zero est le filet, pour qu'aucun etat ne
+       garde une ombre de bouton pret. */
+    box-shadow: none;
   }
   /* Tant que le juge n'a pas appuye, le bouton pret RESPIRE — la meme
      pulsation lente que sur Android : assez pour attirer l'oeil, assez
      discrete pour deux cents validations par jour. */
   #envoyer:not(:disabled) { animation: souffle 2.8s ease-in-out infinite; }
+  /* ⚠️ LE SOUFFLE EFFACAIT L'OMBRE. `box-shadow` est une propriete UNIQUE : la
+     pulsation la reecrivait entierement a chaque image, et l'ombre imprimee
+     disparaissait deux fois par seconde. Les images-cles reportent donc les
+     deux couches de l'ombre, et n'ajoutent la lueur du circuit qu'en TROISIEME.
+     C'est la seule vraie couture entre la direction A et l'existant ; elle ne
+     s'est vue que sur rendu, jamais a la relecture. */
   @keyframes souffle {
-    0%, 100% { transform: scale(1); box-shadow: 0 0 6px color-mix(in srgb, var(--circuit) 45%, transparent); }
-    50% { transform: scale(1.015); box-shadow: 0 0 26px color-mix(in srgb, var(--circuit) 45%, transparent); }
+    0%, 100% { transform: scale(1);
+               box-shadow: 0 3px 0 color-mix(in srgb, var(--encre) 26%, transparent),
+                           0 9px 20px -8px color-mix(in srgb, var(--encre) 50%, transparent),
+                           0 0 6px color-mix(in srgb, var(--circuit) 45%, transparent); }
+    50% { transform: scale(1.015);
+          box-shadow: 0 3px 0 color-mix(in srgb, var(--encre) 26%, transparent),
+                      0 9px 20px -8px color-mix(in srgb, var(--encre) 50%, transparent),
+                      0 0 26px color-mix(in srgb, var(--circuit) 45%, transparent); }
   }
   @media (prefers-reduced-motion: reduce) { #envoyer:not(:disabled) { animation: none } }
   #aide { text-align: center; color: var(--encre2); font-size: 0.9rem; }

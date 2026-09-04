@@ -209,13 +209,19 @@ SEUILS = {
 }
 
 
-@pytest.fixture()
+@pytest.fixture(scope="module")
 def serveur():
     """L'application et un vrai serveur, sans aucune donnee.
 
     C'est l'etat dans lequel un juge ouvre l'application avant que
     l'organisateur lui ait donne son lien -- et le theme, lui, doit deja etre
     bon.
+
+    ⚠️ PORTEE MODULE, et c'est le coeur du fichier. Ce serveur ne sert qu'a
+    faire calculer la cascade par un vrai navigateur : il n'a aucune donnee,
+    aucun test n'ecrit dedans, et la page est la meme pour tous. Le laisser en
+    portee fonction faisait creer une base, une application Flask et un serveur
+    par test -- trente fois pour un seul jeu de mesures.
     """
     from flask import Response, request
 
@@ -251,8 +257,28 @@ def serveur():
         shutil.rmtree(dossier, ignore_errors=True)
 
 
-@pytest.fixture()
+@pytest.fixture(scope="module")
 def mesures(serveur):
+    """Les mesures du navigateur, prises UNE FOIS pour tout le fichier.
+
+    ⚠️ C'est la correction du 04/09, et elle porte sur la structure du test,
+    pas sur son delai. Ce fichier compte trente tests -- vingt-six seuils de
+    contraste, plus quatre. En portee fonction, chacun relancait un chromium
+    avec un profil neuf : trente demarrages de navigateur pour un seul releve
+    qui ne change jamais, chacun facture entre 7 et 60 secondes selon la charge
+    de la machine. Les rouges qu'on voyait n'etaient pas des contrastes en
+    faute -- les valeurs mesurees etaient bonnes -- mais des demarrages qui
+    n'arrivaient pas au bout, et ils tombaient sur un parametre different a
+    chaque execution.
+
+    Le releve est en LECTURE SEULE : aucun test ne le modifie, et la page
+    mesuree est identique pour tous. Le partager ne cache donc aucun couplage.
+
+    ⚠️ Ce qu'on ne fait PAS : allonger le delai de `piloter`. Un test qui
+    attend plus longtemps ne devient pas plus sur, il devient plus lent a
+    echouer. On supprime les vingt-neuf attentes, on ne rallonge pas la
+    trentieme.
+    """
     url, verdict = serveur
     rendu = piloter(f"{url}/__harnais", verdict)
     assert rendu.startswith("OK "), rendu

@@ -115,6 +115,49 @@ l'application.
   - Ajouté au passage : **le trou du numéro 030** est expliqué là où on le
     remarque. La spec `030-versions-visibles` existe, codée et testée, mais
     seulement sur une branche locale jamais poussée.
+- **L'application juge prend la matière imprimée de « Plein Jour »** (spec 041,
+  qui referme la spec 035). La carte du bloc scanné passe d'un simple trait à un
+  **aplat** de la couleur de son circuit, cerclé d'un liseré d'encre ; la
+  pastille du bloc prend le même liseré — la matière des étiquettes collées sous
+  les blocs. Le bouton « Envoyer » gagne un liseré et une ombre, et le bouton
+  désactivé passe en trait **pointillé** : un emplacement qui attend, plus une
+  surface pleine. Tout est pris sur l'encre du thème, si bien que la matière
+  devient de la craie en thème sombre au lieu de disparaître.
+- **Le circuit « Noir » garde sa carte en papier.** C'est le seul dont la teinte
+  est déjà l'encre : sa carte teintée virait au gris quand toutes les autres
+  prennent leur couleur, et le liseré de sa pastille se confondait avec l'aplat.
+
+### Corrigé
+
+- **La pulsation du bouton « Envoyer » effaçait son ombre** deux fois par
+  seconde : `box-shadow` est une propriété unique, et les images-clés du souffle
+  la réécrivaient entièrement. Elles reportent désormais l'ombre et ne font
+  varier que la lueur du circuit.
+- **Les rouges intermittents des tests navigateur avaient une cause, et elle
+  est réparée.** Ce n'était pas un aléa de machine : deux fichiers relançaient
+  un navigateur **par test** pour rejouer exactement le même parcours — trente
+  fois pour `test_navigateur_juge_claire.py`, treize pour celui du thème au
+  choix. Chaque démarrage coûte de 0,3 s à chaud à 7,2 s au premier lancement,
+  bien plus sur une machine chargée : le fichier finissait par dépasser le
+  délai, sur un test différent à chaque exécution, et le rouge se lisait comme
+  un contraste en faute alors que les valeurs mesurées étaient bonnes. Un seul
+  navigateur suffit : 19,2 s → 1,6 s pour l'un, plusieurs minutes → 1,5 s pour
+  l'autre. Aucun délai n'a été allongé — on a supprimé les attentes, pas
+  rallongé la dernière.
+- **Le numéro de la coquille du service worker a été revendiqué trois fois par
+  trois specs différentes le même jour** — deux fois `v7`, deux fois `v8`. Ce
+  n'est pas cosmétique : le navigateur ne jette une ancienne coquille que si le
+  **nom** change, donc deux specs sous un même numéro laissent les téléphones
+  déjà installés sur l'ancienne version de l'une des deux, sans rien casser de
+  visible. Un test échoue désormais si le nom du cache ne porte pas le plus haut
+  numéro que son propre journal documente — la trace d'une fusion résolue à
+  moitié.
+- **Une variable de couleur avait survécu à son dernier lecteur.**
+  `--trait-circuit` ne servait plus une fois la carte du bloc cerclée d'encre ;
+  elle est revenue par la fusion avec le thème au choix, qui avait recopié le
+  bloc sombre avant sa suppression — sans que git signale quoi que ce soit. Une
+  variable sans lecteur ment à la prochaine lecture : un test échoue désormais
+  dès qu'il en reste une.
 
 ## [0.19.0] — 2026-09-03
 
