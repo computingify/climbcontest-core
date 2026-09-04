@@ -499,6 +499,44 @@ les PR se disputent ». Les ajouts sont additifs — une `<section class="vue">`
 plus, des colonnes en fin de tableau — sauf le **retrait** de la tuile
 d'impression, qui est une suppression franche et se verra au conflit.
 
+## 10 bis. Le jour où le classeur Google s'en va
+
+Rappelé par Adrien le 04/09 : **le classeur est temporaire**, il finira par
+disparaître. `docs/contraintes-metier.md` §2 décrit déjà la trajectoire en trois
+temps — source, puis miroir, puis plus rien. Pour l'instant on vit avec ; ce qui
+suit dit ce que la spec 008 lui doit encore, et ce qu'elle ne lui doit plus.
+
+| Ce que la 008 utilise | Vient du classeur ? | Le jour où il s'en va |
+| --- | --- | --- |
+| Les **participants** | Oui, pour partie | HelloAsso et le guichet suffisent — c'est l'objet même de cette spec |
+| Les **catégories** des participants | Oui, pour partie | Se calculent depuis l'année de naissance |
+| Les **circuits** (`Circuit`) | **Oui, exclusivement** | Remplacés par les **catégories déclarées** |
+| Le **barème** | Non | Se déduit de la date et des Under |
+| Le **rapprochement** | Non | Nom + prénom + club |
+| Le **relevé** | Non | — |
+
+### La seule dépendance qui restait, et comment elle est levée
+
+`Circuit` n'est créé que par `sheets/importer.py`. Sans lui, une édition
+alimentée par HelloAsso seul n'aurait **aucun Under** au premier relevé : la
+liste serait vide, aucune catégorie ne se calculerait, et les cent inscriptions
+partiraient en attente avec « année hors barème » pour seul message — le défaut
+d'amorçage déjà fermé une fois, revenant par une autre porte.
+
+D'où la **troisième source** de `bareme.unders()` : les catégories que l'édition
+**déclare**, rangées dans `competition.options["categories_declarees"]` et
+saisies en une ligne depuis l'écran Catégories. Elle ne remplace rien tant que le
+classeur est là ; elle rend simplement le calcul indépendant de lui.
+
+### Ce qui reste à faire le jour venu, et qui n'est pas de cette spec
+
+- Les **blocs** et les **liens bloc ↔ circuit** ne viennent que du classeur. Ils
+  n'entrent pas dans la spec 008, mais ils entreront dans celle qui débranchera
+  le classeur pour de bon.
+- Le **miroir** (`sheets/mirror.py`) écrit les réussites dans le classeur. Il
+  s'éteindra avec lui, et la question de la sauvegarde se reposera —
+  `contraintes-metier.md` §2 le dit déjà : « la redondance gratuite disparaît ».
+
 ## 11. Ce qui ne bouge pas
 
 - **Le miroir vers le classeur.** Il envoie des réussites.

@@ -81,6 +81,13 @@ qu'on ne met pas à jour le matin d'une compétition :
   carte **Doublons** paraît quand la base en porte déjà, et laisse choisir
   laquelle des deux fiches garde son dossard : c'est celui qui est déjà imprimé.
 
+- **Les catégories d'une édition peuvent se déclarer** (spec 008). Le barème se
+  déduisait des inscrits et des circuits — et les circuits ne viennent que de
+  l'import du classeur Google, qui est temporaire et finira par disparaître. Une
+  édition alimentée par HelloAsso seul n'aurait donc eu aucune catégorie
+  calculable au premier relevé. Une ligne dans l'écran **Catégories** suffit
+  désormais à les annoncer, et le calcul cesse de dépendre du classeur.
+
 - **L'import HelloAsso devine ses champs** (spec 008). Choisir le formulaire lit
   un échantillon et reconnaît tout seul l'année de naissance, le genre et le
   club — par le nom du champ, et à défaut **par ses réponses** : un champ dont

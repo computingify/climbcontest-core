@@ -28,7 +28,8 @@ import logging
 from datetime import datetime
 
 from . import categories, formatage
-from .contest import incrementer_catalogue
+from .contest import ErreurMetier, incrementer_catalogue
+from .cycle import ecrire_options, lire_options
 from .extensions import db
 from .models import Circuit, Participant
 
@@ -59,30 +60,60 @@ def reference(comp) -> int:
     return categories.annee_de_reference(jour)
 
 
+def categories_declarees(comp) -> list[str]:
+    """Les catégories que l'édition annonce, indépendamment de toute source.
+
+    ⚠️ **C'est la porte de sortie du classeur Google.** Adrien l'a rappelé le
+    04/09 : le classeur est temporaire, il finira par disparaître.
+
+    Or les `Circuit` ne sont créés QUE par `sheets/importer.py`. Le jour où le
+    classeur s'en va, une édition alimentée par HelloAsso seul n'aurait ni
+    circuit ni participant catégorisé au premier relevé : la liste des Under
+    serait vide, aucune catégorie ne se calculerait, et **les cent inscriptions
+    partiraient en attente** — le défaut d'amorçage déjà fermé une fois, qui
+    reviendrait par une autre porte.
+
+    Cette liste se déclare depuis la console, en une ligne. Elle ne remplace
+    rien tant que le classeur est là ; elle rend simplement le barème
+    indépendant de lui.
+    """
+    valeur = lire_options(comp).get("categories_declarees")
+    if not isinstance(valeur, list):
+        return []
+    return [formatage.categorie(str(n)) for n in valeur
+            if str(n).strip()]
+
+
+def declarer_categories(comp, noms) -> list[str]:
+    """Range la liste déclarée. Les noms passent par le formatage, comme le reste."""
+    if not isinstance(noms, list):
+        raise ErreurMetier("Une liste de categories est attendue.")
+    propres = sorted({formatage.categorie(str(n)) for n in noms if str(n).strip()})
+    ecrire_options(comp, categories_declarees=propres)
+    logger.info("competition %s : %d categorie(s) declaree(s)", comp.id, len(propres))
+    return propres
+
+
 def unders(comp) -> list[int]:
-    """Les Under de cette édition, tirés de DEUX sources.
+    """Les Under de cette édition, tirés de TROIS sources qui se complètent.
 
-    Les catégories des participants d'abord, comme la liste déroulante de la
-    console : aucune table à tenir à jour, et une édition qui n'a jamais eu de
-    U13 n'en invente pas un.
+    | Source | D'où elle vient | Ce qu'elle couvre |
+    | --- | --- | --- |
+    | Les catégories des participants | Dérivées, comme la liste déroulante | L'édition en cours de route |
+    | Les **circuits** | L'import du classeur | L'amorçage, tant que le classeur existe |
+    | Les catégories **déclarées** | La console | L'amorçage **sans** classeur |
 
-    ⚠️ Mais les **circuits** aussi, et c'est ce qui évite un défaut d'amorçage
-    qui ne se serait vu qu'en vrai : au tout premier relevé HelloAsso, aucun
-    participant n'a encore de catégorie. Sans les circuits, la liste serait
-    vide, aucun circuit ne se calculerait, et **les cent inscriptions
-    partiraient en attente** — avec pour seul message « année hors barème »,
-    qui n'aurait accusé personne.
-
-    Les circuits, eux, viennent de l'import du classeur et existent avant tout
-    le monde. Les deux sources se complètent : celle qui est vide n'empêche pas
-    l'autre.
+    Aucune n'est obligatoire, et celle qui est vide n'empêche pas les autres.
+    C'est ce qui fait que ce calcul survivra au classeur, dont la disparition
+    est prévue.
     """
     des_participants = (v for (v,) in db.session.query(Participant.categorie)
                         .filter(Participant.competition_id == comp.id,
                                 Participant.categorie.isnot(None))
                         .distinct())
     des_circuits = (c.nom for c in Circuit.query.filter_by(competition_id=comp.id))
-    return categories.unders_de(list(des_participants) + list(des_circuits))
+    return categories.unders_de(list(des_participants) + list(des_circuits)
+                                + categories_declarees(comp))
 
 
 def categorie_calculee(participant, ref: int, liste_unders) -> str | None:
@@ -112,7 +143,9 @@ def tranches(comp) -> list[dict]:
     ref = reference(comp)
     liste_unders = unders(comp)
 
-    comptes = {}
+    # Les categories DECLAREES figurent a zero : voir l'edition avant que
+    # quiconque se soit inscrit est precisement ce a quoi elles servent.
+    comptes = {nom: 0 for nom in categories_declarees(comp)}
     for (nom,) in db.session.query(Participant.categorie).filter(
             Participant.competition_id == comp.id):
         if nom:

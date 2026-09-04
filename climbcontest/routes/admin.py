@@ -547,7 +547,28 @@ def categories_bareme():
         "saison": f"{reference - 1}-{reference}",
         "tranches": bareme_module.tranches(comp),
         "hors_de_portee": bareme_module.hors_de_portee(comp),
+        "declarees": bareme_module.categories_declarees(comp),
     }), 200
+
+
+@bp.post("/categories/declarees")
+@exige_role(ORGANISATEUR)
+def categories_declarer():
+    """Les categories que l'edition annonce. `{"categories": [...]}`.
+
+    ⚠️ C'est la porte de sortie du classeur Google, dont la disparition est
+    prevue. Les `Circuit` ne sont crees que par son import : sans cette liste,
+    une edition alimentee par HelloAsso seul n'aurait aucun Under au premier
+    releve, et les cent inscriptions partiraient en attente.
+    """
+    corps = _corps_objet() or {}
+    try:
+        comp = competition_active()
+        declarees = bareme_module.declarer_categories(
+            comp, corps.get("categories") or [])
+    except ErreurMetier as e:
+        return jsonify({"success": False, "message": e.message}), e.code
+    return jsonify({"success": True, "categories": declarees}), 200
 
 
 @bp.post("/categories/appliquer")

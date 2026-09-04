@@ -278,3 +278,51 @@ class TestCeQueLeBaremeNePeutPasRanger:
                       if t["annee_min"] <= annee
                       and (t["annee_max"] is None or annee <= t["annee_max"])]
             assert len(portee) == 1, (annee, [t["circuit"] for t in portee])
+
+
+class TestLeBaremeSurvitAuClasseur:
+    """Le classeur Google est temporaire : il finira par disparaître.
+
+    Rappelé par Adrien le 04/09. Or les `Circuit` ne sont créés QUE par
+    `sheets/importer.py` : sans troisième source, une édition alimentée par
+    HelloAsso seul n'aurait aucun Under au premier relevé, et les cent
+    inscriptions partiraient en attente.
+    """
+
+    def test_sans_classeur_ni_participant_le_bareme_est_vide(self, app, competition):
+        """Le défaut, tel qu'il se produirait. C'est ce que la déclaration ferme."""
+        assert bareme.unders(competition) == []
+
+    def test_les_categories_declarees_suffisent(self, app, competition):
+        bareme.declarer_categories(competition, ["U11 F", "U11 H", "U13 F"])
+        assert bareme.unders(competition) == [11, 13]
+
+    def test_elles_font_calculer_une_categorie(self, app, competition):
+        bareme.declarer_categories(competition, ["U13 F", "U13 H", "U15 F", "U15 H"])
+        p = poser(competition, "Neuf", "U15 F", annee=2015)
+        assert bareme.categorie_calculee(
+            p, bareme.reference(competition), bareme.unders(competition)) == "U13 F"
+
+    def test_elles_passent_par_le_formatage(self, app, competition):
+        assert bareme.declarer_categories(competition, ["u13f", " u11 h "]) \
+            == ["U11 H", "U13 F"]
+
+    def test_elles_paraissent_dans_le_bareme_meme_sans_inscrit(self, app, competition):
+        """Voir l'édition avant que quiconque se soit inscrit est précisément
+        ce à quoi elles servent."""
+        bareme.declarer_categories(competition, ["U13 F", "U13 H"])
+        lignes = {l["circuit"]: l for l in bareme.tranches(competition)}
+        assert lignes["U13"]["inscrits"] == 0
+        assert lignes["U13"]["categories"] == ["U13 F", "U13 H"]
+
+    def test_les_trois_sources_se_completent(self, app, competition):
+        from climbcontest.models import Circuit
+        db.session.add(Circuit(competition_id=competition.id, nom="U11"))
+        db.session.commit()
+        poser(competition, "Un", "U15 H")
+        bareme.declarer_categories(competition, ["U13 F"])
+        assert bareme.unders(competition) == [11, 13, 15]
+
+    def test_une_liste_qui_n_en_est_pas_une(self, app, competition):
+        with pytest.raises(ErreurMetier):
+            bareme.declarer_categories(competition, "U13 F")

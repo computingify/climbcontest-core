@@ -1362,6 +1362,22 @@
         </div>
         <div id="apercuBareme" hidden></div>
       </div>
+
+      <!-- ⚠️ La porte de sortie du classeur Google, dont la disparition est
+           prévue. Les circuits ne viennent que de son import : sans cette
+           liste, une édition alimentée par HelloAsso seul n'aurait aucun Under
+           au premier relevé. -->
+      <div class="carte">
+        <h2>Les catégories de cette édition</h2>
+        <p class="aide">Elles se déduisent des inscrits et du classeur. Les
+           déclarer ici sert quand il n'y a encore ni l'un ni l'autre — et le
+           jour où le classeur ne sera plus là.</p>
+        <label for="categoriesDeclarees">Catégories, séparées par des virgules</label>
+        <input id="categoriesDeclarees" placeholder="U11 F, U11 H, U13 F, U13 H">
+        <div style="margin-top:14px">
+          <button class="action" id="btnDeclarerCategories">Enregistrer</button>
+        </div>
+      </div>
     </section>
 
     <!-- ================= Inscriptions (spec 008) ================= -->
@@ -3083,6 +3099,8 @@
       verdict.innerHTML = '<span class="rond"></span>Tout le monde est rangeable';
     }
 
+    $("categoriesDeclarees").value = (d.declarees || []).join(", ");
+
     var corps = $("listeBareme");
     corps.innerHTML = "";
     (d.tranches || []).forEach(function (t) {
@@ -3104,6 +3122,16 @@
       corps.appendChild(tr);
     });
   }
+
+  $("btnDeclarerCategories").addEventListener("click", function () {
+    var noms = $("categoriesDeclarees").value.split(",")
+      .map(function (n) { return n.trim(); })
+      .filter(function (n) { return n; });
+    appeler("/admin/categories/declarees", { methode: "POST",
+                                             corps: { categories: noms } })
+      .then(function () { dire("Catégories enregistrées.", "ok"); chargerBareme(); })
+      .catch(signaler);
+  });
 
   // Appliquer reecrit des categories : on montre l'avant / apres AVANT
   // d'ecrire, et le bouton de confirmation se maintient (spec 027).
