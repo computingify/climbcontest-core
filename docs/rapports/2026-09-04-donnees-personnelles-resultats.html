@@ -183,7 +183,8 @@
   ce que le RGPD et la CNIL imposent <em>réellement</em> à une association
   sportive qui publie ses résultats — et le plan en quatre niveaux qui répond à
   la contrainte d'Adrien&nbsp;: <strong>aucune des mesures obligatoires ne coûte
-  un geste au spectateur</strong>.</p>
+  un geste au spectateur</strong>. <span class="pastille p-bleu">arbitré le
+  4&nbsp;septembre</span> — les décisions sont au §7.</p>
 
   <div class="chiffres">
     <div class="chiffre"><b>4</b><span>routes publiques sans aucune
@@ -274,6 +275,23 @@ pour trois raisons qui sont précisément celles que le droit regarde&nbsp;:</p>
 noms, pas de les <strong>publier durablement</strong>. Le droit ne conclut pas
 « il faut fermer »&nbsp;; il conclut « il faut informer, minimiser, permettre de
 s'y opposer, et ne pas laisser de trace ».</p>
+
+<div class="note bien">
+<p><strong>Cette distinction n'est pas neuve dans le dépôt&nbsp;: elle est déjà
+appliquée aux archives.</strong> La page
+<code>/console/archives/&lt;id&gt;/resultats</code> est servie sans session
+parce qu'elle ne porte aucune donnée, tandis que la route qui porte les noms,
+<code>/admin/archives/&lt;id&gt;/classement</code>, exige le rôle
+<em>organisateur</em>. Son commentaire dit déjà le raisonnement de cette
+étude, presque mot pour mot&nbsp;:</p>
+<blockquote>Derrière la session, contrairement à la page publique&nbsp;: le
+classement d'une édition passée n'a pas à être servi à qui passe, et il porte
+des noms de mineurs.</blockquote>
+<p>Cette étude ne propose donc pas un principe neuf. Elle constate qu'il a été
+appliqué au <em>passé</em> et pas au <em>présent</em>, et demande de l'étendre.
+C'est aussi pourquoi rien de ce qui suit ne casse les archives&nbsp;: elles ont
+déjà leur propre porte.</p>
+</div>
 
 <h2><span class="n">3</span>Ce que la loi impose, ligne par ligne</h2>
 
@@ -393,11 +411,10 @@ une question de goût, pas de droit.</p>
     une page, trois traitements (inscriptions, compétition, publication).</li>
 </ul>
 
-<h3>Niveau 1 — la minimisation de l'affichage, zéro friction</h3>
-<p>Un réglage par édition, dans la console, à côté des classements masqués et de
-la cascade&nbsp;: <code>affichage_noms</code>, à trois positions. Le rendu
-compte plus que la description — les voici côte à côte, sur des noms
-fictifs&nbsp;:</p>
+<h3>Niveau 1 — la minimisation de l'affichage <span class="pastille p-gris">écartée le 04/09</span></h3>
+<p>La question posée était&nbsp;: faut-il abréger les noms sur la page publique&nbsp;?
+Les trois rendus ont été mis côte à côte pour être jugés à l'œil plutôt que sur
+une description — noms fictifs&nbsp;:</p>
 
 <div class="rendus">
   <div class="rendu">
@@ -406,10 +423,10 @@ fictifs&nbsp;:</p>
     <div class="lg"><span class="r">2</span><span class="n">Bonnefoy Léa<small>Vals Vertical</small></span><span class="s">1310</span></div>
     <div class="lg"><span class="r">3</span><span class="n">Nguyen Tho<small>Annonay Escalade</small></span><span class="s">1180</span></div>
     <p class="verdict">Identifie une personne. Recherchable par son nom si la
-      page est indexée.</p>
+      page est indexée. <strong>Retenu par Adrien le 04/09.</strong></p>
   </div>
   <div class="rendu">
-    <p class="titre">Abrégé — proposé par défaut</p>
+    <p class="titre">Abrégé — proposé, non retenu</p>
     <div class="lg or"><span class="r">1</span><span class="n">Alexandre D.<small>Annonay Escalade</small></span><span class="s">1420</span></div>
     <div class="lg"><span class="r">2</span><span class="n">Léa B.<small>Vals Vertical</small></span><span class="s">1310</span></div>
     <div class="lg"><span class="r">3</span><span class="n">Tho N.<small>Annonay Escalade</small></span><span class="s">1180</span></div>
@@ -417,33 +434,46 @@ fictifs&nbsp;:</p>
       inconnu n'a plus de patronyme à recouper.</p>
   </div>
   <div class="rendu">
-    <p class="titre">Dossard seul — repli</p>
+    <p class="titre">Dossard seul — conservé comme rendu de l'opposition</p>
     <div class="lg or"><span class="r">1</span><span class="n">Dossard 42<small>Annonay Escalade</small></span><span class="s">1420</span></div>
     <div class="lg"><span class="r">2</span><span class="n">Dossard 17<small>Vals Vertical</small></span><span class="s">1310</span></div>
     <div class="lg"><span class="r">3</span><span class="n">Dossard 8<small>Annonay Escalade</small></span><span class="s">1180</span></div>
-    <p class="verdict">Aucune donnée nominative ne sort. Mais il faut avoir sa
-      fiche en main pour se lire — la page perd sa raison d'être.</p>
+    <p class="verdict">Aucune donnée nominative ne sort. Trop pauvre pour toute
+      une édition — mais c'est exactement la forme que prend une ligne dont la
+      publication a été refusée (niveau&nbsp;2).</p>
   </div>
 </div>
 
-<div class="note">
-<p><strong>Le point qui demande un arbitrage&nbsp;: le podium projeté.</strong>
-La réponse JSON est mise en cache pour tout le monde&nbsp;— elle ne peut pas
-dépendre de qui regarde. Le mur de la salle affichera donc la même chose que les
-téléphones. Deux issues&nbsp;:</p>
-<p><strong>(a)</strong> le mur affiche « Alexandre&nbsp;D. » et le speaker
-annonce le nom complet au micro — le micro ne s'indexe pas. <em>Recommandé.</em>
-<br><strong>(b)</strong> une seconde route pour le mur, protégée par la session
-console (l'organisateur se connecte une fois le matin sur l'écran de la salle).
-Plus de code, plus de choses à faire le jour&nbsp;J&nbsp;: à ne construire que
-si (a) est refusé.</p>
+<div class="note alerte">
+<p><strong>Décision du 04/09&nbsp;: le nom complet reste affiché</strong>, sur
+les téléphones comme sur le mur. Ce choix est tenable — la CNIL n'interdit pas
+de publier des résultats nominatifs — mais il a une conséquence qu'il faut
+écrire&nbsp;: <strong>les trois autres mesures cessent d'être des options.</strong></p>
+<p>La minimisation était l'amortisseur du dossier. Sans elle, ce sont le
+<code>noindex</code>, la fenêtre de publication et le droit d'opposition qui
+portent seuls la proportionnalité de l'article&nbsp;6.1.f — c'est-à-dire la base
+légale elle-même. Un manquement sur l'un des trois ne se rattrape plus ailleurs.</p>
+<p>Effet secondaire favorable&nbsp;: la question du podium projeté disparaît. La
+réponse JSON étant mise en cache pour tout le monde, elle ne pouvait pas
+dépendre de qui regarde&nbsp;; puisque le nom complet est retenu partout, aucune
+route séparée pour le mur n'est à construire.</p>
 </div>
 
 <h3>Niveau 2 — l'opposition, zéro friction</h3>
 <ul class="cocher">
-  <li><strong>Une colonne « Diffusion » dans le classeur</strong> (ou une case à
-    cocher au formulaire d'inscription HelloAsso, spec 008), importée en base
-    comme <code>Participant.diffusion_publique</code>, vraie par défaut.</li>
+  <li><strong>Une colonne dans le classeur</strong> (et, avec la spec 008, une
+    case au formulaire HelloAsso — le type <code>YesNo</code> de leur API v5,
+    posée <em>par participant</em>, existe et se lit comme le club et l'année de
+    naissance), importée en base comme
+    <code>Participant.publication_refusee</code>, <strong>fausse par
+    défaut</strong>.</li>
+  <li><strong>Le nom du champ dit le sens de la case, et le sens décide de ce que
+    vaut le vide.</strong> L'article&nbsp;21 est un droit d'<em>opposition</em>,
+    pas un consentement&nbsp;: on publie sauf refus. Une case « j'accepte »
+    inverserait la charge et rendrait muet tout inscrit qui n'a rien coché —
+    c'est-à-dire presque tous. D'où <code>publication_refusee</code> et non
+    <code>diffusion_autorisee</code>&nbsp;: le champ le plus bavard est celui
+    qu'on ne peut pas lire à l'envers.</li>
   <li><strong>Un interrupteur par grimpeur dans la console</strong> — pour
     traiter l'appel d'un parent le samedi matin sans toucher au classeur.</li>
   <li><strong>Le classement ne bouge pas.</strong> Le grimpeur garde son rang,
@@ -463,12 +493,12 @@ si (a) est refusé.</p>
         scores sans identité</td>
       <td>répond à l'article 5.1.e sans rien enlever au jour J</td>
       <td class="num">nul</td>
-      <td><span class="pastille p-vert">recommandé</span></td></tr>
+      <td><span class="pastille p-vert">retenu — 7 jours</span></td></tr>
   <tr><td><strong>Jeton dans le lien</strong> — un QR à l'entrée de la salle
         mène à <code>/?s=…</code>, comme le jeton des juges</td>
       <td>plus de découverte au hasard, plus d'indexation possible</td>
       <td class="num">un scan</td>
-      <td><span class="pastille p-jaune">en réserve</span> le lien se partage&nbsp;:
+      <td><span class="pastille p-gris">écarté</span> le lien se partage&nbsp;:
         ça ralentit, ça ne ferme pas — et ça complique le cache</td></tr>
   <tr><td><strong>Réserver au wifi de la salle</strong></td>
       <td>—</td><td class="num">rédhibitoire</td>
@@ -486,14 +516,14 @@ mesure leur coûte, en gestes.</p>
 
 <div class="defiler"><table>
   <tr><th>Mesure</th><th>Gestes demandés au spectateur</th><th>Statut</th></tr>
-  <tr><td>Pas d'indexation (<code>noindex</code> + <code>robots.txt</code>)</td><td class="num">0</td><td><span class="pastille p-bleu">fortement conseillé</span></td></tr>
+  <tr><td>Pas d'indexation (<code>noindex</code> + <code>robots.txt</code>)</td><td class="num">0</td><td><span class="pastille p-rouge">nécessaire</span> depuis Q1 et Q5</td></tr>
   <tr><td>Mention et page « Confidentialité »</td><td class="num">0</td><td><span class="pastille p-rouge">obligatoire</span></td></tr>
   <tr><td>Droit d'opposition</td><td class="num">0</td><td><span class="pastille p-rouge">obligatoire</span></td></tr>
-  <tr><td>Nom abrégé « Prénom N. »</td><td class="num">0</td><td><span class="pastille p-bleu">conseillé</span></td></tr>
-  <tr><td>Fenêtre de publication</td><td class="num">0</td><td><span class="pastille p-bleu">conseillé</span></td></tr>
+  <tr><td>Nom abrégé « Prénom N. »</td><td class="num">0</td><td><span class="pastille p-gris">écarté le 04/09</span></td></tr>
+  <tr><td>Fenêtre de publication — 7 jours</td><td class="num">0</td><td><span class="pastille p-vert">retenu le 04/09</span></td></tr>
   <tr><td>Purge des archives</td><td class="num">0</td><td><span class="pastille p-rouge">obligatoire</span></td></tr>
   <tr><td>Registre des traitements</td><td class="num">0</td><td><span class="pastille p-rouge">obligatoire</span></td></tr>
-  <tr><td>Jeton dans le lien</td><td class="num">1 scan</td><td><span class="pastille p-gris">facultatif</span></td></tr>
+  <tr><td>Jeton dans le lien</td><td class="num">1 scan</td><td><span class="pastille p-gris">écarté le 04/09</span></td></tr>
   <tr><td>Compte spectateur</td><td class="num">beaucoup</td><td><span class="pastille p-gris">écarté</span></td></tr>
 </table></div>
 
@@ -532,39 +562,98 @@ reconstituer le trombinoscope. Ce garde tient&nbsp;; il faut simplement que le
 nom qu'elle rend soit abrégé de la même façon, sans quoi le réglage se contourne
 en un clic.</p>
 
-<h2><span class="n">7</span>Ce qui reste à décider</h2>
+<h2><span class="n">7</span>Ce qui a été décidé le 4 septembre</h2>
+
+<p>Deux tours d'arbitrage. Le premier a répondu aux six questions&nbsp;; le
+second a <strong>réduit le périmètre à quatre livrables</strong> et écarté tout
+le reste, y compris deux mesures retenues au tour précédent.</p>
 
 <div class="defiler"><table>
-  <tr><th>#</th><th>Question</th><th>Ma recommandation</th></tr>
-  <tr><td class="num">Q1</td>
-      <td>Quel affichage des noms sur la page publique&nbsp;?</td>
-      <td><strong>Abrégé</strong> « Prénom&nbsp;N. » par défaut, réglable par
-          édition depuis la console</td></tr>
-  <tr><td class="num">Q2</td>
-      <td>Le mur de la salle affiche-t-il la même chose&nbsp;?</td>
-      <td><strong>Oui</strong> — et le micro annonce le nom complet</td></tr>
-  <tr><td class="num">Q3</td>
-      <td>Combien de temps les résultats restent-ils nominatifs en ligne après
-          la compétition&nbsp;?</td>
-      <td><strong>7 jours</strong>, puis scores sans identité</td></tr>
-  <tr><td class="num">Q4</td>
-      <td>Combien de temps garde-t-on les noms dans les archives internes&nbsp;?</td>
-      <td><strong>1 an</strong>, puis remplacement automatique par le dossard —
-          le classement historique reste consultable</td></tr>
-  <tr><td class="num">Q5</td>
-      <td>Ajoute-t-on un jeton dans le lien de la page publique&nbsp;?</td>
-      <td><strong>Non</strong> — pas obligatoire, et le <code>noindex</code>
-          traite le vrai risque à moindre coût</td></tr>
-  <tr><td class="num">Q6</td>
-      <td>Où se recueille l'opposition&nbsp;?</td>
-      <td>Colonne dans le classeur <em>et</em> interrupteur dans la console —
-          la case HelloAsso viendra avec la spec 008</td></tr>
+  <tr><th>Question</th><th>Décision</th><th>Ce que ça implique</th></tr>
+  <tr><td>Affichage des noms</td>
+      <td><strong>Nom complet</strong>, inchangé</td>
+      <td>Rien à coder. L'abrègement est écarté.</td></tr>
+  <tr><td>Le mur affiche-t-il la même chose&nbsp;?</td>
+      <td><strong>Oui</strong>, et le micro annonce</td>
+      <td>Aucune route séparée pour le vidéoprojecteur.</td></tr>
+  <tr><td>Pas d'indexation</td>
+      <td><span class="pastille p-vert">retenu</span></td>
+      <td><code>robots.txt</code>, <code>noindex</code> sur la page,
+          <code>X-Robots-Tag</code> sur <code>/api/public/*</code>.</td></tr>
+  <tr><td>Mention et page de confidentialité</td>
+      <td><span class="pastille p-vert">retenu</span> — accessible depuis la
+          page de résultats par une <strong>mention discrète</strong></td>
+      <td>Un pied de page qui ne prend pas la place du classement, et une page
+          qui dit ce qui est publié, pourquoi, et comment s'y opposer.</td></tr>
+  <tr><td>Droit d'opposition</td>
+      <td><span class="pastille p-vert">retenu</span> — même traitement&nbsp;:
+          atteignable depuis la page de résultats</td>
+      <td>Le chemin pour l'exercer est écrit et joignable. <em>Comment une
+          opposition reçue est honorée reste à trancher — voir l'encadré.</em></td></tr>
+  <tr><td>Registre des traitements</td>
+      <td><span class="pastille p-vert">retenu</span></td>
+      <td>Un document dans <code>docs/</code>. Aucun code.</td></tr>
+  <tr><td>Fenêtre de publication de 7 jours</td>
+      <td><span class="pastille p-gris">écartée</span> au second tour</td>
+      <td>Les noms restent en ligne sans terme.</td></tr>
+  <tr><td>Purge des archives à un an</td>
+      <td><span class="pastille p-gris">écartée</span> au second tour</td>
+      <td>Les archives continuent de s'accumuler avec leurs noms — derrière la
+          session organisateur.</td></tr>
+  <tr><td>Jeton dans le lien</td>
+      <td><span class="pastille p-gris">écarté</span></td>
+      <td>La page reste ouverte à qui a l'adresse.</td></tr>
 </table></div>
 
-<p>Une fois ces six points tranchés, la spec 043 s'écrit&nbsp;: elle porte le
-socle du niveau&nbsp;0, le réglage d'affichage, l'opposition, la fenêtre de
-publication et la purge des archives. Le numéro 043 est libre — vérifié auprès
-des deux autres sessions en cours sur le dépôt.</p>
+<div class="note alerte">
+<p><strong>Le point qui reste ouvert, et qui décide si le droit d'opposition est
+réel&nbsp;: comment l'honore-t-on&nbsp;?</strong> Offrir le chemin sans pouvoir
+le suivre ne vaut rien — l'article&nbsp;21 dit que le résultat n'est pas publié,
+ou qu'il est retiré. Aujourd'hui, satisfaire un parent qui appelle le samedi
+matin suppose de <em>supprimer le grimpeur</em>, ce qui décale le rang de tous
+ceux qui le suivent et se remarque davantage que ce qu'on voulait cacher.</p>
+<p>Le geste minimal qui rend le droit exerçable est un <strong>interrupteur par
+grimpeur dans la console</strong>&nbsp;: la ligne s'affiche « Dossard&nbsp;42 »,
+le rang et le score ne bougent pas. Il n'est pas dans le périmètre arrêté&nbsp;;
+il tient en peu de code, et sans lui la page annonce un droit que rien ne
+sert.</p>
+</div>
+
+<h2><span class="n">8</span>Le périmètre de la spec 043</h2>
+
+<ul class="cocher">
+  <li><strong>Pas d'indexation</strong> — <code>robots.txt</code> servi par
+    l'application, <code>&lt;meta name="robots"&gt;</code> sur la page de
+    résultats, en-tête <code>X-Robots-Tag: noindex</code> sur
+    <code>/api/public/*</code>. Posé dans Flask et non dans Caddy&nbsp;: la
+    configuration de <code>edge</code> est recopiée à la main et dérive, un
+    en-tête écrit ici voyage avec le code et se teste.</li>
+  <li><strong>Une mention discrète</strong> en pied de la page de résultats,
+    qui mène à la page de confidentialité. Elle ne doit rien prendre au
+    classement, ni sur le vidéoprojecteur, ni sur un téléphone&nbsp;: le rendu
+    sera montré avant d'être codé.</li>
+  <li><strong>Une page de confidentialité</strong> qui dit ce qui est publié,
+    sur quelle base, qui en est responsable, et <strong>comment s'opposer à la
+    publication de son nom</strong> — le même chemin sert les deux mentions.</li>
+  <li><strong>Un registre des traitements</strong> dans <code>docs/</code>
+    (art.&nbsp;30) — trois traitements&nbsp;: inscriptions, compétition,
+    publication des résultats.</li>
+</ul>
+
+<p><strong>Hors périmètre, et écarté explicitement</strong>&nbsp;: abrègement
+des noms, fenêtre de publication, purge des archives, jeton dans le lien, et le
+verrou par liste blanche de la charge publique. Le numéro 043 est réservé —
+vérifié auprès des deux autres sessions en cours sur le dépôt.</p>
+
+<div class="note">
+<p><strong>Ce que cette réduction laisse debout, dit sans détour.</strong> Le
+socle documentaire (information, page de confidentialité, registre) ferme les
+manquements formels, et le <code>noindex</code> empêche la trace durable dans
+les moteurs de recherche — c'est le gain réel, et il est important. Restent
+ouverts&nbsp;: la conservation sans terme (art.&nbsp;5.1.e), et un droit
+d'opposition annoncé mais qu'aucun mécanisme ne sert encore. Les deux se
+rouvrent en une spec chacun, le jour où on le décide.</p>
+</div>
 
 </main>
 
