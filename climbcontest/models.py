@@ -455,6 +455,10 @@ ETATS_INSCRIPTION = (A_TRANCHER, A_IMPRIMER, FAITE, IGNOREE)
 #: Pourquoi une inscription attend. C'est ce que la carte affiche.
 MOTIF_CLUB_DIFFERENT = "club_different"
 MOTIF_ANNEE_ABSENTE = "annee_absente"
+#: Le champ portait une reponse, mais on n'en a pas tire d'annee.
+#: Distinct de l'absence : dire « annee absente » a quelqu'un qui a
+#: tape « 2916 » lui ferait chercher au mauvais endroit.
+MOTIF_ANNEE_ILLISIBLE = "annee_illisible"
 MOTIF_ANNEE_HORS_BAREME = "annee_hors_bareme"
 MOTIF_GENRE_INDETERMINE = "genre_indetermine"
 MOTIF_SANS_NOM = "sans_nom"

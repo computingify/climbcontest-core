@@ -30,7 +30,7 @@ from datetime import datetime
 from . import categories, formatage
 from .contest import ErreurMetier, incrementer_catalogue, verifier_annee
 from .extensions import db
-from .models import Participant
+from .models import Circuit, Participant
 
 logger = logging.getLogger(__name__)
 
@@ -60,17 +60,29 @@ def reference(comp) -> int:
 
 
 def unders(comp) -> list[int]:
-    """Les Under portés par les catégories de cette édition.
+    """Les Under de cette édition, tirés de DEUX sources.
 
-    Dérivés des participants, comme la liste déroulante de la console : aucune
-    table à tenir à jour, et une édition qui n'a jamais eu de U13 n'en invente
-    pas un.
+    Les catégories des participants d'abord, comme la liste déroulante de la
+    console : aucune table à tenir à jour, et une édition qui n'a jamais eu de
+    U13 n'en invente pas un.
+
+    ⚠️ Mais les **circuits** aussi, et c'est ce qui évite un défaut d'amorçage
+    qui ne se serait vu qu'en vrai : au tout premier relevé HelloAsso, aucun
+    participant n'a encore de catégorie. Sans les circuits, la liste serait
+    vide, aucun circuit ne se calculerait, et **les cent inscriptions
+    partiraient en attente** — avec pour seul message « année hors barème »,
+    qui n'aurait accusé personne.
+
+    Les circuits, eux, viennent de l'import du classeur et existent avant tout
+    le monde. Les deux sources se complètent : celle qui est vide n'empêche pas
+    l'autre.
     """
-    valeurs = (v for (v,) in db.session.query(Participant.categorie)
-               .filter(Participant.competition_id == comp.id,
-                       Participant.categorie.isnot(None))
-               .distinct())
-    return categories.unders_de(valeurs)
+    des_participants = (v for (v,) in db.session.query(Participant.categorie)
+                        .filter(Participant.competition_id == comp.id,
+                                Participant.categorie.isnot(None))
+                        .distinct())
+    des_circuits = (c.nom for c in Circuit.query.filter_by(competition_id=comp.id))
+    return categories.unders_de(list(des_participants) + list(des_circuits))
 
 
 def categorie_calculee(participant, ref: int, liste_unders) -> str | None:
