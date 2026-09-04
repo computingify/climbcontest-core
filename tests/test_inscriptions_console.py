@@ -284,3 +284,127 @@ class TestLEffacement:
                           json={"confirmation": "EFFACER", "forcer": True})
         assert r.status_code == 200, r.get_json()
         assert Inscription.query.count() == 0
+
+
+class TestRelierEnUnGeste:
+    """« Un truc simple, et que l'utilisateur puisse vérifier que ça marche. »
+
+    Demandé par Adrien le 04/09. Deux acquis, vérifiés ici :
+
+    - **le nom court de l'association ne se saisit plus.** La clé le connaît,
+      par `/users/me/organizations` — vérifié le 04/09 contre le vrai bac à
+      sable, qui rend `annonay-escalade` tout seul. Un champ à remplir à la
+      main aurait sa faute de frappe, et le symptôme aurait été « aucun
+      formulaire trouvé », qui n'accuse personne ;
+    - **« Tester » nomme le club.** Un verdict qui dit seulement « relié » ne
+      prouve rien : il pourrait désigner la mauvaise association.
+    """
+
+    def _brancher(self, monkeypatch, organisations=None, formulaires=None,
+                  articles=None):
+        class Reponse:
+            def __init__(self, code, donnees):
+                self.status_code, self._d = code, donnees
+
+            def json(self):
+                return self._d
+
+        monkeypatch.setattr(ha.requests, "post",
+                            lambda *a, **k: Reponse(200, {
+                                "access_token": "A", "refresh_token": "R",
+                                "expires_in": 1799}))
+
+        def faux_get(url, params=None, **k):
+            if "/users/me/organizations" in url:
+                return Reponse(200, organisations if organisations is not None
+                               else [{"organizationSlug": "annonay-escalade",
+                                      "name": "ANNONAY ESCALADE"}])
+            if url.endswith("/forms"):
+                return Reponse(200, {"data": formulaires if formulaires is not None
+                                     else [{"title": "Bloc Party",
+                                            "formType": "Event",
+                                            "formSlug": "bloc-party"}]})
+            if url.endswith("/items"):
+                return Reponse(200, {"data": articles or []})
+            return Reponse(200, {})
+        monkeypatch.setattr(ha.requests, "get", faux_get)
+
+    def _poser_la_cle(self, connecte):
+        return connecte.post("/admin/helloasso/cle",
+                             json={"client_id": "a", "client_secret": "b",
+                                   "environnement": "sandbox"})
+
+    def test_poser_la_cle_decouvre_l_association(self, connecte, jeu, monkeypatch):
+        self._brancher(monkeypatch)
+        d = self._poser_la_cle(connecte).get_json()
+        assert d["organisations"][0]["nom"] == "ANNONAY ESCALADE"
+        assert d["formulaires"][0]["slug"] == "bloc-party"
+
+    def test_les_formulaires_ne_demandent_aucun_parametre(self, connecte, jeu,
+                                                          monkeypatch):
+        self._brancher(monkeypatch)
+        self._poser_la_cle(connecte)
+        d = connecte.get("/admin/helloasso/formulaires").get_json()
+        assert d["formulaires"][0]["nom"] == "Bloc Party"
+
+    def test_choisir_un_formulaire_sans_donner_l_association(self, connecte, jeu,
+                                                             monkeypatch):
+        self._brancher(monkeypatch)
+        self._poser_la_cle(connecte)
+        r = connecte.post("/admin/helloasso/formulaire",
+                          json={"form_type": "Event", "form_slug": "bloc-party"})
+        assert r.status_code == 200
+        assert r.get_json()["formulaire"]["organisation"] == "annonay-escalade"
+
+    def test_tester_nomme_le_club(self, connecte, jeu, monkeypatch):
+        self._brancher(monkeypatch)
+        self._poser_la_cle(connecte)
+        d = connecte.post("/admin/helloasso/tester").get_json()
+        assert d["association"] == "ANNONAY ESCALADE"
+        assert d["formulaires"] == 1
+
+    def test_tester_compte_les_inscriptions_du_formulaire_choisi(
+            self, connecte, jeu, monkeypatch):
+        """Le fait le plus parlant : « j'ai bien mes trois inscrits »."""
+        self._brancher(monkeypatch, articles=[{"id": 1}, {"id": 2}, {"id": 3}])
+        self._poser_la_cle(connecte)
+        connecte.post("/admin/helloasso/formulaire",
+                      json={"form_type": "Event", "form_slug": "bloc-party"})
+        d = connecte.post("/admin/helloasso/tester").get_json()
+        assert d["formulaire"] == "bloc-party"
+        assert d["inscriptions"] == 3
+
+    def test_une_cle_sans_association(self, connecte, jeu, monkeypatch):
+        self._brancher(monkeypatch, organisations=[])
+        self._poser_la_cle(connecte)
+        r = connecte.post("/admin/helloasso/tester")
+        assert r.status_code == 409
+        assert "aucune association" in r.get_json()["message"]
+
+    def test_tester_est_reserve_aux_administrateurs(self, client, app, jeu):
+        app.config["SECRET_KEY"] = "une-vraie-cle-de-test-suffisamment-longue"
+        comptes.creer("orga2", MDP, [comptes.ORGANISATEUR])
+        client.post("/admin/connexion",
+                    json={"identifiant": "orga2", "mot_de_passe": MDP})
+        assert client.post("/admin/helloasso/tester").status_code == 403
+
+    def test_la_decouverte_qui_echoue_laisse_la_cle_posee(self, connecte, jeu,
+                                                          monkeypatch):
+        """Une découverte ratée ne doit pas défaire ce qui vient de marcher :
+        le jeton a été obtenu, la clé est bonne."""
+        class Reponse:
+            def __init__(self, code, donnees):
+                self.status_code, self._d = code, donnees
+
+            def json(self):
+                return self._d
+        monkeypatch.setattr(ha.requests, "post",
+                            lambda *a, **k: Reponse(200, {
+                                "access_token": "A", "refresh_token": "R",
+                                "expires_in": 1799}))
+        monkeypatch.setattr(ha.requests, "get",
+                            lambda *a, **k: Reponse(500, {}))
+        d = self._poser_la_cle(connecte).get_json()
+        assert d["success"] is True
+        assert d["organisations"] == []
+        assert ha.lire_secret() is not None

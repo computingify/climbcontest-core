@@ -12,7 +12,9 @@ personne.
 Cet outil répond à la question **avant** qu'une ligne de relevé soit écrite :
 
     python3 tools/dump_helloasso.py --formulaires
-    python3 tools/dump_helloasso.py --champs Event bloc-party-2026
+    python3 tools/dump_helloasso.py --champs Event bloc-party
+
+Le nom court de l'association n'est pas demande : la cle le connait.
 
 ## Ce qu'il ne fait pas
 
@@ -63,8 +65,29 @@ def _client():
                               sans_base=True)
 
 
-def formulaires(slug: str) -> None:
-    for f in _client().formulaires(slug):
+def _association(client, propose: str | None = None) -> str:
+    """Le nom court de l'association. La cle le connait, on ne le demande pas.
+
+    Vaut pour la console comme pour ce script : un nom tape a la main a sa
+    faute de frappe, et le symptome est « aucun formulaire trouve » -- qui
+    n'accuse personne.
+    """
+    if propose:
+        return propose
+    trouvees = client.organisations()
+    if not trouvees:
+        usage("Cette cle ne donne acces a aucune association.")
+    if len(trouvees) > 1:
+        print("Plusieurs associations : " +
+              ", ".join(o["slug"] for o in trouvees), file=sys.stderr)
+    return trouvees[0]["slug"]
+
+
+def formulaires(slug: str | None) -> None:
+    client = _client()
+    slug = _association(client, slug)
+    print(f"association : {slug}\n")
+    for f in client.formulaires(slug):
         print(f"{f.get('formType'):<14} {f.get('formSlug'):<34} {f.get('title')}")
 
 
@@ -75,6 +98,7 @@ def champs(slug: str, type_de_formulaire: str, slug_formulaire: str) -> None:
     champ porte l'annee de naissance, lequel le genre, lequel le club.
     """
     client = _client()
+    slug = _association(client, slug)
     vus: dict[str, set] = {}
     combien = 0
     for article in client.articles(slug, type_de_formulaire, slug_formulaire):
@@ -111,20 +135,13 @@ def main() -> None:
         usage()
 
     if arguments[0] == "--formulaires":
-        slug = arguments[1] if len(arguments) > 1 else os.environ.get(
-            "CLIMBCONTEST_HELLOASSO_ORG")
-        if not slug:
-            usage("Le nom court de l'association est attendu : "
-                  "--formulaires annonay-escalade")
-        formulaires(slug)
+        # L'association est FACULTATIVE : la cle la connait.
+        formulaires(arguments[1] if len(arguments) > 1 else None)
     elif arguments[0] == "--champs":
         if len(arguments) < 3:
             usage("Usage : --champs <type> <formulaire> [association]")
-        slug = arguments[3] if len(arguments) > 3 else os.environ.get(
-            "CLIMBCONTEST_HELLOASSO_ORG")
-        if not slug:
-            usage("Le nom court de l'association est attendu.")
-        champs(slug, arguments[1], arguments[2])
+        champs(arguments[3] if len(arguments) > 3 else None,
+               arguments[1], arguments[2])
     else:
         usage(f"Option inconnue : {arguments[0]}")
 

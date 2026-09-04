@@ -390,6 +390,24 @@ class ClientHelloAsso:
     def organisation(self, slug: str) -> dict:
         return self._get(f"/organizations/{slug}")
 
+    def organisations(self) -> list[dict]:
+        """Les associations sur lesquelles cette clé a des droits.
+
+        ⚠️ **C'est ce qui dispense de faire taper le nom court de
+        l'association.** `/users/me/organizations` ne demande que le privilège
+        `AccessPublicData`, que toute clé d'association possède — vérifié le
+        04/09 contre le bac à sable : la clé du club rend `annonay-escalade`
+        toute seule.
+
+        Sans ça, la console aurait un champ « nom court de l'association » à
+        remplir à la main, avec la faute de frappe qui va avec — et le symptôme
+        aurait été « aucun formulaire trouvé », qui n'accuse personne.
+        """
+        reponse = self._get("/users/me/organizations")
+        gens = reponse if isinstance(reponse, list) else (reponse.get("data") or [])
+        return [{"slug": o.get("organizationSlug") or o.get("slug"),
+                 "nom": o.get("name")} for o in gens if o]
+
     def formulaires(self, slug: str) -> list[dict]:
         """Les formulaires du club, pour en choisir un dans la console."""
         page = self._get(f"/organizations/{slug}/forms",

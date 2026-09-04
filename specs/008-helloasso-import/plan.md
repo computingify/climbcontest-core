@@ -125,14 +125,27 @@ et les réponses vues.
 
 ---
 
-## Lot 8 — La recette
+## Lot 8 — La recette *(bac à sable faite le 04/09)*
 
-- [ ] Une inscription passée à la main sur le formulaire de test apparaît en
-      **moins de 90 s**, compétition `en_cours`
-- [ ] Une commande à **deux** enfants crée **deux** participants
+Jouée sur le **vrai** bac à sable d'Adrien : association `annonay-escalade`,
+formulaire `bloc-party`, trois articles en deux commandes.
+
+- [x] La clé authentifie, et `/users/me/organizations` rend l'association
+      **toute seule** — c'est ce qui supprime la saisie du nom court
+- [x] Les trois champs sont **reconnus sans rien saisir** : `Date de
+      naissance`, `Sexe`, `Club`
+- [x] Les réponses `Femme` / `Homme` sont rangées en `F` / `H` par la table
+      intégrée — aucune correspondance à écrire
+- [x] Une commande à **deux** enfants crée **deux** participants
+- [x] Les catégories se calculent : 2014 → U15, 2015 → U13
+- [x] **Trois orthographes du même club** — `ANNONAY ESCALADE`,
+      `AnnONay EscaLAde`, `AnnONay Escalade` — donnent **un seul**
+      `Annonay Escalade`
+- [x] Rejouer tout ne crée rien : 3 vus, 0 nouvelle, 3 déjà connues
+- [x] Le parcours complet depuis la console : *Tester* → *Choisir* → *Relever*
 - [ ] Une annulation depuis le back-office fait remonter la ligne
 - [ ] Quatre workers gunicorn sur la VM : **un seul** rafraîchissement de jeton
-- [ ] Bascule sur la clé de production, formulaire réel, relevé à blanc
+- [ ] Bascule sur la clé de **production**, formulaire réel, relevé à blanc
 
 ---
 

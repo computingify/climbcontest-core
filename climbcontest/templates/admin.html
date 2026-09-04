@@ -1456,24 +1456,32 @@
         <dl class="etat" id="etatHelloasso"></dl>
         <p class="verdict" id="verdictHelloasso"></p>
         <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:14px">
+          <button class="action" id="btnTesterHelloasso">Tester</button>
           <button class="secondaire" id="btnRemplacerCle">Remplacer la clé</button>
           <button class="secondaire" id="btnDebrancherHelloasso"
                   style="border-color:var(--alerte);color:var(--alerte)">Débrancher</button>
         </div>
+        <!-- « Est-ce que ça marche ? » se répond par des faits qu'on
+             reconnaît — le nom du club, un nombre de formulaires — pas par un
+             mot qui dit « relié » et pourrait désigner la mauvaise
+             association. -->
+        <dl class="etat" id="resultatTest" hidden style="margin-top:16px"></dl>
       </div>
 
       <div class="carte" id="carteFormulaire" hidden>
         <h2>Formulaire de cette édition</h2>
+        <!-- ⚠️ Le nom court de l'association ne se saisit plus : la clé le
+             connaît (`/users/me/organizations`). Un champ à remplir à la main
+             aurait sa faute de frappe, et le symptôme aurait été « aucun
+             formulaire trouvé » — qui n'accuse personne. -->
         <div class="grille" style="max-width:520px">
-          <div><label for="haOrga">Nom court de l'association</label>
-               <input id="haOrga" placeholder="annonay-escalade"
-                      autocapitalize="none" spellcheck="false"></div>
           <div><label for="haForm">Formulaire</label>
-               <select id="haForm"></select></div>
+               <select id="haForm"></select>
+               <p class="apercu" id="haOrgaNom" hidden></p></div>
         </div>
         <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:14px">
-          <button class="secondaire" id="btnListerFormulaires">Chercher les formulaires</button>
-          <button class="action" id="btnChoisirFormulaire">Choisir</button>
+          <button class="action" id="btnChoisirFormulaire">Choisir ce formulaire</button>
+          <button class="secondaire" id="btnListerFormulaires">Rafraîchir la liste</button>
         </div>
       </div>
 
@@ -3456,6 +3464,14 @@
     return appeler("/admin/helloasso").then(function (d) {
       etat.helloasso = d;
       dessinerHelloasso();
+      // La liste des formulaires se remplit toute seule a l'ouverture : c'est
+      // un appel reseau, mais il evite un bouton a cliquer avant de pouvoir
+      // faire quoi que ce soit.
+      if (d.configure) {
+        appeler("/admin/helloasso/formulaires")
+          .then(remplirFormulaires)
+          .catch(function () { /* le releve dira ce qui ne va pas */ });
+      }
     }).catch(signaler);
   }
 
@@ -3485,7 +3501,6 @@
     }
 
     var f = d.formulaire || {};
-    $("haOrga").value = f.organisation || "";
     var champs = f.champs || {};
     $("chNaissance").value = champs.naissance || "";
     $("chGenre").value = champs.genre || "";
@@ -3504,12 +3519,52 @@
       client_id: $("haId").value.trim(),
       client_secret: $("haSecret").value.trim(),
       environnement: $("haEnv").value,
-    }}).then(function () {
+    }}).then(function (d) {
       // Le secret ne reste pas dans le champ : il n'a aucune raison de rester
       // lisible sur un ecran ouvert toute la journee.
       $("haSecret").value = "";
-      dire("Clé HelloAsso posée.", "ok");
+      $("haId").value = "";
+      // Poser la cle a DECOUVERT l'association : on le dit tout de suite, avec
+      // son nom. C'est la seule preuve qui interesse celui qui vient de coller
+      // deux chaines illisibles.
+      var asso = (d.organisations || [])[0];
+      dire(asso ? "Relié à " + asso.nom + " — " +
+                  (d.formulaires || []).length + " formulaire(s) trouvé(s)."
+                : "Clé posée.", "ok");
+      remplirFormulaires(d);
       chargerHelloasso();
+    }).catch(signaler);
+  });
+
+  function remplirFormulaires(d) {
+    var select = $("haForm");
+    select.innerHTML = "";
+    (d.formulaires || []).forEach(function (f) {
+      var o = document.createElement("option");
+      o.value = f.type + "|" + f.slug;
+      o.textContent = f.nom + " — " + f.type;
+      select.appendChild(o);
+    });
+    var asso = (d.organisations || [])[0];
+    $("haOrgaNom").hidden = !asso;
+    if (asso) $("haOrgaNom").innerHTML = "Association — <b>" + asso.nom + "</b>";
+  }
+
+  // « Est-ce que ca marche ? » se repond par des faits qu'on reconnait.
+  $("btnTesterHelloasso").addEventListener("click", function () {
+    appeler("/admin/helloasso/tester", { methode: "POST" }).then(function (d) {
+      var zone = $("resultatTest");
+      zone.hidden = false;
+      var lignes = "<dt>Association</dt><dd><b>" + d.association + "</b></dd>";
+      if (d.formulaires !== null && d.formulaires !== undefined) {
+        lignes += "<dt>Formulaires</dt><dd>" + d.formulaires + "</dd>";
+      }
+      if (d.formulaire) {
+        lignes += "<dt>Formulaire choisi</dt><dd>" + d.formulaire + "</dd>" +
+                  "<dt>Inscriptions vues</dt><dd><b>" + d.inscriptions + "</b></dd>";
+      }
+      zone.innerHTML = lignes;
+      dire("Accès vérifié : " + d.association + ".", "ok");
     }).catch(signaler);
   });
 
@@ -3526,30 +3581,24 @@
   });
 
   $("btnListerFormulaires").addEventListener("click", function () {
-    var orga = $("haOrga").value.trim();
-    if (!orga) { dire("Le nom court de l'association est attendu.", "alerte"); return; }
-    appeler("/admin/helloasso/formulaires?organisation=" + encodeURIComponent(orga))
-      .then(function (d) {
-        var select = $("haForm");
-        select.innerHTML = "";
-        (d.formulaires || []).forEach(function (f) {
-          var o = document.createElement("option");
-          o.value = f.type + "|" + f.slug;
-          o.textContent = f.nom + " — " + f.type;
-          select.appendChild(o);
-        });
-        dire((d.formulaires || []).length + " formulaire(s) trouvé(s).", "ok");
-      }).catch(signaler);
+    appeler("/admin/helloasso/formulaires").then(function (d) {
+      remplirFormulaires(d);
+      dire((d.formulaires || []).length + " formulaire(s) trouvé(s).", "ok");
+    }).catch(signaler);
   });
 
   $("btnChoisirFormulaire").addEventListener("click", function () {
     var choisi = ($("haForm").value || "").split("|");
     if (choisi.length !== 2) { dire("Choisis un formulaire.", "alerte"); return; }
     appeler("/admin/helloasso/formulaire", { methode: "POST", corps: {
-      organisation: $("haOrga").value.trim(),
       form_type: choisi[0], form_slug: choisi[1],
-    }}).then(function () {
-      dire("Formulaire choisi.", "ok");
+    }}).then(function (d) {
+      // Ce qui a ete RECONNU se dit, sinon l'automatisme ressemble a de la
+      // magie -- et une magie qui se trompe ne s'explique pas.
+      var trouves = d.trouves || [];
+      dire(trouves.length
+        ? "Formulaire choisi. Reconnu tout seul : " + trouves.join(", ") + "."
+        : "Formulaire choisi. Aucun champ reconnu — à régler à la main.", "ok");
       chargerHelloasso();
     }).catch(signaler);
   });

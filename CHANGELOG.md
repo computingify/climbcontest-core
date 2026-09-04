@@ -88,6 +88,17 @@ qu'on ne met pas à jour le matin d'une compétition :
   calculable au premier relevé. Une ligne dans l'écran **Catégories** suffit
   désormais à les annoncer, et le calcul cesse de dépendre du classeur.
 
+- **Relier HelloAsso tient en deux champs** (spec 008). On colle l'identifiant
+  et le secret, et la console **trouve l'association toute seule** — son nom
+  s'affiche aussitôt, avec la liste de ses formulaires. Plus de nom court à
+  taper, donc plus de faute de frappe dont le seul symptôme aurait été « aucun
+  formulaire trouvé ».
+
+  Un bouton **Tester** répond à « est-ce que ça marche ? » par des faits qu'on
+  reconnaît : le nom du club, le nombre de formulaires, et le nombre
+  d'inscriptions vues sur celui qui est choisi. Un verdict qui dirait seulement
+  « relié » ne prouverait rien — il pourrait désigner la mauvaise association.
+
 - **L'import HelloAsso devine ses champs** (spec 008). Choisir le formulaire lit
   un échantillon et reconnaît tout seul l'année de naissance, le genre et le
   club — par le nom du champ, et à défaut **par ses réponses** : un champ dont

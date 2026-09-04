@@ -1850,8 +1850,14 @@ def helloasso_poser_cle():
     ha_planificateur.reveiller()
     ha_planificateur.demarrer(current_app._get_current_object())
 
+    # Poser la cle DECOUVRE l'association et ses formulaires. C'est tout
+    # l'ecart entre « relier » et « configurer » : l'organisateur colle deux
+    # chaines et voit aussitot le nom de son club, ce qui est la seule preuve
+    # qui l'interesse.
+    decouverte = _decouvrir_helloasso()
+
     logger.info("cle HelloAsso posee par %s", g.utilisateur.identifiant)
-    return jsonify({"success": True, **ha_client.etat()}), 200
+    return jsonify({"success": True, **ha_client.etat(), **decouverte}), 200
 
 
 @bp.delete("/helloasso/cle")
@@ -1862,21 +1868,77 @@ def helloasso_retirer_cle():
     return jsonify({"success": True, "configure": False}), 200
 
 
+def _decouvrir_helloasso() -> dict:
+    """L'association et ses formulaires, sans rien demander a personne.
+
+    Ne leve jamais : une decouverte qui echoue laisse la cle posee et l'ecran
+    utilisable. C'est le releve qui dira, plus tard, ce qui ne va pas.
+    """
+    try:
+        client = ha_client.ClientHelloAsso()
+        organisations = client.organisations()
+        if not organisations:
+            return {"organisations": [], "formulaires": []}
+        slug = organisations[0]["slug"]
+        formulaires = [{"nom": f.get("title"), "type": f.get("formType"),
+                        "slug": f.get("formSlug")}
+                       for f in client.formulaires(slug)]
+        return {"organisations": organisations, "formulaires": formulaires}
+    except ha_client.ErreurHelloAsso as e:
+        logger.info("decouverte HelloAsso impossible : %s", e.message)
+        return {"organisations": [], "formulaires": [], "erreur": e.message}
+
+
 @bp.get("/helloasso/formulaires")
 @exige_role(ADMIN)
 def helloasso_formulaires():
-    """Les formulaires du club, pour en choisir un."""
-    slug = (request.args.get("organisation") or "").strip()
-    if not slug:
-        return jsonify({"success": False,
-                        "message": "Le nom court de l'association est attendu"}), 400
+    """L'association et ses formulaires. **Aucun parametre a fournir.**"""
+    return jsonify({"success": True, **_decouvrir_helloasso()}), 200
+
+
+@bp.post("/helloasso/tester")
+@exige_role(ADMIN)
+def helloasso_tester():
+    """« Est-ce que ca marche ? » — la reponse en une phrase verifiable.
+
+    Un verdict qui dit seulement « relie » ne prouve rien a celui qui le lit :
+    il pourrait etre relie a la mauvaise association. Celui-ci nomme le club,
+    compte les formulaires, et va jusqu'a compter les inscriptions du
+    formulaire choisi -- trois faits qu'un humain reconnait ou non.
+
+    **Lecture seule**, comme « Tester l'acces » du classeur.
+    """
     try:
-        formulaires = ha_client.ClientHelloAsso().formulaires(slug)
+        client = ha_client.ClientHelloAsso()
+        organisations = client.organisations()
     except ha_client.ErreurHelloAsso as e:
         return jsonify({"success": False, "message": e.message}), e.code
-    return jsonify({"success": True, "formulaires": [
-        {"nom": f.get("title"), "type": f.get("formType"), "slug": f.get("formSlug")}
-        for f in formulaires]}), 200
+
+    if not organisations:
+        return jsonify({"success": False,
+                        "message": "La cle ne donne acces a aucune association."}), 409
+
+    resultat = {"association": organisations[0]["nom"],
+                "slug": organisations[0]["slug"]}
+    try:
+        resultat["formulaires"] = len(client.formulaires(organisations[0]["slug"]))
+    except ha_client.ErreurHelloAsso:
+        resultat["formulaires"] = None
+
+    try:
+        comp = competition_active()
+        config = ha_releve.reglages(comp)
+        if config.get("form_slug"):
+            articles = client.echantillon(
+                config.get("organisation") or organisations[0]["slug"],
+                config["form_type"], config["form_slug"])
+            resultat["formulaire"] = config["form_slug"]
+            resultat["inscriptions"] = len(articles)
+    except (ErreurMetier, ha_client.ErreurHelloAsso):
+        pass
+
+    logger.info("test HelloAsso par %s : %s", g.utilisateur.identifiant, resultat)
+    return jsonify({"success": True, **resultat}), 200
 
 
 @bp.post("/helloasso/formulaire")
@@ -1903,12 +1965,23 @@ def helloasso_choisir_formulaire():
     except ErreurMetier as e:
         return jsonify({"success": False, "message": e.message}), e.code
 
-    organisation = (corps.get("organisation") or "").strip()
     type_de_formulaire = (corps.get("form_type") or "").strip()
     slug = (corps.get("form_slug") or "").strip()
-    if not (organisation and type_de_formulaire and slug):
+    if not (type_de_formulaire and slug):
         return jsonify({"success": False,
-                        "message": "Association, type et formulaire sont attendus"}), 400
+                        "message": "Le type et le formulaire sont attendus"}), 400
+
+    # L'association ne se saisit plus : la cle la connait.
+    organisation = (corps.get("organisation") or "").strip()
+    if not organisation:
+        try:
+            trouvees = ha_client.ClientHelloAsso().organisations()
+            organisation = trouvees[0]["slug"] if trouvees else ""
+        except ha_client.ErreurHelloAsso as e:
+            return jsonify({"success": False, "message": e.message}), e.code
+    if not organisation:
+        return jsonify({"success": False,
+                        "message": "La cle ne donne acces a aucune association."}), 409
 
     ancien = ha_releve.reglages(comp)
     devine = {"champs": {}, "genre_valeurs": {}, "trouves": [],
