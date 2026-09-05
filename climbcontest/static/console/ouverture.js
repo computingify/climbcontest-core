@@ -16,7 +16,8 @@
  * et la seconde écrase la première en silence.
  */
 
-import { confirmerParGeste } from "/static/console/confirmer.js";
+import { confirmerParGeste, poserMaintien }
+  from "/static/console/confirmer.js";
 import { decorer, decrire, monter, peutDessiner, tailleDuCompte }
   from "/static/resultats/plan.js";
 
@@ -742,3 +743,6 @@ window.ouvreursEcran = { charger };
  * l'importe deja -- la pose sur la fenetre. Un seul pont, au meme endroit que
  * l'autre. */
 window.confirmerParGeste = confirmerParGeste;
+/* Et le maintien seul, pour `dlgConfirmer` : son balisage existe depuis la
+ * spec 032, il n'a besoin que de la mecanique. */
+window.poserMaintien = poserMaintien;

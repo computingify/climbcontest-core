@@ -123,11 +123,34 @@ class TestConfirmerSeMaintient:
         assert 'aria-describedby="dlgAide"' in page
         assert 'id="dlgAide"' in page
 
-    def test_la_duree_du_maintien_n_est_ecrite_qu_une_fois(self, page):
+    def test_la_duree_du_maintien_n_est_ecrite_qu_une_fois(self, page, client):
         """Le CSS recoit sa duree du script : deux valeurs a tenir synchrones a
-        la main finiraient par diverger, et la jauge mentirait."""
-        assert "var MAINTIEN_MS = 2000;" in page
+        la main finiraient par diverger, et la jauge mentirait.
+
+        ⚠️ Depuis l'extraction du geste (spec 044), la duree n'appartient plus
+        au gabarit : elle vit dans `static/console/confirmer.js`, avec la
+        mecanique que cette fenetre PARTAGE desormais avec l'ecran d'ouverture.
+        Le gabarit n'en garde qu'une copie pour ECRIRE le libelle -- et c'est
+        justement ce que ce test surveille : une seule definition du minuteur.
+        """
+        assert "var MAINTIEN_MS" not in page
         assert "transition-duration" not in page.split("<script>")[0]
+
+        module = client.get("/static/console/confirmer.js").data.decode()
+        assert module.count("MAINTIEN_MS = 2000") == 1
+
+    def test_le_geste_du_dialogue_est_CELUI_du_module(self, page):
+        """⚠️ Le defaut que l'extraction ferme : quatre-vingt-dix lignes de
+        maintien vivaient en double dans le depot -- ici et dans le module de
+        l'ecran d'ouverture. Deux implementations d'un meme geste divergent,
+        c'est la lecon de `cascade.py` et de son test miroir.
+
+        Le gabarit ne doit donc plus porter AUCUN morceau de la mecanique.
+        """
+        for morceau in ("onpointerdown", "e.repeat", "strokeDashoffset",
+                        "classList.add(\"tenu\")"):
+            assert morceau not in page, morceau
+        assert "window.poserMaintien(bouton" in page
 
     def test_le_marqueur_part_toujours_au_serveur(self, page):
         """Le mot n'est plus un geste humain, il reste un marqueur de protocole
