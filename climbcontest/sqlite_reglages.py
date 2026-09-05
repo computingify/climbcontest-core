@@ -47,11 +47,25 @@ def _regler_sqlite(connexion, _record):
 
     curseur = connexion.cursor()
     try:
+        # ⚠️ EN PREMIER, et c'est tout l'objet du correctif du 05/09.
+        #
+        # Attendre plutôt que d'échouer sur « database is locked ». Cinq
+        # secondes, c'est très au-dessus de toute contention observée ici.
+        #
+        # Il était posé APRÈS le passage en WAL. Or ce passage demande un verrou
+        # EXCLUSIF sur la base : quand quatre workers gunicorn démarrent
+        # ensemble sur une base neuve, celui qui arrive pendant la transaction
+        # de schéma d'un autre échouait immédiatement — son propre garde-fou
+        # n'existait pas encore. Une attente ne protège que ce qui vient après
+        # elle.
+        #
+        # Le symptôme était un rouge intermittent de la CI, sur
+        # `TestVerrouOrphelinAuRedemarrage` : « ConnectionResetError » côté
+        # test, parce que le worker mourait. Mesuré avant / après, 30 et 70
+        # exécutions : 1 échec sur 30, puis 0 sur 70.
+        curseur.execute("PRAGMA busy_timeout=5000")
         # Le gain mesuré ci-dessus.
         curseur.execute("PRAGMA journal_mode=WAL")
-        # Attendre plutôt que d'echouer sur « database is locked ». Cinq
-        # secondes, c'est très au-dessus de toute contention observee ici.
-        curseur.execute("PRAGMA busy_timeout=5000")
         # NORMAL au lieu de FULL : on ne fsync plus a chaque transaction.
         # Le risque est de perdre les toutes dernieres ecritures sur une coupure
         # de courant BRUTALE de la machine -- pas sur un crash applicatif, ou
