@@ -137,10 +137,47 @@ Trois états, et le troisième est celui qui compte :
 3. **Allumé** — la carte devient le rappel de ce qui a été retiré, et le seul
    chemin de retour arrière.
 
-La confirmation est une boîte à **saisie de confirmation** — il faut écrire
-`SUPPRIMER` — et non un simple « Confirmer ». C'est le seul geste de la console
-dont la conséquence vit **hors** de la console : Adrien va ensuite supprimer un
-fichier dans son Drive.
+### 5.1 Le geste de confirmation : UN composant, deux surfaces
+
+`climbcontest/static/console/confirmer.js` — **créé par la spec 044** (qui en a
+besoin pour la renumérotation), réutilisé ici.
+
+```js
+export function confirmerParGeste(hote, {libelle, libelleGlisse, surAbout});
+```
+
+Il rend l'un ou l'autre selon le pointeur, et appelle `surAbout` dans les deux
+cas :
+
+| Média | Rendu | Cotes |
+| --- | --- | --- |
+| `(hover: hover) and (pointer: fine)` | le bouton à **maintenir** | `MAINTIEN_MS = 2000`, anneau `--anneau: 37.7` |
+| sinon | le **glissement** | piste 260 × 58 plafonnée et centrée, bouton 50, marge 4, course 202 |
+
+⚠️ **Un seul composant, et c'est la moitié du travail.** Deux copies du même
+geste — une pour la renumérotation, une pour la bascule — divergeraient en une
+semaine : c'est la leçon de `cascade.py` et de son test miroir, qui existe
+justement parce que deux implémentations d'une même règle avaient divergé.
+
+⚠️ **Et il faut aller au bout : `dlgConfirmer` doit l'utiliser aussi.** Le
+maintien vit aujourd'hui *en ligne* dans `admin.html` (≈ 90 lignes autour de
+`MAINTIEN_MS`). Le laisser là ferait **deux** implémentations du maintien dans
+le même fichier. L'extraction est une étape à part du plan, faite **en dernier**
+et sur du code qui marche : c'est un déplacement, et git fusionne mal les
+déplacements quand deux autres branches travaillent dans ce fichier.
+
+⚠️ **Le clavier ne doit pas tomber du côté du glissement.** Le maintien est
+opérable au clavier (Entrée maintenue, `e.repeat` gardé). Le glissement ne
+l'est pas. Sur un appareil à pointeur grossier **muni d'un clavier**, le
+curseur accepte donc aussi le maintien sur Entrée — même minuteur, même
+annulation. Sans ça, le geste devient inatteignable au clavier sur ces
+appareils.
+
+### 5.2 La boîte
+
+C'est le seul geste de la console dont la conséquence vit **hors** de la
+console : Adrien va ensuite supprimer un fichier dans son Drive. La boîte le
+dit avant le geste, pas après.
 
 ⚠️ Préfixes `sansClasseur*` (`carteSansClasseur`, `sansClasseurControle`,
 `sansClasseurBasculer`) — deux autres branches travaillent dans `admin.html`, et
@@ -157,7 +194,8 @@ git fusionne sans conflit deux blocs ajoutés à des endroits différents.
 | `climbcontest/routes/sante.py` | le champ et le statut |
 | `climbcontest/sheets/planificateur.py` | les gardes 1 et 2 |
 | `climbcontest/sheets/mirror.py` | le garde 3 |
-| `climbcontest/templates/admin.html` | la carte, et le masquage de la vue Classeur |
+| `climbcontest/templates/admin.html` | la carte, le masquage de la vue Classeur, et `dlgConfirmer` qui passe sur le composant partagé |
+| `climbcontest/static/console/confirmer.js` | créé par la 044, réutilisé ici |
 | `tests/test_mode_sans_classeur.py` | **nouveau** |
 | `docs/contraintes-metier.md` | §2 : l'étape 3 est atteinte |
 | `docs/runbook-competition.md` | la sauvegarde devient le seul filet |

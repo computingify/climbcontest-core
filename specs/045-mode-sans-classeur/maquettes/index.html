@@ -122,6 +122,61 @@
     padding: 10px 12px; border-radius: 10px; border: 1px solid var(--trait);
     background: var(--fond); color: var(--encre); }
 
+  /* --- Le geste de confirmation, les deux surfaces ------------------------
+     Un seul geste, deux surfaces. Ni l'un ni l'autre n'est inventé ici :
+     le MAINTIEN est celui de `admin.html` (`button.detruire`, spec 032,
+     02/09) ; le GLISSEMENT est celui de Sowel (`SlideToConfirm.tsx`,
+     spec 146), cotes comprises. */
+
+  /* 1. Le maintien — recopié de `dialog button.detruire`. */
+  .detruire {
+    position: relative; overflow: hidden; isolation: isolate;
+    display: inline-flex; align-items: center; gap: 8px;
+    cursor: pointer; font: inherit; font-weight: 600;
+    background: var(--alerte); color: var(--sur-alerte); border: 0;
+    border-radius: 9px; padding: 11px 18px;
+    touch-action: none; -webkit-user-select: none; user-select: none;
+  }
+  .detruire .remplissage {
+    position: absolute; top: 0; bottom: 0; left: 0; width: 0; z-index: -1;
+    background: color-mix(in srgb, var(--encre) 55%, transparent);
+    transition-property: width; transition-timing-function: linear;
+  }
+  .detruire.tenu { box-shadow: 0 0 0 3px color-mix(in srgb, var(--alerte) 35%, transparent); }
+  .anneau { width: 15px; height: 15px; flex: none; transform: rotate(-90deg); }
+  .anneau circle { fill: none; stroke-width: 2.5; }
+  .anneau .fond { stroke: color-mix(in srgb, var(--sur-alerte) 40%, transparent); }
+  .anneau .part { stroke: var(--sur-alerte); stroke-dasharray: 37.7;
+    stroke-dashoffset: 37.7; transition-property: stroke-dashoffset;
+    transition-timing-function: linear; }
+
+  /* 2. Le glissement — cotes de Sowel : piste 260x58 plafonnée et centrée,
+     bouton 50, marge 4, donc une course de 202 px. */
+  .glisse { position: relative; margin: 0 auto; width: 100%; max-width: 260px;
+    height: 58px; border-radius: 12px; border: 1px solid var(--trait);
+    background: var(--surface3); overflow: hidden; user-select: none;
+    touch-action: none; }
+  .glisse .jauge { position: absolute; top: 0; bottom: 0; left: 0;
+    border-radius: 12px; width: 50px;
+    background: color-mix(in srgb, var(--alerte) 16%, transparent); }
+  .glisse .mot { position: absolute; top: 0; bottom: 0; left: 58px; right: 0;
+    display: flex; align-items: center; justify-content: center; gap: 6px;
+    font-size: 13px; font-weight: 600; color: var(--encre2);
+    white-space: nowrap; pointer-events: none; }
+  .glisse .bouton { position: absolute; top: 4px; left: 4px; width: 50px;
+    height: 50px; border-radius: 9px; background: var(--alerte);
+    color: var(--sur-alerte); display: flex; align-items: center;
+    justify-content: center; box-shadow: 0 2px 6px rgba(0,0,0,.25);
+    cursor: grab; z-index: 2; }
+  .glisse.fini { border-color: color-mix(in srgb, var(--ok) 45%, transparent); }
+  .glisse.fini .jauge { background: color-mix(in srgb, var(--ok) 20%, transparent); }
+  .glisse.fini .bouton { background: var(--ok); cursor: default; }
+  .glisse.fini .mot { left: 0; right: 58px; color: var(--ok); }
+  .surface { font-size: .7rem; text-transform: uppercase; letter-spacing: .07em;
+    color: var(--encre3); font-weight: 700; margin: 0 0 8px; }
+  .cadre-geste { border: 1px solid var(--trait); border-radius: 12px;
+    padding: 14px; background: var(--fond); margin-bottom: 12px; }
+
   /* --- Le tiroir, avant / après ------------------------------------------ */
   .tiroir-demo { width: 270px; background: var(--surface);
     border: 1px solid var(--trait); border-radius: 12px; padding: 10px; }
@@ -227,7 +282,7 @@
 </div>
 
 <h2>3 — La confirmation
-  <small>Un mot à écrire, pas un bouton à cliquer.</small></h2>
+  <small>Le geste de la maison : on maintient à la souris, on glisse au doigt.</small></h2>
 <div class="rangee">
   <div class="boite">
     <h3>Débrancher le classeur Google ?</h3>
@@ -240,18 +295,59 @@
     <p>Après la bascule, les inscrits viendront de <b>HelloAsso</b> et du
        guichet, les voies de <b>l'écran d'ouverture</b>, et plus rien ne sera
        écrit vers Google.</p>
-    <label for="motCle">Écris <b>SUPPRIMER</b> pour confirmer</label>
-    <input id="motCle" value="" placeholder="SUPPRIMER" spellcheck="false"
-           autocapitalize="characters">
-    <div class="actions">
-      <button>Annuler</button>
-      <button class="danger" disabled>Débrancher le classeur</button>
+
+    <div class="cadre-geste">
+      <p class="surface">Sur ordinateur — le bouton à maintenir</p>
+      <p style="margin:0 0 12px;font-size:.78rem;color:var(--encre2)">
+        Relâcher avant la fin annule. Au clavier : Entrée maintenue sur le bouton.</p>
+      <div class="actions" style="margin-top:0">
+        <button>Annuler</button>
+        <button type="button" class="detruire" id="tenir">
+          <i class="remplissage" id="tenirJauge" aria-hidden="true"></i>
+          <svg class="anneau" viewBox="0 0 16 16" aria-hidden="true">
+            <circle class="fond" cx="8" cy="8" r="6"></circle>
+            <circle class="part" id="tenirPart" cx="8" cy="8" r="6"></circle>
+          </svg>
+          <span id="tenirMot">Maintenir 2 s pour débrancher</span>
+        </button>
+      </div>
+    </div>
+
+    <div class="cadre-geste" style="margin-bottom:0">
+      <p class="surface">Sur téléphone — le glissement</p>
+      <div class="glisse" id="glisse">
+        <div class="jauge" id="glisseJauge"></div>
+        <div class="mot" id="glisseMot">Glisser pour débrancher <span>»</span></div>
+        <div class="bouton" id="glisseBouton" role="button"
+             aria-label="Glisser pour débrancher">›</div>
+      </div>
+      <p style="margin:12px 0 0;text-align:center">
+        <button style="font:inherit;font-size:.8rem;padding:8px 22px;
+          border-radius:9px;border:1px solid var(--trait);background:transparent;
+          color:var(--encre2)">Annuler</button></p>
     </div>
   </div>
   <div>
-    <div class="note"><b>Pourquoi une saisie et pas un « Confirmer ».</b> Tous
-      les autres gestes de la console se rattrapent depuis la console. Celui-ci
-      se termine dans le Drive, et personne ne saisit un mot par réflexe.</div>
+    <div class="note"><b>Le bouton à maintenir n'est pas nouveau.</b> Il est
+      dans la console depuis le 02/09 (spec 032), et il remplaçait déjà un mot
+      à frapper au clavier — « sept caractères, sur un ordinateur posé sur un
+      coin de table dans une salle d'escalade ». On le reprend tel quel :
+      libellé qui porte l'instruction, anneau de progression, décompte pendant
+      le geste.</div>
+    <div class="note"><b>Le glissement vient de Sowel</b>
+      (<code>SlideToConfirm.tsx</code>), cotes comprises : piste plafonnée à
+      260 px et <b>centrée</b>, bouton de 50, course de 202 px. La raison est
+      écrite là-bas : pleine largeur sur un téléphone de 393 px, le geste part
+      du coin inférieur gauche — le point le plus loin du pouce, sur un
+      contrôle fait pour être utilisé d'une main devant un portail.</div>
+    <div class="note"><b>Ce qui décide, c'est le pointeur, pas la largeur.</b>
+      <code>(hover: hover) and (pointer: fine)</code> → le maintien ; sinon le
+      glissement. Un portable tactile et un téléphone en paysage se rangeraient
+      du mauvais côté d'une simple largeur d'écran.</div>
+    <div class="note"><b>Relâcher trop tôt annule</b>, dans les deux cas : le
+      curseur revient au départ, la jauge se vide. C'est ce que les deux gestes
+      ont en commun, et c'est tout leur objet — une pression accidentelle ne
+      déclenche rien.</div>
   </div>
 </div>
 
@@ -322,12 +418,105 @@
   document.getElementById("basculer").addEventListener("click", function () {
     document.body.classList.toggle("sombre");
   });
-  /* Le bouton ne s'active qu'au mot exact. C'est le comportement, pas un décor. */
-  var champ = document.getElementById("motCle");
-  var bouton = document.querySelector(".boite .danger");
-  champ.addEventListener("input", function () {
-    bouton.disabled = champ.value.trim().toUpperCase() !== "SUPPRIMER";
+  /* ===== 1. Le maintien — repris de `admin.html` ========================= */
+  var MAINTIEN_MS = 2000;
+  var tenir = document.getElementById("tenir"),
+      tenirJauge = document.getElementById("tenirJauge"),
+      tenirPart = document.getElementById("tenirPart"),
+      tenirMot = document.getElementById("tenirMot"),
+      LIBELLE = tenirMot.textContent,
+      minuteur = null, decompte = null;
+
+  function remplir(part) {
+    var duree = part ? (MAINTIEN_MS / 1000) + "s" : "0s";
+    tenirJauge.style.transitionDuration = duree;
+    tenirJauge.style.width = part ? "100%" : "0";
+    tenirPart.style.transitionDuration = duree;
+    tenirPart.style.strokeDashoffset = part ? "0" : "37.7";
+  }
+  function demarrer(e) {
+    if (minuteur) return;
+    if (e && e.type === "keydown") {
+      if (e.repeat) return;                       /* Entrée maintenue = rafale */
+      if (e.key !== "Enter" && e.key !== " ") return;
+      e.preventDefault();
+    }
+    remplir(1);
+    tenir.classList.add("tenu");
+    var reste = MAINTIEN_MS / 1000;
+    tenirMot.textContent = "Encore " + reste + " s…";
+    decompte = setInterval(function () {
+      reste -= 1;
+      if (reste > 0) tenirMot.textContent = "Encore " + reste + " s…";
+    }, 1000);
+    minuteur = setTimeout(function () {
+      clearInterval(decompte); minuteur = decompte = null;
+      tenir.classList.remove("tenu");
+      tenirMot.textContent = "Débranché";
+    }, MAINTIEN_MS);
+  }
+  function annulerMaintien() {
+    if (!minuteur) return;
+    clearTimeout(minuteur); clearInterval(decompte);
+    minuteur = decompte = null;
+    tenir.classList.remove("tenu");
+    remplir(0);
+    tenirMot.textContent = LIBELLE;
+  }
+  tenir.onpointerdown = demarrer;
+  tenir.onpointerup = annulerMaintien;
+  tenir.onpointerleave = annulerMaintien;
+  tenir.onpointercancel = annulerMaintien;
+  tenir.onkeydown = demarrer;
+  tenir.onkeyup = annulerMaintien;
+  tenir.onblur = annulerMaintien;
+  remplir(0);
+
+  /* ===== 2. Le glissement — cotes de Sowel ============================== */
+  var BOUTON = 50, MARGE = 4, EMPRISE = BOUTON + MARGE * 2;   /* 58 */
+  var piste = document.getElementById("glisse"),
+      curseur = document.getElementById("glisseBouton"),
+      jauge = document.getElementById("glisseJauge"),
+      motGlisse = document.getElementById("glisseMot"),
+      x = 0, drag = null, fini = false;
+
+  function course() { return Math.max(0, piste.clientWidth - EMPRISE); }
+  function poser(v, anime) {
+    x = v;
+    var t = anime ? "left .2s, width .2s" : "none";
+    curseur.style.transition = t; jauge.style.transition = t;
+    curseur.style.left = (MARGE + x) + "px";
+    jauge.style.width = (BOUTON + x) + "px";
+  }
+  function aboutirGlisse() {
+    if (fini) return;
+    fini = true; drag = null;
+    poser(course(), true);
+    piste.classList.add("fini");
+    motGlisse.textContent = "Débranché";
+    curseur.textContent = "✓";
+  }
+  curseur.addEventListener("pointerdown", function (e) {
+    if (fini) return;
+    curseur.setPointerCapture && curseur.setPointerCapture(e.pointerId);
+    drag = { depart: e.clientX - x, max: course() };
   });
+  curseur.addEventListener("pointermove", function (e) {
+    if (!drag) return;
+    var nx = Math.max(0, Math.min(drag.max, e.clientX - drag.depart));
+    poser(nx, false);
+    /* `drag.max > 0` : sur une piste dégénérée, le premier mouvement
+       validerait tout seul. */
+    if (drag.max > 0 && nx >= drag.max - 1) aboutirGlisse();
+  });
+  function relacher() {
+    if (!drag || fini) return;
+    var max = drag.max; drag = null;
+    if (x < max - 1) poser(0, true);              /* retour au départ */
+  }
+  curseur.addEventListener("pointerup", relacher);
+  curseur.addEventListener("pointercancel", relacher);
+  poser(0, false);
 </script>
 </body>
 </html>

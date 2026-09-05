@@ -229,6 +229,28 @@ conséquence, parce qu'elle n'est pas devinable :
 > Leur QR change avec — les étiquettes déjà collées sur le mur ne seront plus
 > valables et sont à réimprimer.
 
+Et **il se confirme par un geste, pas par un clic** — celui de la maison :
+
+| Surface | Geste | D'où il vient |
+| --- | --- | --- |
+| Souris / trackpad | **maintenir 2 s**, avec anneau, jauge et décompte | `admin.html`, `button.detruire` (spec 032, 02/09) |
+| Doigt | **glisser** le curseur jusqu'au bout | Sowel, `SlideToConfirm.tsx` (spec 146) |
+
+⚠️ **C'est le pointeur qui décide, pas la largeur de l'écran** :
+`(hover: hover) and (pointer: fine)` → le maintien, sinon le glissement. Un
+portable tactile et un téléphone en paysage se rangeraient du mauvais côté d'une
+simple largeur.
+
+⚠️ **Relâcher trop tôt annule, dans les deux cas.** C'est tout l'objet du
+geste : une pression accidentelle ne déclenche rien.
+
+⚠️ **Le geste est réservé à ce qui ne se rattrape pas.** La règle existe déjà
+dans le code — « le maintien de deux secondes est réservé à ce qui efface »
+(`admin.html`, à propos de `dlgMaj`). Renuméroter change dix-sept QR collés sur
+un mur : c'est de cette famille. **Supprimer une voie ne l'est pas** — elle est
+déjà refusée dès qu'une réussite existe, et une voie vide se recrée en trois
+touches. Bouton ordinaire.
+
 ### F7 — Les garde-fous : ce qui devient impossible
 
 Trois interdits, et chacun ferme un chemin par lequel une compétition se

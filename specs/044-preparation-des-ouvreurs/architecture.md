@@ -233,7 +233,39 @@ Deux différences, et elles sont dans la décoration, pas dans le dessin :
 `plan.js`**. Ce sont les classes d'état qui diffèrent, et elles sont posées par
 l'appelant.
 
-### 5.3 Le repliement du plan
+### 5.3 Le geste de confirmation : UN composant, deux surfaces
+
+`climbcontest/static/console/confirmer.js` — **nouveau**, et partagé avec la
+spec 045.
+
+```js
+export function confirmerParGeste(hote, {libelle, libelleGlisse, surAbout});
+```
+
+| Média | Rendu | Cotes |
+| --- | --- | --- |
+| `(hover: hover) and (pointer: fine)` | le bouton à **maintenir** | `MAINTIEN_MS = 2000`, anneau `--anneau: 37.7`, jauge et décompte |
+| sinon | le **glissement** | piste 260 × 58 plafonnée et **centrée**, bouton 50, marge 4, course 202 |
+
+⚠️ **Aucune des deux moitiés n'est inventée.** Le maintien est celui
+d'`admin.html` (spec 032) ; le glissement est celui de Sowel
+(`SlideToConfirm.tsx`, spec 146), **cotes comprises**. Les 260 px plafonnés et
+centrés y sont justifiés : pleine largeur sur un téléphone de 393 px, le geste
+part du coin inférieur gauche, le point le plus loin du pouce.
+
+⚠️ **Trois détails d'implémentation qui ne sont pas cosmétiques**, chacun payé
+une fois dans les deux sources :
+
+1. `touch-action: none` sur le bouton à maintenir. Sans lui, maintenir le doigt
+   fait défiler la page, `pointerleave` annule, et le bouton devient intenable
+   sur téléphone.
+2. `e.repeat` gardé sur `keydown`. Entrée maintenue se répète en rafale : sans
+   le garde, le minuteur repart à zéro cinquante fois et n'aboutit jamais.
+3. `setPointerCapture` sur le curseur de glissement, et
+   `drag.max > 0` avant de conclure : sur une piste dégénérée, le premier
+   mouvement validerait tout seul.
+
+### 5.4 Le repliement du plan
 
 Quand le tiroir s'ouvre sur téléphone, la zone de plan passe de `flex: 1` à une
 hauteur fixe (32 %, 18 % pour la fiche d'une voie). Le SVG se remet à l'échelle
@@ -263,6 +295,7 @@ c'est elle que les tests vérifient.
 | `climbcontest/routes/admin.py` | 7 routes, une section |
 | `climbcontest/templates/admin.html` | la vue `vueOuvreurs` et son entrée de tiroir |
 | `climbcontest/static/console/ouverture.js` | **nouveau** — l'écran, en module, testable |
+| `climbcontest/static/console/confirmer.js` | **nouveau** — le geste, partagé avec la 045 |
 | `tests/test_ouverture.py` | **nouveau** |
 | `tests/test_admin_ouverture.py` | **nouveau** — les routes et les rôles |
 | `docs/specs-index.md`, `CHANGELOG.md` | l'index et la section `[Non publié]` |

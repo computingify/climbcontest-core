@@ -175,6 +175,45 @@ Le réglage se rallume : la vue Classeur revient, l'import et le miroir aussi.
 neuf, et le repeupler. La confirmation de bascule le dit en toutes lettres, avec
 le mot « supprimé » : c'est une décision qui se prend une fois.
 
+### F6 bis — Le geste de confirmation, uniformisé
+
+> **Arbitrage du 05/09** : « tout uniformiser avec le reste, c'est-à-dire le
+> bouton qu'il faut rester appuyé sur ordinateur et un bouton slide comme sur
+> Sowel pour l'ouverture de portail sur mobile. »
+
+Une première rédaction demandait d'**écrire `SUPPRIMER`**. ⚠️ **C'était un pas
+en arrière**, et le dépôt le disait déjà : le commentaire de
+`admin.html` (spec 032, 02/09) explique que le bouton à maintenir **remplace**
+un mot qu'il fallait frapper — « sept caractères, sur un ordinateur posé sur un
+coin de table dans une salle d'escalade ». Ce que le mot apportait, c'est
+l'**arrêt** ; c'est ça qu'on garde, en jetant la frappe.
+
+Le geste a donc **deux surfaces, une décision** :
+
+| Surface | Geste | D'où il vient |
+| --- | --- | --- |
+| Souris / trackpad | **maintenir 2 s** — anneau de progression, jauge, décompte | `admin.html`, `button.detruire` (spec 032) |
+| Doigt | **glisser** le curseur jusqu'au bout | Sowel, `SlideToConfirm.tsx` (spec 146) |
+
+⚠️ **C'est le POINTEUR qui décide, pas la largeur de l'écran.**
+`(hover: hover) and (pointer: fine)` → le maintien ; sinon le glissement. Un
+portable tactile et un téléphone en paysage se rangeraient du mauvais côté d'une
+simple largeur.
+
+⚠️ **Relâcher trop tôt annule, dans les deux cas.** C'est ce que les deux gestes
+ont en commun, et c'est tout leur objet : une pression accidentelle ne
+déclenche rien. Le curseur revient à sa place, la jauge se vide.
+
+⚠️ **Les cotes du glissement viennent de Sowel et ne se réinventent pas** :
+piste plafonnée à **260 px et centrée**, bouton de 50, marge de 4, donc une
+course de **202 px**. La raison est écrite là-bas : pleine largeur sur un
+téléphone de 393 px, le geste part du coin inférieur gauche — le point le plus
+loin du pouce de la main qui tient l'appareil, sur un contrôle fait pour être
+utilisé d'une seule main devant un portail. Ici, c'est devant un mur.
+
+Le même geste sert à **renuméroter** dans la spec 044 : c'est le deuxième
+endroit où un clic accidentel coûterait cher.
+
 ### F7 — Les prérequis
 
 | Prérequis | État |
@@ -201,7 +240,9 @@ s'allumer.
 | A7 | Mode allumé : le fil de synchronisation ne démarre pas ; aucun appel Google n'est émis |
 | A8 | Mode allumé : `/health` répond **`ok`**, `mode_sans_classeur: true`, compteurs à `null` |
 | A9 | Le mode se rallume, et tout revient — routes, vue, fil |
-| A10 | La confirmation de bascule contient le mot « supprimé » et ce que le retour arrière ne fait pas |
+| A10 | La confirmation de bascule dit ce que le retour arrière ne fait pas |
+| A10 bis | Sur pointeur fin, le **maintien** est présenté ; sur pointeur grossier, le **glissement** |
+| A10 ter | Relâcher avant la fin **n'actionne rien**, dans les deux gestes |
 | A11 | Les archives restent lisibles dans les deux modes |
 | A12 | Le réglage est refusé (403) à un organisateur et à un ouvreur |
 

@@ -34,6 +34,7 @@
     --fond: #FBFAF8; --surface: #FFFFFF; --surface2: #F4F1EB; --surface3: #E9E4DA;
     --trait: #DDD7CB; --encre: #1B1A17; --encre2: #5C574C; --encre3: #8A8375;
     --accent: #B5761C; --accent-texte: #8A5A0F; --sur-accent: #FFFFFF;
+    --sur-alerte: #FFFFFF;
     --ok: #2E7D4F; --alerte: #B3392A; --attention: #9A6B0B;
     --titre: system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
     --chiffre: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
@@ -45,6 +46,7 @@
     --fond: #14130F; --surface: #1D1B16; --surface2: #26241D; --surface3: #322F26;
     --trait: #3A3628; --encre: #F2EFE8; --encre2: #B0AA9B; --encre3: #7C766A;
     --accent: #E0A94A; --accent-texte: #E8BC70; --sur-accent: #1B1A17;
+    --sur-alerte: #1B1A17;
     --ok: #6FC08A; --alerte: #F08A78; --attention: #E5B44A;
     --pf-dalle: #2E3F4C; --pf-vertical: #3D6076; --pf-incline: #9A7238;
     --pf-devers: #B57430; --pf-surplomb: #BE5B33; --pf-toit: #BC443F;
@@ -276,6 +278,48 @@
     background: var(--surface2); color: var(--encre); }
   .boite .actions .primaire { background: var(--accent); color: var(--sur-accent);
     border-color: var(--accent); }
+
+  /* --- Le geste de confirmation : maintenir, ou glisser --------------------
+     Le MAINTIEN est celui de `admin.html` (`button.detruire`, spec 032) ; le
+     GLISSEMENT est celui de Sowel (`SlideToConfirm.tsx`, spec 146), cotes
+     comprises. Rien n'est inventé ici. */
+  .detruire {
+    position: relative; overflow: hidden; isolation: isolate;
+    display: inline-flex; align-items: center; gap: 8px;
+    cursor: pointer; font: inherit; font-weight: 600;
+    background: var(--alerte); color: var(--sur-alerte); border: 0;
+    border-radius: 9px; padding: 11px 16px; touch-action: none;
+    -webkit-user-select: none; user-select: none; }
+  .detruire .remplissage {
+    position: absolute; top: 0; bottom: 0; left: 0; width: 0; z-index: -1;
+    background: color-mix(in srgb, var(--encre) 55%, transparent);
+    transition-property: width; transition-timing-function: linear; }
+  .detruire.tenu { box-shadow: 0 0 0 3px color-mix(in srgb, var(--alerte) 35%, transparent); }
+  .anneau { width: 15px; height: 15px; flex: none; transform: rotate(-90deg); }
+  .anneau circle { fill: none; stroke-width: 2.5; }
+  .anneau .fond { stroke: color-mix(in srgb, var(--sur-alerte) 40%, transparent); }
+  .anneau .part { stroke: var(--sur-alerte); stroke-dasharray: 37.7;
+    stroke-dashoffset: 37.7; transition-property: stroke-dashoffset;
+    transition-timing-function: linear; }
+  .glisse { position: relative; margin: 0 auto; width: 100%; max-width: 260px;
+    height: 58px; border-radius: 12px; border: 1px solid var(--trait);
+    background: var(--surface3); overflow: hidden; user-select: none;
+    touch-action: none; }
+  .glisse .jauge { position: absolute; top: 0; bottom: 0; left: 0;
+    border-radius: 12px; width: 50px;
+    background: color-mix(in srgb, var(--alerte) 16%, transparent); }
+  .glisse .mot { position: absolute; top: 0; bottom: 0; left: 58px; right: 0;
+    display: flex; align-items: center; justify-content: center; gap: 6px;
+    font-size: 13px; font-weight: 600; color: var(--encre2);
+    white-space: nowrap; pointer-events: none; }
+  .glisse .bouton { position: absolute; top: 4px; left: 4px; width: 50px;
+    height: 50px; border-radius: 9px; background: var(--alerte);
+    color: var(--sur-alerte); display: flex; align-items: center;
+    justify-content: center; box-shadow: 0 2px 6px rgba(0,0,0,.25); z-index: 2; }
+  .surface { font-size: .66rem; text-transform: uppercase; letter-spacing: .07em;
+    color: var(--encre3); font-weight: 700; margin: 0 0 7px; }
+  .cadre-geste { border: 1px solid var(--trait); border-radius: 11px;
+    padding: 11px; background: var(--fond); margin-bottom: 10px; }
 
   /* --- Le tiroir de navigation d'un compte ouvreur ------------------------- */
   .nav { position: absolute; inset: 56px 0 0 0; background: var(--surface);
@@ -760,10 +804,30 @@ function boiteRenumeroter(corps) {
         <tr><td class="zone">G</td><td>J9</td><td class="fleche">→</td><td>J5</td></tr>
         <tr><td class="zone">…</td><td>…</td><td class="fleche">→</td><td>…</td></tr>
       </table>
-      <div class="actions">
-        <button>Annuler</button>
-        <button class="primaire">Renuméroter</button>
+      <div class="cadre-geste">
+        <p class="surface">Sur ordinateur</p>
+        <button type="button" class="detruire" id="tenir044">
+          <i class="remplissage" id="tenir044Jauge" aria-hidden="true"></i>
+          <svg class="anneau" viewBox="0 0 16 16" aria-hidden="true">
+            <circle class="fond" cx="8" cy="8" r="6"></circle>
+            <circle class="part" id="tenir044Part" cx="8" cy="8" r="6"></circle>
+          </svg>
+          <span id="tenir044Mot">Maintenir 2 s pour renuméroter</span>
+        </button>
       </div>
+      <div class="cadre-geste" style="margin-bottom:0">
+        <p class="surface">Sur téléphone</p>
+        <div class="glisse" id="glisse044">
+          <div class="jauge" id="glisse044Jauge"></div>
+          <div class="mot">Glisser pour renuméroter <span>»</span></div>
+          <div class="bouton" id="glisse044Bouton" role="button"
+               aria-label="Glisser pour renuméroter">›</div>
+        </div>
+      </div>
+      <p style="margin:10px 0 0;text-align:center">
+        <button style="font:inherit;font-size:.8rem;padding:8px 22px;
+          border-radius:9px;border:1px solid var(--trait);background:transparent;
+          color:var(--encre2)">Annuler</button></p>
     </div>`));
 }
 
@@ -786,6 +850,84 @@ e6.appendChild(h(`
     <div class="sep"></div>
     <div class="pied">marc.o · ouvreur<br>ClimbContest 0.19.0</div>
   </div>`));
+
+/* ===== Le geste de confirmation, les deux surfaces =======================
+   Recopié tel quel de `admin.html` (le maintien) et de Sowel (le glissement).
+   ⚠️ Deux copies ici, parce que ce sont deux maquettes autonomes. Dans le
+   code, ce sera UN composant partagé : deux implémentations du même geste
+   divergent, c'est la leçon de `cascade.py` et de son test miroir. */
+(function () {
+  var MAINTIEN_MS = 2000;
+  var b = document.getElementById("tenir044");
+  if (!b) return;
+  var jauge = document.getElementById("tenir044Jauge"),
+      part = document.getElementById("tenir044Part"),
+      mot = document.getElementById("tenir044Mot"),
+      LIBELLE = mot.textContent, minuteur = null, decompte = null;
+  function remplir(v) {
+    var d = v ? (MAINTIEN_MS / 1000) + "s" : "0s";
+    jauge.style.transitionDuration = d; jauge.style.width = v ? "100%" : "0";
+    part.style.transitionDuration = d; part.style.strokeDashoffset = v ? "0" : "37.7";
+  }
+  function demarrer(e) {
+    if (minuteur) return;
+    if (e && e.type === "keydown") {
+      if (e.repeat) return;
+      if (e.key !== "Enter" && e.key !== " ") return;
+      e.preventDefault();
+    }
+    remplir(1); b.classList.add("tenu");
+    var reste = MAINTIEN_MS / 1000;
+    mot.textContent = "Encore " + reste + " s…";
+    decompte = setInterval(function () {
+      reste -= 1; if (reste > 0) mot.textContent = "Encore " + reste + " s…";
+    }, 1000);
+    minuteur = setTimeout(function () {
+      clearInterval(decompte); minuteur = decompte = null;
+      b.classList.remove("tenu"); mot.textContent = "Renumérotées";
+    }, MAINTIEN_MS);
+  }
+  function annuler() {
+    if (!minuteur) return;
+    clearTimeout(minuteur); clearInterval(decompte); minuteur = decompte = null;
+    b.classList.remove("tenu"); remplir(0); mot.textContent = LIBELLE;
+  }
+  b.onpointerdown = demarrer; b.onpointerup = annuler;
+  b.onpointerleave = annuler; b.onpointercancel = annuler;
+  b.onkeydown = demarrer; b.onkeyup = annuler; b.onblur = annuler;
+  remplir(0);
+
+  var BOUTON = 50, MARGE = 4, EMPRISE = 58;
+  var piste = document.getElementById("glisse044"),
+      cur = document.getElementById("glisse044Bouton"),
+      jg = document.getElementById("glisse044Jauge"),
+      x = 0, drag = null, fini = false;
+  function course() { return Math.max(0, piste.clientWidth - EMPRISE); }
+  function poser(v, anime) {
+    x = v; var t = anime ? "left .2s, width .2s" : "none";
+    cur.style.transition = t; jg.style.transition = t;
+    cur.style.left = (MARGE + x) + "px"; jg.style.width = (BOUTON + x) + "px";
+  }
+  cur.addEventListener("pointerdown", function (e) {
+    if (fini) return;
+    cur.setPointerCapture && cur.setPointerCapture(e.pointerId);
+    drag = { depart: e.clientX - x, max: course() };
+  });
+  cur.addEventListener("pointermove", function (e) {
+    if (!drag) return;
+    var nx = Math.max(0, Math.min(drag.max, e.clientX - drag.depart));
+    poser(nx, false);
+    if (drag.max > 0 && nx >= drag.max - 1) { fini = true; drag = null; cur.textContent = "✓"; }
+  });
+  function relacher() {
+    if (!drag || fini) return;
+    var max = drag.max; drag = null;
+    if (x < max - 1) poser(0, true);
+  }
+  cur.addEventListener("pointerup", relacher);
+  cur.addEventListener("pointercancel", relacher);
+  poser(0, false);
+})();
 
 document.getElementById("basculer").addEventListener("click", function () {
   document.body.classList.toggle("sombre");

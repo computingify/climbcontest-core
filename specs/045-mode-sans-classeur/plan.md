@@ -23,7 +23,10 @@
 
 ### Étape 4 — l'écran
 - [ ] la carte dans Réglages, ses trois états, préfixes `sansClasseur*`
-- [ ] la confirmation par saisie du mot `SUPPRIMER`
+- [ ] la confirmation par **geste** : `confirmerParGeste` (créé par la 044)
+- [ ] **en dernier** : `dlgConfirmer` d'`admin.html` passe sur le composant
+      partagé — un déplacement de ~90 lignes, à faire quand les autres branches
+      ont fusionné
 - [ ] le masquage de `navClasseur` et `vueClasseur`
 - [ ] un test de navigateur sur les trois états
 
@@ -95,7 +98,11 @@
 | --- | --- |
 | État « impossible » | l'interrupteur est inerte, le refus est nommé |
 | État « prêt » | les avertissements sont lus avant que le bouton s'active |
-| La confirmation | le bouton reste inerte tant que `SUPPRIMER` n'est pas écrit |
+| Pointeur fin | le **maintien** est rendu ; tenu 2 s, il actionne |
+| Pointeur grossier | le **glissement** est rendu ; poussé au bout, il actionne |
+| Relâcher à mi-course | rien ne s'actionne, le curseur **revient au départ** |
+| Entrée maintenue sur le curseur de glissement | actionne aussi — le clavier ne tombe pas du côté du glissement |
+| `dlgConfirmer` (effacement des données) | se comporte **exactement** comme avant l'extraction |
 | Mode allumé, compte **admin** | `navClasseur` et `vueClasseur` **absents** |
 
 ---
@@ -110,3 +117,5 @@
 | **On bascule et il manque des données que seul le classeur avait** | le contrôle avant bascule, avec deux refus durs |
 | **On bascule sans pouvoir inscrire personne** | B1, et l'ordre de merge 008 → 044 → 045 |
 | **L'enveloppe `try/ImportError` survit au merge de la 008** | une case à cocher de l'étape 5, et un test qui échoue si `inscriptions` existe sans être importé |
+| **Deux implémentations du maintien dans `admin.html`** | l'extraction de `dlgConfirmer` vers le composant partagé est une étape du plan, pas une intention |
+| **L'extraction casse un geste qui marche** | elle se fait en dernier, et `dlgConfirmer` garde ses tests existants — ils doivent passer sans être modifiés |

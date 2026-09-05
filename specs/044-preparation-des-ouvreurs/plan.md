@@ -32,6 +32,8 @@
 - [ ] `tests/test_admin_ouverture.py` — dont **la matrice des rôles**
 
 ### Étape 4 — l'écran
+- [ ] `static/console/confirmer.js` : le maintien **et** le glissement, un seul
+      point d'entrée, choisi par le pointeur
 - [ ] `static/console/ouverture.js`, réutilisant `resultats/plan.js`
 - [ ] la vue `vueOuvreurs` dans `admin.html`, préfixes respectés
 - [ ] le masquage du tiroir pour un compte purement ouvreur
@@ -117,6 +119,11 @@ le nommer dans `exige_role`.
 | Toucher une zone | le tiroir s'ouvre, le plan se replie **au-dessus**, la zone garde son anneau |
 | Ajouter une voie, choisir Vert | le numéro s'affiche sans rechargement, la pastille de la zone bouge |
 | Ouvrir la confirmation de renumérotation | l'aperçu vient du **serveur** (`?apercu=1`), pas d'un calcul local |
+| Pointeur fin | le **maintien** est rendu ; tenu 2 s, il renumérote |
+| Pointeur grossier | le **glissement** est rendu ; poussé au bout, il renumérote |
+| Relâcher à mi-course | rien ne se passe, le curseur **revient au départ** |
+| Maintenir puis sortir du bouton | annulé — `pointerleave` |
+| Entrée **maintenue** au clavier | renumérote ; la rafale de `keydown` ne remet pas le minuteur à zéro |
 | Ouvrir à 1280 px | le tiroir est à droite, le plan entier et non voilé |
 
 ---
