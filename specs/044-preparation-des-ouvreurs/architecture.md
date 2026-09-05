@@ -14,7 +14,7 @@ Rien n'est réinventé de ce qui existe :
 | la géométrie du mur | `suivi.plan_public()` — le même document que la page de résultats |
 | le dessin SVG et les pastilles | `static/resultats/plan.js` — `decrire`, `monter`, `decorer` |
 | les six couleurs et leur ordre | `classement.COULEURS` |
-| les options d'édition | `cycle.lire_options` / `cycle.ecrire_options` |
+| le régime de l'écran | le réglage global de la [spec 045](../045-mode-sans-classeur/) |
 | prévenir les téléphones | `contest.incrementer_tous_les_catalogues()` |
 | le contrôle d'accès | `auth_session.exige_role` |
 
@@ -72,15 +72,21 @@ tous du classeur.
   voie, et le faire bouger casserait le lien avec le classeur pour les éditions
   qui en ont un.
 
-### 2.3 L'option d'édition
+### 2.3 Le régime de l'écran
+
+Aucune option propre à ce lot. L'écran lit le réglage **global** de la
+spec 045 :
 
 ```python
-# competition.options, via cycle.lire_options / ecrire_options
-{"source_blocs": "classeur" | "console"}   # defaut : "classeur"
+from .reglages import mode_sans_classeur     # spec 045
+ecriture_permise = mode_sans_classeur()
 ```
 
-`ecrire_options` fusionne et n'écrase jamais les clés qu'il ne touche pas — la
-cascade et l'affichage cohabitent dans le même document JSON.
+⚠️ **`Bloc.source` reste**, bien que le miroir n'en ait plus besoin. Elle sert
+à deux choses qui, elles, existent : dire **d'où vient une voie** dans l'écran —
+comme la spec 008 montre `Participant.source` en pastilles G / H / M — et
+alimenter le **contrôle avant bascule** de la 045, qui doit pouvoir affirmer
+« les 47 voies du classeur sont bien en base ».
 
 ### 2.4 Le rôle
 
@@ -160,14 +166,13 @@ salle »** — c'est là que le lecteur ira les chercher.
 
 | Route | Rôle exigé | Ce qu'elle fait |
 | --- | --- | --- |
-| `GET /admin/ouverture` | `OUVREUR, ORGANISATEUR` | l'état complet : compétition, source, plan, circuits, voies par zone, compteurs |
+| `GET /admin/ouverture` | `OUVREUR, ORGANISATEUR` | l'état complet : compétition, régime, plan, circuits, voies par zone, compteurs |
 | `POST /admin/ouverture/voies` | `OUVREUR, ORGANISATEUR` | crée une voie dans une zone |
 | `POST /admin/ouverture/voies/<id>` | `OUVREUR, ORGANISATEUR` | couleur, prises, catégories |
 | `DELETE /admin/ouverture/voies/<id>` | `OUVREUR, ORGANISATEUR` | supprime |
 | `POST /admin/ouverture/renumeroter` | `OUVREUR, ORGANISATEUR` | la passe globale ; `?apercu=1` rend les `(avant, après)` **sans écrire** |
 | `POST /admin/ouverture/circuits` | `OUVREUR, ORGANISATEUR` | crée une catégorie |
 | `DELETE /admin/ouverture/circuits/<id>` | `OUVREUR, ORGANISATEUR` | supprime si elle ne porte aucune voie |
-| `POST /admin/competition/source-blocs` | `ORGANISATEUR` | l'interrupteur de F1 |
 
 ⚠️ **`exige_role(OUVREUR, ORGANISATEUR)` et non `exige_role(OUVREUR)`.** Le
 décorateur accorde l'accès à `admin` **ou** à l'un des rôles nommés : un
@@ -180,61 +185,16 @@ divergent, c'est la leçon de `cascade.py` et de son test miroir.
 
 ### 4.1 Ce qui change dans l'import
 
-`sheets/importer.importer()` reçoit un garde en tête d'`importer_blocs` :
-
-```python
-if lire_options(comp).get("source_blocs") == "console":
-    rapport.avertissements.append(
-        "Blocs non importes : cette edition prend ses voies dans la console.")
-    return
-```
-
-Les participants continuent d'être importés. ⚠️ Le message part dans
-`avertissements` et pas dans `ignores` : rien n'a été perdu, c'est un choix qui
-s'applique.
+**Rien.** L'import du classeur n'est pas modifié par ce lot : c'est la spec 045
+qui l'éteint, en bloc et pour toutes ses plages, quand le mode est allumé. Un
+garde partiel posé ici ferait doublon avec celui-là — et deux gardes qui disent
+la même chose finissent par ne plus la dire pareil.
 
 ### 4.2 Ce qui change dans le miroir
 
-Le filtre partagé `mirror._envoyables()` gagne **une clause**, et rien d'autre :
-
-```python
-.filter(or_(Bloc.source.is_(None), Bloc.source != SOURCE_CONSOLE))
-```
-
-⚠️ `Bloc.source.is_(None)` **fait partie de la clause**. Les blocs d'avant ce lot
-valent `NULL` — ils viennent tous du classeur, et un `!=` seul les exclurait
-tous : en SQL, `NULL != 'console'` ne vaut pas vrai. Le miroir s'arrêterait net
-sur toutes les éditions existantes, et le compteur d'attente resterait figé.
-
-⚠️ **Une seule et même requête pour l'envoi et pour le compteur.** C'est la
-leçon du 03/09 : `/health` comptait 714 réussites en attente que le miroir ne
-pouvait pas envoyer. `_envoyables` reste le point unique, et
-`contest.reussites_en_attente` continue de l'appeler.
-
-Ce qui ne partira jamais se compte **à part**, par une fonction nommée :
-
-```python
-def non_reportables(competition_id: int) -> int:
-    """Les reussites qui portent une voie creee dans la console.
-
-    Elles n'ont pas d'adresse dans l'onglet `Import` : leur `numero` est un
-    ordinal interne, pas un numero de ligne. Les compter avec les autres ferait
-    afficher une attente qui ne se resorberait jamais ; ne pas les compter du
-    tout les rendrait invisibles. On les compte, et on les nomme.
-    """
-```
-
-Ce chiffre s'affiche à côté de l'interrupteur, dans la vue Général.
-
-⚠️ **`modifier()` ne touche jamais `source`.** Une voie importée que l'on relit
-garde `source = classeur` et son `numero` : elle reste reportable. Seul
-`creer()` pose `source = console`. C'est la ligne qui décide si le miroir
-survit à une édition simplement relue par un ouvreur.
-
-⚠️ **`renumeroter()` ne touche pas `numero` non plus** (architecture §2.2). Le
-tag d'un bloc importé peut donc différer de ce que dit l'onglet `Plan` du
-classeur : sans conséquence, puisque `Import` est adressé par **ligne**, jamais
-par tag.
+**Rien non plus**, et pour la même raison. Voir spec 044 §F9 : le cas des
+réussites sans adresse dans l'onglet `Import` ne peut pas se produire, puisque
+les deux régimes de l'écran s'excluent.
 
 ---
 
@@ -300,9 +260,7 @@ c'est elle que les tests vérifient.
 | `climbcontest/models.py` | 2 colonnes sur `Bloc` |
 | `climbcontest/schema.py` | `COLONNES_AJOUTEES["bloc"]` |
 | `climbcontest/comptes.py` | le rôle `OUVREUR` |
-| `climbcontest/routes/admin.py` | 8 routes, une section |
-| `climbcontest/sheets/importer.py` | le garde de 4.1 |
-| `climbcontest/sheets/mirror.py` | la sortie de 4.2 |
+| `climbcontest/routes/admin.py` | 7 routes, une section |
 | `climbcontest/templates/admin.html` | la vue `vueOuvreurs` et son entrée de tiroir |
 | `climbcontest/static/console/ouverture.js` | **nouveau** — l'écran, en module, testable |
 | `tests/test_ouverture.py` | **nouveau** |

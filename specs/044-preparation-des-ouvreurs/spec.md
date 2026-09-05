@@ -50,37 +50,37 @@ détiennent l'information.
 
 ## 2. Ce qu'on fait
 
-### F1 — Un interrupteur : d'où viennent les blocs
+### F1 — La saisie s'ouvre avec le mode sans classeur (spec 045)
 
-> **Arbitrage du 04/09** : « on va mettre un interrupteur qui permet de choisir
-> soit console soit google sheet ».
+> **Arbitrage du 05/09**, après un premier tour : le choix n'est pas « d'où
+> viennent les blocs », c'est **si le classeur existe encore**. « Si les blocs
+> sont rentrés via la console, le fichier Google n'a plus lieu d'être, dans ce
+> cas on va le supprimer. »
 
-Une option d'édition, `source_blocs`, rangée dans `competition.options` :
+Cet écran a **deux régimes**, et c'est le réglage global de la
+[spec 045](../045-mode-sans-classeur/) qui décide lequel :
 
-| Valeur | Ce qui fait foi | L'écran d'ouverture |
+| Le mode sans classeur est… | Ce qui fait foi pour les blocs | L'écran d'ouverture |
 | --- | --- | --- |
-| `classeur` (**défaut**) | l'onglet `Plan` du classeur Google | **lecture seule** — il montre ce que l'import a posé |
-| `console` | la base, remplie par les ouvreurs | en écriture |
+| **éteint** (défaut) | l'onglet `Plan` du classeur Google | **lecture seule** — il montre ce que l'import a posé |
+| **allumé** | la base, remplie par les ouvreurs | en écriture |
 
-Deux règles, et elles sont symétriques :
+⚠️ **Il n'y a pas d'interrupteur propre à ce lot.** Une première version en
+posait un, par compétition (`options.source_blocs`) — écarté : deux réglages
+cousins qui disent la même chose finissent par se contredire, et celui-là aurait
+laissé la vue « Classeur » dans les paramètres alors que la demande est
+précisément de ne plus l'y voir.
 
-- **En mode `console`, l'import du classeur ne touche plus aux blocs.** Il
-  continue d'importer les participants, et son rapport le dit en toutes
-  lettres : « blocs non importés : cette édition est en source console ». Sans
-  ça, un import lancé par réflexe le matin écraserait la couleur de quarante
-  voies sans qu'aucune erreur ne s'affiche.
-- **Basculer ne détruit rien.** `classeur` → `console` garde les blocs déjà
-  importés : ils deviennent le point de départ des ouvreurs, ce qui est
-  exactement le cas d'usage « on repart de l'édition précédente ».
-  `console` → `classeur` ne supprime rien non plus, mais **prévient** que le
-  prochain import réécrira couleurs et circuits.
+**Conséquence directe : le miroir vers le classeur n'est plus un sujet ici.**
+Une première rédaction consacrait toute une section au fait que les réussites
+des voies créées en console tomberaient sur les mauvaises lignes de l'onglet
+`Import`. Le cas ne peut plus se produire : soit le mode est éteint et aucune
+voie n'est créée en console, soit il est allumé et il n'y a plus d'onglet
+`Import`. Le problème n'a pas été résolu, **il a été supprimé**.
 
-⚠️ **Le défaut est `classeur`**, pour toutes les compétitions existantes comme
-pour les nouvelles. Rien ne change tant que personne ne bascule l'interrupteur —
-c'est ce qui rend ce lot installable avant novembre sans rien risquer.
-
-L'interrupteur appartient à l'**organisateur**, pas à l'ouvreur : c'est une
-décision sur la manière de faire tourner l'édition, pas un geste de préparation.
+⚠️ **Ce lot est donc livrable seul, mais il n'est pleinement utile qu'avec la
+045.** Livré sans elle, il apporte le rôle `ouvreur` et un écran de
+consultation. C'est un ordre de merge à décider, pas une impasse.
 
 ### F2 — Un rôle `ouvreur`, qui ne voit que ça
 
@@ -261,63 +261,14 @@ nom, vingt caractères) et d'en **supprimer un qui ne porte aucune voie**. Rien
 de plus : renommer un circuit déplacerait des blocs d'une catégorie à l'autre
 sans le dire.
 
-### F9 — Le miroir du classeur écrit ce qu'il peut placer
+### F9 — Rien à faire du côté du classeur
 
-> **Arbitrage du 05/09** : voie par voie, plutôt que tout ou rien.
+Section conservée volontairement, et vide, pour dire **pourquoi** elle l'est.
 
-C'est le point le moins visible du lot, et il faut le poser noir sur blanc.
-
-Le miroir (`sheets/mirror.py`) écrit chaque réussite dans l'onglet `Import` du
-classeur à une adresse **calculée** :
-
-```
-colonne = dossard + 3        ligne = bloc.numero + 1
-```
-
-`bloc.numero` vient de la **colonne Y de l'onglet `Plan`**, et cette colonne ne
-porte pas un identifiant : elle porte **le numéro de la ligne que ce bloc occupe
-dans l'onglet `Import`**. C'est le classeur qui la calcule, par formule, quand on
-remplit `Plan`. Le backend ne fait que la relire comme une adresse postale.
-
-En mode `console`, personne ne remplit `Plan`, donc personne ne calcule cette
-colonne. Le `numero` d'une voie créée dans la console est un simple ordinal
-interne — il ne désigne **aucune ligne réelle** du classeur.
-
-⚠️ **Et l'écriture réussirait quand même.** `agrandir_si_besoin` agrandit la
-grille pour que le lot passe : un « A » atterrirait sur la ligne d'un autre bloc,
-ou sur une ligne créée pour l'occasion. Aucune erreur, aucun journal, aucun
-voyant. Le classeur ne serait pas vide, il serait **faux** — et c'est le filet de
-repli de la journée.
-
-**La règle retenue : le miroir filtre voie par voie.**
-
-| La voie vient… | Son `numero` désigne… | Le miroir |
-| --- | --- | --- |
-| d'un import du classeur (`source = classeur`) | une vraie ligne de `Import` | **écrit**, comme aujourd'hui |
-| de la console (`source = console`) | rien | **saute**, et le dit |
-
-Ce qui se gagne : une édition importée puis basculée en `console` — le cas
-d'usage réel, « on repart de l'édition précédente » — garde la redondance du
-classeur pour la quasi-totalité de ses réussites, et n'écrit jamais une case
-fausse.
-
-⚠️ **Modifier une voie importée ne la fait PAS passer en `source = console`.**
-Changer sa couleur, ses prises ou ses catégories ne touche pas son `numero` :
-son adresse dans le classeur reste bonne, elle reste reportable. Seule la
-**création** pose `source = console`. Confondre les deux ferait perdre le miroir
-sur toute édition qu'un ouvreur aurait simplement relue.
-
-**Ce qui ne part pas se compte, à part et en clair.** La leçon du 03/09 est que
-le compteur « réussites en attente » et l'envoi doivent partager la **même**
-requête, sinon l'écran affiche 714 en attente que le miroir ne peut pas envoyer.
-On garde donc un filtre unique pour les deux, et on ajoute un **second compteur
-nommé** :
-
-> 12 réussites ne partiront pas au classeur — elles portent des voies créées
-> dans la console.
-
-Il s'affiche à côté de l'interrupteur. Une réussite qui n'ira jamais nulle part
-doit être **visible**, pas silencieuse.
+Voir F1 : les deux régimes de cet écran s'excluent, et aucun des deux ne produit
+de réussite sans adresse dans le classeur. Toute la mécanique du débranchement —
+le réglage, l'extinction de l'import, du miroir et de la vue « Classeur », et le
+contrôle avant bascule — vit dans la [spec 045](../045-mode-sans-classeur/).
 
 ---
 
@@ -325,8 +276,8 @@ doit être **visible**, pas silencieuse.
 
 | # | Ce qu'on vérifie |
 | --- | --- |
-| A1 | Une compétition neuve est en `source_blocs = classeur` ; l'import se comporte exactement comme aujourd'hui |
-| A2 | En mode `console`, `POST /admin/import/sheet` importe les participants, ne crée ni ne modifie aucun bloc, et le dit dans son rapport |
+| A1 | Mode sans classeur **éteint** : l'écran s'ouvre et refuse toute écriture (409) |
+| A2 | Mode **allumé** : l'écriture est permise, et l'import du classeur n'existe plus (spec 045) |
 | A3 | Un compte `ouvreur` reçoit 403 sur `/admin/participants`, `/admin/classeur`, `/admin/comptes`, `/admin/plan` (POST), et 200 sur `/admin/ouverture` et `/admin/moi` |
 | A4 | Un compte `organisateur` accède à l'écran d'ouverture (il n'est pas refusé faute d'être nommé) |
 | A5 | Une voie s'enregistre sans couleur et sans catégorie ; sa zone la compte comme incomplète |
@@ -370,16 +321,16 @@ doit être **visible**, pas silencieuse.
 
 ## 6. Les décisions de la porte 2
 
-Les trois points ouverts à la rédaction ont été tranchés par Adrien le
-**05/09/2026** :
+Tranchées par Adrien les **04** et **05/09/2026**.
 
-1. **F9 — le miroir.** ✅ *Il écrit ce qu'il peut placer.* Voie par voie, sur
-   `bloc.source` : les voies importées partent, celles créées en console sont
-   sautées et comptées à part. Écarté : la suspension totale (perte de la
-   redondance sur toute l'édition) et le statu quo (des cases fausses dans
-   l'onglet `Import`, sans avertissement).
-2. **F7.1 — l'écriture réservée aux compétitions en `preparation`.** ✅
+1. **F1 — l'interrupteur.** ✅ *Remplacé par un réglage **global**, dans la
+   [spec 045](../045-mode-sans-classeur/).* Le choix n'est pas la source des
+   blocs, c'est l'existence du classeur : « je ne veux plus du tout le voir dans
+   les paramètres et je ne veux plus qu'on lui remonte les infos ».
+2. **F9 — le miroir.** ✅ *Sans objet.* Le filtre voie par voie décidé plus tôt
+   est **retiré** : le cas qu'il traitait ne peut plus se produire.
+3. **F7.1 — l'écriture réservée aux compétitions en `preparation`.** ✅
    *Confirmé.* Une correction sur une compétition déjà lancée passe par un
    retour explicite en préparation.
-3. **F2 — l'ouvreur ne redessine pas le plan.** ✅ *Confirmé.* « L'ouvreur ne
+4. **F2 — l'ouvreur ne redessine pas le plan.** ✅ *Confirmé.* « L'ouvreur ne
    peut pas redessiner le plan. » Il le lit, il ne l'écrit pas.

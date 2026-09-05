@@ -6,9 +6,11 @@
 ## 1. Les étapes
 
 ### Étape 0 — la porte 2
-- [x] Les **trois points de la §6** tranchés le 05/09 : miroir **filtré voie par
-      voie**, écriture réservée à `preparation`, plan non redessinable par
-      l'ouvreur
+- [x] Les **quatre points de la §6** tranchés les 04 et 05/09 : régime commandé
+      par le réglage global de la **spec 045**, miroir **sans objet**, écriture
+      réservée à `preparation`, plan non redessinable par l'ouvreur
+- [ ] Décider l'**ordre de merge** avec la 045 (ce lot seul ne donne qu'un écran
+      de consultation)
 - [ ] Adrien valide la spec et la maquette dans leur version corrigée
 
 ### Étape 1 — le socle, sans écran
@@ -25,9 +27,8 @@
 - [ ] `tests/test_ouverture.py` — la partie écriture, dont la **stabilité**
 
 ### Étape 3 — les routes
-- [ ] les huit routes, `exige_role(OUVREUR, ORGANISATEUR)`
-- [ ] l'interrupteur `source_blocs`, réservé à l'organisateur
-- [ ] le garde d'`importer_blocs` et la sortie de `mirror.synchroniser`
+- [ ] les sept routes, `exige_role(OUVREUR, ORGANISATEUR)`
+- [ ] l'écran est en **lecture seule** tant que le mode sans classeur est éteint
 - [ ] `tests/test_admin_ouverture.py` — dont **la matrice des rôles**
 
 ### Étape 4 — l'écran
@@ -91,20 +92,14 @@
 ⚠️ La ligne `organisateur` / `/admin/ouverture` est celle qui attrape l'oubli de
 le nommer dans `exige_role`.
 
-### 2.4 L'interrupteur
+### 2.4 Les deux régimes
 
 | Scénario | Résultat attendu |
 | --- | --- |
-| Compétition neuve | `source_blocs` = `classeur` |
-| Import en mode `classeur` | comportement **identique** à aujourd'hui (test de non-régression sur le rapport) |
-| Import en mode `console` | participants importés, **zéro bloc créé ou modifié**, avertissement présent |
-| `synchroniser` avec des voies des deux origines | les réussites des voies **importées** partent, celles des voies **console** ne partent pas |
-| Blocs d'avant ce lot (`source` à `NULL`) | **ils partent** — la clause `is_(None)` est testée pour elle-même |
-| `non_reportables` | compte exactement les réussites sautées ; `en_attente` ne les compte pas |
-| Une voie importée dont un ouvreur change la couleur | elle reste reportable (`source` inchangé) |
-| Le compteur d'attente après un envoi complet | tombe à zéro, même s'il reste des non-reportables |
-| Bascule `classeur` → `console` | les blocs déjà importés sont toujours là |
-| Bascule par un `ouvreur` | 403 — c'est une décision d'organisateur |
+| Mode sans classeur **éteint** | l'écran s'ouvre, montre tout, et **refuse toute écriture** (409) |
+| Mode **allumé** | l'écriture est permise |
+| Le mode s'éteint alors que des voies ont été créées en console | elles restent, l'écran redevient consultation — **rien n'est supprimé** |
+| L'import du classeur | **non modifié par ce lot** — test de non-régression sur le rapport |
 
 ### 2.5 Le catalogue
 
@@ -132,8 +127,7 @@ le nommer dans `exige_role`.
 | --- | --- |
 | **Collision silencieuse dans `admin.html`** avec les branches 008 et 043 | préfixes `ouvreurs*`, section insérée dans le bloc des vues, fusion à blanc avant merge |
 | **`uq_bloc_tag` pendant une renumérotation** | écriture des tags en deux passes, testée sur une permutation circulaire |
-| **Un import lancé par réflexe efface le travail des ouvreurs** | le garde de F1, et un avertissement dans le rapport plutôt qu'un silence |
-| **Le miroir écrit sur les mauvaises lignes du classeur** | filtre voie par voie sur `bloc.source` (F9), avec la clause `is_(None)` pour les blocs d'avant le lot |
-| **Le compteur d'attente se fige sur des réussites inenvoyables** | une seule requête pour l'envoi et le compteur, et un second compteur **nommé** pour ce qui ne partira pas |
+| **Un import lancé par réflexe efface le travail des ouvreurs** | impossible : l'import n'existe plus quand la saisie existe (spec 045) |
+| **Le miroir écrit sur les mauvaises lignes du classeur** | **supprimé, pas résolu** : les deux régimes s'excluent (F1) |
 | **Une couleur hors des six arrive du classeur** | affichée, non modifiable sans choisir parmi les six ; test dédié |
 | **Le plan change entre deux séances d'ouverture** | les voies d'une zone disparue remontent dans `hors_plan`, jamais supprimées |
