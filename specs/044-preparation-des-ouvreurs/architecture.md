@@ -226,12 +226,19 @@ Deux différences, et elles sont dans la décoration, pas dans le dessin :
 
 | | Fiche du grimpeur (036) | Ouverture (044) |
 | --- | --- | --- |
-| ce que compte la pastille | `{faits, total}` = réussis / blocs du circuit | `{faits, total}` = **complètes / déclarées** |
-| l'état de la zone | `z-reste` / `z-finie` | `z-saisie` / cadre vert si tout est complet |
+| la pastille | « 3/5 », remplie de vert à proportion | **un compte**, « 5 », jauge vide |
+| l'état de la zone | `z-reste` / `z-finie` | `z-reste` si elle porte des voies, liseré ambre s'il en reste à compléter |
 
-⚠️ `decorer` prend déjà `comptes` en paramètre : **rien à modifier dans
-`plan.js`**. Ce sont les classes d'état qui diffèrent, et elles sont posées par
-l'appelant.
+⚠️ **`decorer` est appelé SANS `comptes`, et c'est le point.** Son libellé vient
+de `suivi.libelleCompte`, qui écrit « faits/total » en dur, et sa jauge de
+`partFaite`. Les deux sont **justes sur la fiche du grimpeur** — le
+dénominateur y est le nombre de blocs de son circuit, un fait arrêté — et faux
+ici, où le dénominateur est ce qui a été tapé jusqu'ici.
+
+On laisse donc à `decorer` les classes d'état, et `ouverture.js` pose le compte
+lui-même dans les nœuds de pastille que `decrire` a déjà créés : `a-compte`, le
+texte, et la jauge laissée à zéro. **`suivi.js` et `plan.js` ne changent pas
+d'une ligne** — la page de résultats garde sa jauge, qui a du sens là-bas.
 
 ### 5.3 Le geste de confirmation : UN composant, deux surfaces
 

@@ -98,7 +98,12 @@ qu'on ne met pas à jour le matin d'une compétition :
   couleur est choisie ; un bouton **renumérote tout** par couleur, en
   parcourant les zones de A à Z, et l'opération est stable — relancée, elle ne
   change plus rien. Elle est refusée dès qu'une réussite existe : elle
-  changerait des QR déjà collés sur le mur.
+  changerait des QR déjà collés sur le mur. Chaque zone porte **le nombre de
+  voies qu'elle contient**, et se souligne d'ambre s'il en reste une à
+  compléter — pas de jauge d'avancement : les ouvreurs ne savent pas à l'avance
+  ce qu'ils vont ouvrir ni où, et une jauge suppose un total connu.
+  La couleur des prises se choisit parmi sept teintes courantes, et un
+  **nuancier** de quinze teintes distinctes s'ouvre derrière « Personnaliser… ».
 - **Un rôle `ouvreur`**, le premier rôle restreint de la console : il n'ouvre
   que cet écran, et son tiroir n'a qu'une entrée. Il lit le plan de la salle
   mais ne peut pas le redessiner.

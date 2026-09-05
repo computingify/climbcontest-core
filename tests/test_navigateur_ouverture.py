@@ -23,8 +23,10 @@ MDP = "un-mot-de-passe-assez-long"
 
 ATTENDUES = (
     "entreesOuvreur vueOuverte planDessine zonesCliquables "
-    "pastilleJ tiroirFerme tiroirOuvert titreZone voiesListees "
-    "ficheOuverte jetonsCouleur numeroAvant numeroApres pastilleApres "
+    "pastilleJ jaugeJ tiroirFerme tiroirOuvert titreZone voiesListees "
+    "ficheOuverte jetonsCouleur prisesCourantes numeroAvant numeroApres "
+    "pastilleApres lisereJ "
+    "nuancierReplie nuancierOuvert "
     "gesteRendu gesteEstMaintien renumTitre"
 ).split()
 
@@ -59,6 +61,7 @@ SONDE = r"""
     const compteJ = $$("#ouvreursPlan .compteurs-zone [data-zone]").filter(
       (g) => g.getAttribute("data-zone") === "J")[0];
     note("pastilleJ", compteJ ? compteJ.querySelector(".compte-zone").textContent : "absent");
+    note("jaugeJ", compteJ ? compteJ.querySelector(".remplit-compte").getAttribute("width") : "absent");
 
     // --- 3. La zone s'ouvre par-dessus le plan ---------------------------
     note("tiroirFerme", visible($("#ouvreursTiroir")));
@@ -78,7 +81,11 @@ SONDE = r"""
     nue.click();
     await attendre("fiche ouverte", () => $("#ouvreursListe .ouvreurs-fiche") !== null);
     note("ficheOuverte", 1);
-    note("jetonsCouleur", $$("#ouvreursListe .ouvreurs-jeton i").length);
+    note("jetonsCouleur",
+      $$("#ouvreursListe .ouvreurs-fiche > div:first-child .ouvreurs-jeton").length);
+    note("prisesCourantes",
+      $$("#ouvreursListe .ouvreurs-fiche > div:nth-child(2)"
+         + " > .ouvreurs-jetons:not(.ouvreurs-nuancier) .ouvreurs-jeton").length);
 
     // On choisit « Vert » : le numero doit s'attribuer sans rechargement.
     const vert = $$("#ouvreursListe .ouvreurs-jeton").filter(
@@ -93,6 +100,19 @@ SONDE = r"""
     const apres = $$("#ouvreursPlan .compteurs-zone [data-zone]").filter(
       (g) => g.getAttribute("data-zone") === "J")[0];
     note("pastilleApres", apres.querySelector(".compte-zone").textContent);
+    // Le liseré ambre : la voie qu'on vient de colorer n'a toujours pas de
+    // catégorie, la zone reste « à compléter ».
+    note("lisereJ", $$("#ouvreursPlan .cadre-zone").filter(
+      (c) => c.getAttribute("data-zone") === "J"
+          && c.classList.contains("ouvreurs-a-completer")).length === 1);
+
+    // --- 4 bis. Le nuancier des prises -----------------------------------
+    // Sept couleurs courantes plus le bouton ; le reste est replie.
+    const perso = $$("#ouvreursListe .ouvreurs-jeton").filter(
+      (j) => j.textContent.indexOf("Personnaliser") !== -1)[0];
+    note("nuancierReplie", $("#ouvreursListe .ouvreurs-nuancier").hidden);
+    perso.click();
+    note("nuancierOuvert", $$("#ouvreursListe .ouvreurs-nuancier .ouvreurs-jeton").length);
 
     // --- 5. Le geste de confirmation -------------------------------------
     $("#ouvreursFermerTiroir").click();
@@ -197,9 +217,15 @@ class TestLePlan:
     def test_chaque_zone_est_cliquable(self, mesures):
         assert int(mesures["zonesCliquables"]) == 17
 
-    def test_la_pastille_compte_completes_sur_declarees(self, mesures):
-        """Deux voies en zone J, une seule complete."""
-        assert mesures["pastilleJ"] == "1/2"
+    def test_la_pastille_compte_les_voies_declarees(self, mesures):
+        """⚠️ UN COMPTE, PAS UN AVANCEMENT (05/09). Deux voies en zone J : la
+        pastille dit « 2 ». Elle disait « 1/2 » et se remplissait de vert --
+        une jauge suppose un total connu d'avance, et les ouvreurs ne savent
+        pas ce qu'ils vont ouvrir ni ou."""
+        assert mesures["pastilleJ"] == "2"
+
+    def test_la_jauge_verte_a_disparu(self, mesures):
+        assert mesures["jaugeJ"] == "0"
 
 
 class TestLeTiroir:
@@ -221,6 +247,11 @@ class TestLaFiche:
     def test_les_six_couleurs_sont_proposees(self, mesures):
         assert int(mesures["jetonsCouleur"]) == 6
 
+    def test_les_prises_courantes_plus_le_bouton(self, mesures):
+        """Sept couleurs de tous les jours, et « Personnaliser… » en huitieme :
+        l'ecran ordinaire ne grandit pas parce qu'un choix rare existe."""
+        assert int(mesures["prisesCourantes"]) == 8
+
     def test_une_voie_nue_n_a_pas_de_numero(self, mesures):
         assert mesures["numeroAvant"] == "—"
 
@@ -228,9 +259,26 @@ class TestLaFiche:
         """Sans rechargement, et la fiche reste ouverte sur la meme voie."""
         assert mesures["numeroApres"] == "V1"
 
-    def test_la_pastille_de_la_zone_suit(self, mesures):
-        """La voie a une couleur mais pas de categorie : toujours incomplete."""
-        assert mesures["pastilleApres"] == "1/2"
+    def test_la_pastille_de_la_zone_ne_bouge_pas(self, mesures):
+        """Le compte ne depend pas de ce qui est rempli : deux voies restent
+        deux voies."""
+        assert mesures["pastilleApres"] == "2"
+
+    def test_la_zone_porte_son_lisere_ambre(self, mesures):
+        """Une voie declaree a laquelle il manque une categorie."""
+        assert mesures["lisereJ"] == "true"
+
+
+class TestLeNuancierDesPrises:
+    def test_il_est_replie_au_depart(self, mesures):
+        assert mesures["nuancierReplie"] == "true"
+
+    def test_il_ouvre_les_teintes_supplementaires(self, mesures):
+        """Quinze teintes en tout, sept deja visibles : huit de plus.
+
+        ⚠️ Des teintes DISTINCTES, pas des nuances -- « proposer 10 nuances de
+        rouge n'est pas necessaire, mais du rouge et du rose oui »."""
+        assert int(mesures["nuancierOuvert"]) == 8
 
 
 class TestLeGesteDeConfirmation:

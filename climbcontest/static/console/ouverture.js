@@ -17,7 +17,8 @@
  */
 
 import { confirmerParGeste } from "/static/console/confirmer.js";
-import { decorer, decrire, monter, peutDessiner } from "/static/resultats/plan.js";
+import { decorer, decrire, monter, peutDessiner, tailleDuCompte }
+  from "/static/resultats/plan.js";
 
 /** Les six couleurs, dans l'ordre de `classement.COULEURS`. */
 const COULEURS = [
@@ -26,9 +27,37 @@ const COULEURS = [
   { nom: "Rouge", teinte: "#C93B32" }, { nom: "Noir", teinte: "#23262B" },
 ];
 
-/** Les couleurs de prises proposées. Rien d'ordonné : c'est ce qu'on cherche
- *  des yeux sur le mur, ça n'entre dans aucun calcul. */
-const PRISES = ["Blanc", "Jaune", "Fluo", "Bleu", "Rouge", "Noir", "Gris"];
+/** Le nuancier des couleurs de prises.
+ *
+ * Rien d'ordonné : c'est ce qu'on cherche des yeux sur le mur, ça n'entre dans
+ * aucun calcul — contrairement aux six couleurs de difficulté, que le
+ * classement lit.
+ *
+ * ⚠️ DES TEINTES DISTINCTES, PAS DES NUANCES. Adrien, le 05/09 : « il ne faut
+ * pas qu'il y ait trop de choix, ce ne sont que des prises d'escalade ; donc
+ * proposer 10 nuances de rouge n'est pas nécessaire, mais du rouge et du rose
+ * oui ». Quinze teintes qu'on distingue à trois mètres et qu'on sait nommer —
+ * pas un dégradé.
+ */
+const PRISES = [
+  { nom: "Blanc", teinte: "#F2F0EA" }, { nom: "Gris", teinte: "#9AA0A6" },
+  { nom: "Noir", teinte: "#23262B" }, { nom: "Beige", teinte: "#D9C4A0" },
+  { nom: "Marron", teinte: "#7A5230" }, { nom: "Jaune", teinte: "#E8C33A" },
+  { nom: "Fluo", teinte: "#C9F03A" }, { nom: "Orange", teinte: "#EE8A2E" },
+  { nom: "Rouge", teinte: "#C93B32" }, { nom: "Rose", teinte: "#E8709F" },
+  { nom: "Fuchsia", teinte: "#C0369D" }, { nom: "Violet", teinte: "#7B4FC0" },
+  { nom: "Bleu", teinte: "#2E74C9" }, { nom: "Turquoise", teinte: "#23A8B4" },
+  { nom: "Vert", teinte: "#3FA45B" },
+];
+
+/** Celles qu'on voit sans rien demander. Le reste est derrière « Personnaliser ».
+ *
+ * ⚠️ Sept, et ce sont exactement celles d'avant le nuancier : l'écran de
+ * tous les jours ne doit pas grandir parce qu'un choix rare est devenu
+ * possible. */
+const PRISES_COURANTES = ["Blanc", "Jaune", "Fluo", "Bleu", "Rouge", "Noir", "Gris"];
+
+const teintePrise = (nom) => (PRISES.find((p) => p.nom === nom) || {}).teinte;
 
 const PROFILS = { dalle: "Dalle", vertical: "Vertical", incline: "Incliné",
                   devers: "Dévers", surplomb: "Surplomb", toit: "Toit" };
@@ -57,16 +86,32 @@ function el(tag, attrs, texte) {
 
 const teinteDe = (nom) => (COULEURS.find((c) => c.nom === nom) || {}).teinte;
 
-/** Zone → `{faits, total}`, dans la forme qu'attend `plan.js`. */
-export function comptesDesZones(zones) {
+/** Zone → le nombre de voies qu'elle porte.
+ *
+ * ⚠️ UN COMPTE, PAS UN AVANCEMENT, et c'est une correction du 05/09. La zone
+ * portait « 3/5 » sur une pastille qui se remplissait de vert — la jauge de la
+ * spec 036. Adrien : « les ouvreurs ne savent pas à l'avance ce qu'ils vont
+ * ouvrir et où ». Il a raison, et c'est structurel : une jauge suppose un total
+ * connu d'avance. Ici le dénominateur, c'est ce qui a été tapé jusqu'ici — il
+ * grandit à chaque voie ajoutée. « 3/5 » se lisait « tu es à 60 % de la zone J »
+ * alors que personne ne sait ce que vaut la zone J.
+ *
+ * Ce qui reste vrai, et qu'on garde : une voie DÉJÀ déclarée à laquelle il
+ * manque une couleur ou une catégorie. Ça, ce n'est pas une prédiction, c'est
+ * du travail sur quelque chose qui existe — et c'est le liseré ambre.
+ */
+export function comptesDeZones(zones) {
   const comptes = {};
   for (const lettre in zones) {
-    const voies = zones[lettre];
-    if (!voies.length) continue;
-    comptes[lettre] = { faits: voies.filter((v) => v.complete).length,
-                        total: voies.length };
+    if (zones[lettre].length) comptes[lettre] = zones[lettre].length;
   }
   return comptes;
+}
+
+/** Les zones où au moins une voie déclarée reste à compléter. */
+export function zonesACompleter(zones) {
+  return Object.keys(zones).filter(
+    (z) => zones[z].some((v) => !v.complete)).sort();
 }
 
 /** Les zones que le plan porte et qu'aucune voie n'occupe, et l'inverse.
@@ -101,15 +146,40 @@ function dessinerPlan() {
 }
 
 function decorerPlan() {
-  const comptes = comptesDesZones(etat.zones);
+  const svg = $("ouvreursPlan").querySelector("svg");
+  if (!svg) return;
+  const comptes = comptesDeZones(etat.zones);
   const etats = {};
-  for (const lettre in comptes) {
-    const c = comptes[lettre];
-    // `z-finie` quand tout est complet, `z-reste` sinon : les mêmes classes
-    // que la fiche du grimpeur, pour que le mur se lise pareil des deux côtés.
-    etats[lettre] = c.faits === c.total ? "finie" : "reste";
+  for (const lettre in comptes) etats[lettre] = "reste";   // allumée, point.
+
+  // ⚠️ `decorer` est appelé SANS `comptes` : sa pastille écrit « faits/total »
+  // et remplit une jauge de vert, ce qui est juste sur la fiche du grimpeur
+  // (spec 036) et faux ici. On lui laisse les classes d'état, et on pose le
+  // compte nous-mêmes juste après — `suivi.js` et `plan.js` restent intacts
+  // pour la page de résultats, qui, elle, a bien un total connu.
+  decorer(svg, etats, zoneOuverte);
+  poserComptes(svg, comptes);
+}
+
+/** Le nombre de voies, dans la pastille — sans jauge. */
+function poserComptes(svg, comptes) {
+  const aCompleter = new Set(zonesACompleter(etat.zones));
+  for (const n of svg.querySelectorAll("[data-zone]")) {
+    const zone = n.getAttribute("data-zone");
+    const combien = comptes[zone];
+    n.classList.toggle("a-compte", !!combien);
+    n.classList.toggle("ouvreurs-a-completer", aCompleter.has(zone));
+    const chiffre = n.querySelector(".compte-zone");
+    if (!chiffre) continue;
+    chiffre.textContent = combien ? String(combien) : "";
+    if (combien) {
+      chiffre.setAttribute("font-size",
+        tailleDuCompte(chiffre.getAttribute("data-corps"), String(combien)).toFixed(2));
+    }
+    // La jauge reste VIDE : elle n'a plus rien à mesurer.
+    const jauge = n.querySelector(".remplit-compte");
+    if (jauge) jauge.setAttribute("width", "0");
   }
-  decorer($("ouvreursPlan").querySelector("svg"), etats, zoneOuverte, comptes);
 }
 
 // --- Le tiroir --------------------------------------------------------------
@@ -146,10 +216,13 @@ function dessinerTiroir() {
   // ⚠️ `textContent` effacerait le `<em>` qui vit dans ce titre : on ne
   // remplace que le premier noeud de texte.
   titre.firstChild.nodeValue = "Zone " + zoneOuverte + " ";
-  $("ouvreursTiroirSous").textContent =
-    [mur && PROFILS[mur.profil], voies.length
-      ? completes + " complète" + (completes > 1 ? "s" : "") + " sur " + voies.length
-      : "aucune voie"].filter(Boolean).join(" · ");
+  const reste = voies.length - completes;
+  $("ouvreursTiroirSous").textContent = [
+    mur && PROFILS[mur.profil],
+    voies.length ? voies.length + " voie" + (voies.length > 1 ? "s" : "")
+                 : "aucune voie",
+    reste ? reste + " à compléter" : null,
+  ].filter(Boolean).join(" · ");
 
   const liste = $("ouvreursListe");
   liste.textContent = "";
@@ -175,8 +248,14 @@ function ligne(voie) {
 
   const quoi = el("span", { class: "ouvreurs-quoi" });
   quoi.appendChild(el("b", {}, voie.couleur || "couleur à choisir"));
-  quoi.append(voie.couleur_prises ? " · prises " + voie.couleur_prises
-                                  : " · prises ?");
+  quoi.append(" · ");
+  if (voie.couleur_prises) {
+    const rond = el("i", { class: "ouvreurs-rond-prise" });
+    rond.style.background = teintePrise(voie.couleur_prises) || "var(--surface3)";
+    quoi.append("prises ", rond, voie.couleur_prises);
+  } else {
+    quoi.append("prises ?");
+  }
   const cats = el("span", { class: "ouvreurs-cats" });
   if (voie.circuits.length) {
     for (const c of voie.circuits) cats.appendChild(el("span", { class: "ouvreurs-cat" }, c));
@@ -227,13 +306,62 @@ function jetons(titre, valeurs, choisi, surChoix, teintes) {
   return bloc;
 }
 
+/** Les prises : les sept courantes, et le nuancier derrière un bouton.
+ *
+ * ⚠️ Une valeur DÉJÀ POSÉE est toujours montrée, même hors des courantes et
+ * même absente du nuancier. Une couleur venue du classeur — le nuancier ne
+ * connaît pas tous les mots qu'on a pu y taper — disparaîtrait sinon de
+ * l'écran tout en restant en base : on la lirait sur l'étiquette imprimée sans
+ * pouvoir la retrouver dans la console.
+ */
+function jetonsPrises(voie) {
+  const posee = voie.couleur_prises;
+  const visibles = PRISES_COURANTES.slice();
+  if (posee && visibles.indexOf(posee) === -1) visibles.push(posee);
+
+  const bloc = el("div", {});
+  bloc.appendChild(el("div", { class: "ouvreurs-rub" }, "Couleur des prises"));
+  const rangee = el("div", { class: "ouvreurs-jetons" });
+
+  const poser = (nom) => {
+    const actif = posee === nom;
+    const j = el("button", { type: "button",
+                             class: "ouvreurs-jeton" + (actif ? " choisi" : ""),
+                             "aria-pressed": actif ? "true" : "false" });
+    const rond = el("i", {});
+    rond.style.background = teintePrise(nom) || "var(--surface3)";
+    j.appendChild(rond);
+    j.append(nom);
+    j.addEventListener("click",
+      () => envoyer(voie, { couleur_prises: actif ? null : nom }));
+    return j;
+  };
+  for (const nom of visibles) rangee.appendChild(poser(nom));
+
+  const plus = el("button", { type: "button", class: "ouvreurs-jeton",
+                              "aria-expanded": "false" }, "Personnaliser…");
+  const nuancier = el("div", { class: "ouvreurs-jetons ouvreurs-nuancier",
+                               hidden: "hidden" });
+  for (const p of PRISES) {
+    if (visibles.indexOf(p.nom) !== -1) continue;
+    nuancier.appendChild(poser(p.nom));
+  }
+  plus.addEventListener("click", () => {
+    nuancier.hidden = !nuancier.hidden;
+    plus.setAttribute("aria-expanded", nuancier.hidden ? "false" : "true");
+  });
+  rangee.appendChild(plus);
+
+  bloc.append(rangee, nuancier);
+  return bloc;
+}
+
 function fiche(voie) {
   const n = el("div", { class: "ouvreurs-fiche" });
   n.appendChild(jetons("Couleur de difficulté", COULEURS.map((c) => c.nom),
     voie.couleur,
     (v, actif) => envoyer(voie, { couleur: actif ? null : v }), true));
-  n.appendChild(jetons("Couleur des prises", PRISES, voie.couleur_prises,
-    (v, actif) => envoyer(voie, { couleur_prises: actif ? null : v })));
+  n.appendChild(jetonsPrises(voie));
   n.appendChild(jetons("Catégories", etat.circuits.map((c) => c.nom), voie.circuits,
     (v, actif) => {
       const suite = actif ? voie.circuits.filter((c) => c !== v)

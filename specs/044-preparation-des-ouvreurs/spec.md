@@ -120,18 +120,35 @@ Le rendu validé est dans [`maquettes/index.html`](maquettes/index.html) — six
 états, en clair et en sombre, sur la vraie géométrie du mur d'Annonay.
 
 **Le plan occupe l'écran.** Chaque zone porte, sous sa lettre, la pastille de la
-spec 036 — même socle, mêmes cinq ratios, même remplissage vert franc à 62 %.
-Ce qu'elle compte change, et rien d'autre :
+spec 036 — même socle, mêmes cinq ratios — mais elle y porte **un compte**, pas
+un avancement.
 
-| Sur la fiche du grimpeur (036) | Ici |
+> ⚠️ **Correction du 05/09, et elle est structurelle.** La première version
+> écrivait « 3/5 » et remplissait la pastille de vert à proportion : la jauge de
+> la spec 036. Adrien : « je ne comprends pas ta barre de progression sur
+> l'avancement de l'ouverture, elle ne devrait pas exister car les ouvreurs ne
+> savent pas à l'avance ce qu'ils vont ouvrir et où. »
+>
+> Il a raison, et la raison n'est pas une question de goût : **une jauge suppose
+> un total connu d'avance**. Sur la fiche du grimpeur, le dénominateur est le
+> nombre de blocs de son circuit — un fait, arrêté avant qu'il grimpe. Ici, le
+> dénominateur est *ce qui a été tapé jusqu'à maintenant*, et il grandit à
+> chaque voie ajoutée. « 3/5 » se lisait « tu es à 60 % de la zone J » alors que
+> personne ne sait ce que vaudra la zone J — pas même l'ouvreur qui la pose.
+>
+> Le **cadre vert « terminée »** tombe avec, et pour la même raison : « terminée »
+> est une promesse sur ce même total inconnu.
+
+Ce qui reste, parce que c'est un fait et non une prédiction :
+
+| Sur la zone | Ce que ça dit |
 | --- | --- |
-| blocs réussis / blocs de son circuit dans la zone | **voies complètes / voies déclarées dans la zone** |
+| un **chiffre** — « 5 » | cette zone porte cinq voies déclarées |
+| un **liseré ambre** | au moins une de ces voies attend encore une couleur ou une catégorie |
+| **rien, zone effacée** | personne n'y a encore rien déclaré |
 
-Trois états, repris tels quels de la spec 026 :
-
-- **zone effacée** — aucune voie déclarée : personne n'y a encore touché ;
-- **zone pleine, pastille partielle** — des voies, dont certaines incomplètes ;
-- **cadre vert** — toutes ses voies sont complètes.
+Le liseré n'est pas un avancement : il porte sur des voies **qui existent
+déjà**. C'est du travail identifié, pas une part d'un tout qu'on ignore.
 
 **Une zone touchée ouvre un tiroir par-dessus le plan**, avec ses voies. ⚠️ **Le
 plan se replie au-dessus du tiroir plutôt que de disparaître dessous** : sans
@@ -164,8 +181,26 @@ Une voie porte quatre choses, et **aucune n'est obligatoire pour l'enregistrer**
 | --- | --- | --- |
 | la **zone** | le pan qu'on a touché | oui, par construction |
 | la **couleur de difficulté** | six jetons — Jaune, Vert, Bleu, Mauve, Rouge, Noir | non |
-| la **couleur des prises** | une liste de jetons | non |
+| la **couleur des prises** | sept jetons courants, et un **nuancier** derrière « Personnaliser… » | non |
 | les **catégories** | les circuits de l'édition, en jetons | non |
+
+> **Le nuancier des prises, demandé le 05/09** : « il faut qu'on laisse à
+> l'ouvreur le choix de la couleur […] un bouton pour personnaliser [qui] ouvre
+> une palette de couleur plus large, une espèce de nuancier chromatique.
+> Attention il ne faut pas qu'il y ait trop de choix, ce ne sont que des prises
+> d'escalade ; donc proposer 10 nuances de rouge n'est pas nécessaire, mais du
+> rouge et du rose oui. »
+>
+> Quinze teintes, **distinctes et nommables** — pas un dégradé : Blanc, Gris,
+> Noir, Beige, Marron, Jaune, Fluo, Orange, Rouge, Rose, Fuchsia, Violet, Bleu,
+> Turquoise, Vert. Sept sont visibles d'emblée (celles d'avant le nuancier) ;
+> les huit autres attendent derrière le bouton. L'écran de tous les jours ne
+> grandit pas parce qu'un choix rare est devenu possible.
+>
+> ⚠️ **Une couleur déjà posée est toujours montrée**, même hors des sept
+> courantes et même absente du nuancier — le classeur a pu y écrire un mot que
+> le nuancier ne connaît pas. La masquer la laisserait en base et sur
+> l'étiquette imprimée, sans qu'on puisse la retrouver dans la console.
 
 Une voie est **complète** quand elle porte une couleur de difficulté *et* au
 moins une catégorie. C'est ce que compte la pastille de sa zone, et c'est le

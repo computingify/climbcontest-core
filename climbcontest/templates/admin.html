@@ -393,7 +393,14 @@
   /* Les cadres passent APRES tous les murs : en SVG l'ordre de peinture est
      l'ordre du document, et les murs d'Annonay se touchent bord a bord. */
   .plan .cadre-zone { fill: none; stroke: none; pointer-events: none; }
+  /* ⚠️ PAS de cadre vert « terminee » sur cet ecran : « terminee » est une
+     promesse sur un total que personne ne connait d'avance (05/09). Le seul
+     signal est l'inverse : une voie DEJA declaree a laquelle il manque une
+     couleur ou une categorie. Ca, c'est du travail sur ce qui existe. */
   .plan .cadre-zone.z-finie { stroke: var(--ok); stroke-width: 1.6; }
+  #ouvreursPlan .plan .cadre-zone.z-finie { stroke: none; }
+  #ouvreursPlan .plan .cadres-zone .cadre-zone.ouvreurs-a-completer {
+    stroke: var(--attention); stroke-width: 1.6; }
   .plan .cadre-zone.visee { stroke: var(--pl-anneau); stroke-width: 2.2; }
   .plan g[data-zone].visee { filter: drop-shadow(0 0 2.5px var(--pl-lueur)); }
   /* La pastille de la spec 036. Ce qu'elle compte change -- « completes /
@@ -492,6 +499,14 @@
     letter-spacing: .07em; color: var(--encre3); font-weight: 700;
     margin: 10px 0 6px; }
   .ouvreurs-jetons { display: flex; gap: 7px; flex-wrap: wrap; }
+  /* Le nuancier : replie par defaut, et visuellement en retrait quand il
+     s'ouvre -- c'est un choix rare, il ne doit pas peser autant que les sept
+     couleurs de tous les jours. */
+  .ouvreurs-nuancier { margin-top: 7px; padding-top: 8px;
+    border-top: 1px dashed var(--trait); }
+  .ouvreurs-rond-prise { display: inline-block; width: 9px; height: 9px;
+    border-radius: 50%; margin: 0 4px 0 1px; vertical-align: baseline;
+    border: 1px solid rgba(0,0,0,.22); }
   .ouvreurs-jeton { display: inline-flex; align-items: center; gap: 6px;
     padding: 6px 10px; border-radius: 999px; border: 1px solid var(--trait);
     background: var(--surface2); font: inherit; font-size: .78rem;
@@ -2118,7 +2133,8 @@
         <h1>Ouverture</h1>
         <p>Le plan de la salle, et les voies que les ouvreurs y déclarent :
            couleur de difficulté, couleur des prises, catégories. Tout ne se
-           remplit pas en une fois — chaque zone porte son avancement.</p>
+           remplit pas en une fois — chaque zone porte le nombre de voies déjà
+           déclarées, et se souligne d'ambre s'il en reste une à compléter.</p>
 
         <div class="avert" id="ouvreursLectureSeule" hidden>⚠️<div>Les voies
           viennent du classeur : cet écran est en <b>consultation</b>.
