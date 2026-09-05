@@ -64,6 +64,20 @@ qu'on ne met pas à jour le matin d'une compétition :
 
 ### Corrigé
 
+- **Un worker gunicorn sur quatre pouvait mourir au démarrage.**
+  `PRAGMA busy_timeout` était posé **après** `PRAGMA journal_mode=WAL`. Or le
+  passage en WAL demande un verrou exclusif : quand les quatre workers démarrent
+  ensemble sur une base neuve, celui qui arrive pendant la transaction de schéma
+  d'un autre échouait tout de suite sur « database is locked » — son propre
+  garde-fou n'existait pas encore. Une attente ne protège que ce qui vient après
+  elle.
+
+  Le symptôme était un rouge intermittent de la CI. Le vrai risque était le
+  démarrage du service sur la VM, après une coupure : c'est exactement le
+  moment où quatre workers ouvrent une base ensemble. Mesuré, 30 puis 70
+  exécutions du test du verrou orphelin : **1 échec sur 30**, puis **0 sur 70**.
+  Un test verrouille désormais l'ordre, et il rougit si on l'inverse.
+
 - **L'import du classeur pouvait fabriquer un doublon, ou pire.** Il rapprochait
   une ligne par son **seul dossard**. Deux conséquences, reproduites par un test
   avant d'être corrigées : un participant dont le numéro avait changé de main
