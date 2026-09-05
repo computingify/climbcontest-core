@@ -67,7 +67,7 @@ tous du classeur.
   lui que le scan résout (`contest`), lui que l'étiquette imprime (spec 024) et
   lui que la contrainte `uq_bloc_tag` protège.
 - **`numero` (colonne Y du classeur) reste un entier unique par édition.** En
-  mode `console`, il devient un simple ordinal de création, `max + 1`, **jamais
+  mode sans classeur, il devient un simple ordinal de création, `max + 1`, **jamais
   réattribué**. La renumérotation ne le touche pas : ce n'est pas le nom de la
   voie, et le faire bouger casserait le lien avec le classeur pour les éditions
   qui en ont un.

@@ -254,9 +254,9 @@ l'écran qui les tient.
 
 Sans circuit, un ouvreur ne peut cocher aucune catégorie — et aujourd'hui les
 circuits ne naissent **que** de l'en-tête de l'onglet `Plan` du classeur. En
-mode `console`, ce chemin n'existe plus.
+mode sans classeur, ce chemin n'existe plus.
 
-L'écran permet donc, en mode `console` uniquement, de **créer un circuit** (un
+L'écran permet donc, quand la saisie est ouverte, de **créer un circuit** (un
 nom, vingt caractères) et d'en **supprimer un qui ne porte aucune voie**. Rien
 de plus : renommer un circuit déplacerait des blocs d'une catégorie à l'autre
 sans le dire.
