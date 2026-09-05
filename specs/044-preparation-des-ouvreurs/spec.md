@@ -235,9 +235,33 @@ sans lui, la même prise physique s'écrit « Bleu/Blanc » chez l'un et
 n'y en a qu'une. Une couleur inconnue du nuancier n'est pas refusée pour
 autant : elle passe après celles qu'on connaît.
 
-Sur la liste, le petit disque de la voie se **coupe en deux**. ⚠️ Une coupe
-franche, pas un dégradé : deux teintes qui se fondent l'une dans l'autre en font
-une troisième, et on chercherait sur le mur une couleur qui n'existe pas.
+**UNE pastille, jamais deux.**
+
+> Précisé le 05/09 : « pour ces double couleur, elles sont vraiment sur la
+> prise, donc il faut l'afficher dans une pastille, pas 2 sur la console ; mais
+> tu en mets 1 à droite et une à gauche dans la pastille, séparées par un
+> oblique à 45°. »
+
+Une prise bicolore est **un objet** qu'on cherche des yeux sur le mur, pas deux
+prises côte à côte. Elle se dessine donc en une seule pastille : une couleur à
+gauche, l'autre à droite, séparées par un **oblique à 45°**.
+
+Deux endroits la portent :
+
+| Où | Taille | Pourquoi |
+| --- | --- | --- |
+| sur la ligne de la voie | 14 px | c'est le seul endroit de la ligne où la bicolorité se lit |
+| dans la fiche, à côté de « Couleur des prises » | 20 px | les jetons en dessous sont un **sélecteur** — deux jetons allumés racontent deux prises, cette pastille dit ce qu'on a posé sur le mur |
+
+⚠️ **Une coupe franche, et un filet dessus.** Deux teintes qui se fondent l'une
+dans l'autre en font une troisième, et on chercherait une couleur qui n'existe
+pas. Le filet suit l'encre plutôt que le blanc : entre deux teintes claires — un
+blanc et un jaune pâle — un filet blanc disparaîtrait et la pastille aurait
+l'air unie.
+
+⚠️ **14 px et non 9.** À 9, l'oblique ne se voyait pas : la pastille semblait
+unie, et deux jetons allumés dans la fiche restaient le seul indice — c'est-à-dire
+exactement la lecture « deux prises » qu'on veut éviter.
 
 ⚠️ **Le relevé des trois classeurs ne contient aucune prise bicolore** — que
 des mots simples. Il n'y avait donc aucune convention à respecter : c'est le

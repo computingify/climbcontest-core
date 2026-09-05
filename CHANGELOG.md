@@ -105,9 +105,11 @@ qu'on ne met pas à jour le matin d'une compétition :
   La couleur des prises se choisit parmi sept teintes courantes, et un
   **nuancier** de quinze teintes distinctes s'ouvre derrière « Personnaliser… » —
   relevées sur les trois classeurs archivés, pas inventées. Une prise peut être
-  **bicolore** : on touche une seconde couleur, le petit disque de la voie se
-  coupe en deux, et les deux teintes se rangent dans un ordre canonique pour
-  qu'une même prise ne s'écrive jamais de deux façons.
+  **bicolore** : on touche une seconde couleur, et elle s'affiche dans **une
+  seule pastille** — une teinte à gauche, l'autre à droite, séparées par un
+  oblique à 45°, parce que les deux couleurs sont sur la même prise. Les deux
+  se rangent dans un ordre canonique, pour qu'une même prise ne s'écrive jamais
+  de deux façons.
 - **Un rôle `ouvreur`**, le premier rôle restreint de la console : il n'ouvre
   que cet écran, et son tiroir n'a qu'une entrée. Il lit le plan de la salle
   mais ne peut pas le redessiner.

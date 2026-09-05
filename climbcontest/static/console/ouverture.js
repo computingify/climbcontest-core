@@ -69,18 +69,33 @@ const PRISES_MAXI = 2;
 
 const teintePrise = (nom) => (PRISES.find((p) => p.nom === nom) || {}).teinte;
 
-/** Le disque d'une prise : plein pour une couleur, coupé en deux pour deux.
+/** La pastille d'une prise. **UNE** pastille, jamais deux.
  *
- * ⚠️ Une coupe FRANCHE, pas un dégradé : deux teintes qui se fondent l'une
- * dans l'autre en font une troisième, et on chercherait sur le mur une
- * couleur qui n'existe pas. */
-function rondDePrises(noms) {
-  const rond = el("i", { class: "ouvreurs-rond-prise" });
-  const teintes = noms.map((n) => teintePrise(n) || "var(--surface3)");
-  rond.style.background = teintes.length > 1
-    ? `linear-gradient(135deg, ${teintes[0]} 0 50%, ${teintes[1]} 50% 100%)`
-    : teintes[0];
-  return rond;
+ * ⚠️ C'est la correction du 05/09 : « pour ces double couleur, elles sont
+ * vraiment sur la prise, donc il faut l'afficher dans une pastille, pas 2 ».
+ * Une prise bicolore est **un objet** qu'on cherche des yeux sur le mur — pas
+ * deux prises côte à côte. Deux pastilles racontaient deux prises.
+ *
+ * Une couleur à gauche, l'autre à droite, séparées par un **oblique à 45°**.
+ *
+ * ⚠️ Une coupe FRANCHE, et un filet dessus : deux teintes qui se fondent l'une
+ * dans l'autre en font une troisième, et on chercherait sur le mur une couleur
+ * qui n'existe pas. Le filet évite en plus qu'un blanc sur un jaune pâle
+ * ressemble à une pastille unie.
+ */
+export function fondDePrises(teintes) {
+  if (teintes.length < 2) return teintes[0] || "var(--surface3)";
+  return `linear-gradient(135deg, ${teintes[0]} 0 calc(50% - 0.5px),`
+       + ` var(--pastille-filet) calc(50% - 0.5px) calc(50% + 0.5px),`
+       + ` ${teintes[1]} calc(50% + 0.5px) 100%)`;
+}
+
+function pastilleDePrises(noms, classe) {
+  const n = el("i", { class: classe });
+  n.style.background = fondDePrises(
+    noms.map((x) => teintePrise(x) || "var(--surface3)"));
+  if (noms.length > 1) n.classList.add("bicolore");
+  return n;
 }
 
 const PROFILS = { dalle: "Dalle", vertical: "Vertical", incline: "Incliné",
@@ -275,7 +290,9 @@ function ligne(voie) {
   quoi.append(" · ");
   const prises = voie.couleurs_prises || [];
   if (prises.length) {
-    quoi.append("prises ", rondDePrises(prises), prises.join(" et "));
+    quoi.append("prises ",
+                pastilleDePrises(prises, "ouvreurs-rond-prise"),
+                prises.join(" et "));
   } else {
     quoi.append("prises ?");
   }
@@ -344,7 +361,19 @@ function jetonsPrises(voie) {
   const plein = posees.length >= PRISES_MAXI;
 
   const bloc = el("div", {});
-  bloc.appendChild(el("div", { class: "ouvreurs-rub" }, "Couleur des prises"));
+  const rub = el("div", { class: "ouvreurs-rub" }, "Couleur des prises");
+  // ⚠️ L'APERÇU DE LA PRISE, en UNE pastille. Les jetons ci-dessous sont un
+  // sélecteur : deux d'entre eux s'allument, et deux jetons allumés racontent
+  // deux prises. Celle-ci dit ce qu'on a réellement posé sur le mur — un objet,
+  // deux couleurs, séparées par un oblique à 45°.
+  if (posees.length) {
+    rub.appendChild(pastilleDePrises(posees, "ouvreurs-apercu-prise"));
+    // Le NOM ne prend pas les capitales de la rubrique : « BLANC ET FLUO »
+    // crie, et ce n'est pas un titre, c'est une valeur.
+    rub.appendChild(el("span", { class: "ouvreurs-valeur-prise" },
+                       posees.join(" et ")));
+  }
+  bloc.appendChild(rub);
   const rangee = el("div", { class: "ouvreurs-jetons" });
 
   const poser = (nom) => {

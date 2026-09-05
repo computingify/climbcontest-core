@@ -122,6 +122,7 @@
       --pl-contour: #12131A; --pl-trame: rgba(255,255,255,.13);
       --pl-lettre: #F5F0E7; --pl-halo: rgba(9,10,14,.85);
       --pl-anneau: #FFD489; --pl-lueur: #FFC463; --pl-efface: .28;
+      --pastille-filet: rgba(242, 239, 232, .55);
     }
   }
   * { box-sizing: border-box; }
@@ -506,9 +507,22 @@
     border-top: 1px dashed var(--trait); }
   .ouvreurs-jeton.inerte { opacity: .38; cursor: not-allowed; }
   .ouvreurs-note-prises { margin: 8px 0 0; font-size: .74rem; color: var(--encre3); }
-  .ouvreurs-rond-prise { display: inline-block; width: 9px; height: 9px;
-    border-radius: 50%; margin: 0 4px 0 1px; vertical-align: baseline;
+  /* ⚠️ 14 px et non 9 : a 9, l'oblique d'une prise bicolore ne se voyait pas,
+     et la pastille avait l'air unie. C'est le seul endroit de la ligne ou la
+     bicolorite se lit. */
+  .ouvreurs-rond-prise { display: inline-block; width: 14px; height: 14px;
+    border-radius: 50%; margin: 0 5px 0 1px; vertical-align: -2px;
     border: 1px solid rgba(0,0,0,.22); }
+  /* L'apercu, dans la rubrique de la fiche : ce que donne la prise, en UNE
+     pastille -- les jetons en dessous ne sont qu'un selecteur. */
+  .ouvreurs-valeur-prise { text-transform: none; letter-spacing: 0;
+    font-weight: 600; color: var(--encre2); font-size: .8rem; }
+  .ouvreurs-apercu-prise { display: inline-block; width: 20px; height: 20px;
+    border-radius: 50%; margin: 0 6px 0 10px; vertical-align: -5px;
+    border: 1px solid rgba(0,0,0,.22); }
+  /* Le filet de l'oblique : il suit l'encre, pour rester visible sur les deux
+     themes -- un filet blanc disparaitrait entre deux teintes claires. */
+  :root { --pastille-filet: rgba(27, 26, 23, .45); }
   .ouvreurs-jeton { display: inline-flex; align-items: center; gap: 6px;
     padding: 6px 10px; border-radius: 999px; border: 1px solid var(--trait);
     background: var(--surface2); font: inherit; font-size: .78rem;
