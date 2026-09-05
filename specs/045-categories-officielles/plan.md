@@ -16,8 +16,10 @@
       catégorie hors liste, sans rien refuser.
 - [ ] **6. Les routes** — `referentiels` rend `LISTE`, `categories` rend
       `hors_liste`, et `POST /admin/categories/rattacher` (aperçu + application).
-- [ ] **7. La console** — les quatre points de saisie, la grille à cocher, la
-      carte de rattrapage, la table d'accentuation.
+- [ ] **7. La console** — les trois listes déroulantes (dont `select.value`
+      posé avant affichage, D9), la **fusion** du barème et des catégories
+      déclarées en un seul tableau à interrupteurs (D5), la carte de
+      rattrapage, la table d'accentuation.
 - [ ] **8. Le changelog** — section `[Non publié]`, et l'index des specs.
 
 L'ordre n'est pas indifférent : 1→3 se testent **sans monter l'application**,
@@ -107,7 +109,8 @@ Un seul harnais, un seul parcours, une sonde qui relève tout (motif de
 | `autreDansAjout` | absent (D2) |
 | `optionsCrayon` | 18 (A6) |
 | `crayonHorsListe` | la ligne `U13 M` ouverte reste sur `U13 M`, marquée (A7) |
-| `casesDeclarees` | 18 cases, 9 lignes |
+| `interrupteurs` | 18 `role="switch"`, 9 lignes, dans le **même** tableau que les années |
+| `ouvreSurCourante` | `#pCategorie` et le crayon portent leur valeur AVANT affichage (A16) |
 | `carteHorsListe` | visible, une ligne `U13 M → U13 H` |
 | `apercuAvantApres` | le tableau paraît **avant** que rien ne change |
 

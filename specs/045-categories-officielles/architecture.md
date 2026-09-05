@@ -151,7 +151,7 @@ pour toute la compétition.
 | `#pCategorie` (ajout) | `remplir(…, d.categories, …, avecAutre=true)` | les 18, `avecAutre=false` |
 | `ligneEditable` (crayon) | `listeQuiCree(categoriesVues(), …)` | `listeOfficielle(p.categorie)` |
 | « à trancher » (HelloAsso) | `listeQuiCree(categoriesVues(), …)` | `listeOfficielle(i.categorie)` |
-| `#categoriesDeclarees` | champ texte, virgules | grille 9 lignes × 2 cases |
+| `#categoriesDeclarees` | champ texte, virgules | **fusionné** dans le tableau du barème : 2 colonnes d'interrupteurs |
 
 `#filtreCategorie` **ne change pas** : il se déduit des données et doit
 continuer de montrer « U13 M » tant que quelqu'un le porte, sinon la ligne à
@@ -159,7 +159,14 @@ corriger devient introuvable (spec.md §7).
 
 `listeOfficielle(courante)` construit un `<select>` des 18, **plus la valeur
 courante si elle est hors liste**, marquée « (hors liste) » — l'exception de D2,
-et la seule.
+et la seule. Elle finit par `select.value = courante` : c'est cette ligne qui
+fait ouvrir le panneau sur la catégorie en cours (D9), et sans elle le
+navigateur ouvre sur la première option.
+
+Le tableau du barème gagne deux colonnes d'interrupteurs (D5) et **deux lignes**,
+`Senior` et `Veteran`, que `bareme()` ne produit pas — elles n'ont pas de Under.
+Elles se construisent à côté des tranches, avec leur compte d'inscrits, sur fond
+grisé. `hors_de_portee()` fournit déjà ce comptage.
 
 L'affichage accentué vit ici, en JavaScript, où les accents sont admis :
 

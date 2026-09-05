@@ -6,9 +6,10 @@
 <title>Spec 045 — les catégories officielles FFME</title>
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='7' fill='%23B5761C'/><text x='16' y='23' font-size='18' font-family='sans-serif' font-weight='700' fill='%23FFF' text-anchor='middle'>U</text></svg>">
 <style>
-/* Aucune dépendance extérieure. Les couleurs sont celles de la console
-   (spec 021) ; `[data-theme]` permet de comparer clair et sombre sans changer
-   le réglage du Mac. */
+/* Aucune dépendance extérieure. Les couleurs et les composants sont ceux de la
+   console (spec 021) — l'interrupteur est repris tel quel, `label.bascule` +
+   `.glissiere`. `[data-theme]` compare clair et sombre sans toucher au réglage
+   du Mac. */
 :root {
   --fond: #FBFAF8; --surface: #FFFFFF; --surface2: #F4F1EB; --surface3: #E9E4DA;
   --trait: #DDD7CB; --encre: #1B1A17; --encre2: #5C574C; --encre3: #8A8375;
@@ -18,6 +19,7 @@
   --titre: system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
   --chiffre: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
   --ombre: 0 10px 30px rgba(27,26,23,.10);
+  --ombre-popup: 0 16px 42px rgba(27,26,23,.22);
   --rayon: 14px;
   color-scheme: light;
 }
@@ -29,6 +31,7 @@
     --ok: #6FC08A; --alerte: #F08A78; --attention: #E5B44A;
     --src-g: #5B9BF8; --src-g-txt: #10233F;
     --ombre: 0 18px 48px rgba(0,0,0,.5);
+    --ombre-popup: 0 20px 54px rgba(0,0,0,.66);
     color-scheme: dark;
   }
 }
@@ -39,6 +42,7 @@
   --ok: #6FC08A; --alerte: #F08A78; --attention: #E5B44A;
   --src-g: #5B9BF8; --src-g-txt: #10233F;
   --ombre: 0 18px 48px rgba(0,0,0,.5);
+  --ombre-popup: 0 20px 54px rgba(0,0,0,.66);
   color-scheme: dark;
 }
 * { box-sizing: border-box; }
@@ -53,7 +57,7 @@ body { margin: 0; background: var(--fond); color: var(--encre);
   border-radius: 999px; padding: 4px 11px; }
 .chapeau h1 { margin: 12px 0 6px; font-size: 1.85rem; letter-spacing: -.025em; line-height: 1.15; }
 .chapeau p { margin: 0; color: var(--encre2); max-width: 64ch; }
-.outils { position: sticky; top: 0; z-index: 20; margin: 22px -22px 26px;
+.outils { position: sticky; top: 0; z-index: 40; margin: 22px -22px 26px;
   padding: 10px 22px; display: flex; gap: 8px; align-items: center;
   background: color-mix(in srgb, var(--fond) 88%, transparent);
   backdrop-filter: blur(9px); border-bottom: 1px solid var(--trait); }
@@ -74,39 +78,54 @@ body { margin: 0; background: var(--fond); color: var(--encre);
   border-left: 3px solid var(--accent); background: var(--surface2);
   border-radius: 0 8px 8px 0; max-width: 74ch; }
 .note b { color: var(--encre); }
+.note + .note { margin-top: 10px; }
 
 /* --- la carte de console -------------------------------------------------- */
 .carte { background: var(--surface); border: 1px solid var(--trait);
   border-radius: var(--rayon); padding: 18px; box-shadow: var(--ombre); }
 .carte h3 { margin: 0 0 4px; font-size: 1.02rem; }
 .aide { margin: 0 0 16px; color: var(--encre2); font-size: .87rem; }
-label { display: block; font-size: .8rem; font-weight: 600; color: var(--encre2);
+label.champ { display: block; font-size: .8rem; font-weight: 600; color: var(--encre2);
   margin-bottom: 5px; }
-.grille { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 14px; }
-input[type=text], select, .faux-champ {
+.grille { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 14px; }
+input[type=text], .faux-champ {
   width: 100%; font: inherit; font-size: .92rem; padding: 9px 11px;
   border: 1px solid var(--trait); border-radius: 9px;
   background: var(--surface2); color: var(--encre); }
-.faux-champ { display: flex; align-items: center; justify-content: space-between; }
+.faux-champ { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
 .faux-champ.actif { border-color: var(--accent); background: var(--surface);
   box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 18%, transparent); }
 .chevron { color: var(--encre3); font-size: .8rem; }
 
-/* La liste déroulante, dessinée : un vrai <select> ouvert ne se capture pas. */
-.deroulante { margin-top: 6px; border: 1px solid var(--trait); border-radius: 11px;
-  background: var(--surface); box-shadow: var(--ombre); overflow: hidden;
-  max-width: 260px; }
-.deroulante .opt { padding: 7px 12px; font-size: .9rem; display: flex;
+/* --- la liste déroulante, DESSINÉE ---------------------------------------
+   Un <select> natif ouvert ne se capture pas. On reproduit ce qu'il fait
+   vraiment sur macOS et Android : le panneau se pose SUR le champ, aligné sur
+   la valeur courante — pas sur la première ligne. */
+.scene { position: relative; }
+.popup { position: absolute; left: 0; z-index: 30; width: 240px;
+  border: 1px solid var(--trait); border-radius: 11px; background: var(--surface);
+  box-shadow: var(--ombre-popup); overflow: hidden; }
+/* La zone qui defile. Elle est BORNEE : dix-huit lignes ne tiennent pas a
+   l'ecran, et un panneau qui deborde de la carte ne ressemble a aucun
+   navigateur. Le defilement est reel -- c'est lui qu'on pose sur la valeur
+   courante. */
+.liste { max-height: 300px; overflow-y: auto; scrollbar-width: thin; }
+.popup .opt { padding: 6px 12px; font-size: .9rem; display: flex;
   justify-content: space-between; align-items: center; gap: 10px; }
-.deroulante .opt + .opt { border-top: 1px solid color-mix(in srgb, var(--trait) 55%, transparent); }
-.deroulante .opt.vide { color: var(--encre3); font-style: italic; }
-.deroulante .opt.hors { background: var(--surface2); }
-.deroulante .opt.choisie { background: var(--accent); color: var(--sur-accent); font-weight: 600; }
-.deroulante .opt small { font-size: .74rem; color: var(--encre3); }
-.deroulante .opt.choisie small { color: color-mix(in srgb, var(--sur-accent) 80%, transparent); }
-.deroulante .separation { height: 1px; background: var(--trait); }
+.popup .opt + .opt { border-top: 1px solid color-mix(in srgb, var(--trait) 55%, transparent); }
+.popup .opt.vide { color: var(--encre3); font-style: italic; }
+.popup .opt.hors { background: var(--surface2); }
+.popup .opt.choisie { background: var(--accent); color: var(--sur-accent); font-weight: 600; }
+.popup .opt small { font-size: .74rem; color: var(--encre3); }
+.popup .opt.choisie small { color: color-mix(in srgb, var(--sur-accent) 82%, transparent); }
+.popup .separation { height: 1px; background: var(--trait); }
 .barre-def { padding: 6px 12px; font-size: .74rem; color: var(--encre3);
   background: var(--surface2); border-top: 1px solid var(--trait); }
+/* Le panneau ouvert se pose dans la colonne de droite ; les explications
+   occupent la gauche, au lieu d'un grand vide. */
+.sous-formulaire { display: grid; grid-template-columns: 1fr 252px; gap: 22px;
+  margin-top: 18px; min-height: 316px; align-items: start; }
+@media (max-width: 700px) { .sous-formulaire { grid-template-columns: 1fr; } }
 
 table { width: 100%; border-collapse: collapse; font-size: .9rem; }
 th { text-align: left; font-size: .72rem; text-transform: uppercase;
@@ -114,23 +133,31 @@ th { text-align: left; font-size: .72rem; text-transform: uppercase;
   padding: 0 10px 8px; border-bottom: 1px solid var(--trait); }
 td { padding: 9px 10px; border-bottom: 1px solid color-mix(in srgb, var(--trait) 55%, transparent); }
 td.num, th.num { text-align: right; font-family: var(--chiffre); font-variant-numeric: tabular-nums; }
+th.mil, td.mil { text-align: center; }
 tr:last-child td { border-bottom: 0; }
 .zero { color: var(--encre3); }
+.hors-bareme td { background: color-mix(in srgb, var(--surface2) 55%, transparent); }
 
-/* La grille à cocher de l'écran Catégories. */
-.cases { display: grid; grid-template-columns: 1fr auto auto; gap: 0 18px;
-  max-width: 340px; align-items: center; }
-.cases .tete { font-size: .72rem; text-transform: uppercase; letter-spacing: .06em;
-  color: var(--encre3); font-weight: 700; padding-bottom: 6px; text-align: center; }
-.cases .nom { padding: 6px 0; font-size: .92rem; }
-.cases .c { text-align: center; padding: 6px 0; }
-.case { appearance: none; width: 18px; height: 18px; border-radius: 5px;
-  border: 1.5px solid var(--trait); background: var(--surface2); vertical-align: middle;
-  position: relative; cursor: pointer; }
-.case:checked { background: var(--accent); border-color: var(--accent); }
-.case:checked::after { content: ""; position: absolute; left: 5px; top: 1px;
-  width: 5px; height: 10px; border: solid var(--sur-accent);
-  border-width: 0 2px 2px 0; transform: rotate(42deg); }
+/* --- l'interrupteur, repris tel quel de la console (spec 021) -------------
+   La case NATIVE est conservée sous le visuel : elle garde le clavier, le
+   focus et le lecteur d'écran, que `role="switch"` fait annoncer
+   « interrupteur » et non « case ». Le visuel est un FRÈRE, jamais un
+   pseudo-élément sur l'<input>. */
+label.bascule { position: relative; display: inline-flex; align-items: center;
+  gap: 13px; padding: 0; cursor: pointer; font-size: .94rem; color: var(--encre); margin: 0; }
+label.bascule input { position: absolute; opacity: 0; width: 0; height: 0; }
+.glissiere { position: relative; flex: none; width: 42px; height: 25px;
+  border-radius: 999px; background: var(--surface3); border: 1px solid var(--trait);
+  transition: background-color .18s ease, border-color .18s ease; }
+.glissiere::after { content: ""; position: absolute; top: 2px; left: 2px;
+  width: 19px; height: 19px; border-radius: 50%; background: var(--surface);
+  box-shadow: 0 1px 2px rgba(0,0,0,.35); transition: transform .18s ease; }
+label.bascule input:checked + .glissiere { background: var(--accent); border-color: var(--accent); }
+label.bascule input:checked + .glissiere::after { transform: translateX(17px); background: var(--sur-accent); }
+label.bascule input:focus-visible + .glissiere { outline: 2px solid var(--accent); outline-offset: 2px; }
+td.inter { text-align: center; }
+td.inter label.bascule { justify-content: center; }
+@media (prefers-reduced-motion: reduce) { .glissiere, .glissiere::after { transition: none; } }
 
 .marque { display: inline-block; margin-left: 8px; padding: 1px 8px;
   font-size: .72rem; font-weight: 600; letter-spacing: .03em; border-radius: 999px;
@@ -152,13 +179,6 @@ tr:last-child td { border-bottom: 0; }
 .src { display: inline-flex; width: 20px; height: 20px; border-radius: 6px;
   align-items: center; justify-content: center; font-size: .72rem; font-weight: 700;
   background: var(--src-g); color: var(--src-g-txt); }
-.avant-apres { font-size: .88rem; }
-.cote-a-cote { display: grid; grid-template-columns: 260px 1fr; gap: 22px;
-  align-items: start; margin-top: 18px; }
-.legende { margin: 0 0 6px; font-size: .74rem; text-transform: uppercase;
-  letter-spacing: .06em; color: var(--encre3); font-weight: 700; }
-.deroulante .opt { padding: 6px 12px; }
-@media (max-width: 700px) { .cote-a-cote { grid-template-columns: 1fr; } }
 .avant-apres .barre-txt { text-decoration: line-through; color: var(--encre3); }
 </style>
 </head>
@@ -166,10 +186,10 @@ tr:last-child td { border-bottom: 0; }
 <div class="page">
 
 <div class="chapeau">
-  <span class="eyebrow">Spec 045 · maquette</span>
+  <span class="eyebrow">Spec 045 · maquette · v2</span>
   <h1>Les catégories officielles FFME, et rien d'autre</h1>
-  <p>Quatre écrans à valider avant d'écrire une ligne de code. Tout ce qui est
-     montré ici sort des <b>Règles de participation FFME 2025-2026, §5.4</b> :
+  <p>Trois écrans à valider avant d'écrire une ligne de code. Tout ce qui est
+     montré sort des <b>Règles de participation FFME 2025-2026, §5.4</b> :
      neuf catégories, Vétérans 1 et 2 fusionnés, dix-huit libellés.</p>
 </div>
 
@@ -185,28 +205,26 @@ tr:last-child td { border-bottom: 0; }
 <!-- ================== 1. Le formulaire d'ajout ================== -->
 <section class="plaque">
   <span class="puce"><b>1</b> · Ajouter un participant</span>
-  <h2>Dix-huit entrées, et plus de « ＋ Autre… »</h2>
+  <h2>Dix-huit entrées, et la liste s'ouvre sur la catégorie en cours</h2>
   <p>La liste ne se déduit plus de ce que la base porte déjà — c'est ce qui
      laissait « U13 M » se proposer lui-même. Elle est écrite dans le code, avec
-     sa source.</p>
+     sa source. Et le panneau se pose <b>sur</b> le champ, aligné sur la valeur
+     courante : le geste standard, celui du <code>&lt;select&gt;</code> natif.</p>
 
-  <div class="carte">
+  <div class="carte" style="padding-bottom:26px">
     <h3>Ajouter un participant</h3>
     <p class="aide"><b>Le dossard est attribué automatiquement</b> — le premier
        numéro libre. Il s'affiche après l'ajout.</p>
     <div class="grille">
-      <div><label>Nom *</label><input type="text" value="Vernet"></div>
-      <div><label>Prénom</label><input type="text" value="Jade"></div>
-      <div><label>Année de naissance</label><input type="text" value="2015"></div>
-      <div>
-        <label>Catégorie</label>
-        <div class="faux-champ actif"><span>U13 F</span><span class="chevron">▾</span></div>
-      </div>
-    </div>
-    <div class="cote-a-cote">
-      <div>
-        <p class="legende">La liste, dépliée</p>
-        <div class="deroulante">
+      <div><label class="champ">Nom *</label><input type="text" value="Vernet"></div>
+      <div><label class="champ">Prénom</label><input type="text" value="Jade"></div>
+      <div><label class="champ">Année de naissance</label><input type="text" value="2015"></div>
+      <div class="scene">
+        <label class="champ">Catégorie</label>
+        <div class="faux-champ actif" data-ancre="ajout"><span>U13 F</span><span class="chevron">▾</span></div>
+
+        <div class="popup" data-popup="ajout">
+          <div class="liste">
           <div class="opt vide">— aucune —</div>
           <div class="opt">U9 F</div>
           <div class="opt">U9 H</div>
@@ -226,17 +244,26 @@ tr:last-child td { border-bottom: 0; }
           <div class="opt">Sénior H</div>
           <div class="opt">Vétéran F</div>
           <div class="opt">Vétéran H</div>
+          </div>
           <div class="barre-def">18 catégories · FFME §5.4</div>
         </div>
+
       </div>
+    </div>
+    <div class="sous-formulaire">
       <div>
-    <p class="note" style="margin-top:0"><b>« Sénior » à l'écran, <code>Senior</code> en base.</b>
-       La convention du dépôt interdit les accents dans ce qui part en JSON ;
-       la table d'accentuation vit dans le gabarit, côté affichage.</p>
-        <p class="note"><b>Plus de « ＋ Autre… ».</b> C'est lui qui a laissé
-           naître « U13 M » : la liste de la spec 013 proposait les valeurs
-           déjà en base, et gardait une porte pour en inventer une.</p>
+    <p class="note" style="margin-top:0"><b>Ouvert, le panneau montre <code>U13 F</code></b>
+       — pas le haut de la liste. C'est ce que fait un <code>&lt;select&gt;</code>
+       natif, sur macOS comme sur Android : on garde le composant du système,
+       on ne le réécrit pas.</p>
+    <p class="note"><b>« Sénior » à l'écran, <code>Senior</code> en base.</b>
+       La convention du dépôt interdit les accents dans ce qui part en JSON ; la
+       table d'accentuation vit dans le gabarit, côté affichage.</p>
+    <p class="note"><b>Plus de « ＋ Autre… ».</b> C'est lui qui a laissé naître
+       « U13 M » : la liste de la spec 013 proposait les valeurs déjà en base, et
+       gardait une porte pour en inventer une.</p>
       </div>
+      <div></div>
     </div>
   </div>
 </section>
@@ -247,7 +274,8 @@ tr:last-child td { border-bottom: 0; }
   <h2>La même liste — et la valeur hors liste qui ne disparaît pas</h2>
   <p>Le grimpeur du bas porte « U13 M » depuis le 30/08. Ouvrir sa ligne pour
      corriger son club ne doit pas changer sa catégorie en silence : sa valeur
-     reste dans sa propre liste, marquée.</p>
+     reste en tête de sa propre liste, marquée, et c'est sur elle que le panneau
+     s'ouvre.</p>
 
   <div class="carte">
     <table>
@@ -266,9 +294,12 @@ tr:last-child td { border-bottom: 0; }
           <td>Chapuis Nino</td>
           <td class="num">2018</td>
           <td>Annonay Escalade</td>
-          <td style="min-width:210px">
-            <div class="faux-champ actif"><span>U13 M <span class="marque">hors liste</span></span><span class="chevron">▾</span></div>
-            <div class="deroulante" style="max-width:230px">
+          <td class="scene" style="min-width:230px">
+            <div class="faux-champ actif" data-ancre="crayon">
+              <span>U13 M <span class="marque">hors liste</span></span><span class="chevron">▾</span>
+            </div>
+            <div class="popup" data-popup="crayon" style="width:230px">
+              <div class="liste">
               <div class="opt hors choisie">U13 M <small>hors liste</small></div>
               <div class="separation"></div>
               <div class="opt vide">— aucune —</div>
@@ -277,11 +308,17 @@ tr:last-child td { border-bottom: 0; }
               <div class="opt">U13 F</div>
               <div class="opt">U13 H</div>
               <div class="opt">U15 F</div>
+              </div>
               <div class="barre-def">…et les 12 autres</div>
             </div>
           </td>
           <td><span class="src">G</span></td>
           <td style="text-align:right"><button class="mini">Enregistrer</button></td>
+        </tr>
+        <tr>
+          <td class="num">131</td><td>Peyron Sacha</td><td class="num">2013</td>
+          <td>CAF Vivarais</td><td>U15 H</td><td><span class="src">G</span></td>
+          <td style="text-align:right"><span class="chevron">✎</span></td>
         </tr>
       </tbody>
     </table>
@@ -295,53 +332,79 @@ tr:last-child td { border-bottom: 0; }
 <!-- ================== 3. L'écran Catégories ================== -->
 <section class="plaque">
   <span class="puce"><b>3</b> · Écran Catégories</span>
-  <h2>Ce que l'édition fait grimper, et les années qui vont avec</h2>
-  <p>Le champ « Catégories, séparées par des virgules » devient une grille à
-     cocher : neuf lignes, deux cases. Une édition neuve ouvre sur les neuf,
-     années calculées depuis sa date — il n'y a plus rien à taper.</p>
-
-  <div class="carte" style="margin-bottom:16px">
-    <h3>Le barème de cette édition</h3>
-    <p class="aide">Compétition du 15/11/2026 — saison 2026-2027, donc
-       <b>référence 2027</b>. Les années suivent la date de l'édition : la
-       changer les décale.</p>
-    <table>
-      <thead><tr><th>Catégorie</th><th>Années de naissance</th><th>Âge</th><th class="num">Inscrits</th></tr></thead>
-      <tbody>
-        <tr><td>U9 F · U9 H</td><td>2019 et après</td><td>jusqu'à 8 ans</td><td class="num zero">0</td></tr>
-        <tr><td>U11 F · U11 H</td><td>2017 · 2018</td><td>9 et 10 ans</td><td class="num">20</td></tr>
-        <tr><td>U13 F · U13 H</td><td>2015 · 2016</td><td>11 et 12 ans</td><td class="num">36</td></tr>
-        <tr><td>U15 F · U15 H</td><td>2013 · 2014</td><td>13 et 14 ans</td><td class="num">31</td></tr>
-        <tr><td>U17 F · U17 H</td><td>2011 · 2012</td><td>15 et 16 ans</td><td class="num">11</td></tr>
-        <tr><td>U19 F · U19 H</td><td>2009 · 2010</td><td>17 et 18 ans</td><td class="num zero">0</td></tr>
-        <tr><td>U21 F · U21 H</td><td>2007 · 2008</td><td>19 et 20 ans</td><td class="num zero">0</td></tr>
-        <tr><td>Sénior F · Sénior H</td><td>—</td><td>hors barème</td><td class="num zero">0</td></tr>
-        <tr><td>Vétéran F · Vétéran H</td><td>—</td><td>hors barème</td><td class="num zero">0</td></tr>
-      </tbody>
-    </table>
-    <p class="note"><b>Les quatre catégories à zéro n'apparaissent nulle part
-       sur la page de résultats</b>, et personne n'a rien à éteindre : un
-       classement se construit à partir des inscrits, pas d'une liste. La
-       première inscription en U19 le fait paraître, sans geste.</p>
-  </div>
+  <h2>Un seul tableau : les années, les inscrits, et ce qui grimpe</h2>
+  <p>Le barème et « les catégories de cette édition » étaient deux cartes qui
+     parlaient des mêmes neuf lignes. Elles n'en font plus qu'une : à gauche ce
+     que la règle FFME calcule, à droite les deux interrupteurs qui disent ce que
+     la compétition fait grimper.</p>
 
   <div class="carte">
     <h3>Les catégories de cette édition</h3>
-    <p class="aide">Ce que la compétition fait grimper. Sert au barème quand il
-       n'y a encore aucun inscrit — et le jour où le classeur ne sera plus là.</p>
-    <div class="cases">
-      <div></div><div class="tete">F</div><div class="tete">H</div>
-      <div class="nom">U9</div><div class="c"><input class="case" type="checkbox"></div><div class="c"><input class="case" type="checkbox"></div>
-      <div class="nom">U11</div><div class="c"><input class="case" type="checkbox" checked></div><div class="c"><input class="case" type="checkbox" checked></div>
-      <div class="nom">U13</div><div class="c"><input class="case" type="checkbox" checked></div><div class="c"><input class="case" type="checkbox" checked></div>
-      <div class="nom">U15</div><div class="c"><input class="case" type="checkbox" checked></div><div class="c"><input class="case" type="checkbox" checked></div>
-      <div class="nom">U17</div><div class="c"><input class="case" type="checkbox" checked></div><div class="c"><input class="case" type="checkbox" checked></div>
-      <div class="nom">U19</div><div class="c"><input class="case" type="checkbox"></div><div class="c"><input class="case" type="checkbox"></div>
-      <div class="nom">U21</div><div class="c"><input class="case" type="checkbox"></div><div class="c"><input class="case" type="checkbox"></div>
-      <div class="nom">Sénior</div><div class="c"><input class="case" type="checkbox"></div><div class="c"><input class="case" type="checkbox"></div>
-      <div class="nom">Vétéran</div><div class="c"><input class="case" type="checkbox"></div><div class="c"><input class="case" type="checkbox"></div>
-    </div>
-    <div style="margin-top:16px"><button class="action">Enregistrer</button></div>
+    <p class="aide">Compétition du 15/11/2026 — saison 2026-2027, donc
+       <b>référence 2027</b>. Les années suivent la date de l'édition : la
+       changer les décale. Les interrupteurs servent au barème quand il n'y a
+       encore aucun inscrit — et le jour où le classeur ne sera plus là.</p>
+    <table>
+      <thead><tr>
+        <th>Catégorie</th><th>Années de naissance</th><th>Âge</th>
+        <th class="num">Inscrits</th><th class="mil">F</th><th class="mil">H</th>
+      </tr></thead>
+      <tbody>
+        <tr>
+          <td>U9</td><td>2019 et après</td><td>jusqu'à 8 ans</td><td class="num zero">0</td>
+          <td class="inter"><label class="bascule"><input type="checkbox" role="switch" aria-label="U9 F"><span class="glissiere"></span></label></td>
+          <td class="inter"><label class="bascule"><input type="checkbox" role="switch" aria-label="U9 H"><span class="glissiere"></span></label></td>
+        </tr>
+        <tr>
+          <td>U11</td><td>2017 · 2018</td><td>9 et 10 ans</td><td class="num">20</td>
+          <td class="inter"><label class="bascule"><input type="checkbox" role="switch" checked aria-label="U11 F"><span class="glissiere"></span></label></td>
+          <td class="inter"><label class="bascule"><input type="checkbox" role="switch" checked aria-label="U11 H"><span class="glissiere"></span></label></td>
+        </tr>
+        <tr>
+          <td>U13</td><td>2015 · 2016</td><td>11 et 12 ans</td><td class="num">36</td>
+          <td class="inter"><label class="bascule"><input type="checkbox" role="switch" checked aria-label="U13 F"><span class="glissiere"></span></label></td>
+          <td class="inter"><label class="bascule"><input type="checkbox" role="switch" checked aria-label="U13 H"><span class="glissiere"></span></label></td>
+        </tr>
+        <tr>
+          <td>U15</td><td>2013 · 2014</td><td>13 et 14 ans</td><td class="num">31</td>
+          <td class="inter"><label class="bascule"><input type="checkbox" role="switch" checked aria-label="U15 F"><span class="glissiere"></span></label></td>
+          <td class="inter"><label class="bascule"><input type="checkbox" role="switch" checked aria-label="U15 H"><span class="glissiere"></span></label></td>
+        </tr>
+        <tr>
+          <td>U17</td><td>2011 · 2012</td><td>15 et 16 ans</td><td class="num">11</td>
+          <td class="inter"><label class="bascule"><input type="checkbox" role="switch" checked aria-label="U17 F"><span class="glissiere"></span></label></td>
+          <td class="inter"><label class="bascule"><input type="checkbox" role="switch" checked aria-label="U17 H"><span class="glissiere"></span></label></td>
+        </tr>
+        <tr>
+          <td>U19</td><td>2009 · 2010</td><td>17 et 18 ans</td><td class="num zero">0</td>
+          <td class="inter"><label class="bascule"><input type="checkbox" role="switch" aria-label="U19 F"><span class="glissiere"></span></label></td>
+          <td class="inter"><label class="bascule"><input type="checkbox" role="switch" aria-label="U19 H"><span class="glissiere"></span></label></td>
+        </tr>
+        <tr>
+          <td>U21</td><td>2007 · 2008</td><td>19 et 20 ans</td><td class="num zero">0</td>
+          <td class="inter"><label class="bascule"><input type="checkbox" role="switch" aria-label="U21 F"><span class="glissiere"></span></label></td>
+          <td class="inter"><label class="bascule"><input type="checkbox" role="switch" aria-label="U21 H"><span class="glissiere"></span></label></td>
+        </tr>
+        <tr class="hors-bareme">
+          <td>Sénior</td><td class="zero">—</td><td class="zero">hors barème</td><td class="num zero">0</td>
+          <td class="inter"><label class="bascule"><input type="checkbox" role="switch" aria-label="Senior F"><span class="glissiere"></span></label></td>
+          <td class="inter"><label class="bascule"><input type="checkbox" role="switch" aria-label="Senior H"><span class="glissiere"></span></label></td>
+        </tr>
+        <tr class="hors-bareme">
+          <td>Vétéran</td><td class="zero">—</td><td class="zero">hors barème</td><td class="num zero">0</td>
+          <td class="inter"><label class="bascule"><input type="checkbox" role="switch" aria-label="Veteran F"><span class="glissiere"></span></label></td>
+          <td class="inter"><label class="bascule"><input type="checkbox" role="switch" aria-label="Veteran H"><span class="glissiere"></span></label></td>
+        </tr>
+      </tbody>
+    </table>
+    <p class="note"><b>Les quatre catégories à zéro n'apparaissent nulle part sur
+       la page de résultats</b>, et personne n'a rien à éteindre : un classement
+       se construit à partir des inscrits, pas d'une liste. La première
+       inscription en U19 le fait paraître, sans geste.</p>
+    <p class="note"><b>Sénior et Vétéran n'ont pas d'années</b> : « U » veut dire
+       <i>under</i>, et ces deux-là n'en portent pas. Elles restent dans le
+       tableau pour leur compte d'inscrits et leurs interrupteurs, sur fond
+       grisé — hors barème, jamais attribuées automatiquement.</p>
   </div>
 </section>
 
@@ -387,13 +450,31 @@ tr:last-child td { border-bottom: 0; }
 
 </div>
 <script>
+  // Le panneau se pose SUR le champ, aligné sur la ligne choisie — ce que fait
+  // un <select> natif. Mesuré plutôt que calculé à la main : les hauteurs de
+  // ligne dépendent de la police du système.
+  function poser() {
+    document.querySelectorAll(".popup").forEach(function (popup) {
+      var champ = document.querySelector('[data-ancre="' + popup.dataset.popup + '"]');
+      var liste = popup.querySelector(".liste");
+      var choisie = popup.querySelector(".opt.choisie");
+      if (!champ || !liste || !choisie) return;
+      popup.style.top = Math.round(champ.offsetTop + champ.offsetHeight + 5) + "px";
+      // Le defilement se pose sur la valeur courante -- pas sur le haut de la
+      // liste. C'est ce que fait un <select> natif, et c'est la demande
+      // d'Adrien du 05/09.
+      liste.scrollTop = Math.max(0, choisie.offsetTop - 4);
+    });
+  }
+  poser();
+  window.addEventListener("resize", poser);
+
   var boutons = document.querySelectorAll(".duo button");
   boutons.forEach(function (b) {
     b.addEventListener("click", function () {
       document.documentElement.setAttribute("data-theme", b.dataset.t);
-      boutons.forEach(function (a) {
-        a.setAttribute("aria-pressed", String(a === b));
-      });
+      boutons.forEach(function (a) { a.setAttribute("aria-pressed", String(a === b)); });
+      poser();
     });
   });
 </script>

@@ -163,16 +163,55 @@ Ni ligne refusée — un classeur mal rempli ne doit pas bloquer un import la
 veille de la compétition — ni catégorie vidée : ce que le classeur dit se
 conserve, c'est ce qui permet de retrouver l'intention.
 
-### D5 — Les catégories de l'édition se cochent
+### D5 — Un seul tableau, et des interrupteurs
 
-L'écran **Catégories** porte aujourd'hui un champ de texte libre, « Catégories,
-séparées par des virgules ». Il devient une grille de neuf lignes à deux cases,
-F et H — le même vocabulaire que partout ailleurs. Il ne peut plus contenir
-qu'une catégorie officielle, ce qui referme la dernière porte par laquelle une
-catégorie inventée pouvait entrer dans le barème.
+Arbitrage d'Adrien du 05/09, sur la première maquette : *« je n'aime pas les
+cases à cocher, je veux des interrupteurs »*, et *« tu peux faire un seul
+tableau pour le barème et les catégories de cette édition »*.
 
-Ce qui est stocké ne change pas de forme : la liste des libellés cochés
+L'écran **Catégories** portait deux cartes qui parlaient des **mêmes neuf
+lignes** : le barème d'un côté, un champ de texte libre « Catégories, séparées
+par des virgules » de l'autre. Elles n'en font plus qu'une :
+
+| Catégorie | Années de naissance | Âge | Inscrits | F | H |
+| --- | --- | --- | --- | --- | --- |
+| U13 | 2015 · 2016 | 11 et 12 ans | 36 | ⬤— | ⬤— |
+
+À gauche ce que la règle FFME **calcule**, à droite ce que la compétition
+**décide**. Le compte d'inscrits est entre les deux, à l'endroit exact où l'on
+se demande s'il faut éteindre une catégorie.
+
+L'interrupteur est `label.bascule` de la [spec 021](../021-console-lisible/),
+repris **tel quel** — celui de la PWA juge (042) et de l'anonymat (043) : la
+case native est conservée sous le visuel, avec `role="switch"`, ce qui la fait
+annoncer « interrupteur » et non « case ». Le visuel est un frère, jamais un
+pseudo-élément sur l'`<input>`.
+
+Ce qui est stocké ne change pas de forme : la liste des libellés allumés
 (`["U11 F", "U11 H", "U13 F", …]`).
+
+**Sénior et Vétéran restent dans le tableau, sur fond grisé, sans années.**
+« U » veut dire *under* ; ces deux-là n'en portent pas, donc `under()` rend
+`None` et le barème ne les attribue jamais. Elles y sont pour leur compte
+d'inscrits et leurs deux interrupteurs — les retirer ferait un tableau qui ne
+répond plus à « combien j'ai de monde par catégorie ».
+
+### D9 — La liste s'ouvre sur la catégorie en cours
+
+Arbitrage d'Adrien du 05/09 : *« il faut qu'ils s'ouvrent sur l'actuelle
+catégorie comme c'est fait en standard sur d'autres applications »*.
+
+Avec dix-huit entrées, un panneau qui s'ouvrirait en haut de liste ferait
+chercher « U15 H » à chaque fois. Le comportement attendu est celui du
+`<select>` **natif** : à l'ouverture, la valeur courante est celle qu'on voit.
+
+C'est aussi la raison de **garder le composant du système** plutôt que d'en
+peindre un : le natif le fait déjà, sur macOS comme sur Android, avec le
+clavier, la recherche à la frappe et le lecteur d'écran en prime. La spec 013
+avait déjà écarté `<input list=…>` pour une raison voisine — il n'empêche
+rien. Le seul travail est donc de **poser la valeur courante sur le `<select>`
+avant de l'afficher**, y compris pour une valeur hors liste (D2), sans quoi le
+navigateur ouvrirait sur la première option.
 
 ### D6 — L'existant se rattrape en un clic, jamais en silence
 
@@ -295,6 +334,7 @@ l'import, le rapport d'import, la carte de rattrapage, la liste déclarée.
 | A9 | Un import qui lit « Poussin » garde la valeur **et** la signale | test d'import, sur le rapport |
 | A10 | L'aperçu du rattrapage montre l'avant/après sans rien changer | test d'API |
 | A11 | Le rattrapage appliqué change la base **et** le n° de catalogue | test d'API : les téléphones des juges doivent recharger |
+| A16 | Le `<select>` porte la valeur courante avant affichage, hors liste comprise | test navigateur : `select.value` relu après rendu |
 | A12 | La liste déclarée n'accepte que de l'officiel | test d'API : « Poussin » envoyé, « Poussin » refusé |
 | A13 | Une édition vide ouvre sur les 9 tranches, années tirées de sa date | test d'API sur une base neuve, puis date changée d'un an |
 | A14 | Une catégorie déclarée sans inscrit n'est pas dans la charge publique, et y entre au premier inscrit | test d'API : `/api/public/classement` avant / après |
