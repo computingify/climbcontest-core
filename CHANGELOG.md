@@ -90,6 +90,21 @@ qu'on ne met pas à jour le matin d'une compétition :
 
 ### Corrigé
 
+- **Le harnais des tests navigateur perdait le fil après une navigation.** Il
+  compte les requêtes en vol pour savoir quand la page s'est calmée, et
+  reconnaissait un changement de page en comparant la **fenêtre**. Or une
+  navigation de même origine remplace le document mais garde le même objet
+  fenêtre : le harnais croyait n'avoir rien à faire, ne remettait pas son
+  compteur à zéro et ne reposait pas son crochet. Une requête en vol au moment
+  de la navigation ne se terminait donc jamais — son contexte a disparu, sa
+  promesse ne se résout ni ne se rejette — et l'attente partait au délai en
+  accusant une page calme depuis longtemps ; pire, les requêtes de la page
+  suivante n'étaient plus comptées du tout, et une sonde pouvait lire un écran à
+  moitié rempli. Rien de tout ça ne se voit sur une machine au repos, où aucune
+  requête n'est encore en vol quand on navigue. **C'est ce qui a fait rougir la
+  CI le 05/09 pendant que la suite était verte sur le Mac au même instant.** Le
+  harnais suit désormais le **document**, et un test rejoue la séquence exacte.
+
 - **La console garde la vue qu'on regarde quand la page se recharge.** Un F5 —
   ou un onglet que le navigateur réveille après l'avoir mis en veille —
   ramenait toujours sur « Participants », quelle que soit la vue ouverte : le

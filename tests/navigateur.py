@@ -173,22 +173,50 @@ function attendre(quoi, cond, ms = 15000) {
     // gestionnaire de clic et sa transition. Il rend la main en une trentaine
     // de millisecondes quand il ne s'est rien passe, et attend VRAIMENT quand
     // il se passe quelque chose.
-    let _enVol = 0, _fenetreSuivie = null;
+    let _enVol = 0, _documentSuivi = null;
     function _suivreLesRequetes() {
       const fen = cadre.contentWindow;
-      if (fen === _fenetreSuivie) return fen;
-      // Page rechargee : le compteur de l'ancienne ne veut plus rien dire, et
-      // ses requetes en vol ne redescendront jamais a zero.
+      if (!fen) return fen;
+      // ⚠️ On compare le DOCUMENT, pas la fenetre.
+      //
+      // Une navigation de meme origine remplace le document mais **garde le
+      // meme objet fenetre** (le WindowProxy). Un garde qui compare les
+      // fenetres croit donc n'avoir rien a faire : il ne remet pas le compteur
+      // a zero, et surtout il ne repose pas son crochet sur le `fetch` neuf du
+      // nouveau document. Deux consequences, et les deux sont muettes :
+      //
+      // 1. Une requete en vol AU MOMENT de la navigation ne se terminera
+      //    jamais -- son contexte JavaScript a disparu, sa promesse ne se
+      //    resout ni ne se rejette. Le compteur reste a 1 pour toujours, et
+      //    `calme()` attend ses dix secondes avant d'echouer sur un delai, en
+      //    accusant une page qui est calme depuis longtemps.
+      // 2. Les requetes du nouveau document ne sont plus comptees du tout :
+      //    `calme()` rend la main pendant qu'elles sont en vol, et la sonde
+      //    lit un ecran a moitie rempli.
+      //
+      // Rien de tout ca ne se voit sur une machine au repos, ou aucune requete
+      // n'est encore en vol quand on navigue. Ca se voit sur un runner charge.
+      // C'est le rouge de `test_navigateur_console_vue_courante.py` du 05/09,
+      // vert sur le Mac au meme instant -- le genre de rouge qui se lit comme
+      // un « alea de runner » et n'en est pas un.
+      if (fen.document === _documentSuivi) return fen;
       _enVol = 0;
-      _fenetreSuivie = fen;
+      _documentSuivi = fen.document;
       // ⚠️ `.bind(fen)` et non `.apply(this, ...)`. Appele sans qualificateur
       // -- `fetch(url)` -- `this` vaut `undefined` en mode strict, et chromium
       // repond « Illegal invocation ». Toutes les requetes de la page
       // echoueraient, et la sonde attendrait des donnees qui n'arrivent jamais.
       const dorigine = fen.fetch.bind(fen);
       fen.fetch = function (...args) {
+        // Le document d'ou part CETTE requete. S'il n'est plus celui qu'on
+        // suit quand elle se termine, son `finally` ne doit pas toucher au
+        // compteur : il le ferait passer sous zero, et `_enVol === 0` ne serait
+        // alors plus jamais vrai.
+        const monDocument = fen.document;
         _enVol++;
-        return dorigine(...args).finally(() => { _enVol--; });
+        return dorigine(...args).finally(() => {
+          if (_documentSuivi === monDocument) _enVol--;
+        });
       };
       return fen;
     }

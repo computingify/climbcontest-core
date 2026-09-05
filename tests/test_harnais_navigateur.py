@@ -255,6 +255,121 @@ def test_piloter_ne_rend_jamais_un_verdict_deja_la():
         f"le verdict perime a survecu a l'appel : {rendu!r}")
 
 
+@pytest.mark.skipif(CHROME is None,
+                    reason="aucun navigateur : ce test se saute, il n'echoue pas")
+def test_calme_survit_a_une_requete_qui_finit_apres_un_rechargement():
+    """⚠️ Le rouge de CI du 05/09, reproduit — et il n'etait pas un alea.
+
+    `calme()` attend que plus aucune requete ne soit en vol. Le compteur est
+    remis a zero quand la page change, parce que les requetes de l'ancienne ne
+    veulent plus rien dire. Mais leur `finally` s'execute quand meme : sans
+    garde, il decremente un compteur deja remis a zero, qui passe a **-1**.
+    `_enVol === 0` n'est alors plus jamais vrai, et `calme()` attend ses dix
+    secondes avant d'echouer sur un delai — en accusant une page qui est calme
+    depuis longtemps.
+
+    Le defaut ne se voit pas sur une machine au repos : les requetes de
+    l'ancienne page s'y terminent AVANT la navigation. Il apparait sur un
+    runner charge, ou elles se terminent apres. C'est ce qui a fait echouer
+    `test_navigateur_console_vue_courante.py` en CI pendant qu'il etait vert
+    sur le Mac au meme instant.
+
+    Le parcours ci-dessous force la sequence, sans dependre d'aucune charge :
+    on lance une requete LENTE, on navigue pendant qu'elle est en vol, elle se
+    termine ensuite, et on demande le calme.
+    """
+    import threading
+    import time
+
+    from flask import Flask, Response, request
+
+    from tests.navigateur import page_harnais, servir
+
+    app = Flask(__name__)
+    partie = threading.Event()
+
+    @app.get("/lente")
+    def lente():
+        # Elle ne rend la main que sur ordre de la sonde : la sequence est
+        # garantie, sans aucun `sleep` arbitraire ni pari sur la charge.
+        partie.wait(timeout=5)
+        return "fini"
+
+    @app.get("/liberer")
+    def liberer():
+        partie.set()
+        return "ok"
+
+    @app.get("/page")
+    def page():
+        return Response(
+            "<!doctype html><title>page</title><body>page</body>",
+            mimetype="text/html")
+
+    @app.get("/suivante")
+    def suivante():
+        return Response(
+            "<!doctype html><title>suivante</title><body>suivante</body>",
+            mimetype="text/html")
+
+    verdict = {"texte": None}
+
+    @app.post("/__verdict")
+    def poser():
+        verdict["texte"] = request.get_data(as_text=True)
+        return "", 204
+
+    # ⚠️ L'ORDRE fait tout, et c'est ce qui distingue ce test d'un test qui
+    # passerait de toute facon : la remise a zero du compteur doit tomber
+    # ENTRE le depart de la requete et son arrivee. Elle a lieu dans
+    # `calme()` -- il en faut donc un au milieu.
+    sonde = r"""
+        await attendre("page chargee", () => vue().document.body !== null);
+
+        // 1. Une requete lente, laissee EN VOL : on ne l'attend pas.
+        vue().fetch("/lente");
+
+        // 2. On navigue pendant qu'elle est en vol.
+        cadre.src = "/suivante";
+        await attendre("page suivante",
+          () => vue().document.body
+             && /suivante/.test(vue().document.body.textContent));
+
+        // 3. Ce `calme()`-ci remet le compteur a zero : la fenetre a change,
+        //    et les requetes de l'ancienne ne veulent plus rien dire.
+        await calme();
+
+        // 4. MAINTENANT la lente se termine. Son `finally` s'execute sur un
+        //    compteur deja remis a zero : sans le garde, il passe a -1.
+        await vue().fetch("/liberer");
+        await new Promise((r) => setTimeout(r, 400));
+
+        // 5. Et plus aucune attente ne peut se terminer.
+        await calme();
+        note("calme", "rendu");
+    """
+
+    @app.get("/__harnais")
+    def harnais():
+        return Response(page_harnais("/page", sonde), mimetype="text/html")
+
+    url, arreter = servir(app)
+    try:
+        debut = time.monotonic()
+        rendu = piloter(f"{url}/__harnais", verdict, secondes=20)
+    finally:
+        partie.set()
+        arreter()
+
+    assert rendu.startswith("OK "), (
+        f"`calme()` n'est jamais revenu : {rendu!r}. Le compteur de requetes "
+        "en vol est passe sous zero apres un rechargement, et plus aucune "
+        "attente ne peut se terminer")
+    assert time.monotonic() - debut < 10, (
+        "`calme()` a mis plus de dix secondes : il a attendu son delai au lieu "
+        "de constater le calme")
+
+
 # --- Le regroupement sous xdist ---------------------------------------------
 #
 # La portee des fixtures ne suffit plus a garantir « un navigateur ». Depuis
