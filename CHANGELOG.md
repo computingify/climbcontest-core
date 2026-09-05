@@ -19,15 +19,7 @@ qu'on ne met pas à jour le matin d'une compétition :
 
 ## [Non publié]
 
-### Modifié
-
-- **Le geste de maintien n'existe plus qu'à un seul endroit.** Il vivait en
-  double : dans `admin.html` pour la fenêtre d'effacement (spec 032), et dans
-  `static/console/confirmer.js` pour l'écran d'ouverture (spec 044) — quatre-
-  vingt-dix lignes recopiées, deux minuteurs, deux décomptes, deux jauges. La
-  mécanique est désormais dans le module ; la fenêtre garde ce qui lui
-  appartient, son libellé calculé sur ce qu'elle détruit et sa case
-  « quand même ». Rien ne change à l'écran.
+## [0.21.0] — 2026-09-05
 
 ### Ajouté
 
@@ -38,7 +30,6 @@ qu'on ne met pas à jour le matin d'une compétition :
   Échap pendant un maintien tue le minuteur, et le libellé décompte pendant le
   geste.
 
-### Ajouté
 
 - **Une catégorie ne peut plus être qu'une catégorie FFME** (spec 045). Le
   champ libre disparaît des trois endroits où l'on en choisit une : le
@@ -84,6 +75,15 @@ qu'on ne met pas à jour le matin d'une compétition :
   ranger un grimpeur de 12 ans en U15.
 
 ### Modifié
+
+- **Le geste de maintien n'existe plus qu'à un seul endroit.** Il vivait en
+  double : dans `admin.html` pour la fenêtre d'effacement (spec 032), et dans
+  `static/console/confirmer.js` pour l'écran d'ouverture (spec 044) — quatre-
+  vingt-dix lignes recopiées, deux minuteurs, deux décomptes, deux jauges. La
+  mécanique est désormais dans le module ; la fenêtre garde ce qui lui
+  appartient, son libellé calculé sur ce qu'elle détruit et sa case
+  « quand même ». Rien ne change à l'écran.
+
 
 - **L'écran Catégories ne fait plus qu'un seul tableau** (spec 045). Le barème
   et « les catégories de cette édition » parlaient des mêmes neuf lignes dans
@@ -2720,6 +2720,7 @@ livrer — spec 001, itération 3.
 - Les données et les secrets vivent dans `shared/`, hors des releases : un
   déploiement ou un retour arrière ne peut pas les toucher.
 
+[0.21.0]: https://github.com/computingify/climbcontest-core/releases/tag/v0.21.0
 [0.20.0]: https://github.com/computingify/climbcontest-core/releases/tag/v0.20.0
 [0.19.0]: https://github.com/computingify/climbcontest-core/releases/tag/v0.19.0
 [0.18.1]: https://github.com/computingify/climbcontest-core/releases/tag/v0.18.1
