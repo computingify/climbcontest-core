@@ -282,14 +282,27 @@ def mesures(serveur):
     url, verdict = serveur
     rendu = piloter(f"{url}/__harnais", verdict)
     assert rendu.startswith("OK "), rendu
+    # Le releve brut, `attente_*` comprises : ce sont des DIAGNOSTICS que le
+    # preambule pose quand une attente depasse 500 ms, et les filtrer ici
+    # serait un second mecanisme pour le meme defaut -- voir la docstring de
+    # `test_aucune_mesure_ne_manque`, qui le traite deja.
     return dict(x.split("=", 1) for x in rendu[3:].split(" ") if "=" in x)
 
 
 class TestLeReleveEstComplet:
-    def test_toutes_les_mesures_sont_la(self, mesures):
-        """Sans lui, une sonde qui casse a mi-parcours rendrait un verdict
-        court et tous les tests suivants passeraient en silence."""
-        assert sorted(mesures) == sorted(ATTENDUES)
+    def test_aucune_mesure_ne_manque(self, mesures):
+        """Sans ce test, une sonde qui casse a mi-parcours rendrait un verdict
+        court et tous les tests suivants passeraient en silence.
+
+        ⚠️ On verifie qu'aucune mesure ne MANQUE, jamais que le releve soit
+        exactement celui-la. Le harnais ajoute ses propres mesures
+        `attente_<etape>` des qu'une attente depasse 500 ms -- ce qui n'arrive
+        que sur un runner charge. Une egalite stricte passait donc en local et
+        echouait en CI, sur une difference qui ne dit rien du code. C'est aussi
+        ce que fait `test_navigateur_participants.py`, pour la meme raison.
+        """
+        manquantes = [nom for nom in ATTENDUES if nom not in mesures]
+        assert not manquantes, f"la sonde s'est arretee : {manquantes}"
 
 
 class TestCeQueVoitUnOuvreur:
