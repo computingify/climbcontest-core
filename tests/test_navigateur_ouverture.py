@@ -51,7 +51,7 @@ ATTENDUES = [
     "ligneSansMots",
     "renumTitre",
     "gesteRendu",
-    "gesteEstMaintien",
+    "gesteSurface",
 ]
 
 SONDE = r"""
@@ -208,10 +208,16 @@ SONDE = r"""
       () => $("#ouvreursDlgRenum") && $("#ouvreursDlgRenum").open);
     note("renumTitre", $("#ouvreursRenumTitre").textContent.indexOf("Renuméroter") === 0);
     note("gesteRendu", $("#ouvreursRenumGeste").children.length);
-    // Le navigateur de test a une souris : c'est le MAINTIEN qui doit sortir,
-    // pas le glissement. C'est le pointeur qui decide, pas la largeur.
-    note("gesteEstMaintien",
-      $("#ouvreursRenumGeste button.detruire") !== null);
+    // ⚠️ ON NE DIT PAS LEQUEL DES DEUX DOIT SORTIR ICI. Le chromium SANS
+    // SOURIS de la CI repond faux a `(hover: hover) and (pointer: fine)` : un
+    // test qui affirmait « a la souris, c'est le maintien » testait l'agent
+    // d'integration, pas le code. La regle -- quel pointeur donne quel geste --
+    // se verifie dans `tests/js/confirmer.test.mjs`, avec une fenetre feinte.
+    //
+    // Ce qui se verifie ICI, et qui vaut pour les deux : un geste, un seul, et
+    // il est operable.
+    note("gesteSurface", $("#ouvreursRenumGeste button.detruire") ? "maintien"
+                       : $("#ouvreursRenumGeste .glisse") ? "glissement" : "aucun");
 """
 
 
@@ -411,6 +417,10 @@ class TestLeGesteDeConfirmation:
     def test_le_geste_est_rendu(self, mesures):
         assert int(mesures["gesteRendu"]) == 1
 
-    def test_a_la_souris_c_est_le_maintien(self, mesures):
-        """C'est le POINTEUR qui decide, pas la largeur de l'ecran."""
-        assert mesures["gesteEstMaintien"] == "true"
+    def test_un_geste_est_rendu_et_un_seul(self, mesures):
+        """⚠️ On n'affirme PAS lequel : le chromium sans souris de la CI repond
+        faux a `(hover: hover) and (pointer: fine)`, et l'affirmer reviendrait a
+        tester l'agent d'integration. La correspondance pointeur → geste se
+        verifie dans `tests/js/confirmer.test.mjs`, sur une fenetre feinte."""
+        assert mesures["gesteSurface"] in ("maintien", "glissement")
+        assert int(mesures["gesteRendu"]) == 1
