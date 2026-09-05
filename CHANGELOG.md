@@ -19,7 +19,91 @@ qu'on ne met pas à jour le matin d'une compétition :
 
 ## [Non publié]
 
+### Ajouté
+
+- **Une catégorie ne peut plus être qu'une catégorie FFME** (spec 045). Le
+  champ libre disparaît des trois endroits où l'on en choisit une : le
+  formulaire d'ajout, la ligne ouverte au crayon, et la salle d'attente
+  HelloAsso. La liste est celle du **§5.4 des Règles de participation
+  2025-2026** — U9 à U21, Sénior, Vétéran — soit dix-huit libellés, les
+  Vétérans 1 et 2 fusionnés comme le règlement le prévoit lui-même.
+
+  **C'est la troisième tentative sur le même défaut, et la première qui ferme
+  la porte.** La [013](specs/013-console-saisie-guidee/) avait mis des listes
+  déroulantes, la [008](specs/008-helloasso-import/) avait étendu le formatage
+  à toutes les sources — et le « U13 M » mesuré en production le 30/08 était
+  toujours là, son grimpeur toujours seul dans un classement d'une personne.
+  La liste se **déduisait des données** : elle proposait donc « U13 M » avec
+  les autres, et gardait un « ＋ Autre… » pour en inventer d'autres.
+
+  Ce qui arrive écrit de travers est **rattaché à l'entrée** : la casse,
+  l'espace manquant, le **U manquant** (« 13 F »), le « M » pour « H », les
+  accents, l'ordre inversé, « V2 » pour « Vétéran 2 ». Ce qu'on ne sait pas
+  lire — « Poussin », un U12 qui n'existe pas — est importé **tel quel** et
+  signalé dans le rapport d'import : ni ligne refusée, ni catégorie vidée. On
+  rattache ou on laisse tel quel, jamais à moitié.
+
+  Le rattachement est **dans `formatage.categorie()`**, le passage obligé de
+  toute écriture depuis la 008 — et non dans une fonction à côté qu'il aurait
+  fallu penser à appeler. Conséquence : le classeur Google peut continuer
+  d'écrire « U13 M », le prochain import posera « U13 H ».
+
+- **Le « U13 M » déjà en base se rattrape d'un clic**, dans l'écran Catégories,
+  devant son aperçu — le motif d'« Appliquer le barème à tous ». Ce qui n'a pas
+  de correspondance est montré mais pas actionnable : on ne choisit pas à la
+  place de quelqu'un ce que « Poussin » voulait dire. Les téléphones des juges
+  rechargent leur catalogue, sans quoi ils garderaient l'ancienne catégorie
+  toute la compétition.
+
+- **Une édition qui vient d'être créée connaît ses catégories.** Le barème se
+  déduisait des inscrits, des circuits et des catégories déclarées : une
+  édition neuve n'a aucun des trois, et son écran Catégories s'ouvrait
+  entièrement **vide**. Il retombe désormais sur les neuf catégories
+  officielles, dont les années se calculent depuis la date de l'édition.
+  ⚠️ Sur le vide et seulement sur le vide : une édition qui annonce U11-U15
+  garde trois tranches, et « le plus petit Under l'emporte » continue d'y
+  ranger un grimpeur de 12 ans en U15.
+
+### Modifié
+
+- **L'écran Catégories ne fait plus qu'un seul tableau** (spec 045). Le barème
+  et « les catégories de cette édition » parlaient des mêmes neuf lignes dans
+  deux cartes : à gauche ce que la règle FFME calcule, au milieu le compte
+  d'inscrits, à droite deux **interrupteurs** — F et H — là où il y avait un
+  champ « catégories séparées par des virgules ». Une catégorie que l'édition
+  ne fait pas grimper est grisée : ses années disent ce qu'elle *deviendrait*,
+  pas ce qui s'applique.
+
+  Les listes déroulantes s'ouvrent sur la **catégorie en cours** et non en tête
+  de liste — le geste du `<select>` natif. Un participant qui porte encore une
+  valeur hors liste la garde **en tête de sa propre ligne**, marquée : sans ça,
+  ouvrir son crayon pour corriger son club changerait sa catégorie en silence,
+  un `<select>` qui ne contient pas sa valeur courante en choisissant une autre
+  tout seul.
+
+- **Le dossard ne se change plus depuis la console** (spec 008). Il est imprimé
+  sur le QR code déjà distribué, et le classeur Google porte le sien : deux
+  écritures d'un même numéro finissaient toujours par se contredire. Le crayon
+  affiche donc le dossard sans le laisser saisir, la route de réaffectation est
+  **supprimée**, et la fonction métier qui la servait avec elle — une route
+  neutralisée finit toujours par être rebranchée « puisqu'elle est là ».
+
 ### Corrigé
+
+- **Le harnais des tests navigateur perdait le fil après une navigation.** Il
+  compte les requêtes en vol pour savoir quand la page s'est calmée, et
+  reconnaissait un changement de page en comparant la **fenêtre**. Or une
+  navigation de même origine remplace le document mais garde le même objet
+  fenêtre : le harnais croyait n'avoir rien à faire, ne remettait pas son
+  compteur à zéro et ne reposait pas son crochet. Une requête en vol au moment
+  de la navigation ne se terminait donc jamais — son contexte a disparu, sa
+  promesse ne se résout ni ne se rejette — et l'attente partait au délai en
+  accusant une page calme depuis longtemps ; pire, les requêtes de la page
+  suivante n'étaient plus comptées du tout, et une sonde pouvait lire un écran à
+  moitié rempli. Rien de tout ça ne se voit sur une machine au repos, où aucune
+  requête n'est encore en vol quand on navigue. **C'est ce qui a fait rougir la
+  CI le 05/09 pendant que la suite était verte sur le Mac au même instant.** Le
+  harnais suit désormais le **document**, et un test rejoue la séquence exacte.
 
 - **La console garde la vue qu'on regarde quand la page se recharge.** Un F5 —
   ou un onglet que le navigateur réveille après l'avoir mis en veille —

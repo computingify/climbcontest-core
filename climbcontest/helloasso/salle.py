@@ -14,6 +14,7 @@ suffise à clore (décision D4).
 import logging
 from datetime import datetime
 
+from .. import formatage
 from ..contest import ErreurMetier, ajouter_participant_numerote, incrementer_catalogue
 from ..extensions import db
 from ..models import (
@@ -118,7 +119,11 @@ def trancher(comp, identifiant, choix: str, par: str | None = None,
     elif choix == "categorie":
         if not categorie:
             raise ErreurMetier("Une categorie est attendue")
-        inscription.categorie = categorie
+        # ⚠️ La MEME porte que pour le participant (spec 045). Sans elle, la
+        # salle d'attente garderait « senior f » tel qu'il a ete tape pendant
+        # que le participant, lui, porterait « Senior F » : deux ecritures de
+        # la meme chose, cote a cote, dans deux ecrans de la meme console.
+        inscription.categorie = formatage.categorie(categorie)
         participant = ajouter_participant_numerote(
             nom=inscription.nom, prenom=inscription.prenom,
             club=inscription.club, categorie=categorie,

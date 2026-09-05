@@ -110,9 +110,12 @@ class TestTrancher:
                       json={"choix": "categorie", "categorie": "senior f"})
         db.session.refresh(i)
         cree = db.session.get(Participant, i.participant_id)
-        # Le formatage de la spec 013 met les categories en capitales : c'est
-        # lui qui empeche « U13 M » de cohabiter avec « U13 H ».
-        assert cree.categorie == "SENIOR F" and cree.categorie_forcee is True
+        # ⚠️ « Senior F » et non « SENIOR F » : depuis la spec 045, le
+        # formatage ne se contente plus de mettre en capitales, il RATTACHE a
+        # la categorie officielle. C'est la meme fonction, la meme porte -- et
+        # c'est ce qui fait que « senior f » tape a la volee un samedi matin
+        # tombe sur la meme valeur que celle du formulaire d'ajout.
+        assert cree.categorie == "Senior F" and cree.categorie_forcee is True
 
     def test_ranger_sans_categorie_est_refuse(self, connecte, jeu):
         i = une_inscription(jeu["competition"])

@@ -560,7 +560,9 @@ class TestLesZonesDansLesReferentiels:
         corps = reponse.get_json()
         assert corps["success"] is True
         assert corps["zones"] == ["A", "B"]
-        assert corps["categories"] == []
+        # Spec 045 : les categories ne dependent d'aucune edition non plus --
+        # elles viennent de la federation. Ce qui se vide, ce sont les clubs.
+        assert corps["clubs"] == []
 
     def test_les_zones_ne_sont_pas_celles_des_blocs(self, connecte_orga, app, jeu):
         """Une zone existe pour le plan meme si aucun bloc n'y est importe."""

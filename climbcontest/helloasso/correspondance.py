@@ -40,14 +40,12 @@ humain qui l'a écrite.
 import re
 import unicodedata
 
-#: Ce que « F » veut dire, et ce que « H » veut dire, dans les écritures qu'on
-#: rencontre vraiment. Comparé sans accent et en minuscules.
-GENRES_CONNUS = {
-    "f": "F", "fille": "F", "filles": "F", "feminin": "F", "feminine": "F",
-    "femme": "F", "girl": "F", "female": "F", "mademoiselle": "F", "mme": "F",
-    "h": "H", "m": "H", "garcon": "H", "garcons": "H", "masculin": "H",
-    "homme": "H", "boy": "H", "male": "H", "monsieur": "H", "mr": "H",
-}
+from ..formatage import GENRES_CONNUS, genre_connu          # noqa: F401
+
+# ⚠️ `GENRES_CONNUS` et `genre_connu` sont IMPORTES de `formatage`, ou ils ont
+# demenage le 05/09 (spec 045) : le rattachement des categories en a besoin lui
+# aussi, et deux tables du genre auraient derive. Ils restent lisibles sous
+# `correspondance.GENRES_CONNUS`, ou tout le module HelloAsso les appelle.
 
 #: Les intitulés qui désignent chaque rôle. Cherchés en sous-chaîne, sans
 #: accent : « Date de naissance » comme « DATE DE NAISSANCE de l'enfant ».
@@ -66,19 +64,6 @@ _QUATRE_CHIFFRES = re.compile(r"\d{4}")
 def _sans_accent(texte: str) -> str:
     decompose = unicodedata.normalize("NFD", str(texte or ""))
     return "".join(c for c in decompose if not unicodedata.combining(c)).lower()
-
-
-def genre_connu(reponse) -> str | None:
-    """« Fille » → « F ». None si ce n'est pas une écriture reconnue.
-
-    ⚠️ Ne devine JAMAIS par défaut. Une réponse inconnue rend None, et
-    l'inscription part en attente — faire entrer une grimpeuse dans un
-    classement masculin parce qu'on a choisi une valeur par défaut serait le
-    genre d'erreur que personne ne remarque avant le podium.
-    """
-    if reponse is None:
-        return None
-    return GENRES_CONNUS.get(_sans_accent(reponse).strip())
 
 
 def champs_du_formulaire(articles) -> dict[str, list[str]]:

@@ -42,8 +42,19 @@ class TestLesUnders:
         poser(competition, "C", "Senior H")
         assert bareme.unders(competition) == [11, 13]
 
-    def test_une_edition_vide_n_invente_rien(self, app, competition):
-        assert bareme.unders(competition) == []
+    def test_une_edition_vide_prend_les_neuf_officielles(self, app, competition):
+        """Spec 045, D7. Une edition qui vient d'etre creee n'a aucune des
+        trois sources : sans repli, l'ecran Categories s'ouvrirait vide."""
+        assert bareme.unders(competition) == [9, 11, 13, 15, 17, 19, 21]
+
+    def test_le_repli_ne_s_ajoute_pas_aux_sources(self, app, competition):
+        """⚠️ Le repli joue sur le VIDE, jamais a cote. Une edition qui
+        annonce U11-U15 garde trois tranches -- sans quoi « le plus petit
+        Under l'emporte » rangerait un grimpeur de 12 ans en U13 alors que
+        cette competition ne fait pas grimper les U13."""
+        poser(competition, "A", "U11 F")
+        poser(competition, "B", "U15 H")
+        assert bareme.unders(competition) == [11, 15]
 
 
 class TestCeQuiChange:
@@ -289,9 +300,16 @@ class TestLeBaremeSurvitAuClasseur:
     inscriptions partiraient en attente.
     """
 
-    def test_sans_classeur_ni_participant_le_bareme_est_vide(self, app, competition):
-        """Le défaut, tel qu'il se produirait. C'est ce que la déclaration ferme."""
-        assert bareme.unders(competition) == []
+    def test_sans_classeur_ni_participant_les_officielles_prennent_le_relais(
+            self, app, competition):
+        """Le défaut, tel qu'il se produirait — fermé deux fois.
+
+        La déclaration (spec 008) le ferme quand quelqu'un pense à déclarer ;
+        le repli sur les neuf officielles (spec 045, D7) le ferme quand
+        personne n'y a pensé, ce qui est le cas d'une édition qu'on vient de
+        créer.
+        """
+        assert bareme.unders(competition) == [9, 11, 13, 15, 17, 19, 21]
 
     def test_les_categories_declarees_suffisent(self, app, competition):
         bareme.declarer_categories(competition, ["U11 F", "U11 H", "U13 F"])

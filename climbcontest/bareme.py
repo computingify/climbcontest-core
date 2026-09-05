@@ -106,14 +106,31 @@ def unders(comp) -> list[int]:
     Aucune n'est obligatoire, et celle qui est vide n'empêche pas les autres.
     C'est ce qui fait que ce calcul survivra au classeur, dont la disparition
     est prévue.
+
+    Et si les **trois** sont vides — une édition qu'on vient de créer — on
+    retombe sur les neuf catégories officielles (spec 045, D7).
     """
     des_participants = (v for (v,) in db.session.query(Participant.categorie)
                         .filter(Participant.competition_id == comp.id,
                                 Participant.categorie.isnot(None))
                         .distinct())
     des_circuits = (c.nom for c in Circuit.query.filter_by(competition_id=comp.id))
-    return categories.unders_de(list(des_participants) + list(des_circuits)
-                                + categories_declarees(comp))
+    trouves = categories.unders_de(list(des_participants) + list(des_circuits)
+                                   + categories_declarees(comp))
+
+    # Spec 045, D7 : une edition qui vient d'etre creee n'a AUCUNE des trois
+    # sources. Sans ce repli, l'ecran Categories s'ouvre entierement vide --
+    # pas une tranche, pas une annee, rien a regler avant le premier import.
+    # On retombe alors sur le vocabulaire officiel, dont les annees se
+    # calculent depuis la date de l'edition.
+    #
+    # ⚠️ **Sur le vide, et seulement sur le vide.** Une edition qui annonce
+    # U11-U15 garde trois tranches : « le plus petit Under l'emporte » y range
+    # un grimpeur de 12 ans en U15 s'il n'y a pas de U13, et c'est un
+    # comportement voulu depuis la spec 008. Un repli qui s'ajouterait aux
+    # sources ferait apparaitre des categories que la competition ne fait pas
+    # grimper.
+    return trouves or categories.unders_de(categories.OFFICIELLES)
 
 
 def categorie_calculee(participant, ref: int, liste_unders) -> str | None:
@@ -273,6 +290,132 @@ def appliquer(comp, par: str | None = None, forcer: bool = False) -> dict:
     logger.info("bareme applique par %s : %d categorie(s) recalculee(s)",
                 par or "?", len(rapport["changements"]))
     return rapport
+
+
+def _borne(vue, nominal, champ: str):
+    """La borne de l'edition si la categorie y est, celle de la federation sinon."""
+    if vue is not None:
+        return vue[champ]
+    return getattr(nominal, champ) if nominal is not None else None
+
+
+def tableau(comp) -> list[dict]:
+    """Les neuf categories officielles, une ligne chacune. Spec 045, D5.
+
+    C'est ce que l'ecran Categories dessine depuis la fusion des deux cartes :
+    a gauche ce que la regle FFME calcule, au milieu le compte d'inscrits, a
+    droite les deux interrupteurs. Assemble ICI et non en JavaScript -- une
+    ligne de tableau qui se calcule se teste.
+
+    Deux barèmes se croisent, et il faut savoir lequel on montre :
+
+    | La categorie est… | Annees montrees | Pourquoi |
+    | --- | --- | --- |
+    | dans le bareme de l'edition | **celles de l'edition** | c'est ce qu'« Appliquer a tous » fera vraiment |
+    | eteinte | celles du bareme officiel, en grise | informatif : voila ce qu'elle deviendrait |
+
+    La distinction n'est pas theorique. Une edition qui annonce U11 et U15 sans
+    U13 donne a U15 les ages 11 a 14 -- « le plus petit Under l'emporte » --
+    alors que la federation dit 13 et 14. Montrer 13-14 sur cette edition
+    annoncerait ce qui ne se produira pas.
+    """
+    ref = reference(comp)
+    de_l_edition = {t["circuit"]: t for t in tranches(comp) if not t["hors_bareme"]}
+    officiel = {t.circuit: t for t
+                in categories.bareme(ref, categories.unders_de(categories.OFFICIELLES))}
+
+    comptes: dict[str, int] = {}
+    for (nom,) in db.session.query(Participant.categorie).filter(
+            Participant.competition_id == comp.id):
+        if nom:
+            comptes[nom] = comptes.get(nom, 0) + 1
+    declarees = set(categories_declarees(comp))
+
+    lignes = []
+    for nom in categories.OFFICIELLES:
+        vue = de_l_edition.get(nom)
+        nominal = officiel.get(nom)
+        lignes.append({
+            "nom": nom,
+            "dans_le_bareme": vue is not None,
+            # Sans Under -- « Senior », « Veteran » -- il n'y a pas d'annees a
+            # montrer : « U » veut dire under, et le bareme ne les attribue
+            # jamais automatiquement.
+            "annee_min": _borne(vue, nominal, "annee_min"),
+            "annee_max": _borne(vue, nominal, "annee_max"),
+            "age_min": _borne(vue, nominal, "age_min"),
+            "age_max": _borne(vue, nominal, "age_max"),
+            "hors_bareme": nominal is None,
+            "inscrits": sum(comptes.get(f"{nom} {g}", 0) for g in categories.GENRES),
+            "declarees": {g: f"{nom} {g}" in declarees for g in categories.GENRES},
+        })
+    return lignes
+
+
+# --- Rattraper ce qui est deja en base (spec 045, D6) -----------------------
+#
+# La liste officielle ferme les portes d'ENTREE. Elle ne touche pas a ce qui
+# est deja passe : le « U13 M » mesure en production le 30/08 est toujours la,
+# et son grimpeur toujours seul dans un classement d'une personne.
+#
+# ⚠️ Rien ne se corrige au demarrage. Rattacher DEPLACE quelqu'un d'un
+# classement a un autre et fait bouger les rangs de tous ceux qui suivent :
+# c'est une decision, elle se prend devant un apercu. Le motif est celui
+# d'« Appliquer le bareme a tous », pour la meme raison.
+
+def hors_liste(comp) -> list[dict]:
+    """Les categories portees en base qui ne sont pas officielles.
+
+    Pour chacune : la cible proposee (ou None quand on ne sait pas), et le
+    nombre de participants concernes. C'est ce que la console montre AVANT
+    d'appliquer.
+    """
+    comptes: dict[str, int] = {}
+    for (valeur,) in (db.session.query(Participant.categorie)
+                      .filter(Participant.competition_id == comp.id,
+                              Participant.categorie.isnot(None))):
+        if valeur and valeur not in categories.LISTE:
+            comptes[valeur] = comptes.get(valeur, 0) + 1
+
+    return [{"valeur": valeur,
+             # ⚠️ `rattacher` et non `formatage.categorie` : celle-la rend
+             # toujours quelque chose (son repli met en majuscules), donc elle
+             # proposerait « POUSSIN » comme cible de « Poussin ». On veut
+             # savoir si on sait vraiment, pas obtenir une reponse a tout prix.
+             "cible": formatage.rattacher(valeur),
+             "inscrits": comptes[valeur]}
+            for valeur in sorted(comptes)]
+
+
+def rattacher_hors_liste(comp, par: str | None = None) -> dict:
+    """Applique les cibles proposees par `hors_liste`. Rend le meme rapport.
+
+    Ce qui n'a pas de cible reste en place : on ne choisit pas a la place de
+    quelqu'un ce que « Poussin » voulait dire.
+    """
+    lignes = hors_liste(comp)
+    a_faire = {ligne["valeur"]: ligne["cible"] for ligne in lignes
+               if ligne["cible"]}
+    if not a_faire:
+        return {"hors_liste": lignes, "rattaches": 0}
+
+    rattaches = 0
+    for p in Participant.query.filter(
+            Participant.competition_id == comp.id,
+            Participant.categorie.in_(list(a_faire))):
+        p.categorie = a_faire[p.categorie]
+        db.session.add(p)
+        rattaches += 1
+
+    # ⚠️ Sans ca, les vingt-cinq telephones gardent l'ancienne categorie pour
+    # toute la competition : elle voyage dans le catalogue, et c'est elle qui
+    # decide du circuit affiche au juge.
+    incrementer_catalogue(comp)
+    db.session.commit()
+
+    logger.info("categories rattachees par %s : %d participant(s), %d valeur(s)",
+                par or "?", rattaches, len(a_faire))
+    return {"hors_liste": hors_liste(comp), "rattaches": rattaches}
 
 
 def regler_a_la_main(participant, categorie: str | None) -> None:
