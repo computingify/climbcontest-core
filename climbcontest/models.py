@@ -344,7 +344,19 @@ class Bloc(db.Model):
     # cherche des yeux quand deux blocs de même difficulté sont dans la même
     # zone. Elle n'était simplement jamais lue avant la spec 019.
     couleur = Column(String(20))                      # « Jaune » … « Noir »
-    couleur_prises = Column(String(20))               # « Bleu », « Fluo »…
+    # ⚠️ Une prise peut etre BICOLORE (spec 044, demande du 05/09). Les deux
+    # couleurs vivent dans CETTE colonne, separees par « / » : « Bleu/Blanc ».
+    #
+    # Une colonne et non deux, pour une raison mesuree : la colonne H du
+    # classeur est une cellule de texte, et six endroits lisent deja ce champ
+    # comme une chaine -- l'etiquette imprimee, la fiche, la vue Circuits,
+    # l'archive, `to_dict` et l'import. Deux colonnes auraient demande de les
+    # changer tous les six pour un besoin que la chaine porte tres bien.
+    #
+    # 40 et non 20 : « Turquoise/Turquoise » fait 19, et un nom de couleur qui
+    # s'allonge d'un caractere aurait suffi a deborder. SQLite n'applique pas
+    # cette longueur, mais le modele doit dire la verite.
+    couleur_prises = Column(String(40))               # « Bleu », « Bleu/Blanc »…
 
     # Le rang de la voie DANS SA COULEUR : « V7 » a `numero_couleur = 7`
     # (spec 044). Le nom d'une voie, c'est l'initiale de sa couleur suivie de

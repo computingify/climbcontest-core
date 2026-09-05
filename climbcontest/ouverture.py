@@ -47,6 +47,69 @@ INITIALES = {"Jaune": "J", "Vert": "V", "Bleu": "B",
 #: Le marqueur d'une voie sans couleur, dans son tag de réserve.
 SANS_COULEUR = "?"
 
+#: Ce qui sépare les deux couleurs d'une prise bicolore : « Bleu/Blanc ».
+SEPARATEUR_PRISES = "/"
+
+#: Deux, et pas plus. Une prise tricolore existe peut-être quelque part ; sur
+#: un mur, on ne la retrouve pas des yeux — et c'est la seule chose que cette
+#: couleur sert à faire.
+PRISES_MAXI = 2
+
+#: L'ordre de référence des couleurs de prises. Il ne sert QU'À canonicaliser
+#: une paire — voir `ranger_prises`.
+#:
+#: ⚠️ Relevé sur les trois classeurs archivés (novembre 2025, mars 2026 et
+#: l'édition précédente), pas inventé : ce sont les couleurs que le club pose
+#: réellement. « Mint » n'y figurait qu'une fois, et il y est quand même — une
+#: couleur écrite une seule fois est une couleur qu'on doit pouvoir réécrire.
+ORDRE_PRISES = ("Blanc", "Gris", "Noir", "Beige", "Marron", "Jaune", "Fluo",
+                "Orange", "Rouge", "Rose", "Violet", "Bleu", "Turquoise",
+                "Mint", "Vert")
+
+
+def ranger_prises(valeurs) -> str | None:
+    """Une, deux ou zéro couleur de prises → la chaîne rangée en base.
+
+    ⚠️ **L'ORDRE EST CANONIQUE**, et ce n'est pas de la coquetterie : sans lui,
+    la même prise physique s'écrit « Bleu/Blanc » chez l'un et « Blanc/Bleu »
+    chez l'autre. Deux chaînes pour un objet, et tout ce qui compare —
+    l'étiquette, un filtre, un futur regroupement — voit deux couleurs
+    différentes là où il n'y en a qu'une.
+
+    Une couleur inconnue de `ORDRE_PRISES` n'est pas refusée : le classeur a pu
+    y écrire un mot que nous ne connaissons pas, et il doit survivre. Elle passe
+    simplement **après** celles qu'on connaît, dans l'ordre alphabétique.
+    """
+    if valeurs is None:
+        return None
+    if isinstance(valeurs, str):
+        valeurs = valeurs.split(SEPARATEUR_PRISES)
+    propres, vues = [], set()
+    for v in valeurs:
+        v = str(v or "").strip()
+        if not v or v in vues:
+            continue
+        if SEPARATEUR_PRISES in v:
+            raise ErreurOuverture(
+                f"« {v} » ne peut pas contenir « {SEPARATEUR_PRISES} ».", code=400)
+        vues.add(v)
+        propres.append(v)
+    if not propres:
+        return None
+    if len(propres) > PRISES_MAXI:
+        raise ErreurOuverture(
+            f"Une prise porte au plus {PRISES_MAXI} couleurs.", code=400)
+    rang = lambda v: (ORDRE_PRISES.index(v) if v in ORDRE_PRISES
+                      else len(ORDRE_PRISES), v)
+    return SEPARATEUR_PRISES.join(sorted(propres, key=rang))
+
+
+def prises_de(bloc) -> list[str]:
+    """Les couleurs de prises d'une voie, une ou deux. Jamais `None`."""
+    if not bloc.couleur_prises:
+        return []
+    return [v for v in bloc.couleur_prises.split(SEPARATEUR_PRISES) if v]
+
 #: Même plafond que `plan_du_mur.ZONE_MAXI` : une zone est une lettre, deux au
 #: pire. Le plan est la seule source de vérité sur ce qui existe, mais on borne
 #: ici pour que rien d'absurde n'entre en base.
@@ -180,6 +243,10 @@ def inventaire(comp) -> dict:
             "nom": nom_de(bloc),
             "couleur": bloc.couleur,
             "couleur_prises": bloc.couleur_prises,
+            # La chaîne ET la liste : la chaîne pour ce qui s'imprime et se
+            # compare, la liste pour ce qui se dessine — un disque en deux
+            # moitiés a besoin de deux teintes, pas d'une phrase à découper.
+            "couleurs_prises": prises_de(bloc),
             "circuits": siens,
             "complete": est_complete(bloc, siens),
             "reussites": comptes_reussites.get(bloc.id, 0),
@@ -304,7 +371,10 @@ def modifier(comp, bloc, couleur=..., couleur_prises=..., circuits=...) -> Bloc:
                 bloc.tag = f"{bloc.zone or ''}{INITIALES[couleur]}{rang}"
 
     if couleur_prises is not ...:
-        bloc.couleur_prises = (couleur_prises or None)
+        # Accepte une chaîne — c'est ce que l'import du classeur pose — ou une
+        # liste de une à deux couleurs, ce qu'envoie l'écran. Les deux
+        # ressortent rangées de la même façon.
+        bloc.couleur_prises = ranger_prises(couleur_prises)
 
     if circuits is not ...:
         _rattacher(comp, bloc, circuits or [])

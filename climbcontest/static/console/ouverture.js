@@ -45,10 +45,17 @@ const PRISES = [
   { nom: "Marron", teinte: "#7A5230" }, { nom: "Jaune", teinte: "#E8C33A" },
   { nom: "Fluo", teinte: "#C9F03A" }, { nom: "Orange", teinte: "#EE8A2E" },
   { nom: "Rouge", teinte: "#C93B32" }, { nom: "Rose", teinte: "#E8709F" },
-  { nom: "Fuchsia", teinte: "#C0369D" }, { nom: "Violet", teinte: "#7B4FC0" },
-  { nom: "Bleu", teinte: "#2E74C9" }, { nom: "Turquoise", teinte: "#23A8B4" },
+  { nom: "Violet", teinte: "#7B4FC0" }, { nom: "Bleu", teinte: "#2E74C9" },
+  { nom: "Turquoise", teinte: "#23A8B4" }, { nom: "Mint", teinte: "#8FD9B6" },
   { nom: "Vert", teinte: "#3FA45B" },
 ];
+
+/* ⚠️ Les quinze sont RELEVÉES sur les trois classeurs archivés, pas inventées.
+   Le club pose : Orange, Blanc, Vert, Rouge, Gris, Rose, Jaune, Noir, Violet,
+   Bleu — et « Mint », une seule fois. Une couleur écrite une fois est une
+   couleur qu'on doit pouvoir réécrire, donc elle est là.
+   « Fuchsia » a sauté : le club n'en pose pas, et à côté de « Rose » c'était
+   exactement la nuance de trop que la demande écarte. */
 
 /** Celles qu'on voit sans rien demander. Le reste est derrière « Personnaliser ».
  *
@@ -57,7 +64,24 @@ const PRISES = [
  * possible. */
 const PRISES_COURANTES = ["Blanc", "Jaune", "Fluo", "Bleu", "Rouge", "Noir", "Gris"];
 
+/** Deux couleurs au plus par prise — le même plafond que le serveur. */
+const PRISES_MAXI = 2;
+
 const teintePrise = (nom) => (PRISES.find((p) => p.nom === nom) || {}).teinte;
+
+/** Le disque d'une prise : plein pour une couleur, coupé en deux pour deux.
+ *
+ * ⚠️ Une coupe FRANCHE, pas un dégradé : deux teintes qui se fondent l'une
+ * dans l'autre en font une troisième, et on chercherait sur le mur une
+ * couleur qui n'existe pas. */
+function rondDePrises(noms) {
+  const rond = el("i", { class: "ouvreurs-rond-prise" });
+  const teintes = noms.map((n) => teintePrise(n) || "var(--surface3)");
+  rond.style.background = teintes.length > 1
+    ? `linear-gradient(135deg, ${teintes[0]} 0 50%, ${teintes[1]} 50% 100%)`
+    : teintes[0];
+  return rond;
+}
 
 const PROFILS = { dalle: "Dalle", vertical: "Vertical", incline: "Incliné",
                   devers: "Dévers", surplomb: "Surplomb", toit: "Toit" };
@@ -249,10 +273,9 @@ function ligne(voie) {
   const quoi = el("span", { class: "ouvreurs-quoi" });
   quoi.appendChild(el("b", {}, voie.couleur || "couleur à choisir"));
   quoi.append(" · ");
-  if (voie.couleur_prises) {
-    const rond = el("i", { class: "ouvreurs-rond-prise" });
-    rond.style.background = teintePrise(voie.couleur_prises) || "var(--surface3)";
-    quoi.append("prises ", rond, voie.couleur_prises);
+  const prises = voie.couleurs_prises || [];
+  if (prises.length) {
+    quoi.append("prises ", rondDePrises(prises), prises.join(" et "));
   } else {
     quoi.append("prises ?");
   }
@@ -315,25 +338,36 @@ function jetons(titre, valeurs, choisi, surChoix, teintes) {
  * pouvoir la retrouver dans la console.
  */
 function jetonsPrises(voie) {
-  const posee = voie.couleur_prises;
+  const posees = voie.couleurs_prises || [];
   const visibles = PRISES_COURANTES.slice();
-  if (posee && visibles.indexOf(posee) === -1) visibles.push(posee);
+  for (const p of posees) if (visibles.indexOf(p) === -1) visibles.push(p);
+  const plein = posees.length >= PRISES_MAXI;
 
   const bloc = el("div", {});
   bloc.appendChild(el("div", { class: "ouvreurs-rub" }, "Couleur des prises"));
   const rangee = el("div", { class: "ouvreurs-jetons" });
 
   const poser = (nom) => {
-    const actif = posee === nom;
+    const actif = posees.indexOf(nom) !== -1;
+    // ⚠️ Quand deux couleurs sont posées, les autres deviennent INERTES au
+    // lieu d'en remplacer une au hasard. Un troisième appui qui chasse
+    // silencieusement l'une des deux fait disparaître un choix sans dire
+    // lequel ; mieux vaut un geste de plus et savoir ce qu'on retire.
+    const inerte = plein && !actif;
     const j = el("button", { type: "button",
-                             class: "ouvreurs-jeton" + (actif ? " choisi" : ""),
+                             class: "ouvreurs-jeton" + (actif ? " choisi" : "")
+                                    + (inerte ? " inerte" : ""),
                              "aria-pressed": actif ? "true" : "false" });
+    if (inerte) j.disabled = true;
     const rond = el("i", {});
     rond.style.background = teintePrise(nom) || "var(--surface3)";
     j.appendChild(rond);
     j.append(nom);
-    j.addEventListener("click",
-      () => envoyer(voie, { couleur_prises: actif ? null : nom }));
+    j.addEventListener("click", () => {
+      const suite = actif ? posees.filter((p) => p !== nom)
+                          : posees.concat([nom]);
+      envoyer(voie, { couleur_prises: suite });
+    });
     return j;
   };
   for (const nom of visibles) rangee.appendChild(poser(nom));
@@ -353,6 +387,11 @@ function jetonsPrises(voie) {
   rangee.appendChild(plus);
 
   bloc.append(rangee, nuancier);
+  // Une prise BICOLORE est une prise à deux couleurs, pas deux prises : on le
+  // dit là où le geste se fait, pas dans une aide qu'on ne lit pas.
+  bloc.appendChild(el("p", { class: "ouvreurs-note-prises" },
+    plein ? "Deux couleurs : c'est le maximum. Retires-en une pour changer."
+          : "Une prise bicolore ? Choisis une seconde couleur."));
   return bloc;
 }
 

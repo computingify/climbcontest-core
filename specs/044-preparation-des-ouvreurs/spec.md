@@ -201,6 +201,48 @@ Une voie porte quatre choses, et **aucune n'est obligatoire pour l'enregistrer**
 > courantes et même absente du nuancier — le classeur a pu y écrire un mot que
 > le nuancier ne connaît pas. La masquer la laisserait en base et sur
 > l'étiquette imprimée, sans qu'on puisse la retrouver dans la console.
+>
+> ⚠️ **Les quinze teintes sont relevées, pas inventées.** Les trois classeurs
+> archivés donnent ce que le club pose réellement : Orange, Blanc, Vert, Rouge,
+> Gris, Rose, Jaune, Noir, Violet, Bleu — et **« Mint »**, une seule fois. Il
+> est dans le nuancier : une couleur écrite une fois est une couleur qu'on doit
+> pouvoir réécrire. « Fuchsia », que le club n'utilise pas, en est sorti — à
+> côté de « Rose » c'était exactement la nuance de trop.
+
+#### F4 bis — Une prise peut être bicolore
+
+> Demandé le 05/09 : « nous avons des prises qui peuvent être bi-couleurs, vois
+> comment tu peux gérer ça. »
+
+Une voie porte **une ou deux** couleurs de prises. On en choisit une seconde en
+touchant un deuxième jeton ; au-delà de deux, les autres deviennent **inertes**.
+
+⚠️ **Inertes, et non « le troisième remplace le premier ».** Un appui qui
+chasse silencieusement l'un des deux choix fait disparaître une information sans
+dire laquelle. Un geste de plus, et on sait ce qu'on retire.
+
+**Les deux couleurs vivent dans la colonne existante**, séparées par `/` —
+« Blanc/Bleu ». Une colonne et non deux, pour une raison mesurée : la colonne H
+du classeur est **une cellule de texte**, et six endroits lisent déjà ce champ
+comme une chaîne — l'étiquette imprimée, la fiche, la vue Circuits, l'archive,
+`to_dict` et l'import. Deux colonnes auraient demandé de les changer tous les
+six pour un besoin que la chaîne porte très bien.
+
+⚠️ **L'ordre de la paire est CANONIQUE**, et ce n'est pas de la coquetterie :
+sans lui, la même prise physique s'écrit « Bleu/Blanc » chez l'un et
+« Blanc/Bleu » chez l'autre. Deux chaînes pour un objet, et tout ce qui compare
+— l'étiquette, un filtre, un futur regroupement — voit deux couleurs là où il
+n'y en a qu'une. Une couleur inconnue du nuancier n'est pas refusée pour
+autant : elle passe après celles qu'on connaît.
+
+Sur la liste, le petit disque de la voie se **coupe en deux**. ⚠️ Une coupe
+franche, pas un dégradé : deux teintes qui se fondent l'une dans l'autre en font
+une troisième, et on chercherait sur le mur une couleur qui n'existe pas.
+
+⚠️ **Le relevé des trois classeurs ne contient aucune prise bicolore** — que
+des mots simples. Il n'y avait donc aucune convention à respecter : c'est le
+classeur qui ne savait pas l'exprimer, et c'est précisément ce que cette demande
+corrige.
 
 Une voie est **complète** quand elle porte une couleur de difficulté *et* au
 moins une catégorie. C'est ce que compte la pastille de sa zone, et c'est le

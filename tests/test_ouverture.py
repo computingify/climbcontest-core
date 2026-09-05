@@ -124,6 +124,59 @@ class TestLeNomDUneVoie:
         assert ouverture.nom_de(bloc) is None
         assert bloc.tag.startswith("J?")
 
+    def test_une_prise_bicolore_se_range_dans_un_ordre_CANONIQUE(self, prete):
+        """⚠️ Sans ordre canonique, la meme prise physique s'ecrit
+        « Bleu/Blanc » chez l'un et « Blanc/Bleu » chez l'autre : deux chaines
+        pour un objet, et tout ce qui compare voit deux couleurs."""
+        bloc = _voie(prete, "J", "Vert")
+        ouverture.modifier(prete, bloc, couleur_prises=["Bleu", "Blanc"])
+        assert bloc.couleur_prises == "Blanc/Bleu"
+        ouverture.modifier(prete, bloc, couleur_prises=["Blanc", "Bleu"])
+        assert bloc.couleur_prises == "Blanc/Bleu"
+
+    def test_une_couleur_inconnue_survit_et_passe_apres(self, prete):
+        """« Mint » existe dans un vrai classeur, une seule fois. Une couleur
+        ecrite une fois est une couleur qu'on doit pouvoir relire."""
+        bloc = _voie(prete, "J", "Vert")
+        ouverture.modifier(prete, bloc, couleur_prises=["Turquoise", "Mint"])
+        assert bloc.couleur_prises == "Turquoise/Mint"
+        ouverture.modifier(prete, bloc, couleur_prises=["Zebre", "Blanc"])
+        assert bloc.couleur_prises == "Blanc/Zebre"
+
+    def test_trois_couleurs_sont_refusees(self, prete):
+        bloc = _voie(prete, "J", "Vert")
+        with pytest.raises(ouverture.ErreurOuverture) as e:
+            ouverture.modifier(prete, bloc,
+                               couleur_prises=["Blanc", "Bleu", "Rouge"])
+        assert e.value.code == 400
+
+    def test_une_couleur_repetee_ne_compte_qu_une_fois(self, prete):
+        bloc = _voie(prete, "J", "Vert")
+        ouverture.modifier(prete, bloc, couleur_prises=["Bleu", "Bleu"])
+        assert bloc.couleur_prises == "Bleu"
+
+    def test_une_chaine_du_classeur_se_relit_telle_quelle(self, prete):
+        """L'import pose une CHAINE ; l'ecran envoie une LISTE. Les deux
+        ressortent rangees de la meme facon."""
+        bloc = _voie(prete, "J", "Vert")
+        ouverture.modifier(prete, bloc, couleur_prises="Bleu/Blanc")
+        assert bloc.couleur_prises == "Blanc/Bleu"
+        assert ouverture.prises_de(bloc) == ["Blanc", "Bleu"]
+
+    def test_une_couleur_ne_peut_pas_porter_le_separateur(self, prete):
+        """Sinon « Bleu/Blanc » saisi comme UNE couleur en fabriquerait deux au
+        rechargement, sans que rien ne le dise."""
+        bloc = _voie(prete, "J", "Vert")
+        with pytest.raises(ouverture.ErreurOuverture):
+            ouverture.modifier(prete, bloc, couleur_prises=["Bleu/Blanc x"])
+
+    def test_l_inventaire_rend_la_chaine_ET_la_liste(self, prete):
+        bloc = _voie(prete, "J", "Vert", ["U11"])
+        ouverture.modifier(prete, bloc, couleur_prises=["Blanc", "Bleu"])
+        voie = ouverture.inventaire(prete)["zones"]["J"][0]
+        assert voie["couleur_prises"] == "Blanc/Bleu"
+        assert voie["couleurs_prises"] == ["Blanc", "Bleu"]
+
     def test_les_prises_se_vident(self, prete):
         """`...` veut dire « ne touche pas », `None` veut dire « vide »."""
         bloc = _voie(prete, "J", "Vert")

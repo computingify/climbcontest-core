@@ -26,7 +26,8 @@ ATTENDUES = (
     "pastilleJ jaugeJ tiroirFerme tiroirOuvert titreZone voiesListees "
     "ficheOuverte jetonsCouleur prisesCourantes numeroAvant numeroApres "
     "pastilleApres lisereJ "
-    "nuancierReplie nuancierOuvert "
+    "nuancierReplie nuancierOuvert prisesChoisies jetonsInertes "
+    "rondBicolore libelleBicolore "
     "gesteRendu gesteEstMaintien renumTitre"
 ).split()
 
@@ -113,6 +114,43 @@ SONDE = r"""
     note("nuancierReplie", $("#ouvreursListe .ouvreurs-nuancier").hidden);
     perso.click();
     note("nuancierOuvert", $$("#ouvreursListe .ouvreurs-nuancier .ouvreurs-jeton").length);
+
+    // --- 4 ter. Une prise BICOLORE ---------------------------------------
+    // On pose une seconde couleur : le jeton s'ajoute au lieu de remplacer, et
+    // les autres deviennent inertes -- deux couleurs, c'est le maximum.
+    // ⚠️ DEUX precautions, et chacune a coute un echec.
+    //
+    // 1. On RE-INTERROGE le DOM apres chaque envoi : la fiche est reconstruite
+    //    a chaque reponse du serveur, et une reference prise avant pointe
+    //    ensuite sur un noeud detache dont le clic ne fait rien.
+    // 2. On SCOPE au groupe des prises. « Bleu », « Rouge », « Jaune », « Noir »
+    //    et « Vert » existent DEUX FOIS dans la fiche -- en couleur de
+    //    difficulte et en couleur de prises. Non scope, le selecteur prenait le
+    //    premier du DOM, c'est-a-dire la difficulte : le test changeait la
+    //    couleur de la voie en croyant poser une prise.
+    const jeton = (mot) => $$("#ouvreursListe .ouvreurs-fiche > div:nth-child(2)"
+                              + " .ouvreurs-jeton").filter(
+      (j) => j.textContent.trim() === mot)[0];
+    jeton("Blanc").click();
+    await attendre("blanc pose", () => $$("#ouvreursListe .ouvreurs-jeton.choisi")
+      .filter((j) => j.textContent.trim() === "Blanc").length === 1);
+    jeton("Bleu").click();
+    await attendre("bleu pose", () => $$("#ouvreursListe .ouvreurs-jeton.inerte").length > 0);
+    note("prisesChoisies",
+      $$("#ouvreursListe .ouvreurs-fiche > div:nth-child(2) .ouvreurs-jeton.choisi")
+        .map((j) => j.textContent.trim()).join("+"));
+    note("jetonsInertes", $$("#ouvreursListe .ouvreurs-jeton.inerte").length > 0);
+    // Le disque de la ligne est coupe en deux : deux teintes franches.
+    $("#ouvreursListe .ouvreurs-fiche button.secondaire").click();
+    await attendre("retour a la zone",
+      () => $("#ouvreursListe .ouvreurs-voie") !== null);
+    const bicolore = $$("#ouvreursListe .ouvreurs-voie").filter(
+      (n) => n.textContent.indexOf("Blanc et Bleu") !== -1)[0];
+    note("rondBicolore", vue().getComputedStyle(
+      bicolore.querySelector(".ouvreurs-rond-prise"))
+      .backgroundImage.indexOf("linear-gradient") === 0);
+    note("libelleBicolore", $$("#ouvreursListe .ouvreurs-voie")
+      .filter((n) => n.textContent.indexOf("Blanc et Bleu") !== -1).length);
 
     // --- 5. Le geste de confirmation -------------------------------------
     $("#ouvreursFermerTiroir").click();
@@ -279,6 +317,27 @@ class TestLeNuancierDesPrises:
         ⚠️ Des teintes DISTINCTES, pas des nuances -- « proposer 10 nuances de
         rouge n'est pas necessaire, mais du rouge et du rose oui »."""
         assert int(mesures["nuancierOuvert"]) == 8
+
+
+class TestUnePriseBicolore:
+    def test_la_seconde_couleur_s_ajoute(self, mesures):
+        """Elle ne remplace pas la premiere : une prise bicolore est UNE prise
+        a deux couleurs."""
+        assert mesures["prisesChoisies"] == "Blanc+Bleu"
+
+    def test_au_dela_de_deux_les_jetons_deviennent_inertes(self, mesures):
+        """⚠️ Inertes, et non « le troisieme chasse le premier » : un appui qui
+        retire silencieusement un choix fait disparaitre une information sans
+        dire laquelle."""
+        assert mesures["jetonsInertes"] == "true"
+
+    def test_le_disque_est_coupe_en_deux(self, mesures):
+        """Une coupe FRANCHE : deux teintes qui se fondent en font une
+        troisieme, et on chercherait sur le mur une couleur qui n'existe pas."""
+        assert mesures["rondBicolore"] == "true"
+
+    def test_la_ligne_nomme_les_deux_couleurs(self, mesures):
+        assert mesures["libelleBicolore"] == "1"
 
 
 class TestLeGesteDeConfirmation:
