@@ -313,3 +313,18 @@ ne se fusionne pas à l'aveugle.
 les blocs, leurs liens de circuit, les circuits. C'est le même budget que
 `circuits.inventaire()` et `fiches._blocs_par_circuit()`, et il est tenu par un
 test, comme celui du plan sur la planche de dossards.
+
+---
+
+## 7. Ce que l'implémentation a corrigé de cette spec
+
+Écrit **après** le code, comme le veut la règle : si la spec est fausse, on la
+corrige, on ne répare pas en douce.
+
+| Ce que la spec annonçait | Ce qui est vrai |
+| --- | --- |
+| `inventaire()` coûte **3 requêtes** | **5.** Deux de plus, assumées : le compte des réussites (sans lui, l'écran propose de supprimer ce que le serveur refusera) et la relecture du réglage (jamais mise en cache — principe de la 045). Ce que le test vérifie est que ce nombre **ne dépend pas du nombre de voies** |
+| — | **Le rang se calcule AVANT de poser la couleur.** `_prochain_rang` interroge la base, SQLAlchemy vide la session avant de répondre, et la voie y serait déjà passée à sa nouvelle couleur avec son ancien rang : passer « JV1 » en bleu donnait « JB2 » alors qu'aucune bleue n'existait. **Trouvé par un test**, pas à la relecture |
+| — | **Le repli d'accueil de la console ne regardait pas s'il était permis.** Un compte ouvreur atterrissait sur « Participants » — entrée masquée, vue affichée, toutes ses requêtes en 403. Le repli descend désormais sur la première entrée réellement visible |
+| — | **Le plan sortait sans aucun style dans la console.** `resultats/plan.js` monte bien le SVG, mais ses règles CSS vivaient uniquement dans `resultats.html` : pas de trame de profil, pas de halo de lettre, et surtout **pas de curseur** — rien ne disait qu'une zone se touche. Trouvé par le test navigateur ; aucun test de route ne pouvait le voir |
+| — | **Un `<div>` dans un `<p>`** : l'analyseur ferme le paragraphe avant le div, le `hidden` restait sur un `<p>` vide, et « cet écran est en consultation » s'affichait sur un écran parfaitement modifiable. Les `.avert` existants sont tous des `<div>` — pour cette raison exacte |

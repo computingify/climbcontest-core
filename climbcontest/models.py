@@ -28,6 +28,8 @@ PREPARATION, EN_COURS, TERMINEE = "preparation", "en_cours", "terminee"
 
 # --- Origine d'une donnée ---------------------------------------------------
 SOURCE_CLASSEUR, SOURCE_MANUEL, SOURCE_HELLOASSO = "classeur", "manuel", "helloasso"
+#: Une voie saisie par un ouvreur dans la console (spec 044).
+SOURCE_CONSOLE = "console"
 SOURCE_SCAN = "scan"
 
 
@@ -343,6 +345,30 @@ class Bloc(db.Model):
     # zone. Elle n'était simplement jamais lue avant la spec 019.
     couleur = Column(String(20))                      # « Jaune » … « Noir »
     couleur_prises = Column(String(20))               # « Bleu », « Fluo »…
+
+    # Le rang de la voie DANS SA COULEUR : « V7 » a `numero_couleur = 7`
+    # (spec 044). Le nom d'une voie, c'est l'initiale de sa couleur suivie de
+    # ce rang, et `tag` vaut zone + nom -- « J » + « V7 » = « JV7 ».
+    #
+    # NULL tant qu'aucune couleur n'est choisie : une voie sans couleur n'a pas
+    # encore de place dans la salle. Elle porte alors un tag de reserve
+    # (« J?12 ») qui ne sert qu'a satisfaire `uq_bloc_tag`.
+    #
+    # ⚠️ A ne pas confondre avec `numero`, juste au-dessus : celui-la est la
+    # ligne du bloc dans l'onglet `Import` du classeur, et il ne bouge JAMAIS.
+    # La renumerotation ne touche que celui-ci.
+    numero_couleur = Column(Integer)
+
+    # D'ou vient cette voie. Meme role que `Participant.source` : savoir ce
+    # qu'un import a le droit d'ecraser, et pouvoir dire dans deux ans d'ou
+    # venait une ligne.
+    #
+    # ⚠️ Nullable en base bien que le modele porte un defaut : SQLite refuse
+    # `ADD COLUMN ... NOT NULL` sans valeur par defaut sur une table qui a deja
+    # des lignes. Celles d'avant la spec 044 valent donc NULL, et c'est la
+    # verite -- elles viennent toutes du classeur. Le code lit
+    # `bloc.source or SOURCE_CLASSEUR`.
+    source = Column(String(20), default=SOURCE_CLASSEUR)
 
     competition = relationship("Competition", back_populates="blocs")
     circuits = relationship("BlocCircuit", back_populates="bloc",

@@ -49,10 +49,28 @@ def health():
     code = 200
     try:
         from ..contest import reussites_en_attente, reussites_inenvoyables
-        corps["reussites_en_attente"] = reussites_en_attente()
-        # Le retard qui se rattrape d'un côté, ce qui n'ira jamais de l'autre.
-        # Les mélanger rendait le premier illisible.
-        corps["reussites_inenvoyables"] = reussites_inenvoyables()
+        from ..sans_classeur import actif as sans_classeur_actif
+
+        # ⚠️ LE MODE SE NOMME, ET LE STATUT RESTE « ok » (spec 045).
+        #
+        # Les deux compteurs a `null` signifient, deux lignes plus bas, « base
+        # injoignable » -- et cette sonde-la fait repondre 503 degraded, ce qui
+        # declenche le retour arriere automatique de l'agent de deploiement.
+        # Les poser a `null` sans dire pourquoi ferait donc DESINSTALLER la
+        # version au premier deploiement suivant la bascule, et la sonde
+        # aurait l'air de marcher.
+        #
+        # Le mode sans classeur n'est pas une panne : il n'y a plus de miroir,
+        # donc plus rien a compter.
+        corps["mode_sans_classeur"] = sans_classeur_actif()
+        if corps["mode_sans_classeur"]:
+            corps["reussites_en_attente"] = None
+            corps["reussites_inenvoyables"] = None
+        else:
+            corps["reussites_en_attente"] = reussites_en_attente()
+            # Le retard qui se rattrape d'un côté, ce qui n'ira jamais de
+            # l'autre. Les mélanger rendait le premier illisible.
+            corps["reussites_inenvoyables"] = reussites_inenvoyables()
     except Exception as e:
         corps["reussites_en_attente"] = None
         corps["reussites_inenvoyables"] = None

@@ -255,6 +255,13 @@ COLONNES_AJOUTEES = {
         # La couleur des PRISES (colonne H du `Plan`), jamais lue avant la
         # spec 019. Distincte de `couleur`, qui est la difficulte.
         "couleur_prises": "TEXT",
+        # Le rang de la voie dans sa couleur, et son origine (spec 044).
+        # ⚠️ `source` en TEXT nullable et non NOT NULL : SQLite refuse
+        # `ADD COLUMN ... NOT NULL` sans defaut sur une table peuplee. Les
+        # lignes d'avant valent NULL, ce qui est la verite -- elles viennent
+        # du classeur.
+        "numero_couleur": "INTEGER",
+        "source": "TEXT",
     },
     "participant": {
         # Le droit d'opposition de la spec 043 (art. 21 RGPD). `NOT NULL

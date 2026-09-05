@@ -20,11 +20,11 @@ from flask import (Blueprint, Response, current_app, g, jsonify, redirect,
 from ..auth_session import exige_role, fermer, ouvrir, utilisateur_courant
 from .. import freinage
 from .. import comptes
-from ..comptes import ADMIN, ORGANISATEUR, ErreurCompte, verifier
+from ..comptes import ADMIN, ORGANISATEUR, OUVREUR, ErreurCompte, verifier
 from .. import qr
 from .. import classement_service
 from ..extensions import db
-from ..models import (Bloc, SOURCE_MANUEL, Competition, Participant,
+from ..models import (Bloc, Circuit, SOURCE_MANUEL, Competition, Participant,
                       Success, Utilisateur)
 from ..contest import (
     ErreurMetier, ajouter_participant, ajouter_participant_numerote, appareils,
@@ -46,6 +46,8 @@ from .. import circuits as circuits_module
 from .. import cascade as cascade_module
 from .. import cycle
 from .. import fiches
+from .. import ouverture as ouverture_module
+from .. import sans_classeur
 from .. import maj
 from ..models import Archive
 from ..sheets import consentement, parametrage
@@ -138,6 +140,12 @@ def _identite(u) -> dict:
         # runbook, et la console etait le seul endroit ou l'on agissait sans
         # jamais voir sur quoi.
         "competition": {"id": active.id, "nom": active.nom} if active else None,
+        # Le classeur est-il debranche (spec 045) ? Il voyage ICI pour la meme
+        # raison que `helloasso_branche` ci-dessous : c'est un FAIT qui decide
+        # d'une entree de menu, et la route qui le regle est reservee aux
+        # administrateurs. Le faire lire par `/admin/mode-sans-classeur`
+        # priverait de menu tous ceux qui ne sont pas administrateurs.
+        "mode_sans_classeur": sans_classeur.actif(),
         # Le compteur de la pastille (spec 008). Il voyage ICI, comme celui des
         # mises a jour : la console appelle deja cette route a chaque ecran,
         # une route dediee ferait un aller-retour de plus pour un nombre.
@@ -167,6 +175,28 @@ def moi():
 # Dernier rapport, en memoire. C'est un confort de consultation, pas une donnee :
 # le perdre a un redemarrage est sans consequence, on relance l'import.
 _dernier_rapport: dict | None = None
+
+
+def refuse_si_sans_classeur(vue):
+    """Ferme une route qui parle au classeur quand il est debranche (spec 045).
+
+    ⚠️ Pose SOUS `@exige_role`, donc execute APRES lui : une requete sans
+    session doit recevoir 401, pas 409. L'ordre des decorateurs est l'ordre
+    des refus, et le plus general passe en premier.
+    """
+    import functools
+
+    @functools.wraps(vue)
+    def enveloppe(*args, **kwargs):
+        if sans_classeur.actif():
+            return jsonify({
+                "success": False,
+                "message": ("Le classeur Google est debranche. Le rebrancher "
+                            "dans les Reglages pour revenir a cet ecran."),
+            }), 409
+        return vue(*args, **kwargs)
+
+    return enveloppe
 
 
 # --- Les comptes ------------------------------------------------------------
@@ -848,6 +878,187 @@ def plan_effacer():
     }), 200
 
 
+# --- L'ouverture : les ouvreurs declarent leurs voies (spec 044) -------------
+#
+# ⚠️ `exige_role(OUVREUR, ORGANISATEUR)` et non `exige_role(OUVREUR)`. Le
+# decorateur accorde l'acces a `admin` OU a l'un des roles nommes : sans
+# nommer l'organisateur, il serait refuse sur l'ecran qu'il controle.
+
+def _voie_de(identifiant, comp):
+    bloc = db.session.get(Bloc, identifiant)
+    if bloc is None or bloc.competition_id != comp.id:
+        raise ErreurMetier("Voie introuvable dans cette edition.", code=404)
+    return bloc
+
+
+def _etat_ouverture(comp):
+    """Ce que l'ecran recoit : l'inventaire, plus le plan tel qu'il est servi.
+
+    Le plan vient de `suivi.plan_public()` -- le MEME document que la page de
+    resultats, avec la meme estampille de format. L'ecran d'ouverture le
+    consomme sans en changer la forme : rien a incrementer.
+    """
+    from ..suivi import plan_public
+    return {**ouverture_module.inventaire(comp), "plan": plan_public()}
+
+
+@bp.get("/ouverture")
+@exige_role(OUVREUR, ORGANISATEUR)
+def ouverture_etat():
+    try:
+        comp = competition_active()
+    except ErreurMetier as e:
+        return jsonify({"success": False, "message": e.message}), e.code
+    return jsonify({"success": True, **_etat_ouverture(comp)}), 200
+
+
+@bp.post("/ouverture/voies")
+@exige_role(OUVREUR, ORGANISATEUR)
+def ouverture_creer_voie():
+    """{"zone": "J"} -> la voie creee, nue."""
+    corps = _corps_objet()
+    if corps is None:
+        return jsonify({"success": False, "message": "Corps JSON attendu"}), 400
+    try:
+        comp = competition_active()
+        bloc = ouverture_module.creer(comp, corps.get("zone", ""))
+    except (ErreurMetier, ouverture_module.ErreurOuverture) as e:
+        return jsonify({"success": False, "message": e.message}), e.code
+    logger.info("voie %s creee par %s", bloc.tag, g.utilisateur.identifiant)
+    return jsonify({"success": True, "id": bloc.id, **_etat_ouverture(comp)}), 201
+
+
+@bp.post("/ouverture/voies/<int:identifiant>")
+@exige_role(OUVREUR, ORGANISATEUR)
+def ouverture_modifier_voie(identifiant):
+    """{"couleur", "couleur_prises", "circuits"} -- une cle absente ne bouge pas.
+
+    ⚠️ Absente et nulle ne disent pas la meme chose : `null` VIDE le champ,
+    absente le laisse. Les confondre rendrait impossible de retirer une couleur.
+    """
+    corps = _corps_objet()
+    if corps is None:
+        return jsonify({"success": False, "message": "Corps JSON attendu"}), 400
+    try:
+        comp = competition_active()
+        bloc = _voie_de(identifiant, comp)
+        ouverture_module.modifier(
+            comp, bloc,
+            couleur=corps["couleur"] if "couleur" in corps else ...,
+            couleur_prises=(corps["couleur_prises"]
+                            if "couleur_prises" in corps else ...),
+            circuits=corps["circuits"] if "circuits" in corps else ...)
+    except (ErreurMetier, ouverture_module.ErreurOuverture) as e:
+        return jsonify({"success": False, "message": e.message}), e.code
+    return jsonify({"success": True, **_etat_ouverture(comp)}), 200
+
+
+@bp.delete("/ouverture/voies/<int:identifiant>")
+@exige_role(OUVREUR, ORGANISATEUR)
+def ouverture_supprimer_voie(identifiant):
+    try:
+        comp = competition_active()
+        bloc = _voie_de(identifiant, comp)
+        ouverture_module.supprimer(comp, bloc)
+    except (ErreurMetier, ouverture_module.ErreurOuverture) as e:
+        return jsonify({"success": False, "message": e.message}), e.code
+    return jsonify({"success": True, **_etat_ouverture(comp)}), 200
+
+
+@bp.post("/ouverture/renumeroter")
+@exige_role(OUVREUR, ORGANISATEUR)
+def ouverture_renumeroter():
+    """`?apercu=1` calcule sans rien ecrire -- c'est ce qui alimente l'ecran
+    de confirmation.
+
+    ⚠️ L'apercu vient du SERVEUR. Le calculer dans le navigateur obligerait a
+    y recopier la regle de tri, et deux implementations d'une meme regle
+    divergent : c'est la lecon de `cascade.py` et de son test miroir.
+    """
+    apercu = request.args.get("apercu") in ("1", "true", "oui")
+    try:
+        comp = competition_active()
+        changements = ouverture_module.renumeroter(comp, apercu=apercu)
+    except (ErreurMetier, ouverture_module.ErreurOuverture) as e:
+        return jsonify({"success": False, "message": e.message}), e.code
+
+    corps = {"success": True, "changements": changements,
+             "combien": len(changements)}
+    if apercu:
+        return jsonify(corps), 200
+    logger.info("renumerotation par %s : %d voie(s)",
+                g.utilisateur.identifiant, len(changements))
+    return jsonify({**corps, **_etat_ouverture(comp)}), 200
+
+
+@bp.post("/ouverture/circuits")
+@exige_role(OUVREUR, ORGANISATEUR)
+def ouverture_creer_circuit():
+    corps = _corps_objet()
+    if corps is None:
+        return jsonify({"success": False, "message": "Corps JSON attendu"}), 400
+    try:
+        comp = competition_active()
+        ouverture_module.creer_circuit(comp, corps.get("nom", ""))
+    except (ErreurMetier, ouverture_module.ErreurOuverture) as e:
+        return jsonify({"success": False, "message": e.message}), e.code
+    return jsonify({"success": True, **_etat_ouverture(comp)}), 201
+
+
+@bp.delete("/ouverture/circuits/<int:identifiant>")
+@exige_role(OUVREUR, ORGANISATEUR)
+def ouverture_supprimer_circuit(identifiant):
+    try:
+        comp = competition_active()
+        circuit = db.session.get(Circuit, identifiant)
+        if circuit is None or circuit.competition_id != comp.id:
+            raise ErreurMetier("Categorie introuvable.", code=404)
+        ouverture_module.supprimer_circuit(comp, circuit)
+    except (ErreurMetier, ouverture_module.ErreurOuverture) as e:
+        return jsonify({"success": False, "message": e.message}), e.code
+    return jsonify({"success": True, **_etat_ouverture(comp)}), 200
+
+
+# --- Le mode sans classeur (spec 045) ---------------------------------------
+
+@bp.get("/mode-sans-classeur")
+@exige_role(ADMIN)
+def mode_sans_classeur_etat():
+    """L'etat du reglage, et le controle avant bascule."""
+    comp = Competition.query.filter_by(active=True).first()
+    return jsonify({"success": True, "actif": sans_classeur.actif(),
+                    **sans_classeur.controle(comp)}), 200
+
+
+@bp.post("/mode-sans-classeur")
+@exige_role(ADMIN)
+def mode_sans_classeur_basculer():
+    """{"actif": true|false}. Allumer passe par le controle ; eteindre non.
+
+    ⚠️ L'asymetrie est voulue. Le controle protege le DEBRANCHEMENT -- il
+    verifie qu'on ne perd rien en coupant. Rallumer le classeur ne perd rien :
+    exiger les memes conditions empecherait de revenir en arriere justement
+    quand on en a besoin.
+    """
+    corps = _corps_objet() or {}
+    vers = bool(corps.get("actif"))
+    comp = Competition.query.filter_by(active=True).first()
+
+    if vers:
+        controle = sans_classeur.controle(comp)
+        if not controle["peut_basculer"]:
+            return jsonify({"success": False, **controle,
+                            "message": controle["refus"][0]["message"]}), 409
+
+    sans_classeur.basculer(vers, par=g.utilisateur.identifiant)
+    return jsonify({
+        "success": True, "actif": vers,
+        "message": ("Classeur Google debranche. Les inscrits viennent de "
+                    "HelloAsso et du guichet, les voies de l'ecran d'ouverture."
+                    if vers else "Classeur Google rebranche."),
+    }), 200
+
+
 # --- Impression des dossards ------------------------------------------------
 
 @bp.get("/dossards")
@@ -1007,6 +1218,7 @@ MODES_IMPORT = (MODE_MISE_A_JOUR, MODE_REMPLACER)
 
 @bp.post("/import/sheet")
 @exige_role(ORGANISATEUR)
+@refuse_si_sans_classeur
 def importer_classeur():
     """Relit le classeur et met la base a jour.
 
@@ -1091,6 +1303,7 @@ def importer_classeur():
 
 @bp.get("/import/rapport")
 @exige_role(ORGANISATEUR)
+@refuse_si_sans_classeur
 def dernier_rapport():
     if _dernier_rapport is None:
         return jsonify({"success": True, "rapport": None,
@@ -1129,6 +1342,7 @@ def lister_circuits():
 
 @bp.get("/classeur")
 @exige_role(ADMIN)
+@refuse_si_sans_classeur
 def classeur_etat():
     """Ce que la console affiche : classeur relie, jeton, compteurs.
 
@@ -1152,6 +1366,7 @@ def classeur_etat():
 
 @bp.post("/classeur/test")
 @exige_role(ADMIN)
+@refuse_si_sans_classeur
 def classeur_test():
     """{"lien": "...", "ecriture": false}
 
@@ -1193,6 +1408,7 @@ def classeur_test():
 
 @bp.post("/classeur")
 @exige_role(ADMIN)
+@refuse_si_sans_classeur
 def classeur_relier():
     """{"lien": "...", "mode": "relier|rejouer|reinitialiser", "confirmation": "..."}"""
     corps = _corps_objet()
@@ -1250,6 +1466,7 @@ def _retour_console(resultat: str, detail: str = "") -> Response:
 
 @bp.get("/classeur/google/consentement")
 @exige_role(ADMIN)
+@refuse_si_sans_classeur
 def google_consentement():
     """302 vers Google. Le `state` part en session, jamais dans une reponse."""
     try:
@@ -1264,6 +1481,7 @@ def google_consentement():
 
 @bp.get("/classeur/google/retour")
 @exige_role(ADMIN)
+@refuse_si_sans_classeur
 def google_retour():
     """Le retour de Google : verifie, echange, ecrit, puis renvoie a la console.
 
@@ -1300,6 +1518,7 @@ def google_retour():
 
 @bp.post("/classeur/jeton")
 @exige_role(ADMIN)
+@refuse_si_sans_classeur
 def classeur_jeton():
     """{"jeton": "<le JSON produit par tools/exporter_jeton.py>"}
 

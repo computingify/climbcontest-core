@@ -200,3 +200,16 @@ git fusionne sans conflit deux blocs ajoutés à des endroits différents.
 | `docs/contraintes-metier.md` | §2 : l'étape 3 est atteinte |
 | `docs/runbook-competition.md` | la sauvegarde devient le seul filet |
 | `docs/specs-index.md`, `CHANGELOG.md` | l'index et la section `[Non publié]` |
+
+---
+
+## 7. Ce que l'implémentation a corrigé de cette spec
+
+| Ce que l'architecture annonçait | Ce qui est vrai |
+| --- | --- |
+| Un module `reglages.py` | **`sans_classeur.py`.** `sqlite_reglages.py` existe déjà et parle des PRAGMA de la connexion : deux modules dont le nom ne dit pas lequel on veut sont deux modules qu'on ouvre à tour de rôle |
+| **Six** points de décision, dont un garde au **démarrage** du fil | **Un seul garde, dans le métier.** Le garde au démarrage était **nuisible** : `planificateur.demarrer` ne s'exécute qu'une fois par processus, et la bascule se fait pendant que l'application tourne. Un fil non démarré parce que le mode était allumé au boot ne repartirait **jamais** quand on rebranche le classeur — il faudrait redémarrer le service. Il fabriquait la panne qu'il prétendait éviter |
+| Un garde dans la **boucle** du fil, en plus | **Inutile.** La boucle n'appelle que `synchroniser`, qui est gardé. Deux gardes qui disent la même chose finissent par ne plus la dire pareil |
+| La 008 est un prérequis **non mergé**, d'où une enveloppe `try/ImportError` | **La 008 a été mergée le 05/09** (`c47b79a`). L'enveloppe n'a jamais été écrite : `cycle.source_active(comp, "helloasso")` est appelé directement |
+| Les avertissements A1–A4 | **A1, A2, A3 sont conditionnels, A4 est permanent.** `circuits.inventaire()` fournit A2 et A3 sans rien recalculer, comme prévu |
+| — | **Un second `@media (prefers-color-scheme: dark)`** avait été ajouté pour les teintes du plan. Un test existant l'interdit — et il a raison : deux blocs sombres, c'est deux endroits où lire une couleur. Les jetons ont rejoint le bloc unique |

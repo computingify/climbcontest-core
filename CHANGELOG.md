@@ -88,6 +88,33 @@ qu'on ne met pas à jour le matin d'une compétition :
   **supprimée**, et la fonction métier qui la servait avec elle — une route
   neutralisée finit toujours par être rebranchée « puisqu'elle est là ».
 
+- **Les ouvreurs déclarent leurs voies sur le plan de la salle** (spec 044).
+  Un écran « Ouverture » où le plan occupe l'espace : on touche une zone, elle
+  s'ouvre par-dessus, et on y pose la couleur de difficulté, la couleur des
+  prises et les catégories de chaque voie. Rien n'est obligatoire — le
+  remplissage s'étale sur plusieurs séances, et chaque zone porte sa pastille
+  « complètes / déclarées », celle de la spec 036. Le nom d'une voie est
+  l'initiale de sa couleur et son rang (« V7 », QR « JV7 »), attribué dès qu'une
+  couleur est choisie ; un bouton **renumérote tout** par couleur, en
+  parcourant les zones de A à Z, et l'opération est stable — relancée, elle ne
+  change plus rien. Elle est refusée dès qu'une réussite existe : elle
+  changerait des QR déjà collés sur le mur.
+- **Un rôle `ouvreur`**, le premier rôle restreint de la console : il n'ouvre
+  que cet écran, et son tiroir n'a qu'une entrée. Il lit le plan de la salle
+  mais ne peut pas le redessiner.
+- **Le mode sans classeur** (spec 045). Un réglage global, réservé à
+  l'administrateur, qui débranche Google Sheets : l'écran « Classeur »,
+  l'import, le jeton et le fil de synchronisation disparaissent — pour tous les
+  rôles. Un contrôle avant bascule vérifie que ce que le classeur détenait est
+  bien en base : deux refus durs (une source d'inscrits, des voies et des
+  catégories) et quatre avertissements, dont celui qui rappelle que la copie de
+  la base devient le seul filet. `/health` **reste `ok`** et nomme le mode :
+  ses compteurs à `null` signifiaient « base injoignable » et auraient
+  désinstallé la version au premier déploiement suivant la bascule.
+- **Un geste de confirmation unifié** pour ce qui ne se rattrape pas : on
+  maintient le bouton deux secondes à la souris, on glisse le curseur au doigt.
+  C'est le pointeur qui décide, pas la largeur de l'écran.
+
 ### Corrigé
 
 - **Le harnais des tests navigateur perdait le fil après une navigation.** Il
