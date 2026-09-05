@@ -19,6 +19,23 @@ qu'on ne met pas à jour le matin d'une compétition :
 
 ## [Non publié]
 
+### Corrigé
+
+- **La console garde la vue qu'on regarde quand la page se recharge.** Un F5 —
+  ou un onglet que le navigateur réveille après l'avoir mis en veille —
+  ramenait toujours sur « Participants », quelle que soit la vue ouverte : le
+  jour J, la console reste des heures sur les Réussites ou les Téléphones, et
+  retrouver l'accueil à chaque rechargement fait refaire trois clics. La vue
+  vit désormais dans l'adresse (`/console#telephones`), ce qui rend au passage
+  le bouton **Retour** utile — il quittait la console — et permet d'envoyer un
+  lien vers un écran précis. `/console` reste l'accueil, sans dièse. Une
+  adresse ne rouvre pas ce que le tiroir ferme : `#classeur` chez un compte
+  sans le rôle administrateur retombe sur l'accueil, comme un dièse inconnu.
+- **Le message de retour du consentement Google ne s'efface plus aussitôt
+  dit.** Il était posé puis emporté dans la même foulée par le changement
+  d'écran, qui remet la zone de message à zéro : on revenait de chez Google sur
+  un classeur muet, sans savoir si le consentement avait abouti.
+
 ## [0.20.0] — 2026-09-05
 
 ### Ajouté
