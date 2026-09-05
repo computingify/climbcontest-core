@@ -42,7 +42,7 @@ Structure du classeur : docs/technical/classeur-google.md.
 import logging
 from dataclasses import dataclass, field
 
-from .. import formatage
+from .. import categories, formatage
 from ..contest import club_canonique
 from ..cycle import source_active
 from ..extensions import db
@@ -221,6 +221,20 @@ def importer_participants(comp: Competition, classeur, rapport: Rapport,
         if not categorie:
             rapport.avertissements.append(
                 f"Listes L{n} : « {nom_complet} » sans categorie (importe quand meme)")
+        elif categorie not in categories.LISTE:
+            # Spec 045, D4. `formatage.categorie` a deja rattache tout ce qui
+            # se rattache -- casse, espace, U manquant, « M » pour « H ». Ce
+            # qui arrive ici est ce qu'on n'a PAS su lire : « Poussin », une
+            # ancienne nomenclature, un U12 qui n'existe pas.
+            #
+            # On importe quand meme et on le dit. Refuser la ligne bloquerait
+            # un import la veille de la competition ; vider la categorie
+            # effacerait ce que le classeur disait, donc l'intention. La ligne
+            # existe, elle est reperable, et la console propose de la
+            # rattacher.
+            rapport.avertissements.append(
+                f"Listes L{n} : « {categorie} » n'est pas une categorie FFME "
+                f"(importee telle quelle)")
         if not club:
             rapport.avertissements.append(
                 f"Listes L{n} : « {nom_complet} » sans club (importe quand meme)")

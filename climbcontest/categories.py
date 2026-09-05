@@ -35,12 +35,19 @@ La règle sert au relevé HelloAsso, **mais aussi** au formulaire d'ajout manuel
 `helloasso/` ferait dépendre la saisie au guichet d'une intégration qui peut
 très bien ne pas être branchée.
 
-## Rien n'est codé en dur
+## Ce qui se déduit, et ce qui se cite — révision du 05/09 (spec 045)
 
-Les Under connus ne sont pas une constante : ils se **déduisent des catégories
-de l'édition** (`U11 F`, `U13 H` → `{11, 13}`). `docs/contraintes-metier.md` §4
-dit que les catégories changent d'une année sur l'autre ; une liste figée ici
-serait fausse dès la saison suivante.
+Ce module a longtemps dit « rien n'est codé en dur », au motif que les
+catégories changent d'une année sur l'autre. **C'était vrai d'une chose et faux
+d'une autre**, et la spec 045 sépare les deux :
+
+| | D'où ça vient | Pourquoi |
+| --- | --- | --- |
+| Les **Under d'une édition** | déduits (`unders_de`) | une compétition ne fait pas grimper toutes les catégories ; celles d'Annonay vont de U11 à U17 |
+| Le **vocabulaire** | cité (`OFFICIELLES`) | la fédération le publie, il ne s'invente pas — et un champ libre a produit un « U13 M » qui a laissé un grimpeur seul dans son classement |
+
+Autrement dit : la liste ci-dessous dit quels **noms existent**, jamais lesquels
+une édition utilise. Le calcul, lui, n'a pas bougé d'une ligne.
 
 Conséquence directe de « le plus petit Under l'emporte » : **les tranches ne
 font pas forcément deux ans**. Si une édition ne déclare que U11 et U15, un
@@ -55,6 +62,37 @@ from datetime import date
 
 #: Le mois où bascule la saison FFME. Septembre.
 PREMIER_MOIS_DE_SAISON = 9
+
+#: Les categories publiees par la federation, dans l'ordre du texte.
+#:
+#: Regles d'acces et de participation 2025-2026 (V3), §5.4 :
+#:
+#:     a) U9 : 7 et 8 ans          f) U19 : 17 et 18 ans
+#:     b) U11 : 9 et 10 ans        g) U21 : 19 et 20 ans
+#:     c) U13 : 11 et 12 ans       h) Senior : 21 a 39 ans
+#:     d) U15 : 13 et 14 ans       i) Veteran 1 : 40 a 49 ans
+#:     e) U17 : 15 et 16 ans       j) Veteran 2 : 50 ans et plus
+#:
+#: ⚠️ **Veteran 1 et Veteran 2 sont fusionnes en « Veteran »** -- decision
+#: d'Adrien du 05/09, que le meme paragraphe autorise : « les veterans 1 et 2
+#: concourent dans la meme categorie veteran et des podiums differencies
+#: peuvent etre organises a l'issue de la competition ».
+#:
+#: ⚠️ **Sans accent, et ce n'est pas un oubli.** La convention du depot
+#: interdit les accents dans les litteraux Python, donc dans ce qui part en
+#: base et en JSON. La console affiche « Senior » accentue : sa table
+#: d'accentuation est dans le gabarit, cote affichage.
+OFFICIELLES = ("U9", "U11", "U13", "U15", "U17", "U19", "U21",
+               "Senior", "Veteran")
+
+#: Le genre, dans l'ecriture des donnees reelles. Les 98 lignes de novembre
+#: 2025 (`fixtures/contest-nov2025.json`) portent « H », jamais « M » : c'est
+#: la forme majoritaire qui gagne, et « M » devient une ecriture qu'on
+#: rattache (`formatage.rattacher`).
+GENRES = ("F", "H")
+
+#: Les 18 libelles complets. C'est ce que propose la console, et rien d'autre.
+LISTE = tuple(f"{nom} {genre}" for nom in OFFICIELLES for genre in GENRES)
 
 #: Un nom de catégorie qui porte un Under : « U13 », « U13 F », « u9 ».
 #: Ancré au début, insensible à la casse, et le genre qui suit est ignoré.

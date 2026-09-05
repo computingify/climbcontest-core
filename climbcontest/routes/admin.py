@@ -40,6 +40,7 @@ from ..helloasso import correspondance as ha_correspondance
 from ..helloasso import planificateur as ha_planificateur
 from ..helloasso import releve as ha_releve
 from ..helloasso import salle as ha_salle
+from .. import categories
 from .. import formatage
 from .. import circuits as circuits_module
 from .. import cascade as cascade_module
@@ -327,11 +328,23 @@ def changer_mon_mot_de_passe():
 def referentiels():
     """Les categories, les clubs, et les zones du plan.
 
-    De quoi remplir les listes deroulantes de la console (spec 013). La liste
-    est **derivee, pas stockee** : c'est l'ensemble des valeurs distinctes
-    portees par les participants. Ajouter une categorie, c'est donc l'ecrire une
-    fois dans « Autre… » -- elle rejoint la liste des l'enregistrement. Aucune
-    table a tenir a jour, aucun ecran de gestion.
+    De quoi remplir les listes deroulantes de la console (spec 013).
+
+    ⚠️ **Les CATEGORIES ne sont plus derivees depuis la spec 045.** Elles
+    l'etaient -- l'ensemble des valeurs portees par les participants -- et
+    c'est precisement ce qui laissait le « U13 M » de production se proposer
+    lui-meme, a cote des vingt-six « U13 H ». Une liste qui se deduit des
+    donnees ne peut pas corriger les donnees. C'est desormais
+    `categories.LISTE`, les dix-huit libelles publies par la federation.
+
+    Les valeurs hors liste ENCORE PORTEES partent a part, dans
+    `categories_hors_liste` : la console les remet dans la ligne de celui qui
+    les porte, et nulle part ailleurs. Sans elles, ouvrir le crayon sur ce
+    grimpeur changerait sa categorie en silence -- un `<select>` qui ne
+    contient pas sa valeur courante en choisit une autre tout seul.
+
+    Les CLUBS, eux, restent derives : leur vocabulaire n'est publie par
+    personne.
 
     Un seul appel pour toutes les listes : la console les charge ensemble, a
     l'ouverture. Deux routes auraient fait deux allers-retours pour un geste --
@@ -339,9 +352,9 @@ def referentiels():
     elles. Elles ne sont PAS derivees des participants : elles viennent du plan
     de la salle, et existent donc sans competition active.
 
-    Sans competition active : deux listes vides et `success: true`, **pas une
-    erreur**. Le formulaire doit rester utilisable -- « Autre… » suffit a creer
-    le tout premier participant.
+    Sans competition active : les categories officielles quand meme, les clubs
+    vides, et `success: true` -- **pas une erreur**. Le formulaire doit rester
+    utilisable, et la liste des categories ne depend d'aucune edition.
     """
     # ⚠️ HORS du `try` : les zones viennent du PLAN, qui ne depend d'aucune
     # competition (spec 034). Les calculer apres la garde priverait la console
@@ -352,7 +365,8 @@ def referentiels():
     try:
         comp = competition_active()
     except ErreurMetier:
-        return jsonify({"success": True, "categories": [], "clubs": [],
+        return jsonify({"success": True, "categories": list(categories.LISTE),
+                        "categories_hors_liste": [], "clubs": [],
                         "zones": zones}), 200
 
     def distinctes(colonne):
@@ -365,7 +379,9 @@ def referentiels():
 
     return jsonify({
         "success": True,
-        "categories": distinctes(Participant.categorie),
+        "categories": list(categories.LISTE),
+        "categories_hors_liste": [c for c in distinctes(Participant.categorie)
+                                  if c not in categories.LISTE],
         "clubs": distinctes(Participant.club),
         # Les zones du plan courant : de quoi remplir la liste deroulante des
         # QR de poste sans une deuxieme route pour un seul geste (spec 034).
@@ -567,6 +583,14 @@ def categories_bareme():
         "tranches": bareme_module.tranches(comp),
         "hors_de_portee": bareme_module.hors_de_portee(comp),
         "declarees": bareme_module.categories_declarees(comp),
+        # Le vocabulaire officiel, pour que la console dessine ses neuf lignes
+        # et ses dix-huit interrupteurs sans avoir a le recopier (spec 045).
+        "officielles": list(categories.OFFICIELLES),
+        "genres": list(categories.GENRES),
+        # Les neuf lignes de l'ecran, assemblees cote serveur (spec 045, D5).
+        "tableau": bareme_module.tableau(comp),
+        # Ce qui est en base et n'y appartient pas, avec sa cible proposee.
+        "hors_liste": bareme_module.hors_liste(comp),
     }), 200
 
 
@@ -581,13 +605,57 @@ def categories_declarer():
     releve, et les cent inscriptions partiraient en attente.
     """
     corps = _corps_objet() or {}
+    demandees = corps.get("categories") or []
+
+    # Spec 045, A12. `declarer_categories` passe par `formatage.categorie`,
+    # donc « u13f » arrive deja range en « U13 F ». Ce controle-ci sert a autre
+    # chose : rendre le REFUS lisible. Sans lui, « Poussin » serait accepte,
+    # range « POUSSIN », et n'apporterait aucun Under au bareme -- un reglage
+    # qui ne fait rien et ne dit pas pourquoi.
+    if isinstance(demandees, list):
+        inconnues = sorted({str(n) for n in demandees if str(n).strip()
+                            and formatage.categorie(str(n)) not in categories.LISTE})
+        if inconnues:
+            return jsonify({
+                "success": False,
+                "message": "Categorie inconnue : " + ", ".join(inconnues)
+                           + ". Seules les categories FFME sont acceptees.",
+            }), 400
+
     try:
         comp = competition_active()
-        declarees = bareme_module.declarer_categories(
-            comp, corps.get("categories") or [])
+        declarees = bareme_module.declarer_categories(comp, demandees)
     except ErreurMetier as e:
         return jsonify({"success": False, "message": e.message}), e.code
     return jsonify({"success": True, "categories": declarees}), 200
+
+
+@bp.post("/categories/rattacher")
+@exige_role(ORGANISATEUR)
+def categories_rattacher():
+    """{"apercu": true} montre; sans lui, ecrit. Spec 045, D6.
+
+    Rattache les categories hors liste deja en base -- le « U13 M » du 30/08 --
+    a leur equivalent officiel. L'apercu et l'application partagent la meme
+    fonction de decision (`bareme.hors_liste`), pour la raison ecrite sur
+    `/categories/appliquer` : un apercu calcule par un autre chemin finirait
+    par annoncer ce qui ne se produit pas.
+    """
+    corps = _corps_objet() or {}
+    try:
+        comp = competition_active()
+    except ErreurMetier as e:
+        return jsonify({"success": False, "message": e.message}), e.code
+
+    if corps.get("apercu"):
+        return jsonify({"success": True, "rattaches": 0,
+                        "hors_liste": bareme_module.hors_liste(comp)}), 200
+
+    rapport = bareme_module.rattacher_hors_liste(
+        comp, par=g.utilisateur.identifiant)
+    if rapport["rattaches"]:
+        classement_service.invalider(comp.id)
+    return jsonify({"success": True, **rapport}), 200
 
 
 @bp.post("/categories/appliquer")

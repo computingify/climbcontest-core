@@ -9,7 +9,7 @@ reecrit toute la base au moment ou elle est le plus utilisee.
 """
 import pytest
 
-from climbcontest import comptes
+from climbcontest import categories, comptes
 from climbcontest.contest import ErreurMetier, ajouter_participant, enregistrer_reussite
 from climbcontest.extensions import db
 from climbcontest.models import Participant
@@ -287,32 +287,69 @@ class TestProchainDossard:
 class TestReferentiels:
     """Les listes qui remplissent les menus deroulants (spec 013, IT3)."""
 
-    def test_les_valeurs_connues_sont_rendues(self, connecte, jeu):
+    def test_les_categories_sont_les_officielles(self, connecte, jeu):
+        """⚠️ Spec 045 : elles ne se deduisent PLUS des participants.
+
+        Elles l'ont ete jusqu'au 05/09, et c'est exactement ce qui laissait le
+        « U13 M » de production se proposer lui-meme a cote des vingt-six
+        « U13 H ». Une liste qui se deduit des donnees ne peut pas corriger les
+        donnees.
+        """
         d = connecte.get("/admin/referentiels").get_json()
         assert d["success"] is True
-        assert d["categories"] == ["U11 F", "U11 H", "U13 H"]
+        assert d["categories"] == list(categories.LISTE)
+        assert d["categories"][:4] == ["U9 F", "U9 H", "U11 F", "U11 H"]
+        assert len(d["categories"]) == 18
+
+    def test_les_clubs_restent_derives(self, connecte, jeu):
+        """Leur vocabulaire n'est publie par personne : lui se deduit."""
+        d = connecte.get("/admin/referentiels").get_json()
         assert d["clubs"] == ["La Grimpe", "Les Lezards"]
+
+    def test_une_categorie_hors_liste_part_a_cote(self, connecte, jeu):
+        """Spec 045, D2. Elle doit rester proposable DANS LA LIGNE de celui qui
+        la porte -- sinon ouvrir son crayon changerait sa categorie en silence,
+        un `<select>` qui ne contient pas sa valeur courante en choisissant une
+        autre tout seul."""
+        jeu["participants"][0].categorie = "U13 M"
+        db.session.commit()
+        d = connecte.get("/admin/referentiels").get_json()
+        assert d["categories_hors_liste"] == ["U13 M"]
+        assert "U13 M" not in d["categories"]
 
     def test_pas_de_nul_dans_les_listes(self, connecte, jeu):
         """L'inscrit « Absent » n'a pas de club : il ne doit pas creer un trou."""
         d = connecte.get("/admin/referentiels").get_json()
         assert None not in d["clubs"] and "" not in d["clubs"]
 
-    def test_une_valeur_inedite_rejoint_la_liste(self, connecte, jeu):
-        """C'est ca, « un moyen d'en ajouter » : l'ecrire une fois."""
+    def test_un_club_inedit_rejoint_la_liste(self, connecte, jeu):
+        """C'est ca, « un moyen d'en ajouter » : l'ecrire une fois.
+
+        ⚠️ Vaut pour les CLUBS seuls depuis la spec 045. Une categorie inedite,
+        elle, ne peut plus naitre : « u17f » est acceptee parce qu'elle se
+        rattache a « U17 F », qui existait deja dans la liste officielle.
+        """
         connecte.post("/admin/participants",
                       json={"nom": "Neuf", "club": "CAF annonay", "categorie": "u17f"})
         d = connecte.get("/admin/referentiels").get_json()
         assert "CAF Annonay" in d["clubs"]
         assert "U17 F" in d["categories"]
+        assert d["categories_hors_liste"] == []
 
     def test_sans_competition_active_ce_n_est_pas_une_erreur(self, connecte, jeu):
-        """Le formulaire doit rester utilisable : « Autre… » suffit."""
+        """Le formulaire doit rester utilisable.
+
+        Les CLUBS se vident -- ils se deduisent des inscrits d'une edition. Les
+        CATEGORIES, elles, restent : la liste de la federation ne depend
+        d'aucune edition, et un formulaire qui ne proposerait plus aucune
+        categorie serait inutilisable depuis que « Autre… » a disparu.
+        """
         jeu["competition"].active = False
         db.session.commit()
         d = connecte.get("/admin/referentiels").get_json()
         assert d["success"] is True
-        assert d["categories"] == [] and d["clubs"] == []
+        assert d["clubs"] == []
+        assert d["categories"] == list(categories.LISTE)
 
     def test_sans_session_c_est_refuse(self, client, app):
         app.config["SECRET_KEY"] = "une-vraie-cle-de-test-suffisamment-longue"

@@ -1105,6 +1105,16 @@
   .verdict-apercu em { font-style: normal; color: var(--encre2);
                        font-size: 0.86rem; display: block; margin-top: 2px; }
 
+  /* Spec 045 — les deux colonnes d'interrupteurs du tableau des categories.
+     L'interrupteur y est seul, sans libelle : c'est l'en-tete de colonne qui
+     nomme, une fois pour neuf lignes. */
+  th.col-genre, td.col-genre { text-align: center; width: 64px; }
+  td.col-genre label.bascule { justify-content: center; padding: 0; }
+  /* Une categorie que cette edition ne fait pas grimper : ses annees disent ce
+     qu'elle DEVIENDRAIT, pas ce qui s'applique. Le fond grise le dit sans une
+     phrase. Senior et Veteran y sont toujours -- ils ne portent pas de Under. */
+  tr.sans-bareme td { background: color-mix(in srgb, var(--surface2) 55%, transparent); }
+
   /* La PORTEE : un interrupteur par categorie, comme `Listes!D29:D38`. */
   .grille-cat { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
                 gap: 4px 22px; }
@@ -1383,11 +1393,27 @@
            et c'est le plus petit qui l'emporte.</p>
       </div>
 
+      <!-- Spec 045, D5 : UN SEUL tableau. Le barème et « les catégories de
+           cette édition » parlaient des mêmes neuf lignes, dans deux cartes.
+           À gauche ce que la règle FFME calcule, au milieu le compte
+           d'inscrits, à droite les deux interrupteurs — c'est-à-dire à
+           l'endroit exact où l'on se demande s'il faut en éteindre une.
+
+           ⚠️ La porte de sortie du classeur Google, dont la disparition est
+           prévue : les circuits ne viennent que de son import, et sans ces
+           interrupteurs une édition alimentée par HelloAsso seul n'aurait
+           aucun Under au premier relevé. -->
       <div class="carte">
-        <h2>Les catégories, par année de naissance</h2>
+        <h2>Les catégories de cette édition</h2>
         <dl class="etat" id="etatBareme"></dl>
+        <p class="aide">Les années suivent la date de l'édition : la changer les
+           décale. Les interrupteurs disent ce que la compétition fait grimper —
+           ils servent au barème tant qu'il n'y a aucun inscrit, et le jour où
+           le classeur ne sera plus là.</p>
         <div class="scroll"><table>
-          <thead><tr><th>Catégorie</th><th>Années de naissance</th><th>Âge</th><th>Inscrits</th></tr></thead>
+          <thead><tr><th>Catégorie</th><th>Années de naissance</th><th>Âge</th>
+                     <th class="num">Inscrits</th>
+                     <th class="col-genre">F</th><th class="col-genre">H</th></tr></thead>
           <tbody id="listeBareme"></tbody>
         </table></div>
         <p class="verdict" id="verdictBareme"></p>
@@ -1397,19 +1423,24 @@
         <div id="apercuBareme" hidden></div>
       </div>
 
-      <!-- ⚠️ La porte de sortie du classeur Google, dont la disparition est
-           prévue. Les circuits ne viennent que de son import : sans cette
-           liste, une édition alimentée par HelloAsso seul n'aurait aucun Under
-           au premier relevé. -->
-      <div class="carte">
-        <h2>Les catégories de cette édition</h2>
-        <p class="aide">Elles se déduisent des inscrits et du classeur. Les
-           déclarer ici sert quand il n'y a encore ni l'un ni l'autre — et le
-           jour où le classeur ne sera plus là.</p>
-        <label for="categoriesDeclarees">Catégories, séparées par des virgules</label>
-        <input id="categoriesDeclarees" placeholder="U11 F, U11 H, U13 F, U13 H">
-        <div style="margin-top:14px">
-          <button class="action" id="btnDeclarerCategories">Enregistrer</button>
+      <!-- Spec 045, D6. Cette carte ne PARAIT que s'il y a quelque chose à
+           rattraper : le « U13 M » mesuré en production le 30/08, resté seul
+           dans un classement d'une personne. -->
+      <div class="carte" id="carteHorsListe" hidden>
+        <h2>Catégories hors liste <span class="compte" id="compteHorsListe">0</span></h2>
+        <div class="avert">
+          <span aria-hidden="true">⚠</span>
+          <span><b>Rattacher déplace des gens d'un classement à un autre.</b>
+            Les rangs de ceux qui suivent bougeront, et les téléphones des juges
+            rechargeront leur catalogue. Rien ne part sans un clic.</span>
+        </div>
+        <div class="scroll"><table>
+          <thead><tr><th>Portée en base</th><th>Deviendra</th>
+                     <th class="num">Participants</th></tr></thead>
+          <tbody id="listeHorsListe"></tbody>
+        </table></div>
+        <div style="margin-top:16px">
+          <button class="action" id="btnRattacher">Rattacher</button>
         </div>
       </div>
     </section>
@@ -2678,7 +2709,66 @@
 
   var AUTRE = "__autre__";      // aucune categorie ni aucun club ne s'appelle ainsi
 
-  function remplir(select, valeurs, libelleVide, avecAutre) {
+  // --- Les categories officielles (spec 045) --------------------------------
+  //
+  // Elles arrivent du serveur (`categories.LISTE`), jamais recopiees ici : une
+  // deuxieme liste deriverait de la premiere a la premiere saison.
+  // `categoriesOfficielles` porte les 18 libelles, `categoriesHorsListe` ce
+  // qui est encore porte en base sans y appartenir.
+  var categoriesOfficielles = [];
+  var categoriesHorsListe = [];
+
+  // « Senior » en base et en JSON -- la convention du depot interdit les
+  // accents dans les litteraux Python. « Senior » a l'ecran : la table vit
+  // ICI, cote affichage, et nulle part ailleurs.
+  var ACCENTUE = { "Senior": "S\u00e9nior", "Veteran": "V\u00e9t\u00e9ran" };
+
+  function libelleCategorie(valeur) {
+    if (!valeur) return valeur;
+    var morceaux = String(valeur).split(" ");
+    var accentue = ACCENTUE[morceaux[0]];
+    return accentue ? [accentue].concat(morceaux.slice(1)).join(" ") : valeur;
+  }
+
+  // La liste des categories, pour une ligne donnee. Dix-huit entrees, dans
+  // l'ordre de la federation -- PAS trie alphabetiquement, qui mettrait
+  // « U11 » apres « Senior » et « U9 » apres « U21 ».
+  //
+  // ⚠️ La valeur COURANTE est ajoutee en tete si elle est hors liste, et
+  // `select.value` est pose a la fin. Les deux vont ensemble : sans la
+  // premiere, ouvrir le crayon sur le « U13 M » du 30/08 changerait sa
+  // categorie en silence ; sans la seconde, le panneau s'ouvrirait sur la
+  // premiere option au lieu de la categorie en cours (spec 045, D9).
+  function listeOfficielle(courante) {
+    var enveloppe = document.createElement("span");
+    var select = document.createElement("select");
+    select.className = "mini-champ";
+
+    var vide = document.createElement("option");
+    vide.value = ""; vide.textContent = "\u2014";
+    select.appendChild(vide);
+
+    if (courante && categoriesOfficielles.indexOf(courante) === -1) {
+      var hors = document.createElement("option");
+      hors.value = courante;
+      hors.textContent = courante + " (hors liste)";
+      select.appendChild(hors);
+    }
+
+    categoriesOfficielles.forEach(function (v) {
+      var o = document.createElement("option");
+      o.value = v;
+      o.textContent = libelleCategorie(v);
+      select.appendChild(o);
+    });
+
+    select.value = courante || "";
+    enveloppe.appendChild(select);
+    enveloppe.valeur = function () { return select.value; };
+    return enveloppe;
+  }
+
+  function remplir(select, valeurs, libelleVide, avecAutre, afficher) {
     var garde = select.value;
     select.innerHTML = "";
 
@@ -2690,7 +2780,9 @@
     valeurs.forEach(function (v) {
       var o = document.createElement("option");
       o.value = v;
-      o.textContent = v;
+      // Ce qu'on STOCKE et ce qu'on AFFICHE peuvent differer : « Senior » en
+      // base, « Senior » accentue a l'ecran (spec 045).
+      o.textContent = afficher ? afficher(v) : v;
       select.appendChild(o);
     });
 
@@ -2728,14 +2820,22 @@
   function chargerReferentiels() {
     return appeler("/admin/referentiels").then(function (d) {
       remplir($("pClub"), d.clubs || [], "\u2014 aucun \u2014", true);
-      remplir($("pCategorie"), d.categories || [], "\u2014 aucune \u2014", true);
+      // ⚠️ `avecAutre` a FAUX : plus de « + Autre… » (spec 045, D2). C'est lui
+      // qui a laisse naitre le « U13 M » de production.
+      categoriesOfficielles = d.categories || [];
+      categoriesHorsListe = d.categories_hors_liste || [];
+      remplir($("pCategorie"), categoriesOfficielles, "\u2014 aucune \u2014", false,
+              libelleCategorie);
       // Les zones du PLAN, pas celles des blocs : un QR de poste existe pour
       // une zone meme si aucun bloc n'y est encore importe (spec 034).
       remplir($("pZone"), d.zones || [], "Toutes les zones", false);
     }).catch(function () {
-      // Listes indisponibles : « Autre… » reste le chemin, le formulaire marche.
+      // Listes indisponibles : « Autre… » reste le chemin pour le CLUB. Les
+      // categories, elles, ne peuvent plus s'inventer -- on garde celles qu'on
+      // avait, plutot que de rouvrir la porte qu'on vient de fermer.
       remplir($("pClub"), [], "\u2014 aucun \u2014", true);
-      remplir($("pCategorie"), [], "\u2014 aucune \u2014", true);
+      remplir($("pCategorie"), categoriesOfficielles, "\u2014 aucune \u2014", false,
+              libelleCategorie);
       remplir($("pZone"), [], "Toutes les zones", false);
     });
   }
@@ -3005,8 +3105,7 @@
       return champs.club;
     });
     cellule(function () {
-      champs.categorie = listeQuiCree(categoriesVues(), p.categorie,
-                                      "Nouvelle catégorie");
+      champs.categorie = listeOfficielle(p.categorie);
       return champs.categorie;
     });
 
@@ -3314,38 +3413,149 @@
       verdict.innerHTML = '<span class="rond"></span>Tout le monde est rangeable';
     }
 
-    $("categoriesDeclarees").value = (d.declarees || []).join(", ");
-
     var corps = $("listeBareme");
     corps.innerHTML = "";
-    (d.tranches || []).forEach(function (t) {
-      var tr = document.createElement("tr");
-      var annees = t.hors_bareme ? "—"
-        : (t.annee_max === null ? t.annee_min + " et après"
-                                : t.annee_min + " – " + t.annee_max);
-      var ages = t.hors_bareme ? "hors barème"
-        : (t.age_min === null ? "jusqu'à " + t.age_max + " ans"
-                              : t.age_min + " – " + t.age_max + " ans");
-      [t.categories.join(", ") || t.circuit, annees, ages, t.inscrits]
-        .forEach(function (v, k) {
-          var td = document.createElement("td");
-          if (k === 1 || k === 3) td.className = "num";
-          if (k === 2) td.className = "discret";
-          td.textContent = v;
-          tr.appendChild(td);
-        });
-      corps.appendChild(tr);
+    (d.tableau || []).forEach(function (l) {
+      corps.appendChild(ligneCategorie(l));
     });
+    dessinerHorsListe(d.hors_liste || []);
   }
 
-  $("btnDeclarerCategories").addEventListener("click", function () {
-    var noms = $("categoriesDeclarees").value.split(",")
-      .map(function (n) { return n.trim(); })
-      .filter(function (n) { return n; });
-    appeler("/admin/categories/declarees", { methode: "POST",
-                                             corps: { categories: noms } })
-      .then(function () { dire("Catégories enregistrées.", "ok"); chargerBareme(); })
-      .catch(signaler);
+  // Une ligne du tableau des categories : ce que la regle calcule, ce que
+  // l'edition porte, et les deux interrupteurs (spec 045, D5).
+  function ligneCategorie(l) {
+    var tr = document.createElement("tr");
+    // ⚠️ Grisee des qu'elle ne compte PAS dans le bareme de cette edition --
+    // pas seulement quand elle n'a pas de Under.
+    //
+    // Sans ca, deux lignes s'affichent cote a cote avec des tranches qui se
+    // chevauchent, et rien ne dit laquelle s'applique : une edition qui
+    // n'annonce pas U9 donne a U11 « jusqu'a 10 ans », tandis que U9, eteinte,
+    // continue d'annoncer « jusqu'a 8 ans ». Les deux sont vraies -- l'une
+    // decrit l'edition, l'autre ce que la categorie deviendrait si on
+    // l'allumait -- et c'est justement pour ca qu'il faut les distinguer.
+    if (l.hors_bareme || !l.dans_le_bareme) tr.className = "sans-bareme";
+
+    var annees = l.hors_bareme ? "—"
+      : (l.annee_max === null ? l.annee_min + " et après"
+                              : l.annee_min + " – " + l.annee_max);
+    var ages = l.hors_bareme ? "hors barème"
+      : (l.age_min === null ? "jusqu'à " + l.age_max + " ans"
+                            : l.age_min + " – " + l.age_max + " ans");
+
+    [libelleCategorie(l.nom), annees, ages, l.inscrits].forEach(function (v, k) {
+      var td = document.createElement("td");
+      if (k === 1 || k === 3) td.className = "num";
+      if (k === 2) td.className = "discret";
+      td.textContent = v;
+      tr.appendChild(td);
+    });
+
+    (etat.bareme.genres || ["F", "H"]).forEach(function (genre) {
+      tr.appendChild(celluleGenre(l, genre));
+    });
+    return tr;
+  }
+
+  function celluleGenre(l, genre) {
+    var td = document.createElement("td");
+    td.className = "col-genre";
+
+    // Le motif de la spec 021, repris tel quel : la case NATIVE est conservee
+    // sous le visuel -- elle garde le clavier, le focus et le lecteur d'ecran,
+    // que `role="switch"` fait annoncer « interrupteur » et non « case ».
+    var label = document.createElement("label");
+    label.className = "bascule";
+    var input = document.createElement("input");
+    input.type = "checkbox";
+    input.setAttribute("role", "switch");
+    input.checked = !!(l.declarees || {})[genre];
+    input.setAttribute("aria-label", libelleCategorie(l.nom) + " " + genre);
+    var glissiere = document.createElement("span");
+    glissiere.className = "glissiere";
+    glissiere.setAttribute("aria-hidden", "true");
+    label.appendChild(input);
+    label.appendChild(glissiere);
+    td.appendChild(label);
+
+    input.addEventListener("change", function () {
+      var voulu = input.checked;
+      // On envoie la liste ENTIERE, relue de l'etat : le serveur range ce
+      // qu'il recoit, sans deviner ce qu'on n'a pas dit. Un envoi differentiel
+      // ferait dependre l'etat final de l'ordre d'arrivee de deux clics.
+      //
+      // ⚠️ Relue de `etat.bareme.tableau` et non du DOM : lire les cases
+      // dessinees ferait dependre l'envoi de la correspondance entre l'ordre
+      // des lignes et celui du tableau, qui n'est garantie par rien.
+      l.declarees[genre] = voulu;
+      var voulues = [];
+      (etat.bareme.tableau || []).forEach(function (ligne) {
+        (etat.bareme.genres || ["F", "H"]).forEach(function (g) {
+          if ((ligne.declarees || {})[g]) voulues.push(ligne.nom + " " + g);
+        });
+      });
+
+      appeler("/admin/categories/declarees", { methode: "POST",
+                                               corps: { categories: voulues } })
+        .then(function () { chargerBareme(); })
+        .catch(function (e) {
+          // L'interrupteur ET l'etat reviennent en arriere : sinon le
+          // prochain clic renverrait une liste qui contient ce qui vient
+          // d'echouer.
+          l.declarees[genre] = !voulu;
+          input.checked = !voulu;
+          signaler(e);
+        });
+    });
+    return td;
+  }
+
+  // --- Les catégories hors liste (spec 045, D6) ------------------------------
+
+  function dessinerHorsListe(lignes) {
+    $("carteHorsListe").hidden = !lignes.length;
+    $("compteHorsListe").textContent = lignes.length;
+    var corps = $("listeHorsListe");
+    corps.innerHTML = "";
+    var rattachables = 0;
+
+    lignes.forEach(function (l) {
+      var tr = document.createElement("tr");
+
+      var quoi = document.createElement("td");
+      quoi.textContent = l.valeur;
+      tr.appendChild(quoi);
+
+      var vers = document.createElement("td");
+      if (l.cible) {
+        rattachables += 1;
+        vers.textContent = "→ " + libelleCategorie(l.cible);
+      } else {
+        // On ne choisit pas a la place de quelqu'un ce que « Poussin » voulait
+        // dire : la ligne se montre, elle ne s'applique pas.
+        vers.className = "discret";
+        vers.textContent = "— aucune correspondance, à corriger à la main —";
+      }
+      tr.appendChild(vers);
+
+      var combien = document.createElement("td");
+      combien.className = "num";
+      combien.textContent = l.inscrits;
+      tr.appendChild(combien);
+
+      corps.appendChild(tr);
+    });
+
+    $("btnRattacher").disabled = !rattachables;
+  }
+
+  $("btnRattacher").addEventListener("click", function () {
+    appeler("/admin/categories/rattacher", { methode: "POST", corps: {} })
+      .then(function (d) {
+        dire(d.rattaches + " participant(s) rattaché(s).", "ok");
+        chargerBareme();
+        chargerParticipants();
+      }).catch(signaler);
   });
 
   // Appliquer reecrit des categories : on montre l'avant / apres AVANT
@@ -3587,7 +3797,7 @@
       // Categorie manquante : on la choisit ici, et le participant est cree
       // avec. Le choix est marque « a la main » -- « Appliquer le bareme a
       // tous » ne doit pas le defaire.
-      var liste = listeQuiCree(categoriesVues(), i.categorie, "Nouvelle catégorie");
+      var liste = listeOfficielle(i.categorie);
       liste.style.display = "inline-block";
       liste.style.marginRight = "9px";
       boutons.appendChild(liste);

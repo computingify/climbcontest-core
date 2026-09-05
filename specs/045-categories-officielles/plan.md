@@ -2,25 +2,25 @@
 
 ## Étapes
 
-- [ ] **1. La liste** — `categories.OFFICIELLES`, `GENRES`, `LISTE`, et le
+- [x] **1. La liste** — `categories.OFFICIELLES`, `GENRES`, `LISTE`, et le
       docstring du module réécrit : ce qui se déduit (les Under d'une édition),
       ce qui se cite (le vocabulaire).
-- [ ] **2. Le genre, une seule table** — `GENRES_CONNUS` et `genre_connu()`
+- [x] **2. Le genre, une seule table** — `GENRES_CONNUS` et `genre_connu()`
       passent de `helloasso/correspondance.py` à `formatage.py`.
       `correspondance.py` les importe. Aucun changement de comportement.
-- [ ] **3. Le rattachement** — `formatage.rattacher()`, et `formatage.categorie()`
+- [x] **3. Le rattachement** — `formatage.rattacher()`, et `formatage.categorie()`
       qui l'appelle avant son repli. C'est l'étape qui porte la table de cas.
-- [ ] **4. Le repli du barème (D7)** — `bareme.unders()` retombe sur les neuf
+- [x] **4. Le repli du barème (D7)** — `bareme.unders()` retombe sur les neuf
       officielles quand les trois sources sont vides.
-- [ ] **5. Le rapport d'import (D4)** — `sheets/importer.py` signale une
+- [x] **5. Le rapport d'import (D4)** — `sheets/importer.py` signale une
       catégorie hors liste, sans rien refuser.
-- [ ] **6. Les routes** — `referentiels` rend `LISTE`, `categories` rend
+- [x] **6. Les routes** — `referentiels` rend `LISTE`, `categories` rend
       `hors_liste`, et `POST /admin/categories/rattacher` (aperçu + application).
-- [ ] **7. La console** — les trois listes déroulantes (dont `select.value`
+- [x] **7. La console** — les trois listes déroulantes (dont `select.value`
       posé avant affichage, D9), la **fusion** du barème et des catégories
       déclarées en un seul tableau à interrupteurs (D5), la carte de
       rattrapage, la table d'accentuation.
-- [ ] **8. Le changelog** — section `[Non publié]`, et l'index des specs.
+- [x] **8. Le changelog** — section `[Non publié]`, et l'index des specs.
 
 L'ordre n'est pas indifférent : 1→3 se testent **sans monter l'application**,
 et c'est là que se joue la valeur de la spec. 7 ne commence qu'une fois la
@@ -124,7 +124,18 @@ Un seul harnais, un seul parcours, une sonde qui relève tout (motif de
 fois. Les autres vérifient que la règle est bonne ; celui-ci vérifie qu'aucun
 chemin ne la contourne.
 
-## Ce qui reste à valider avant de coder
+## Ce qui a été validé avant de coder
 
-La **maquette** (`maquettes/index.html`) : les quatre points de saisie, la
-grille à cocher et la carte de rattrapage, en clair et en sombre. Porte 2.
+La **maquette** (`maquettes/index.html`), en deux tours. Le premier a rendu
+trois arbitrages : des interrupteurs et non des cases, des listes qui s'ouvrent
+sur la catégorie en cours, et **un seul tableau** au lieu de deux cartes. Porte
+2 franchie le 05/09.
+
+## Ce que le rendu réel a montré que la maquette ne montrait pas
+
+Une édition qui n'annonce pas U9 donne à U11 « jusqu'à 10 ans » — « le plus
+petit Under l'emporte ». U9, éteinte, continuait pourtant d'annoncer « jusqu'à
+8 ans » juste au-dessus : deux tranches qui se chevauchent, sans que rien ne
+dise laquelle s'applique. Les deux étaient vraies, et c'est bien le problème.
+Toute ligne hors du barème de l'édition est désormais grisée, pas seulement
+celles sans Under.
