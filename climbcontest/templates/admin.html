@@ -5614,7 +5614,12 @@
   // ou un script qui l'appellerait sans passer par ici.
 
   var MARQUEUR_CONFIRMATION = "EFFACER";   // cf. cycle.MOT_DE_CONFIRMATION
-  var MAINTIEN_MS = 2000;                  // le temps qu'il faut TENIR
+  // ⚠️ La duree du maintien n'est plus definie ici : elle appartient au module
+  // partage (`confirmer.js`). Elle n'est lue que pour ECRIRE le libelle
+  // (« Maintenir 2 s pour… ») ; le minuteur, lui, est celui du module. Deux
+  // valeurs a tenir synchrones a la main finiraient par diverger, et le libelle
+  // annoncerait une duree que le geste ne respecte pas.
+  var DUREE_MAINTIEN = 2000;
 
   /** Ce qu'on detruit, en une phrase courte, pour le libelle du bouton.
    *
@@ -5651,15 +5656,11 @@
     $("dlgTexteForcer").textContent = options.texteForcer || "Effacer quand même";
 
     var bouton = $("dlgOk");
-    var jauge = $("dlgRemplissage");
-    var anneau = $("dlgPart");
     var acte = options.libelle || "Effacer";
     // ⚠️ L'INSTRUCTION est dans le libelle du bouton, pas seulement dans le
     // texte d'aide au-dessus : c'est le bouton qu'on regarde, pas la phrase.
-    var libelle = "Maintenir " + (MAINTIEN_MS / 1000) + " s pour " +
+    var libelle = "Maintenir " + (DUREE_MAINTIEN / 1000) + " s pour " +
                   acte.charAt(0).toLowerCase() + acte.slice(1);
-    var minuteur = null, decompte = null;
-    var parti = false;
 
     // La case « quand meme » ne REMPLACE pas le maintien, elle s'y ajoute :
     // elle dit « je sais que le statut dit en cours », le maintien dit « je
@@ -5669,88 +5670,31 @@
       bouton.disabled = !!options.forcable && !$("dlgForcer").checked;
     }
 
-    /** Remplit (1) ou vide (0) la jauge ET l'anneau. Vider est INSTANTANE :
-     *  sinon ils redescendraient en deux secondes apres un relachement, et un
-     *  second maintien repartirait d'un etat menteur. */
-    function remplir(part) {
-      var duree = part ? (MAINTIEN_MS / 1000) + "s" : "0s";
-      jauge.style.transitionDuration = duree;
-      jauge.style.width = part ? "100%" : "0";
-      anneau.style.transitionDuration = duree;
-      // Le perimetre vient de la feuille de style : un seul endroit ou il
-      // depend du rayon du cercle.
-      var perimetre = getComputedStyle(document.documentElement)
-                        .getPropertyValue("--anneau").trim() || "37.7";
-      anneau.style.strokeDashoffset = part ? "0" : perimetre;
-    }
+    // ⚠️ LA MECANIQUE DU MAINTIEN N'EST PLUS ICI. Elle vit dans
+    // `static/console/confirmer.js`, avec celle de l'ecran d'ouverture
+    // (spec 044) : quatre-vingt-dix lignes etaient en double dans le meme
+    // depot, et deux implementations d'un meme geste divergent -- c'est la
+    // lecon de `cascade.py` et de son test miroir.
+    //
+    // Ce qui reste ici est ce qui appartient a CETTE fenetre : le libelle
+    // calcule sur ce qu'on detruit, la case « quand meme », et la fermeture du
+    // <dialog>.
+    var geste = window.poserMaintien(bouton, {
+      libelle: libelle, mot: $("dlgOkMot"),
+      surAbout: function () { dlg.close("ok"); },
+    });
 
-    function demarrer(e) {
-      if (parti || bouton.disabled || minuteur) return;
-      if (e && e.type === "keydown") {
-        // Entree maintenue re-declenche keydown en rafale : sans ce garde, le
-        // minuteur repartirait a zero cinquante fois et n'aboutirait jamais.
-        if (e.repeat) return;
-        if (e.key !== "Enter" && e.key !== " ") return;
-        e.preventDefault();
-      }
-      remplir(1);
-      bouton.classList.add("tenu");
-      // Le DECOMPTE : il dit combien de temps il reste a tenir, ce qu'une
-      // barre qui glisse ne dit pas. C'est aussi la seule information qui
-      // reste quand l'animation est coupee (`prefers-reduced-motion`).
-      var reste = MAINTIEN_MS / 1000;
-      $("dlgOkMot").textContent = "Encore " + reste + " s…";
-      decompte = setInterval(function () {
-        reste -= 1;
-        if (reste > 0) $("dlgOkMot").textContent = "Encore " + reste + " s…";
-      }, 1000);
-      minuteur = setTimeout(aboutir, MAINTIEN_MS);
-    }
-
-    function annuler() {
-      if (parti || !minuteur) return;
-      clearTimeout(minuteur); clearInterval(decompte);
-      minuteur = decompte = null;
-      bouton.classList.remove("tenu");
-      remplir(0);
-      $("dlgOkMot").textContent = libelle;
-    }
-
-    function aboutir() {
-      clearInterval(decompte);
-      minuteur = decompte = null;
-      parti = true;
-      bouton.classList.remove("tenu");
-      // Desactive AVANT de fermer : deux maintiens tres rapproches ne doivent
-      // produire qu'un seul envoi.
-      bouton.disabled = true;
-      dlg.close("ok");
-    }
-
-    bouton.onpointerdown = demarrer;
-    bouton.onpointerup = annuler;
-    bouton.onpointerleave = annuler;      // curseur sorti du bouton = relache
-    bouton.onpointercancel = annuler;
-    bouton.onkeydown = demarrer;
-    bouton.onkeyup = annuler;
-    bouton.onblur = annuler;
     // Recocher ou decocher pendant un maintien remet le geste a plat : l'etat
     // qu'on confirmait n'est plus celui qu'on confirme.
-    $("dlgForcer").onchange = function () { annuler(); jauger(); };
-
-    remplir(0);
-    $("dlgOkMot").textContent = libelle;
+    $("dlgForcer").onchange = function () { geste.annuler(); jauger(); };
     jauger();
 
     return new Promise(function (resoudre) {
       dlg.onclose = function () {
         dlg.onclose = null;
         // Echap pendant un maintien : la fenetre se ferme, le minuteur doit
-        // mourir avec elle.
-        clearTimeout(minuteur); clearInterval(decompte);
-        minuteur = decompte = null;
-        bouton.classList.remove("tenu");
-        remplir(0);
+        // mourir avec elle -- sinon il aboutit sur un dialogue deja ferme.
+        geste.reinitialiser();
         if (dlg.returnValue === "ok") {
           resoudre({ confirmation: MARQUEUR_CONFIRMATION,
                      forcer: options.forcable && $("dlgForcer").checked });

@@ -19,6 +19,25 @@ qu'on ne met pas à jour le matin d'une compétition :
 
 ## [Non publié]
 
+### Modifié
+
+- **Le geste de maintien n'existe plus qu'à un seul endroit.** Il vivait en
+  double : dans `admin.html` pour la fenêtre d'effacement (spec 032), et dans
+  `static/console/confirmer.js` pour l'écran d'ouverture (spec 044) — quatre-
+  vingt-dix lignes recopiées, deux minuteurs, deux décomptes, deux jauges. La
+  mécanique est désormais dans le module ; la fenêtre garde ce qui lui
+  appartient, son libellé calculé sur ce qu'elle détruit et sa case
+  « quand même ». Rien ne change à l'écran.
+
+### Ajouté
+
+- **Le bouton à maintenir a enfin un test de navigateur.** Il garde une
+  compétition entière d'un effacement accidentel depuis le 02/09, et rien ne
+  vérifiait qu'il *marche* — seulement qu'il était dans le gabarit. Quatre
+  parcours réels : relâcher trop tôt n'efface rien, tenir deux secondes efface,
+  Échap pendant un maintien tue le minuteur, et le libellé décompte pendant le
+  geste.
+
 ### Ajouté
 
 - **Une catégorie ne peut plus être qu'une catégorie FFME** (spec 045). Le

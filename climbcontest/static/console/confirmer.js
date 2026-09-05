@@ -63,26 +63,51 @@ function svgEl(tag, attrs) {
   return n;
 }
 
-/** Le bouton à maintenir. Rend `{ noeud, detruire }`. */
-function monterMaintien(libelle, surAbout) {
-  const bouton = el("button", { type: "button", class: "detruire" });
-  const jauge = el("i", { class: "remplissage", "aria-hidden": "true" });
-  const anneau = svgEl("svg", { class: "anneau", viewBox: "0 0 16 16",
-                                "aria-hidden": "true" });
-  anneau.appendChild(svgEl("circle", { class: "fond", cx: 8, cy: 8, r: 6 }));
-  const part = svgEl("circle", { class: "part", cx: 8, cy: 8, r: 6 });
-  anneau.appendChild(part);
-  const mot = el("span", {}, libelle);
-  bouton.append(jauge, anneau, mot);
-
+/**
+ * Pose le geste de MAINTIEN sur un bouton **qui existe déjà**.
+ *
+ * ⚠️ C'est le point d'entrée bas niveau, et il existe pour une raison précise :
+ * deux endroits du dépôt ont besoin du même geste sur un balisage différent.
+ *
+ * - `confirmerParGeste` **construit** son bouton (écran d'ouverture, spec 044) ;
+ * - `dlgConfirmer` d'`admin.html` a le sien depuis la spec 032, avec son
+ *   `<dialog>`, sa case « quand même » et son libellé calculé.
+ *
+ * Le second gardait sa propre copie de la mécanique — quatre-vingt-dix lignes
+ * en double dans le même dépôt. Deux implémentations d'un même geste divergent :
+ * c'est la leçon de `cascade.py` et de son test miroir.
+ *
+ * Le bouton doit porter `.remplissage` (la jauge) et `.anneau .part` (l'arc).
+ * `mot` est l'élément qui porte le libellé — le `<span>` du bouton.
+ *
+ * Rend `{ annuler, reinitialiser }` :
+ * - `annuler()` interrompt un maintien en cours, et ne fait rien sinon ;
+ * - `reinitialiser()` remet tout à plat — geste, visuel, libellé — pour un
+ *   bouton qu'on réutilise, ce qui est le cas d'un `<dialog>` qu'on rouvre.
+ */
+export function poserMaintien(bouton, options) {
+  const o = options || {};
+  const libelle = o.libelle || "Maintenir 2 s pour confirmer";
+  const mot = o.mot || bouton.querySelector("span") || bouton;
+  const jauge = bouton.querySelector(".remplissage");
+  const part = bouton.querySelector(".anneau .part");
   let minuteur = null, decompte = null, parti = false;
 
   function remplir(vers) {
     const duree = vers ? (MAINTIEN_MS / 1000) + "s" : "0s";
-    jauge.style.transitionDuration = duree;
-    jauge.style.width = vers ? "100%" : "0";
-    part.style.transitionDuration = duree;
-    part.style.strokeDashoffset = vers ? "0" : String(ANNEAU);
+    if (jauge) {
+      jauge.style.transitionDuration = duree;
+      jauge.style.width = vers ? "100%" : "0";
+    }
+    if (part) {
+      part.style.transitionDuration = duree;
+      // ⚠️ Le périmètre vient de la FEUILLE DE STYLE (`--anneau`) : un seul
+      // endroit où il dépend du rayon du cercle. Écrit en dur ici, il
+      // mentirait le jour où le rayon change.
+      const perimetre = getComputedStyle(document.documentElement)
+        .getPropertyValue("--anneau").trim() || String(ANNEAU);
+      part.style.strokeDashoffset = vers ? "0" : perimetre;
+    }
   }
 
   function demarrer(e) {
@@ -125,7 +150,19 @@ function monterMaintien(libelle, surAbout) {
     // Désactivé AVANT d'appeler : deux maintiens très rapprochés ne doivent
     // produire qu'un seul envoi.
     bouton.disabled = true;
-    surAbout();
+    if (o.surAbout) o.surAbout();
+  }
+
+  function reinitialiser() {
+    // ⚠️ Échap pendant un maintien : la fenêtre se ferme, le minuteur doit
+    // mourir avec elle — sinon il aboutit sur un dialogue déjà fermé.
+    clearTimeout(minuteur); clearInterval(decompte);
+    minuteur = decompte = null;
+    parti = false;
+    bouton.disabled = false;
+    bouton.classList.remove("tenu");
+    remplir(0);
+    mot.textContent = libelle;
   }
 
   bouton.onpointerdown = demarrer;
@@ -136,8 +173,25 @@ function monterMaintien(libelle, surAbout) {
   bouton.onkeyup = annuler;
   bouton.onblur = annuler;
   remplir(0);
+  mot.textContent = libelle;
 
-  return { noeud: bouton, detruire: annuler };
+  return { annuler, reinitialiser };
+}
+
+/** Le bouton à maintenir, construit puis armé. Rend `{ noeud, detruire }`. */
+function monterMaintien(libelle, surAbout) {
+  const bouton = el("button", { type: "button", class: "detruire" });
+  const jauge = el("i", { class: "remplissage", "aria-hidden": "true" });
+  const anneau = svgEl("svg", { class: "anneau", viewBox: "0 0 16 16",
+                                "aria-hidden": "true" });
+  anneau.appendChild(svgEl("circle", { class: "fond", cx: 8, cy: 8, r: 6 }));
+  const part = svgEl("circle", { class: "part", cx: 8, cy: 8, r: 6 });
+  anneau.appendChild(part);
+  const mot = el("span", {}, libelle);
+  bouton.append(jauge, anneau, mot);
+
+  const geste = poserMaintien(bouton, { libelle, mot, surAbout });
+  return { noeud: bouton, detruire: geste.annuler };
 }
 
 /** Le glissement. Rend `{ noeud, detruire }`. */
