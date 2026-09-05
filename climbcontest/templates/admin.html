@@ -84,6 +84,16 @@
        s'en sert AUSSI comme largeur de colonne : deux valeurs a tenir
        synchrones a la main finiraient par diverger. */
     --tiroir: 310px;
+
+    /* Le plan de la salle (spec 044). Les six teintes disent le PROFIL d'un
+       mur -- du froid au chaud au moment ou il passe la verticale, la seule
+       frontiere qui compte pour un grimpeur. Reprises de `resultats.html` :
+       l'ouvreur et le grimpeur lisent le meme mur. */
+    --pf-dalle: #D2E0E7; --pf-vertical: #A6C4D3; --pf-incline: #F0D5A0;
+    --pf-devers: #EEBC7E; --pf-surplomb: #E7A074; --pf-toit: #E28379;
+    --pl-contour: #FFFFFF; --pl-trame: rgba(20,28,36,.17);
+    --pl-lettre: #16232E; --pl-halo: rgba(255,255,255,.92);
+    --pl-anneau: #B5791B; --pl-lueur: #E0A94A; --pl-efface: .34;
   }
   @media (prefers-color-scheme: dark) {
     :root {
@@ -103,6 +113,16 @@
       --src-g: #5B9BF8; --src-g-txt: #10233F;
       --src-h: #3FD9A0; --src-h-txt: #06281C;
       --ombre: 0 18px 48px rgba(0, 0, 0, 0.5);
+
+      /* Le plan de la salle (spec 044) : les six teintes de profil et les
+         jetons du dessin, repris de `resultats.html`. Ils vivent ICI et non
+         dans un second bloc sombre -- un test l'exige, et il a raison. */
+      --pf-dalle: #2E3F4C; --pf-vertical: #3D6076; --pf-incline: #9A7238;
+      --pf-devers: #B57430; --pf-surplomb: #BE5B33; --pf-toit: #BC443F;
+      --pl-contour: #12131A; --pl-trame: rgba(255,255,255,.13);
+      --pl-lettre: #F5F0E7; --pl-halo: rgba(9,10,14,.85);
+      --pl-anneau: #FFD489; --pl-lueur: #FFC463; --pl-efface: .28;
+      --pastille-filet: rgba(242, 239, 232, .55);
     }
   }
   * { box-sizing: border-box; }
@@ -333,6 +353,247 @@
      navigation en premier), alors qu'a l'ecran la barre les couvre tous les
      deux. Nommer les zones evite d'avoir a reordonner le HTML pour une
      question d'affichage. */
+
+
+  /* ===== Le plan de la salle, dans la console (spec 044) ==================
+     ⚠️ Ces regles etaient absentes : `resultats/plan.js` monte bien le SVG,
+     mais toutes ses regles vivaient dans `resultats.html`. Le plan sortait
+     donc SANS AUCUN STYLE dans la console -- des polygones noirs, sans trame
+     de profil, sans lettre lisible, et surtout SANS CURSEUR : rien ne disait
+     qu'une zone se touche. Trouve par le test navigateur, pas a la relecture ;
+     aucun test de route ne pouvait le voir.
+
+     Les six teintes de profil et les jetons `--pl-*` sont repris de
+     `resultats.html`, ranges ici sur `:root` et sous la requete media --
+     la console suit `prefers-color-scheme`, elle n'a pas de classe `.sombre`. */
+  .plan { display: block; width: 100%; height: auto; }
+  .plan .contour { fill: none; stroke: var(--encre3); stroke-width: .9;
+    stroke-dasharray: 3 3; opacity: .5; }
+  .plan .mur { stroke: var(--pl-contour); stroke-width: .9; stroke-linejoin: round; }
+  .plan .mur[data-profil], .plan g[data-profil="dalle"] .mur { fill: var(--pf-vertical); }
+  .plan g[data-profil="dalle"] .mur    { fill: var(--pf-dalle); }
+  .plan g[data-profil="vertical"] .mur { fill: var(--pf-vertical); }
+  .plan g[data-profil="incline"] .mur  { fill: var(--pf-incline); }
+  .plan g[data-profil="devers"] .mur   { fill: var(--pf-devers); }
+  .plan g[data-profil="surplomb"] .mur { fill: var(--pf-surplomb); }
+  .plan g[data-profil="toit"] .mur     { fill: var(--pf-toit); }
+  .plan .trame { pointer-events: none; stroke: none; fill: none; }
+  /* Le halo sous la lettre n'est pas un ornement : sur une trame dense, une
+     lettre sans halo devient illisible. `paint-order` peint le contour AVANT
+     le remplissage -- sans lui le halo mange la lettre au lieu de la porter. */
+  .plan .lettre { font-family: var(--titre); font-weight: 800;
+    fill: var(--pl-lettre); text-anchor: middle; dominant-baseline: central;
+    paint-order: stroke fill; stroke: var(--pl-halo); }
+  .plan .repere-plan { font-family: var(--titre); font-style: italic;
+    font-size: 4.6px; text-anchor: middle; fill: var(--encre2); }
+  /* ⚠️ `cursor: pointer` : c'est la SEULE chose qui dise qu'une zone se
+     touche. Sans elle, l'ecran entier repose sur un geste que rien n'annonce. */
+  .plan g[data-zone] { opacity: var(--pl-efface); cursor: pointer;
+    transform-box: view-box; transition: opacity 180ms ease; }
+  .plan g[data-zone].z-reste, .plan g[data-zone].z-finie { opacity: 1; }
+  /* Les cadres passent APRES tous les murs : en SVG l'ordre de peinture est
+     l'ordre du document, et les murs d'Annonay se touchent bord a bord. */
+  .plan .cadre-zone { fill: none; stroke: none; pointer-events: none; }
+  /* ⚠️ PAS de cadre vert « terminee » sur cet ecran : « terminee » est une
+     promesse sur un total que personne ne connait d'avance (05/09). Le seul
+     signal est l'inverse : une voie DEJA declaree a laquelle il manque une
+     couleur ou une categorie. Ca, c'est du travail sur ce qui existe. */
+  .plan .cadre-zone.z-finie { stroke: var(--ok); stroke-width: 1.6; }
+  #ouvreursPlan .plan .cadre-zone.z-finie { stroke: none; }
+  #ouvreursPlan .plan .cadres-zone .cadre-zone.ouvreurs-a-completer {
+    stroke: var(--attention); stroke-width: 1.6; }
+  .plan .cadre-zone.visee { stroke: var(--pl-anneau); stroke-width: 2.2; }
+  .plan g[data-zone].visee { filter: drop-shadow(0 0 2.5px var(--pl-lueur)); }
+  /* La pastille de la spec 036. Ce qu'elle compte change -- « completes /
+     declarees » au lieu de « reussis / a faire » -- mais le vocabulaire
+     visuel est le meme : l'ouvreur et le grimpeur lisent le meme mur. */
+  .plan .socle-compte { fill: var(--pl-halo); stroke: none; pointer-events: none; }
+  .plan g[data-zone]:not(.a-compte) .socle-compte,
+  .plan g[data-zone]:not(.a-compte) .remplit-compte { display: none; }
+  .plan .remplit-compte { fill: color-mix(in srgb, var(--ok) 62%, transparent);
+    stroke: none; pointer-events: none; }
+  .plan .compte-zone { font-family: var(--titre); font-weight: 800;
+    font-variant-numeric: tabular-nums; fill: var(--pl-lettre);
+    text-anchor: middle; dominant-baseline: central; }
+  .plan .compteurs-zone { pointer-events: none; }
+
+  /* ===== L'ouverture : les ouvreurs declarent leurs voies (spec 044) =======
+     ⚠️ Tout est prefixe `ouvreurs`. Deux autres branches travaillaient dans ce
+     fichier pendant l'ecriture du lot : git fusionne SANS CONFLIT deux regles
+     ou deux fonctions du meme nom posees a des endroits differents, et le
+     defaut n'apparait qu'a l'ecran, apres le merge. */
+  #vueOuvreurs { display: flex; flex-direction: column; gap: 0; }
+  .ouvreurs-corps { position: relative; display: flex; flex-direction: column;
+    min-height: 66vh; }
+  .ouvreurs-plan { flex: 1; min-height: 0; display: flex;
+    align-items: flex-start; justify-content: center; padding: 6px 0 0; }
+  .ouvreurs-plan svg { width: 100%; max-width: 520px; height: auto; }
+  /* ⚠️ LE PLAN SE REPLIE QUAND LE TIROIR S'OUVRE. Sans ca, le tiroir recouvre
+     precisement le pan qu'on vient d'ouvrir : on perd de vue OU l'on est au
+     moment meme ou l'on saisit. */
+  .ouvreurs-corps.avec-tiroir .ouvreurs-plan { flex: none; height: 30vh; }
+  .ouvreurs-corps.avec-fiche .ouvreurs-plan { height: 16vh; }
+  /* La fiche est plus haute qu'une liste : elle porte trois jeux de jetons. */
+  .ouvreurs-corps.avec-fiche .ouvreurs-tiroir { height: 82%; }
+
+  .ouvreurs-repartition { display: flex; gap: 6px; align-items: flex-end;
+    margin-top: 12px; }
+  .ouvreurs-col { flex: 1; text-align: center; }
+  .ouvreurs-tige { height: 44px; display: flex; align-items: flex-end; }
+  .ouvreurs-tige i { display: block; width: 100%; border-radius: 4px 4px 0 0;
+    border: 1px solid rgba(0,0,0,.15); border-bottom: 0; }
+  .ouvreurs-col b { display: block; font-size: .8rem;
+    font-variant-numeric: tabular-nums; }
+  .ouvreurs-col span { font-size: .62rem; color: var(--encre3); }
+  .ouvreurs-restantes { display: flex; gap: 6px; align-items: center;
+    flex-wrap: wrap; font-size: .78rem; color: var(--encre2); margin-top: 12px; }
+  .ouvreurs-puce { font: inherit; font-weight: 800; font-size: .82rem;
+    padding: 3px 11px; border-radius: 999px; cursor: pointer;
+    background: color-mix(in srgb, var(--attention) 15%, transparent);
+    border: 1px solid color-mix(in srgb, var(--attention) 38%, transparent);
+    color: var(--encre); }
+
+  .ouvreurs-voile { position: absolute; inset: 0; background: rgba(20,18,14,.34);
+    border-radius: 12px; }
+  .ouvreurs-tiroir { position: absolute; left: 0; right: 0; bottom: 0;
+    height: 68%; background: var(--surface); border: 1px solid var(--trait);
+    border-radius: 16px 16px 0 0; box-shadow: var(--ombre);
+    display: flex; flex-direction: column; z-index: 2; }
+  .ouvreurs-tiroir .tete { display: flex; align-items: center; gap: 10px;
+    padding: 12px 14px; border-bottom: 1px solid var(--trait); }
+  .ouvreurs-tiroir .tete h3 { margin: 0; font-size: 1rem; font-weight: 800; }
+  .ouvreurs-tiroir .tete em { display: block; font-style: normal;
+    font-weight: 400; color: var(--encre2); font-size: .78rem; }
+  .ouvreurs-tiroir .liste { overflow: auto; padding: 4px 10px; }
+  .ouvreurs-tiroir .pied { flex: none; padding: 10px 12px 14px;
+    border-top: 1px solid var(--trait); }
+
+  .ouvreurs-voie { display: flex; align-items: center; gap: 10px;
+    padding: 7px 8px; border-radius: 11px; border: 1px solid transparent;
+    cursor: pointer; }
+  .ouvreurs-voie + .ouvreurs-voie { border-top: 1px solid var(--trait);
+    border-radius: 0; }
+  .ouvreurs-couleur { width: 26px; height: 26px; border-radius: 8px; flex: none;
+    border: 1px solid rgba(0,0,0,.18); }
+  .ouvreurs-couleur.vide { background: repeating-linear-gradient(45deg,
+    var(--surface3) 0 4px, var(--surface2) 4px 8px); }
+  .ouvreurs-num { font-family: var(--chiffre); font-weight: 700;
+    font-size: 1.02rem; min-width: 38px; }
+  .ouvreurs-quoi { flex: 1; min-width: 0; font-size: .78rem; color: var(--encre2); }
+  .ouvreurs-quoi b { color: var(--encre); font-weight: 600; }
+  .ouvreurs-quoi { display: flex; align-items: center; gap: 8px; }
+  .ouvreurs-cats { display: flex; gap: 4px; flex-wrap: wrap;
+    align-items: center; }
+  /* La place de la couleur de prises quand elle manque : un rond vide, pour
+     que les lignes restent alignees et qu'on voie le trou. */
+  .ouvreurs-prise-vide { display: inline-block; width: 14px; height: 14px;
+    flex: none; border-radius: 50%; border: 1px dashed var(--trait); }
+  .ouvreurs-cat { font-size: .66rem; padding: 1px 6px; border-radius: 999px;
+    background: var(--surface3); color: var(--encre2); font-weight: 600; }
+  /* Le contenu REEL du QR, en chasse fixe : c'est ce que le juge scanne, et
+     c'est la qu'une faute de zone se voit. */
+  .ouvreurs-qr { font-family: var(--chiffre); font-size: .64rem;
+    color: var(--encre3); }
+  .ouvreurs-etat { font-size: .68rem; font-weight: 700; flex: none; }
+  .ouvreurs-etat.ok { color: var(--ok); }
+  .ouvreurs-etat.reste { color: var(--attention); }
+  .ouvreurs-voie.incomplete {
+    background: color-mix(in srgb, var(--attention) 9%, transparent);
+    border-color: color-mix(in srgb, var(--attention) 30%, transparent); }
+
+  .ouvreurs-rub { font-size: .7rem; text-transform: uppercase;
+    letter-spacing: .07em; color: var(--encre3); font-weight: 700;
+    margin: 10px 0 6px; }
+  .ouvreurs-jetons { display: flex; gap: 7px; flex-wrap: wrap; }
+  /* Le nuancier : replie par defaut, et visuellement en retrait quand il
+     s'ouvre -- c'est un choix rare, il ne doit pas peser autant que les sept
+     couleurs de tous les jours. */
+  .ouvreurs-nuancier { margin-top: 7px; padding-top: 8px;
+    border-top: 1px dashed var(--trait); }
+  .ouvreurs-bascule { margin: 4px 0 2px; font-size: .84rem; }
+  .ouvreurs-sous-rub { font-size: .72rem; color: var(--encre3); font-weight: 600;
+    margin: 8px 0 5px; }
+  .ouvreurs-rang-prise + .ouvreurs-rang-prise { margin-top: 4px;
+    padding-top: 6px; border-top: 1px dashed var(--trait); }
+  .ouvreurs-note-prises { margin: 8px 0 0; font-size: .74rem; color: var(--encre3); }
+  /* ⚠️ 14 px et non 9 : a 9, l'oblique d'une prise bicolore ne se voyait pas,
+     et la pastille avait l'air unie. C'est le seul endroit de la ligne ou la
+     bicolorite se lit. */
+  .ouvreurs-rond-prise { display: inline-block; width: 14px; height: 14px;
+    flex: none; border-radius: 50%; vertical-align: -2px;
+    border: 1px solid rgba(0,0,0,.22); }
+  /* L'apercu, dans la rubrique de la fiche : ce que donne la prise, en UNE
+     pastille -- les jetons en dessous ne sont qu'un selecteur. */
+  .ouvreurs-valeur-prise { text-transform: none; letter-spacing: 0;
+    font-weight: 600; color: var(--encre2); font-size: .8rem; }
+  .ouvreurs-apercu-prise { display: inline-block; width: 20px; height: 20px;
+    border-radius: 50%; margin: 0 6px 0 10px; vertical-align: -5px;
+    border: 1px solid rgba(0,0,0,.22); }
+  /* Le filet de l'oblique : il suit l'encre, pour rester visible sur les deux
+     themes -- un filet blanc disparaitrait entre deux teintes claires. */
+  :root { --pastille-filet: rgba(27, 26, 23, .45); }
+  .ouvreurs-jeton { display: inline-flex; align-items: center; gap: 6px;
+    padding: 6px 10px; border-radius: 999px; border: 1px solid var(--trait);
+    background: var(--surface2); font: inherit; font-size: .78rem;
+    font-weight: 600; color: var(--encre2); cursor: pointer; }
+  .ouvreurs-jeton i { width: 13px; height: 13px; border-radius: 4px;
+    display: block; border: 1px solid rgba(0,0,0,.2); }
+  .ouvreurs-jeton.choisi { border-color: var(--accent); background: var(--surface);
+    color: var(--encre); box-shadow: inset 0 0 0 1px var(--accent); }
+  .ouvreurs-attribue { margin: 12px 0 6px; padding: 9px 11px; border-radius: 11px;
+    background: color-mix(in srgb, var(--ok) 11%, transparent);
+    border: 1px solid color-mix(in srgb, var(--ok) 34%, transparent);
+    font-size: .77rem; color: var(--encre2); }
+  .ouvreurs-attribue b { color: var(--encre); font-family: var(--chiffre); }
+  .ouvreurs-actions { display: flex; gap: 8px; margin: 14px 0 4px;
+    align-items: center; flex-wrap: wrap; }
+  .ouvreurs-danger { font: inherit; font-size: .82rem; font-weight: 700;
+    padding: 9px 14px; border-radius: 11px; background: transparent;
+    color: var(--alerte); cursor: pointer;
+    border: 1px solid color-mix(in srgb, var(--alerte) 40%, transparent); }
+
+  /* Le GLISSEMENT (`static/console/confirmer.js`). Cotes de Sowel : piste
+     plafonnee a 260 px et CENTREE, bouton de 50, marge de 4, course de 202.
+     Pleine largeur sur un telephone de 393 px, le geste partirait du coin
+     inferieur gauche -- le point le plus loin du pouce. */
+  .glisse { position: relative; margin: 0 auto; width: 100%; max-width: 260px;
+    height: 58px; border-radius: 12px; border: 1px solid var(--trait);
+    background: var(--surface3); overflow: hidden; user-select: none;
+    touch-action: none; }
+  .glisse-jauge { position: absolute; top: 0; bottom: 0; left: 0;
+    border-radius: 12px; width: 50px;
+    background: color-mix(in srgb, var(--alerte) 16%, transparent); }
+  .glisse-mot { position: absolute; top: 0; bottom: 0; left: 58px; right: 0;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 13px; font-weight: 600; color: var(--encre2);
+    white-space: nowrap; pointer-events: none; }
+  .glisse-bouton { position: absolute; top: 4px; left: 4px; width: 50px;
+    height: 50px; border-radius: 9px; background: var(--alerte);
+    color: var(--sur-alerte); display: flex; align-items: center;
+    justify-content: center; box-shadow: 0 2px 6px rgba(0,0,0,.25);
+    cursor: grab; z-index: 2; }
+  .glisse.tenu { box-shadow: 0 0 0 3px color-mix(in srgb, var(--alerte) 35%, transparent); }
+  .glisse.fini { border-color: color-mix(in srgb, var(--ok) 45%, transparent); }
+  .glisse.fini .glisse-jauge { background: color-mix(in srgb, var(--ok) 20%, transparent); }
+  .glisse.fini .glisse-bouton { background: var(--ok); cursor: default; }
+  .glisse.fini .glisse-mot { left: 0; right: 58px; color: var(--ok); }
+
+  /* La carte du mode sans classeur (spec 046). */
+  .sansClasseur-constat { display: flex; gap: 10px; padding: 9px 11px;
+    border-radius: 11px; font-size: .81rem; margin-bottom: 7px;
+    align-items: flex-start; color: var(--encre2); }
+  .sansClasseur-constat .marque { flex: none; font-weight: 800;
+    font-size: .72rem; font-family: var(--chiffre); padding-top: 1px; }
+  .sansClasseur-constat b { color: var(--encre); }
+  .sansClasseur-constat.refus {
+    background: color-mix(in srgb, var(--alerte) 10%, transparent);
+    border: 1px solid color-mix(in srgb, var(--alerte) 34%, transparent); }
+  .sansClasseur-constat.refus .marque { color: var(--alerte); }
+  .sansClasseur-constat.avert {
+    background: color-mix(in srgb, var(--attention) 11%, transparent);
+    border: 1px solid color-mix(in srgb, var(--attention) 32%, transparent); }
+  .sansClasseur-constat.avert .marque { color: var(--attention); }
+
   @media (min-width: 1080px) {
     #console {
       display: grid;
@@ -814,7 +1075,7 @@
           reconnaissable du maintien, empruntee aux memes produits ;
        3. pendant le maintien, le libelle DECOMPTE (« Encore 2 s… »), et le
           fond se remplit franchement au lieu d'un voile a peine visible. */
-  dialog button.detruire {
+  button.detruire, dialog button.detruire {
     position: relative; overflow: hidden; isolation: isolate;
     cursor: pointer; font: inherit; font-weight: 600;
     background: var(--alerte); color: var(--sur-alerte); border: 0;
@@ -825,17 +1086,17 @@
     touch-action: none;
     -webkit-user-select: none; user-select: none;
   }
-  dialog button.detruire:disabled { opacity: 0.4; cursor: not-allowed; }
+  button.detruire:disabled { opacity: 0.4; cursor: not-allowed; }
   /* La jauge. `z-index: -1` sous `isolation: isolate` : elle passe au-dessus du
      fond du bouton et sous son libelle, sans qu'il faille empiler des
      positions. La duree de la transition est posee par le SCRIPT, pour qu'il
      n'y ait qu'un seul endroit ou lire « deux secondes ». */
-  dialog button.detruire .remplissage {
+  button.detruire .remplissage {
     position: absolute; top: 0; bottom: 0; left: 0; width: 0; z-index: -1;
     background: color-mix(in srgb, var(--encre) 55%, transparent);
     transition-property: width; transition-timing-function: linear;
   }
-  dialog button.detruire.tenu { box-shadow: 0 0 0 3px color-mix(in srgb, var(--alerte) 35%, transparent); }
+  button.detruire.tenu { box-shadow: 0 0 0 3px color-mix(in srgb, var(--alerte) 35%, transparent); }
 
   /* L'anneau de progression : l'affordance du maintien. Au repos il est un
      simple cercle ; pendant le geste il se remplit dans le sens horaire. */
@@ -851,7 +1112,7 @@
     stroke-dashoffset: var(--anneau);
     transition-property: stroke-dashoffset; transition-timing-function: linear;
   }
-  dialog button.detruire { display: inline-flex; align-items: center; gap: 8px; }
+  button.detruire, dialog button.detruire { display: inline-flex; align-items: center; gap: 8px; }
 
   @media (prefers-reduced-motion: reduce) {
     /* Ni jauge qui glisse ni anneau qui tourne. Le delai, lui, NE CHANGE PAS :
@@ -863,7 +1124,7 @@
        des l'appui : l'operateur lisait « c'est fait », relachait au bout de
        trois dixiemes de seconde, et rien n'etait efface -- sans aucun
        message. Un repere de progression qui ment est pire qu'absent. */
-    dialog button.detruire .remplissage { display: none; }
+    button.detruire .remplissage { display: none; }
     dialog button.detruire .anneau { visibility: hidden; }
   }
   .coche { display: flex; gap: 9px; align-items: flex-start; margin: 14px 0;
@@ -1193,6 +1454,10 @@
       <button data-vue="categories">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="M7 16V9"/><path d="M12 16v-5"/><path d="M17 16v-9"/></svg>
         <span class="quoi"><b>Catégories</b><i>Le barème, et l'appliquer</i></span>
+      </button>
+      <button data-vue="ouvreurs" id="navOuvreurs">
+        <span class="icone" aria-hidden="true">▦</span>
+        <span class="quoi"><b>Ouverture</b><i>Les voies, zone par zone</i></span>
       </button>
       <button data-vue="circuits">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2 4 7v10l8 5 8-5V7Z"/><path d="M12 22V12"/><path d="m20 7-8 5-8-5"/></svg>
@@ -1884,6 +2149,68 @@
     </section>
 
     <!-- ================= Circuits (spec 019) ================= -->
+    <!-- ================= Ouverture (spec 044) ================= -->
+    <!-- ⚠️ Cette section est DANS le bloc des vues, jamais entre deux : une
+         carte glissee hors de toute vue s'affiche sur TOUS les ecrans, et
+         aucun test ne le voit -- seul le rendu le montre. -->
+    <section class="vue" id="vueOuvreurs" hidden>
+      <div class="carte">
+        <h1>Ouverture</h1>
+        <p>Le plan de la salle, et les voies que les ouvreurs y déclarent :
+           couleur de difficulté, couleur des prises, catégories. Tout ne se
+           remplit pas en une fois — chaque zone porte le nombre de voies déjà
+           déclarées, et se souligne d'ambre s'il en reste une à compléter.</p>
+
+        <div class="avert" id="ouvreursLectureSeule" hidden>⚠️<div>Les voies
+          viennent du classeur : cet écran est en <b>consultation</b>.
+          Débrancher le classeur dans les Réglages pour les saisir ici.</div></div>
+        <div class="avert" id="ouvreursHorsPlan" hidden></div>
+
+        <div id="ouvreursResume" style="margin:10px 0 0;font-size:.9rem;
+             color:var(--encre2)"></div>
+
+        <div class="ouvreurs-corps" id="ouvreursCorps">
+          <div class="ouvreurs-plan" id="ouvreursPlan"></div>
+          <div class="ouvreurs-voile" id="ouvreursVoile" hidden></div>
+          <div class="ouvreurs-tiroir" id="ouvreursTiroir" hidden>
+            <div class="tete">
+              <h3 id="ouvreursTiroirTitre">Zone <em
+                  id="ouvreursTiroirSous"></em></h3>
+              <button type="button" class="secondaire" id="ouvreursFermerTiroir"
+                      style="margin-left:auto">Fermer</button>
+            </div>
+            <div class="liste" id="ouvreursListe"></div>
+            <div class="pied" id="ouvreursPied">
+              <button type="button" class="secondaire" id="ouvreursAjouter"
+                      style="width:100%">+ Ajouter une voie</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="ouvreurs-repartition" id="ouvreursRepartition"></div>
+        <div class="ouvreurs-restantes" id="ouvreursRestantes" hidden></div>
+
+        <div class="ouvreurs-actions">
+          <button type="button" class="secondaire" id="ouvreursRenumeroter">
+            Renuméroter</button>
+        </div>
+      </div>
+
+      <div class="carte">
+        <h2>Les catégories de l'édition</h2>
+        <p class="aide">Sans catégorie, une voie ne compte pour personne. En
+           mode sans classeur, elles se créent ici — c'est l'onglet
+           <strong>Plan</strong> du classeur qui les apportait.</p>
+        <div class="ouvreurs-actions">
+          <input id="ouvreursNouvelleCategorie" maxlength="20" placeholder="U15"
+                 autocapitalize="characters" spellcheck="false"
+                 style="max-width:160px">
+          <button type="button" class="secondaire" id="ouvreursAjouterCategorie">
+            Ajouter</button>
+        </div>
+      </div>
+    </section>
+
     <section class="vue" id="vueCircuits" hidden>
       <div class="titre-vue">
         <h1>Circuits</h1>
@@ -2141,6 +2468,20 @@
 
       <!-- Reservee aux administrateurs, comme « Creer un compte » plus bas :
            les trois routes /admin/maj repondent 403 aux autres. -->
+      <!-- ================= Le mode sans classeur (spec 046) ================
+           ⚠️ Reservee aux administrateurs. Le geste qu'elle porte est le SEUL
+           de la console dont la consequence vit HORS de la console : apres
+           l'avoir fait, on supprime un fichier dans un Drive. -->
+      <div class="carte" id="carteSansClasseur" hidden>
+        <h2>Le classeur Google</h2>
+        <p class="aide" id="sansClasseurSous"></p>
+        <div id="sansClasseurControle"></div>
+        <div id="sansClasseurGeste" style="margin-top:14px"></div>
+        <p class="aide" id="sansClasseurRetour" hidden>Rallumer remettra
+           l'écran, l'import et le miroir. ⚠️ Mais cela ne fera pas revenir un
+           fichier supprimé : il faudra en relier un neuf et le repeupler.</p>
+      </div>
+
       <div class="carte" id="blocMaj" hidden>
         <h2>Version du serveur</h2>
         <div class="etat-maj" id="majFaits"></div>
@@ -2213,6 +2554,27 @@
       <menu>
         <button value="annuler" class="secondaire">Annuler</button>
         <button value="ok" class="action">Installer</button>
+      </menu>
+    </form>
+  </dialog>
+
+  <dialog id="ouvreursDlgRenum">
+    <form method="dialog">
+      <div class="dedans">
+        <h2 id="ouvreursRenumTitre"></h2>
+        <p class="aide">Par couleur, en parcourant les zones de A à Z. Les trous
+           laissés par les voies supprimées se referment.</p>
+        <p class="avert" id="ouvreursRenumAvert"></p>
+        <table style="width:100%;border-collapse:collapse;font-size:.8rem">
+          <thead><tr><th style="text-align:left">Zone</th>
+            <th style="text-align:left">Avant</th><th></th>
+            <th style="text-align:left">Après</th></tr></thead>
+          <tbody id="ouvreursRenumTable"></tbody>
+        </table>
+        <div id="ouvreursRenumGeste" style="margin-top:14px"></div>
+      </div>
+      <menu>
+        <button value="annuler" class="secondaire">Annuler</button>
       </menu>
     </form>
   </dialog>
@@ -2304,6 +2666,42 @@
     });
   }
 
+  // ⚠️ LE PONT AVEC LE MODULE DE L'ECRAN D'OUVERTURE (spec 044).
+  //
+  // `static/console/ouverture.js` est un MODULE -- il vit dans un fichier a
+  // part pour etre testable, comme `resultats/plan.js`. Il ne peut donc pas
+  // appeler `appeler`, qui est une locale de ce script classique. On l'expose
+  // ici, explicitement et une seule fois, plutot que de recopier la gestion de
+  // session et des refus dans le module.
+  //
+  // La difference avec `appeler` : celui-ci ne LEVE pas. Il rend `null` apres
+  // avoir affiche le refus, ce qui donne au module un `if (!r) return;` au
+  // lieu d'un `.catch` a chaque appel -- et un `.catch` oublie serait une
+  // erreur avalee en silence.
+  window.consoleAppeler = function (chemin, options) {
+    return appeler(chemin, options).catch(function (e) {
+      if (!e || !e.gere) dire((e && e.message) || "Erreur", "erreur");
+      return null;
+    });
+  };
+
+  /** Ce compte n'a-t-il QUE le role ouvreur ?
+   *
+   * ⚠️ `ouvreur` est le premier role RESTREINT du depot : les deux autres
+   * s'empilent, celui-ci n'ouvre qu'un ecran. Trois endroits en dependent --
+   * le masquage du tiroir, et deux chargements d'ouverture qui lui
+   * repondraient 403. Une seule definition, sinon la troisieme finira par ne
+   * plus dire la meme chose que les deux autres.
+   */
+  function seulementOuvreur() {
+    return !!etat.moi && etat.moi.roles.length === 1
+           && etat.moi.roles[0] === "ouvreur";
+  }
+
+  function chargerOuvreurs() {
+    return window.ouvreursEcran ? window.ouvreursEcran.charger() : null;
+  }
+
   var minuteurMessage = null;
 
   function dire(texte, genre) {
@@ -2365,11 +2763,31 @@
     // Meme regle pour le classeur : les quatre routes sont reservees a un
     // administrateur, le serveur repond 403 aux autres. Masquer l'entree evite
     // d'offrir un ecran qui ne repondrait que des refus.
-    $("navClasseur").hidden = etat.moi.roles.indexOf("admin") === -1;
+    // ⚠️ Le classeur disparait pour TOUS les roles quand il est debranche
+    // (spec 046) -- administrateur compris. C'est la demande, mot pour mot :
+    // « je ne veux plus du tout le voir dans les parametres ». Le seul endroit
+    // qui en parle encore est la carte des Reglages, parce que c'est par elle
+    // qu'on revient en arriere.
+    $("navClasseur").hidden = etat.moi.roles.indexOf("admin") === -1
+                              || !!etat.moi.mode_sans_classeur;
     // « General » porte le renommage et l'archivage : administrateurs.
     // « Archives » ne fait que consulter : tout le monde y a droit, et c'est
     // volontaire -- revoir l'edition de l'an dernier n'est pas un privilege.
     $("navGeneral").hidden = etat.moi.roles.indexOf("admin") === -1;
+
+    // ⚠️ `ouvreur` est le premier role RESTREINT du depot : les deux autres
+    // s'empilent, celui-ci n'ouvre qu'un ecran. On masque donc TOUT le reste,
+    // au lieu de masquer au cas par cas -- une entree ajoutee demain par une
+    // autre spec serait sinon visible pour lui sans que personne ne le voie.
+    //
+    // Ce n'est qu'un CONFORT d'affichage : la barriere est `exige_role`, cote
+    // serveur, et c'est elle que les tests verifient.
+    if (seulementOuvreur()) {
+      Array.prototype.forEach.call(
+        document.querySelectorAll("#tiroir [data-vue]"), function (b) {
+          if (b.getAttribute("data-vue") !== "ouvreurs") b.hidden = true;
+        });
+    }
     // ⚠️ HelloAsso : l'entree n'apparait que pour un administrateur -- elle
     // manipule un secret -- et « Inscriptions » n'apparait QUE SI une cle est
     // posee. Une integration non branchee ne doit pas laisser d'entree de menu
@@ -2384,7 +2802,7 @@
         && etat.moi.helloasso_relie) {
       chargerInscriptions();
     }
-    chargerReferentiels();
+    if (!seulementOuvreur()) chargerReferentiels();
     // Sur QUOI on agit. Sans ca, rien a l'ecran ne distingue la competition
     // de novembre d'une competition de test restee active.
     var comp = etat.moi.competition ? etat.moi.competition.nom : "aucune compétition active";
@@ -2400,7 +2818,11 @@
     // de plus par ouverture, ~200 octets, et la promesse « sur tous les
     // ecrans » devient vraie. L'ecran « Telephones » continue de la
     // rafraichir : le numero ne vieillit pas.
-    chargerVersions();
+    // ⚠️ Reservees aux organisateurs. Un compte OUVREUR y recevait un 403 a
+    // chaque ouverture de la console : rien de casse, mais un refus normal
+    // dans le journal a chaque connexion -- et c'est ainsi qu'on finit par ne
+    // plus lire les journaux.
+    if (!seulementOuvreur()) chargerVersions();
     // ⚠️ PAS « participants » en dur. C'était le défaut : un F5 sur les
     // Réglages, et l'on se retrouvait sur les Participants sans savoir
     // pourquoi. `vueDeLAdresse()` retombe sur l'accueil quand l'adresse ne
@@ -2435,6 +2857,7 @@
     inscriptions: { titre: "Inscriptions",         charge: ouvrirInscriptions,
                     quitte: fermerInscriptions },
     helloasso:    { titre: "HelloAsso",            charge: chargerHelloasso },
+    ouvreurs:     { titre: "Ouverture",            charge: chargerOuvreurs },
     circuits:     { titre: "Circuits",             charge: chargerCircuits },
     reussites:    { titre: "Réussites",            charge: ouvrirReussites,
                     quitte: fermerReussites },
@@ -2445,10 +2868,102 @@
     reglages:     { titre: "Réglages",             charge: chargerComptesSiAdmin }
   };
 
+  // --- Le mode sans classeur (spec 046) --------------------------------------
+  //
+  // ⚠️ Prefixe `sansClasseur` : deux branches travaillaient dans ce fichier
+  // pendant l'ecriture du lot, et git fusionne sans conflit deux fonctions du
+  // meme nom posees a des endroits differents.
+
+  function dessinerSansClasseur(d) {
+    $("sansClasseurSous").textContent = d.actif
+      ? "Débranché. Les inscrits viennent de HelloAsso et du guichet, les voies "
+        + "de l'écran d'ouverture, et plus rien n'est écrit vers Google."
+      : "Il apporte encore les inscrits, et reçoit une copie des réussites.";
+    $("sansClasseurRetour").hidden = !d.actif;
+
+    var hote = $("sansClasseurControle");
+    hote.textContent = "";
+    if (!d.actif) {
+      // ⚠️ Les REFUS d'abord, les avertissements ensuite. Ce qui bloque doit se
+      // lire avant ce qui alerte, sinon on cherche pourquoi le bouton est mort.
+      (d.refus || []).concat(d.avertissements || []).forEach(function (c) {
+        var dur = (d.refus || []).indexOf(c) !== -1;
+        var n = document.createElement("div");
+        n.className = "sansClasseur-constat " + (dur ? "refus" : "avert");
+        var m = document.createElement("span");
+        m.className = "marque";
+        m.textContent = c.code;
+        var t = document.createElement("span");
+        t.textContent = c.message;
+        n.appendChild(m); n.appendChild(t);
+        hote.appendChild(n);
+      });
+    }
+
+    var geste = $("sansClasseurGeste");
+    geste.textContent = "";
+    if (!d.actif && !d.peut_basculer) {
+      var mort = document.createElement("p");
+      mort.className = "aide";
+      mort.textContent = "Débranchement impossible tant que ce qui précède "
+        + "n'est pas réglé.";
+      geste.appendChild(mort);
+      return;
+    }
+    if (d.actif) {
+      var rallumer = document.createElement("button");
+      rallumer.className = "secondaire";
+      rallumer.textContent = "Rebrancher le classeur";
+      rallumer.onclick = function () { basculerSansClasseur(false); };
+      geste.appendChild(rallumer);
+      return;
+    }
+    // ⚠️ Le geste vient du module PARTAGE : le maintien a la souris, le
+    // glissement au doigt, et c'est le POINTEUR qui decide -- pas la largeur
+    // de l'ecran. Voir `static/console/confirmer.js`.
+    window.confirmerParGeste(geste, {
+      libelle: "Maintenir 2 s pour débrancher",
+      libelleGlisse: "Glisser pour débrancher",
+      surAbout: function () { basculerSansClasseur(true); },
+    });
+  }
+
+  function chargerSansClasseur() {
+    if (!etat.moi || etat.moi.roles.indexOf("admin") === -1) return;
+    $("carteSansClasseur").hidden = false;
+    appeler("/admin/mode-sans-classeur")
+      .then(dessinerSansClasseur)
+      .catch(function (e) { if (!e || !e.gere) dire(e.message, "erreur"); });
+  }
+
+  function basculerSansClasseur(vers) {
+    appeler("/admin/mode-sans-classeur", { methode: "POST", corps: { actif: vers } })
+      .then(function (d) {
+        dire(d.message, "ok");
+        // L'identite porte le fait qui decide de l'entree « Classeur » : sans
+        // ce rechargement, le menu garderait l'etat d'avant la bascule.
+        return appeler("/admin/moi").then(function (moi) {
+          // ⚠️ `montrerConsole` est ce qui pose le masquage du tiroir, et
+          // l'entree « Classeur » depend du mode. Sans ce rechargement de
+          // l'identite PUIS ce reaffichage, le menu garderait l'etat d'avant
+          // la bascule -- et l'ecran Classeur resterait atteignable alors que
+          // ses routes repondent deja 409.
+          etat.moi = moi;
+          montrerConsole();
+          chargerSansClasseur();
+        });
+      })
+      .catch(function (e) {
+        if (!e || !e.gere) dire(e.message, "erreur");
+        if (e && e.corps) dessinerSansClasseur(e.corps);
+      });
+  }
+
   function chargerComptesSiAdmin() {
     if (etat.moi && etat.moi.roles.indexOf("admin") !== -1) {
       chargerComptes();
       chargerMaj(false);
+      chargerSansClasseur();
     }
   }
 
@@ -2676,20 +3191,39 @@
 
   /** La vue que l'adresse demande, ou l'accueil quand elle n'en nomme aucune
       d'ouvrable. */
+  /** L'ecran d'arrivee, quand l'adresse n'en nomme aucun de valable.
+   *
+   * ⚠️ `VUE_ACCUEIL` ne suffit pas depuis la spec 044 : un compte OUVREUR n'a
+   * pas droit aux Participants, et y atterrissait quand meme -- l'entree de
+   * menu etait masquee, la vue s'affichait, et toutes ses requetes revenaient
+   * en 403. Le repli descend donc sur la premiere entree REELLEMENT visible.
+   *
+   * Pour un administrateur ou un organisateur, `VUE_ACCUEIL` est visible et
+   * rien ne change : c'est un repli, pas une nouvelle regle.
+   */
+  function accueil() {
+    var defaut = document.querySelector('[data-vue="' + VUE_ACCUEIL + '"]');
+    if (!defaut || !defaut.hidden) return VUE_ACCUEIL;
+    var premiere = Array.prototype.filter.call(
+      document.querySelectorAll("#tiroir [data-vue]"),
+      function (b) { return !b.hidden; })[0];
+    return premiere ? premiere.dataset.vue : VUE_ACCUEIL;
+  }
+
   function vueDeLAdresse() {
     var nom = (window.location.hash || "").slice(1);
     // ⚠️ `hasOwnProperty`, et surtout pas `VUES[nom]` : `#constructor` et
     // `#toString` répondent vrai sur n'importe quel objet, et la console
     // partirait afficher une vue qui n'existe pas. Le dièse vient de la barre
     // d'adresse, donc de n'importe qui.
-    if (!Object.prototype.hasOwnProperty.call(VUES, nom)) return VUE_ACCUEIL;
+    if (!Object.prototype.hasOwnProperty.call(VUES, nom)) return accueil();
     // Une entrée de menu masquée, c'est une vue interdite : « Classeur » et
     // « Général » pour un compte sans le rôle admin, « HelloAsso » et
     // « Inscriptions » quand l'intégration n'est pas branchée. Le tiroir cache
     // déjà ces entrées pour ne pas « offrir un écran qui ne répondrait que des
     // refus » ; l'adresse ne doit pas rouvrir la porte que le menu ferme.
     var entree = document.querySelector('[data-vue="' + nom + '"]');
-    if (entree && entree.hidden) return VUE_ACCUEIL;
+    if (entree && entree.hidden) return accueil();
     return nom;
   }
 
@@ -4447,7 +4981,11 @@
   $("filtreAppareil").addEventListener("change", chargerDernieres);
 
   function chargerAppareils() {
-    chargerVersions();
+    // ⚠️ Reservees aux organisateurs. Un compte OUVREUR y recevait un 403 a
+    // chaque ouverture de la console : rien de casse, mais un refus normal
+    // dans le journal a chaque connexion -- et c'est ainsi qu'on finit par ne
+    // plus lire les journaux.
+    if (!seulementOuvreur()) chargerVersions();
     appeler("/admin/appareils").then(function (d) {
       var corps = $("corpsAppareils");
       corps.innerHTML = "";
@@ -6819,5 +7357,12 @@
     .catch(function () { montrerConnexion(); });
 })();
 </script>
+
+<!-- ⚠️ Module, et non script classique, et pose APRES lui : la logique de
+     l'ecran d'ouverture vit dans un fichier a part pour etre testable
+     (`tests/js/ouverture.test.mjs`), comme celle du podium et du plan sur la
+     page de resultats. Le module a besoin de `window.consoleAppeler`, que le
+     script ci-dessus vient de poser. -->
+<script type="module" src="/static/console/ouverture.js"></script>
 </body>
 </html>

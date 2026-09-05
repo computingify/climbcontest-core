@@ -138,6 +138,27 @@ def synchroniser(taille_lot: int = 50, classeur=None) -> dict:
     """
     resultat = {"envoyees": 0, "restantes": 0, "erreur": None, "ignoree": False}
 
+    # ⚠️ LE GARDE EST ICI, DANS LE METIER, ET NULLE PART AILLEURS (spec 046).
+    #
+    # Pas au demarrage du fil : `planificateur.demarrer` ne s'execute qu'une
+    # fois par processus, et la bascule se fait pendant que l'application
+    # tourne. Un fil non demarre parce que le mode etait allume au boot ne
+    # repartirait JAMAIS quand on rebranche le classeur -- il faudrait
+    # redemarrer le service. Le garde au demarrage etait dans l'architecture ;
+    # il est retire, parce qu'il fabrique la panne qu'il pretend eviter.
+    #
+    # Pas non plus dans la boucle du fil : elle n'appelle que cette fonction,
+    # et un second garde dirait la meme chose a un autre endroit -- deux
+    # gardes finissent par ne plus dire pareil.
+    #
+    # Ici, il protege AUSSI les appels directs : un script, un test, une route.
+    # C'est la regle du depot, la meme que `relever()` de la spec 008.
+    from ..sans_classeur import actif as sans_classeur_actif
+    if sans_classeur_actif():
+        resultat["ignoree"] = True
+        resultat["erreur"] = "le classeur Google est debranche (mode sans classeur)"
+        return resultat
+
     comp = Competition.query.filter_by(active=True).first()
     if not comp:
         return resultat

@@ -4,12 +4,22 @@ Le modele (`Utilisateur`, `UtilisateurRole`) est en base depuis la spec 002,
 pose a l'avance pour eviter une migration ici. Ce module lui donne enfin un
 usage.
 
-DEUX ROLES, et rien de plus (decision d'Adrien du 29/08) :
+TROIS ROLES, et rien de plus :
 
     admin          comptes, competitions, parametres, classeur
                    + tout ce que fait l'organisateur
     organisateur   participants a chaud, reaffectation, saisie manuelle,
                    impression des dossards
+    ouvreur        l'ecran d'ouverture, et RIEN d'autre (spec 044)
+
+Les deux premiers datent du 29/08. Le troisieme est arrive le 04/09 avec la
+preparation des ouvreurs : « une interface dans la console mais avec un role
+ouvreur ou il n'y aura acces qu'a ca ».
+
+⚠️ `ouvreur` est un role RESTREINT, et c'est le premier du depot. Les deux
+autres s'empilent -- un admin fait tout ce que fait un organisateur. Celui-ci
+n'empile rien : il n'ouvre qu'un ecran, et `exige_role` le refuse partout
+ailleurs sans qu'aucune route existante ait a etre modifiee.
 
 Assez pour que personne ne casse rien par accident, sans transformer une
 journee benevole en gestion de droits.
@@ -25,7 +35,8 @@ logger = logging.getLogger(__name__)
 
 ADMIN = "admin"
 ORGANISATEUR = "organisateur"
-ROLES_CONNUS = frozenset({ADMIN, ORGANISATEUR})
+OUVREUR = "ouvreur"
+ROLES_CONNUS = frozenset({ADMIN, ORGANISATEUR, OUVREUR})
 
 # --- Le cout de derivation du mot de passe ----------------------------------
 #

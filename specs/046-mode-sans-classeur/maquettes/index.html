@@ -1,0 +1,522 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Maquette 046 — le mode sans classeur</title>
+<!--
+  La carte « Le classeur Google » dans la vue Réglages, et ses trois états.
+  Couleurs et composants repris de `templates/admin.html` (l'ocre du logo,
+  `label.bascule` de la spec 021, `.avert`). Aucune dépendance extérieure.
+
+  ⚠️ Ce qui se joue ici n'est pas un réglage d'affichage : après cette bascule,
+  Adrien supprime un fichier dans son Drive. La maquette existe pour qu'on
+  regarde, AVANT de coder, si l'écran dit bien ça.
+-->
+<style>
+  :root {
+    color-scheme: light dark;
+    --fond: #FBFAF8; --surface: #FFFFFF; --surface2: #F4F1EB; --surface3: #E9E4DA;
+    --trait: #DDD7CB; --encre: #1B1A17; --encre2: #5C574C; --encre3: #8A8375;
+    --accent: #B5761C; --accent-texte: #8A5A0F; --sur-accent: #FFFFFF;
+    --sur-alerte: #FFFFFF;
+    --ok: #2E7D4F; --alerte: #B3392A; --attention: #9A6B0B;
+    --titre: system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+    --chiffre: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+    --rayon: 14px;
+  }
+  body.sombre {
+    --fond: #14130F; --surface: #1D1B16; --surface2: #26241D; --surface3: #322F26;
+    --trait: #3A3628; --encre: #F2EFE8; --encre2: #B0AA9B; --encre3: #7C766A;
+    --accent: #E0A94A; --accent-texte: #E8BC70; --sur-accent: #1B1A17;
+    --sur-alerte: #1B1A17;
+    --ok: #6FC08A; --alerte: #F08A78; --attention: #E5B44A;
+  }
+  * { box-sizing: border-box; }
+  [hidden] { display: none !important; }
+  body { margin: 0; padding: 24px 20px 70px; background: var(--fond);
+         color: var(--encre); font-family: var(--titre); line-height: 1.55; }
+  h1 { font-size: 1.35rem; margin: 0 0 6px; letter-spacing: -0.02em; }
+  h2 { font-size: 1rem; margin: 34px 0 4px; }
+  h2 small { display: block; font-weight: 400; font-size: .78rem; color: var(--encre2); }
+  p.chapo { margin: 0 0 18px; color: var(--encre2); font-size: .86rem; max-width: 78ch; }
+  .barre-outil { display: flex; gap: 10px; align-items: center; margin-bottom: 14px; }
+  .barre-outil button { font: inherit; font-size: .8rem; padding: 7px 13px;
+    border-radius: 9px; border: 1px solid var(--trait); background: var(--surface);
+    color: var(--encre); cursor: pointer; }
+  .rangee { display: flex; flex-wrap: wrap; gap: 20px; align-items: flex-start; }
+  .note { background: var(--surface); border: 1px solid var(--trait);
+    border-left: 4px solid var(--accent); border-radius: 12px; padding: 11px 15px;
+    margin: 12px 0 0; max-width: 34ch; font-size: .81rem; color: var(--encre2); }
+  .note b { color: var(--encre); }
+
+  /* --- La carte, aux cotes de la console --------------------------------- */
+  .carte { width: 560px; background: var(--surface); border: 1px solid var(--trait);
+    border-radius: var(--rayon); padding: 18px 20px 20px; }
+  .carte h3 { margin: 0 0 2px; font-size: 1.02rem; font-weight: 800; }
+  .carte .sous { color: var(--encre2); font-size: .82rem; margin: 0 0 14px; }
+  .rub { font-size: .68rem; text-transform: uppercase; letter-spacing: .07em;
+    color: var(--encre3); font-weight: 700; margin: 16px 0 7px; }
+
+  /* Les constats : refus (dur) et avertissements. */
+  .constat { display: flex; gap: 10px; padding: 9px 11px; border-radius: 11px;
+    font-size: .81rem; margin-bottom: 7px; align-items: flex-start; }
+  .constat .marque { flex: none; font-weight: 800; font-size: .72rem;
+    font-family: var(--chiffre); padding-top: 1px; }
+  .constat b { color: var(--encre); }
+  .constat.refus { background: color-mix(in srgb, var(--alerte) 10%, transparent);
+    border: 1px solid color-mix(in srgb, var(--alerte) 34%, transparent);
+    color: var(--encre2); }
+  .constat.refus .marque { color: var(--alerte); }
+  .constat.avert { background: color-mix(in srgb, var(--attention) 11%, transparent);
+    border: 1px solid color-mix(in srgb, var(--attention) 32%, transparent);
+    color: var(--encre2); }
+  .constat.avert .marque { color: var(--attention); }
+  .constat.ok { background: color-mix(in srgb, var(--ok) 10%, transparent);
+    border: 1px solid color-mix(in srgb, var(--ok) 30%, transparent);
+    color: var(--encre2); }
+  .constat.ok .marque { color: var(--ok); }
+
+  /* L'interrupteur de la spec 021. */
+  .bascule { display: flex; align-items: center; gap: 12px; margin-top: 16px;
+    padding: 12px 14px; border-radius: 12px; background: var(--surface2);
+    border: 1px solid var(--trait); }
+  .bascule .piste { width: 50px; height: 30px; border-radius: 999px; flex: none;
+    background: var(--surface3); border: 1px solid var(--trait); position: relative; }
+  .bascule .piste i { position: absolute; top: 3px; left: 3px; width: 22px;
+    height: 22px; border-radius: 50%; background: var(--surface);
+    box-shadow: 0 1px 3px rgba(0,0,0,.25); display: block; }
+  .bascule.on .piste { background: var(--accent); border-color: var(--accent); }
+  .bascule.on .piste i { left: 23px; }
+  .bascule .quoi b { display: block; font-size: .88rem; }
+  .bascule .quoi span { font-size: .77rem; color: var(--encre2); }
+  .bascule.inerte { opacity: .45; }
+
+  .liste-retire { margin: 8px 0 0; padding-left: 18px; font-size: .81rem;
+    color: var(--encre2); }
+  .liste-retire li { margin-bottom: 3px; }
+  .liste-retire b { color: var(--encre); }
+
+  .actions { display: flex; gap: 9px; margin-top: 16px; }
+  .actions button { font: inherit; font-size: .84rem; font-weight: 700;
+    padding: 11px 16px; border-radius: 11px; border: 1px solid var(--trait);
+    background: var(--surface2); color: var(--encre); }
+  .actions .danger { background: var(--alerte); color: var(--sur-alerte);
+    border-color: var(--alerte); }
+  .actions button[disabled] { opacity: .4; }
+
+  /* --- La boite de confirmation ------------------------------------------ */
+  .boite { width: 560px; background: var(--surface); border: 1px solid var(--trait);
+    border-radius: var(--rayon); padding: 18px 20px 20px;
+    box-shadow: 0 20px 60px rgba(0,0,0,.22); }
+  .boite h3 { margin: 0 0 8px; font-size: 1.02rem; }
+  .boite p { margin: 0 0 10px; font-size: .82rem; color: var(--encre2); }
+  .boite .grave { background: color-mix(in srgb, var(--alerte) 10%, transparent);
+    border: 1px solid color-mix(in srgb, var(--alerte) 34%, transparent);
+    border-radius: 11px; padding: 11px 13px; font-size: .82rem; margin-bottom: 12px;
+    color: var(--encre2); }
+  .boite .grave b { color: var(--alerte); }
+  .boite label { display: block; font-size: .78rem; color: var(--encre2);
+    margin-bottom: 5px; }
+  .boite input { width: 100%; font: inherit; font-family: var(--chiffre);
+    padding: 10px 12px; border-radius: 10px; border: 1px solid var(--trait);
+    background: var(--fond); color: var(--encre); }
+
+  /* --- Le geste de confirmation, les deux surfaces ------------------------
+     Un seul geste, deux surfaces. Ni l'un ni l'autre n'est inventé ici :
+     le MAINTIEN est celui de `admin.html` (`button.detruire`, spec 032,
+     02/09) ; le GLISSEMENT est celui de Sowel (`SlideToConfirm.tsx`,
+     spec 146), cotes comprises. */
+
+  /* 1. Le maintien — recopié de `dialog button.detruire`. */
+  .detruire {
+    position: relative; overflow: hidden; isolation: isolate;
+    display: inline-flex; align-items: center; gap: 8px;
+    cursor: pointer; font: inherit; font-weight: 600;
+    background: var(--alerte); color: var(--sur-alerte); border: 0;
+    border-radius: 9px; padding: 11px 18px;
+    touch-action: none; -webkit-user-select: none; user-select: none;
+  }
+  .detruire .remplissage {
+    position: absolute; top: 0; bottom: 0; left: 0; width: 0; z-index: -1;
+    background: color-mix(in srgb, var(--encre) 55%, transparent);
+    transition-property: width; transition-timing-function: linear;
+  }
+  .detruire.tenu { box-shadow: 0 0 0 3px color-mix(in srgb, var(--alerte) 35%, transparent); }
+  .anneau { width: 15px; height: 15px; flex: none; transform: rotate(-90deg); }
+  .anneau circle { fill: none; stroke-width: 2.5; }
+  .anneau .fond { stroke: color-mix(in srgb, var(--sur-alerte) 40%, transparent); }
+  .anneau .part { stroke: var(--sur-alerte); stroke-dasharray: 37.7;
+    stroke-dashoffset: 37.7; transition-property: stroke-dashoffset;
+    transition-timing-function: linear; }
+
+  /* 2. Le glissement — cotes de Sowel : piste 260x58 plafonnée et centrée,
+     bouton 50, marge 4, donc une course de 202 px. */
+  .glisse { position: relative; margin: 0 auto; width: 100%; max-width: 260px;
+    height: 58px; border-radius: 12px; border: 1px solid var(--trait);
+    background: var(--surface3); overflow: hidden; user-select: none;
+    touch-action: none; }
+  .glisse .jauge { position: absolute; top: 0; bottom: 0; left: 0;
+    border-radius: 12px; width: 50px;
+    background: color-mix(in srgb, var(--alerte) 16%, transparent); }
+  .glisse .mot { position: absolute; top: 0; bottom: 0; left: 58px; right: 0;
+    display: flex; align-items: center; justify-content: center; gap: 6px;
+    font-size: 13px; font-weight: 600; color: var(--encre2);
+    white-space: nowrap; pointer-events: none; }
+  .glisse .bouton { position: absolute; top: 4px; left: 4px; width: 50px;
+    height: 50px; border-radius: 9px; background: var(--alerte);
+    color: var(--sur-alerte); display: flex; align-items: center;
+    justify-content: center; box-shadow: 0 2px 6px rgba(0,0,0,.25);
+    cursor: grab; z-index: 2; }
+  .glisse.fini { border-color: color-mix(in srgb, var(--ok) 45%, transparent); }
+  .glisse.fini .jauge { background: color-mix(in srgb, var(--ok) 20%, transparent); }
+  .glisse.fini .bouton { background: var(--ok); cursor: default; }
+  .glisse.fini .mot { left: 0; right: 58px; color: var(--ok); }
+  .surface { font-size: .7rem; text-transform: uppercase; letter-spacing: .07em;
+    color: var(--encre3); font-weight: 700; margin: 0 0 8px; }
+  .cadre-geste { border: 1px solid var(--trait); border-radius: 12px;
+    padding: 14px; background: var(--fond); margin-bottom: 12px; }
+
+  /* --- Le tiroir, avant / après ------------------------------------------ */
+  .tiroir-demo { width: 270px; background: var(--surface);
+    border: 1px solid var(--trait); border-radius: 12px; padding: 10px; }
+  .tiroir-demo .item { display: flex; align-items: center; gap: 9px;
+    padding: 9px 11px; border-radius: 10px; font-size: .82rem; font-weight: 600;
+    color: var(--encre2); }
+  .tiroir-demo .item.actif { background: var(--surface2); color: var(--encre);
+    box-shadow: inset 2px 0 0 var(--accent); }
+  .tiroir-demo .item.parti { text-decoration: line-through;
+    color: color-mix(in srgb, var(--alerte) 70%, var(--encre3)); opacity: .8; }
+  .tiroir-demo .sep { height: 1px; background: var(--trait); margin: 8px 6px; }
+  .tiroir-demo .tt { font-size: .68rem; text-transform: uppercase;
+    letter-spacing: .07em; color: var(--encre3); font-weight: 700;
+    padding: 4px 11px 6px; }
+</style>
+</head>
+<body>
+
+<h1>Spec 046 — le mode sans classeur</h1>
+<p class="chapo">
+  La carte qui débranche Google Sheets, dans la vue <b>Réglages</b>, réservée à
+  l'administrateur. Elle a trois états, et le geste qu'elle porte est le seul de
+  la console dont la conséquence vit <b>hors</b> de la console : après l'avoir
+  fait, Adrien supprime un fichier dans son Drive. C'est pour ça qu'on la
+  regarde avant de l'écrire.
+</p>
+
+<div class="barre-outil">
+  <button id="basculer">Basculer clair / sombre</button>
+  <span style="font-size:.76rem;color:var(--encre2)">La console suit le système.</span>
+</div>
+
+<h2>1 — Impossible
+  <small>Un refus dur tient : l'interrupteur est inerte, et on dit lequel.</small></h2>
+<div class="rangee">
+  <div class="carte">
+    <h3>Le classeur Google</h3>
+    <p class="sous">Il apporte encore les inscrits, et reçoit une copie des réussites.</p>
+
+    <div class="rub">Avant de le débrancher</div>
+    <div class="constat refus"><span class="marque">B1</span>
+      <span><b>Aucune source d'inscrits n'est reliée.</b> Sans le classeur et
+      sans HelloAsso, il n'existe aucun moyen de charger cent participants —
+      seulement la saisie au guichet, une personne à la fois.</span></div>
+    <div class="constat ok"><span class="marque">B2</span>
+      <span><b>47 voies et 4 catégories</b> sont en base pour « Novembre 2026 ».
+      Rien de ce que porte l'onglet <i>Plan</i> ne serait perdu.</span></div>
+
+    <div class="bascule inerte">
+      <span class="piste"><i></i></span>
+      <span class="quoi"><b>Débrancher le classeur Google</b>
+        <span>Impossible tant que B1 tient.</span></span>
+    </div>
+  </div>
+  <div>
+    <div class="note"><b>Le contrôle regarde ce qui est EN BASE</b>, jamais ce
+      que le classeur contient. C'est le seul moment où la vérification est
+      encore possible : après, le fichier sera supprimé.</div>
+    <div class="note">Le refus <b>nomme ce qui manque et pourquoi</b>. « Bascule
+      impossible » tout court obligerait à deviner, un dimanche matin.</div>
+  </div>
+</div>
+
+<h2>2 — Prêt
+  <small>Aucun refus. Les avertissements se lisent avant que le bouton s'active.</small></h2>
+<div class="rangee">
+  <div class="carte">
+    <h3>Le classeur Google</h3>
+    <p class="sous">Il apporte encore les inscrits, et reçoit une copie des réussites.</p>
+
+    <div class="rub">Avant de le débrancher</div>
+    <div class="constat ok"><span class="marque">B1</span>
+      <span><b>HelloAsso est relié</b> sur « Novembre 2026 » : les inscriptions
+      continueront d'arriver.</span></div>
+    <div class="constat ok"><span class="marque">B2</span>
+      <span><b>47 voies et 4 catégories</b> sont en base.</span></div>
+    <div class="constat avert"><span class="marque">A1</span>
+      <span><b>12 réussites attendent d'être écrites au classeur.</b> Elles n'y
+      arriveront jamais. Elles ne sont perdues pour personne : elles sont en
+      base.</span></div>
+    <div class="constat avert"><span class="marque">A2</span>
+      <span><b>3 voies ne sont rattachées à aucune catégorie.</b> Elles ne
+      comptent pour personne. Après la bascule, c'est l'écran d'ouverture qui
+      les corrigera.</span></div>
+    <div class="constat avert"><span class="marque">A4</span>
+      <span><b>La sauvegarde.</b> Le classeur ne redondera plus rien : la copie
+      de la base toutes les dix minutes devient le seul filet.</span></div>
+
+    <div class="bascule">
+      <span class="piste"><i></i></span>
+      <span class="quoi"><b>Débrancher le classeur Google</b>
+        <span>3 avertissements lus, aucun blocage.</span></span>
+    </div>
+  </div>
+  <div>
+    <div class="note"><b>A4 s'affiche toujours</b>, même quand tout est vert.
+      Ce n'est pas un défaut à corriger, c'est une phrase à lire : la redondance
+      gratuite disparaît, et c'était écrit dans
+      <code>contraintes-metier.md</code> §2 dès le premier jour.</div>
+    <div class="note">Les avertissements <b>n'empêchent rien</b>. Un écran qui
+      bloque sur ce qu'on peut assumer finit par être contourné.</div>
+  </div>
+</div>
+
+<h2>3 — La confirmation
+  <small>Le geste de la maison : on maintient à la souris, on glisse au doigt.</small></h2>
+<div class="rangee">
+  <div class="boite">
+    <h3>Débrancher le classeur Google ?</h3>
+    <div class="grave">
+      <b>Ce retour arrière ne fera pas revenir un fichier supprimé.</b>
+      Rallumer le réglage remettra l'écran, l'import et le miroir — mais si tu
+      supprimes le classeur dans ton Drive, il faudra en relier un neuf et le
+      repeupler à la main.
+    </div>
+    <p>Après la bascule, les inscrits viendront de <b>HelloAsso</b> et du
+       guichet, les voies de <b>l'écran d'ouverture</b>, et plus rien ne sera
+       écrit vers Google.</p>
+
+    <div class="cadre-geste">
+      <p class="surface">Sur ordinateur — le bouton à maintenir</p>
+      <p style="margin:0 0 12px;font-size:.78rem;color:var(--encre2)">
+        Relâcher avant la fin annule. Au clavier : Entrée maintenue sur le bouton.</p>
+      <div class="actions" style="margin-top:0">
+        <button>Annuler</button>
+        <button type="button" class="detruire" id="tenir">
+          <i class="remplissage" id="tenirJauge" aria-hidden="true"></i>
+          <svg class="anneau" viewBox="0 0 16 16" aria-hidden="true">
+            <circle class="fond" cx="8" cy="8" r="6"></circle>
+            <circle class="part" id="tenirPart" cx="8" cy="8" r="6"></circle>
+          </svg>
+          <span id="tenirMot">Maintenir 2 s pour débrancher</span>
+        </button>
+      </div>
+    </div>
+
+    <div class="cadre-geste" style="margin-bottom:0">
+      <p class="surface">Sur téléphone — le glissement</p>
+      <div class="glisse" id="glisse">
+        <div class="jauge" id="glisseJauge"></div>
+        <div class="mot" id="glisseMot">Glisser pour débrancher <span>»</span></div>
+        <div class="bouton" id="glisseBouton" role="button"
+             aria-label="Glisser pour débrancher">›</div>
+      </div>
+      <p style="margin:12px 0 0;text-align:center">
+        <button style="font:inherit;font-size:.8rem;padding:8px 22px;
+          border-radius:9px;border:1px solid var(--trait);background:transparent;
+          color:var(--encre2)">Annuler</button></p>
+    </div>
+  </div>
+  <div>
+    <div class="note"><b>Le bouton à maintenir n'est pas nouveau.</b> Il est
+      dans la console depuis le 02/09 (spec 032), et il remplaçait déjà un mot
+      à frapper au clavier — « sept caractères, sur un ordinateur posé sur un
+      coin de table dans une salle d'escalade ». On le reprend tel quel :
+      libellé qui porte l'instruction, anneau de progression, décompte pendant
+      le geste.</div>
+    <div class="note"><b>Le glissement vient de Sowel</b>
+      (<code>SlideToConfirm.tsx</code>), cotes comprises : piste plafonnée à
+      260 px et <b>centrée</b>, bouton de 50, course de 202 px. La raison est
+      écrite là-bas : pleine largeur sur un téléphone de 393 px, le geste part
+      du coin inférieur gauche — le point le plus loin du pouce, sur un
+      contrôle fait pour être utilisé d'une main devant un portail.</div>
+    <div class="note"><b>Ce qui décide, c'est le pointeur, pas la largeur.</b>
+      <code>(hover: hover) and (pointer: fine)</code> → le maintien ; sinon le
+      glissement. Un portable tactile et un téléphone en paysage se rangeraient
+      du mauvais côté d'une simple largeur d'écran.</div>
+    <div class="note"><b>Relâcher trop tôt annule</b>, dans les deux cas : le
+      curseur revient au départ, la jauge se vide. C'est ce que les deux gestes
+      ont en commun, et c'est tout leur objet — une pression accidentelle ne
+      déclenche rien.</div>
+  </div>
+</div>
+
+<h2>4 — Allumé
+  <small>La carte devient le rappel de ce qui a été retiré, et le seul chemin de retour.</small></h2>
+<div class="rangee">
+  <div class="carte">
+    <h3>Le classeur Google <span style="font-size:.72rem;font-weight:700;
+        color:var(--alerte);border:1px solid currentColor;border-radius:999px;
+        padding:2px 9px;vertical-align:2px">débranché</span></h3>
+    <p class="sous">Débranché le 05/09/2026 par adrien.</p>
+
+    <div class="rub">Ce qui a été retiré</div>
+    <ul class="liste-retire">
+      <li>L'écran <b>Classeur</b> et tout ce qu'il portait — lien, test d'accès,
+          import, jeton Google</li>
+      <li>Le <b>fil de synchronisation</b> : plus aucune réussite n'est écrite
+          vers Google</li>
+      <li>Les compteurs <b>« réussites en attente »</b>, qui n'ont plus d'objet</li>
+    </ul>
+
+    <div class="rub">Ce qui fait foi maintenant</div>
+    <ul class="liste-retire">
+      <li>Les inscrits — <b>HelloAsso</b> et le guichet</li>
+      <li>Les voies — <b>l'écran d'ouverture</b></li>
+      <li>La sauvegarde — <b>la base</b>, copiée toutes les dix minutes</li>
+    </ul>
+
+    <div class="bascule on">
+      <span class="piste"><i></i></span>
+      <span class="quoi"><b>Classeur Google débranché</b>
+        <span>Rallumer remettra l'écran, l'import et le miroir.</span></span>
+    </div>
+  </div>
+  <div class="rangee" style="gap:14px">
+    <div class="tiroir-demo">
+      <div class="tt">Avant</div>
+      <div class="item">Général</div>
+      <div class="item">Participants</div>
+      <div class="item">Circuits</div>
+      <div class="item">Réussites</div>
+      <div class="item">Téléphones</div>
+      <div class="item parti">Classeur</div>
+      <div class="item">Archives</div>
+      <div class="item actif">Réglages</div>
+    </div>
+    <div class="tiroir-demo">
+      <div class="tt">Après</div>
+      <div class="item">Général</div>
+      <div class="item">Participants</div>
+      <div class="item">Ouverture</div>
+      <div class="item">Circuits</div>
+      <div class="item">Réussites</div>
+      <div class="item">Téléphones</div>
+      <div class="item">Archives</div>
+      <div class="item actif">Réglages</div>
+    </div>
+  </div>
+</div>
+<div class="note" style="max-width:78ch">
+  <b>L'entrée « Classeur » disparaît pour TOUS les rôles, administrateur
+  compris.</b> C'est la demande, mot pour mot : « je ne veux plus du tout le voir
+  dans les paramètres ». Le seul endroit qui parle encore du classeur, c'est
+  cette carte — parce que c'est par elle qu'on revient en arrière.
+</div>
+
+<script>
+  document.getElementById("basculer").addEventListener("click", function () {
+    document.body.classList.toggle("sombre");
+  });
+  /* ===== 1. Le maintien — repris de `admin.html` ========================= */
+  var MAINTIEN_MS = 2000;
+  var tenir = document.getElementById("tenir"),
+      tenirJauge = document.getElementById("tenirJauge"),
+      tenirPart = document.getElementById("tenirPart"),
+      tenirMot = document.getElementById("tenirMot"),
+      LIBELLE = tenirMot.textContent,
+      minuteur = null, decompte = null;
+
+  function remplir(part) {
+    var duree = part ? (MAINTIEN_MS / 1000) + "s" : "0s";
+    tenirJauge.style.transitionDuration = duree;
+    tenirJauge.style.width = part ? "100%" : "0";
+    tenirPart.style.transitionDuration = duree;
+    tenirPart.style.strokeDashoffset = part ? "0" : "37.7";
+  }
+  function demarrer(e) {
+    if (minuteur) return;
+    if (e && e.type === "keydown") {
+      if (e.repeat) return;                       /* Entrée maintenue = rafale */
+      if (e.key !== "Enter" && e.key !== " ") return;
+      e.preventDefault();
+    }
+    remplir(1);
+    tenir.classList.add("tenu");
+    var reste = MAINTIEN_MS / 1000;
+    tenirMot.textContent = "Encore " + reste + " s…";
+    decompte = setInterval(function () {
+      reste -= 1;
+      if (reste > 0) tenirMot.textContent = "Encore " + reste + " s…";
+    }, 1000);
+    minuteur = setTimeout(function () {
+      clearInterval(decompte); minuteur = decompte = null;
+      tenir.classList.remove("tenu");
+      tenirMot.textContent = "Débranché";
+    }, MAINTIEN_MS);
+  }
+  function annulerMaintien() {
+    if (!minuteur) return;
+    clearTimeout(minuteur); clearInterval(decompte);
+    minuteur = decompte = null;
+    tenir.classList.remove("tenu");
+    remplir(0);
+    tenirMot.textContent = LIBELLE;
+  }
+  tenir.onpointerdown = demarrer;
+  tenir.onpointerup = annulerMaintien;
+  tenir.onpointerleave = annulerMaintien;
+  tenir.onpointercancel = annulerMaintien;
+  tenir.onkeydown = demarrer;
+  tenir.onkeyup = annulerMaintien;
+  tenir.onblur = annulerMaintien;
+  remplir(0);
+
+  /* ===== 2. Le glissement — cotes de Sowel ============================== */
+  var BOUTON = 50, MARGE = 4, EMPRISE = BOUTON + MARGE * 2;   /* 58 */
+  var piste = document.getElementById("glisse"),
+      curseur = document.getElementById("glisseBouton"),
+      jauge = document.getElementById("glisseJauge"),
+      motGlisse = document.getElementById("glisseMot"),
+      x = 0, drag = null, fini = false;
+
+  function course() { return Math.max(0, piste.clientWidth - EMPRISE); }
+  function poser(v, anime) {
+    x = v;
+    var t = anime ? "left .2s, width .2s" : "none";
+    curseur.style.transition = t; jauge.style.transition = t;
+    curseur.style.left = (MARGE + x) + "px";
+    jauge.style.width = (BOUTON + x) + "px";
+  }
+  function aboutirGlisse() {
+    if (fini) return;
+    fini = true; drag = null;
+    poser(course(), true);
+    piste.classList.add("fini");
+    motGlisse.textContent = "Débranché";
+    curseur.textContent = "✓";
+  }
+  curseur.addEventListener("pointerdown", function (e) {
+    if (fini) return;
+    curseur.setPointerCapture && curseur.setPointerCapture(e.pointerId);
+    drag = { depart: e.clientX - x, max: course() };
+  });
+  curseur.addEventListener("pointermove", function (e) {
+    if (!drag) return;
+    var nx = Math.max(0, Math.min(drag.max, e.clientX - drag.depart));
+    poser(nx, false);
+    /* `drag.max > 0` : sur une piste dégénérée, le premier mouvement
+       validerait tout seul. */
+    if (drag.max > 0 && nx >= drag.max - 1) aboutirGlisse();
+  });
+  function relacher() {
+    if (!drag || fini) return;
+    var max = drag.max; drag = null;
+    if (x < max - 1) poser(0, true);              /* retour au départ */
+  }
+  curseur.addEventListener("pointerup", relacher);
+  curseur.addEventListener("pointercancel", relacher);
+  poser(0, false);
+</script>
+</body>
+</html>
