@@ -88,9 +88,24 @@ qu'on ne met pas à jour le matin d'une compétition :
   **supprimée**, et la fonction métier qui la servait avec elle — une route
   neutralisée finit toujours par être rebranchée « puisqu'elle est là ».
 
-  Ce qui disparaît avec : donner le dossard d'un absent à un arrivant de
-  dernière minute. C'était une économie de papier, jamais une nécessité —
-  l'ajout attribue le premier numéro libre, et la console imprime la fiche.
+### Corrigé
+
+- **La console garde la vue qu'on regarde quand la page se recharge.** Un F5 —
+  ou un onglet que le navigateur réveille après l'avoir mis en veille —
+  ramenait toujours sur « Participants », quelle que soit la vue ouverte : le
+  jour J, la console reste des heures sur les Réussites ou les Téléphones, et
+  retrouver l'accueil à chaque rechargement fait refaire trois clics. La vue
+  vit désormais dans l'adresse (`/console#telephones`), ce qui rend au passage
+  le bouton **Retour** utile — il quittait la console — et permet d'envoyer un
+  lien vers un écran précis. `/console` reste l'accueil, sans dièse. Une
+  adresse ne rouvre pas ce que le tiroir ferme : `#classeur` chez un compte
+  sans le rôle administrateur retombe sur l'accueil, comme un dièse inconnu.
+- **Le message de retour du consentement Google ne s'efface plus aussitôt
+  dit.** Il était posé puis emporté dans la même foulée par le changement
+  d'écran, qui remet la zone de message à zéro : on revenait de chez Google sur
+  un classeur muet, sans savoir si le consentement avait abouti.
+
+## [0.20.0] — 2026-09-05
 
 ### Ajouté
 
@@ -122,38 +137,6 @@ qu'on ne met pas à jour le matin d'une compétition :
   obligatoire même pour une petite association (art. 30).
 
 
-### Corrigé
-
-- **L'import du classeur pouvait fabriquer un doublon, ou pire.** Il rapprochait
-  une ligne par son **seul dossard**. Deux conséquences, reproduites par un test
-  avant d'être corrigées : un participant dont le numéro avait changé de main
-  n'était plus retrouvé et sa fiche était **recréée** ; et si son ancien numéro
-  était désormais porté par quelqu'un d'autre, l'import **écrasait le nom de ce
-  quelqu'un d'autre**, dont les réussites étaient déjà enregistrées.
-
-  Le dossard reste la première clé — c'est le cas courant. Mais il ne conclut
-  plus seul : l'**identité** le confirme, et prend le relais quand il ne dit
-  rien. C'est la comparaison du rapprochement HelloAsso, pas une seconde écrite
-  à côté. Le classeur ne réécrit plus que les fiches **qu'il possède**, et
-  jamais une qui porte des réussites.
-
-- **Une correction faite au crayon survit à l'import suivant.** Un champ modifié
-  dans la console est marqué, et le classeur ne le réécrit plus — « la console
-  gagne, définitivement ». La protection est **par champ** : corriger le club ne
-  fige pas la catégorie. La liste teinte les cellules protégées, et le rapport
-  d'import compte les corrections conservées plutôt que de les taire.
-
-- **Le harnais des tests navigateur pouvait rendre un verdict qu'il n'avait pas
-  produit.** `piloter` attend que le pilote poste son relevé, mais il tenait
-  pour acquis qu'on lui remettait un verdict vierge sans jamais l'écrire : le
-  pari ne tenait qu'à la portée des fixtures. Le jour où une fixture partagée
-  aurait servi deux appels, le second aurait trouvé le relevé du premier, rendu
-  aussitôt, et **n'aurait lancé aucun navigateur** — les tests suivants passant
-  au vert sur les mesures du parcours précédent. Un test qui ne mesure plus rien
-  et qui ne le dit pas. `piloter` pose désormais lui-même l'état dont il dépend,
-  et un test le prouve en le lui reprenant.
-
-### Ajouté
 
 - **Les inscriptions HelloAsso arrivent toutes seules** (spec 008). La
   plateforme d'inscription du club alimente désormais une **salle d'attente**
@@ -287,37 +270,19 @@ qu'on ne met pas à jour le matin d'une compétition :
   privée de `routes/sante.py` : trois appelants en avaient besoin, aucun ne
   pouvait l'atteindre sans importer une route.
 
-### Corrigé
-
-- **Le pied du tiroir de la console disait la version sans le catalogue** tant
-  qu'on n'avait pas ouvert l'écran « Téléphones » (spec 030, critère A9). Le
-  numéro vient de `/admin/versions`, et cette route n'était appelée que par cet
-  écran-là : un organisateur qui ouvrait la console et restait sur
-  « Participants » lisait un pied à moitié rempli, sans que rien ne lui dise où
-  aller chercher le reste. La console la demande maintenant **à l'ouverture** —
-  une requête de plus, ~200 octets — et l'écran « Téléphones » continue de la
-  rafraîchir, donc le numéro ne vieillit pas.
-
-  Trouvé en reprenant les dix-huit critères d'acceptation de la spec un par un
-  avant de publier. Les dix-sept autres étaient tenus ; **sept ne l'étaient que
-  par un relevé fait à la main**, sans qu'aucun test ne touche les écrans
-  concernés. Ils en ont un désormais : les deux sections des Réglages du juge,
-  ce que le bouton « Retélécharger maintenant » envoie **vraiment** (observé
-  côté serveur : ni `If-None-Match`, ni chaîne de requête), son refus propre
-  hors ligne, le bouton de mise à jour qui n'apparaît que si la coquille est en
-  retard, le pied du tiroir, et la phrase du rattrapage qui doit **nommer le
-  geste** plutôt que promettre que ça se répare tout seul.
-
-- Le circuit **« Noir »** suivait le thème du téléphone et non celui qui est
-  réellement affiché : un juge qui imposait le sombre sur un téléphone en clair
-  aurait vu un aplat presque noir sur un fond presque noir, sans savoir s'il
-  avait scanné (spec 040).
-
-⚠️ La coquille hors-ligne de la PWA passe en `v8` : sur un téléphone déjà
-installé, le réglage n'apparaît qu'après avoir **fermé et rouvert**
-l'application.
-
 ### Modifié
+
+- **Le dossard ne se change plus depuis la console** (spec 008). Il est imprimé
+  sur le QR code déjà distribué, et le classeur Google porte le sien : deux
+  écritures d'un même numéro finissaient toujours par se contredire. Le crayon
+  affiche donc le dossard sans le laisser saisir, la route de réaffectation est
+  **supprimée**, et la fonction métier qui la servait avec elle — une route
+  neutralisée finit toujours par être rebranchée « puisqu'elle est là ».
+
+  Ce qui disparaît avec : donner le dossard d'un absent à un arrivant de
+  dernière minute. C'était une économie de papier, jamais une nécessité —
+  l'ajout attribue le premier numéro libre, et la console imprime la fiche.
+
 
 - **Les Réglages de l'application juge, au pouce** (spec 042) — deux retouches
   du même écran.
@@ -437,6 +402,79 @@ l'application.
     propre copie de `piloter`, donc son propre chromium.
 
 ### Corrigé
+
+- **Un worker gunicorn sur quatre pouvait mourir au démarrage.**
+  `PRAGMA busy_timeout` était posé **après** `PRAGMA journal_mode=WAL`. Or le
+  passage en WAL demande un verrou exclusif : quand les quatre workers démarrent
+  ensemble sur une base neuve, celui qui arrive pendant la transaction de schéma
+  d'un autre échouait tout de suite sur « database is locked » — son propre
+  garde-fou n'existait pas encore. Une attente ne protège que ce qui vient après
+  elle.
+
+  Le symptôme était un rouge intermittent de la CI. Le vrai risque était le
+  démarrage du service sur la VM, après une coupure : c'est exactement le
+  moment où quatre workers ouvrent une base ensemble. Mesuré, 30 puis 70
+  exécutions du test du verrou orphelin : **1 échec sur 30**, puis **0 sur 70**.
+  Un test verrouille désormais l'ordre, et il rougit si on l'inverse.
+
+- **L'import du classeur pouvait fabriquer un doublon, ou pire.** Il rapprochait
+  une ligne par son **seul dossard**. Deux conséquences, reproduites par un test
+  avant d'être corrigées : un participant dont le numéro avait changé de main
+  n'était plus retrouvé et sa fiche était **recréée** ; et si son ancien numéro
+  était désormais porté par quelqu'un d'autre, l'import **écrasait le nom de ce
+  quelqu'un d'autre**, dont les réussites étaient déjà enregistrées.
+
+  Le dossard reste la première clé — c'est le cas courant. Mais il ne conclut
+  plus seul : l'**identité** le confirme, et prend le relais quand il ne dit
+  rien. C'est la comparaison du rapprochement HelloAsso, pas une seconde écrite
+  à côté. Le classeur ne réécrit plus que les fiches **qu'il possède**, et
+  jamais une qui porte des réussites.
+
+- **Une correction faite au crayon survit à l'import suivant.** Un champ modifié
+  dans la console est marqué, et le classeur ne le réécrit plus — « la console
+  gagne, définitivement ». La protection est **par champ** : corriger le club ne
+  fige pas la catégorie. La liste teinte les cellules protégées, et le rapport
+  d'import compte les corrections conservées plutôt que de les taire.
+
+- **Le harnais des tests navigateur pouvait rendre un verdict qu'il n'avait pas
+  produit.** `piloter` attend que le pilote poste son relevé, mais il tenait
+  pour acquis qu'on lui remettait un verdict vierge sans jamais l'écrire : le
+  pari ne tenait qu'à la portée des fixtures. Le jour où une fixture partagée
+  aurait servi deux appels, le second aurait trouvé le relevé du premier, rendu
+  aussitôt, et **n'aurait lancé aucun navigateur** — les tests suivants passant
+  au vert sur les mesures du parcours précédent. Un test qui ne mesure plus rien
+  et qui ne le dit pas. `piloter` pose désormais lui-même l'état dont il dépend,
+  et un test le prouve en le lui reprenant.
+
+
+- **Le pied du tiroir de la console disait la version sans le catalogue** tant
+  qu'on n'avait pas ouvert l'écran « Téléphones » (spec 030, critère A9). Le
+  numéro vient de `/admin/versions`, et cette route n'était appelée que par cet
+  écran-là : un organisateur qui ouvrait la console et restait sur
+  « Participants » lisait un pied à moitié rempli, sans que rien ne lui dise où
+  aller chercher le reste. La console la demande maintenant **à l'ouverture** —
+  une requête de plus, ~200 octets — et l'écran « Téléphones » continue de la
+  rafraîchir, donc le numéro ne vieillit pas.
+
+  Trouvé en reprenant les dix-huit critères d'acceptation de la spec un par un
+  avant de publier. Les dix-sept autres étaient tenus ; **sept ne l'étaient que
+  par un relevé fait à la main**, sans qu'aucun test ne touche les écrans
+  concernés. Ils en ont un désormais : les deux sections des Réglages du juge,
+  ce que le bouton « Retélécharger maintenant » envoie **vraiment** (observé
+  côté serveur : ni `If-None-Match`, ni chaîne de requête), son refus propre
+  hors ligne, le bouton de mise à jour qui n'apparaît que si la coquille est en
+  retard, le pied du tiroir, et la phrase du rattrapage qui doit **nommer le
+  geste** plutôt que promettre que ça se répare tout seul.
+
+- Le circuit **« Noir »** suivait le thème du téléphone et non celui qui est
+  réellement affiché : un juge qui imposait le sombre sur un téléphone en clair
+  aurait vu un aplat presque noir sur un fond presque noir, sans savoir s'il
+  avait scanné (spec 040).
+
+⚠️ La coquille hors-ligne de la PWA passe en `v8` : sur un téléphone déjà
+installé, le réglage n'apparaît qu'après avoir **fermé et rouvert**
+l'application.
+
 
 - **Un test passait en héritant du voisin.**
   `test_la_garde_et_la_confirmation_sont_partagees_avec_relier` ne demandait
@@ -2608,6 +2646,7 @@ livrer — spec 001, itération 3.
 - Les données et les secrets vivent dans `shared/`, hors des releases : un
   déploiement ou un retour arrière ne peut pas les toucher.
 
+[0.20.0]: https://github.com/computingify/climbcontest-core/releases/tag/v0.20.0
 [0.19.0]: https://github.com/computingify/climbcontest-core/releases/tag/v0.19.0
 [0.18.1]: https://github.com/computingify/climbcontest-core/releases/tag/v0.18.1
 [0.18.0]: https://github.com/computingify/climbcontest-core/releases/tag/v0.18.0

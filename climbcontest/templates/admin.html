@@ -2257,7 +2257,14 @@
 (function () {
   "use strict";
 
-  var etat = { participants: [], moi: null };
+  var etat = { participants: [], moi: null, vue: null };
+
+  // ⚠️ La recherche est lue ICI, au chargement, et pas au moment de s'en
+  // servir. La navigation par dièse (plus bas) réécrit l'adresse et emporte le
+  // `?jeton=…` du retour de consentement Google avec elle : une lecture plus
+  // tardive ne trouverait plus rien, et le message de retour serait avalé sans
+  // que rien ne le dise.
+  var REQUETE = new URLSearchParams(window.location.search);
   var $ = function (id) { return document.getElementById(id); };
 
   // --- Appels ---------------------------------------------------------------
@@ -2394,7 +2401,11 @@
     // ecrans » devient vraie. L'ecran « Telephones » continue de la
     // rafraichir : le numero ne vieillit pas.
     chargerVersions();
-    montrerVue("participants");
+    // ⚠️ PAS « participants » en dur. C'était le défaut : un F5 sur les
+    // Réglages, et l'on se retrouvait sur les Participants sans savoir
+    // pourquoi. `vueDeLAdresse()` retombe sur l'accueil quand l'adresse ne
+    // nomme rien -- l'ouverture ordinaire ne change donc pas.
+    montrerVue(vueDeLAdresse(), true);
   }
 
   $("formConnexion").addEventListener("submit", function (evenement) {
@@ -2648,7 +2659,76 @@
     $("burger").setAttribute("aria-label", ouvert ? "Fermer le menu" : "Ouvrir le menu");
   }
 
-  function montrerVue(nom) {
+  // --- La vue courante vit dans l'adresse ------------------------------------
+  //
+  // Un rechargement -- F5, un onglet que le navigateur réveille, le retour du
+  // consentement Google -- ramenait TOUJOURS sur « Participants », quelle que
+  // soit la vue qu'on regardait. Le dièse la porte désormais : `/console` reste
+  // l'accueil, `/console#telephones` ouvre les téléphones.
+  //
+  // Trois choses viennent avec, et c'est ce qui fait préférer l'adresse à un
+  // `sessionStorage` : le bouton **Retour** du navigateur redevient utile (il
+  // quittait la console), l'adresse se **partage** — « ouvre-moi les
+  // Téléphones » —, et deux onglets ouverts sur deux vues restent indépendants.
+  // Même motif que la fiche du grimpeur, qui navigue déjà en `#g=`.
+
+  var VUE_ACCUEIL = "participants";
+
+  /** La vue que l'adresse demande, ou l'accueil quand elle n'en nomme aucune
+      d'ouvrable. */
+  function vueDeLAdresse() {
+    var nom = (window.location.hash || "").slice(1);
+    // ⚠️ `hasOwnProperty`, et surtout pas `VUES[nom]` : `#constructor` et
+    // `#toString` répondent vrai sur n'importe quel objet, et la console
+    // partirait afficher une vue qui n'existe pas. Le dièse vient de la barre
+    // d'adresse, donc de n'importe qui.
+    if (!Object.prototype.hasOwnProperty.call(VUES, nom)) return VUE_ACCUEIL;
+    // Une entrée de menu masquée, c'est une vue interdite : « Classeur » et
+    // « Général » pour un compte sans le rôle admin, « HelloAsso » et
+    // « Inscriptions » quand l'intégration n'est pas branchée. Le tiroir cache
+    // déjà ces entrées pour ne pas « offrir un écran qui ne répondrait que des
+    // refus » ; l'adresse ne doit pas rouvrir la porte que le menu ferme.
+    var entree = document.querySelector('[data-vue="' + nom + '"]');
+    if (entree && entree.hidden) return VUE_ACCUEIL;
+    return nom;
+  }
+
+  /** L'adresse suit la vue.
+
+      `remplacer` pour les affichages qui ne sont PAS une navigation : le
+      premier écran après connexion, le retour du consentement Google, le
+      rattrapage d'un dièse illisible. Empiler une entrée d'historique pour
+      eux ferait d'un « Retour » un geste sans effet visible. */
+  function ecrireAdresse(nom, remplacer) {
+    var vise = window.location.pathname
+             + (nom === VUE_ACCUEIL ? "" : "#" + nom);
+    // ⚠️ La comparaison inclut la RECHERCHE, et c'est elle qui efface
+    // `?jeton=pose` au retour de Google : sans ça, un rechargement rejouerait
+    // le message de consentement. C'est le nettoyage que faisait
+    // `lireRetourJeton`, ramené là où l'adresse s'écrit.
+    var courant = window.location.pathname + window.location.search
+                + window.location.hash;
+    if (vise === courant) return;
+    history[remplacer ? "replaceState" : "pushState"](null, "", vise);
+  }
+
+  // Le bouton Retour, et une adresse modifiée à la main. Sans cet écouteur,
+  // l'adresse changerait sans que l'écran suive : les deux se contrediraient,
+  // et « Retour » n'aurait plus l'air de marcher.
+  window.addEventListener("hashchange", function () {
+    // Rien à faire tant que personne n'est connecté : `montrerConsole` lira
+    // l'adresse au moment où il ouvrira la console.
+    if (!etat.moi) return;
+    var vise = vueDeLAdresse();
+    // ⚠️ `true` : l'entrée d'historique existe déjà -- c'est celle qu'on vient
+    // de rejoindre. En empiler une seconde rendrait le « Retour » suivant
+    // inerte, un clic pour rien.
+    if (vise !== etat.vue) montrerVue(vise, true);
+  });
+
+  function montrerVue(nom, remplacer) {
+    etat.vue = nom;
+    ecrireAdresse(nom, remplacer);
     Object.keys(VUES).forEach(function (cle) {
       var section = $("vue" + cle.charAt(0).toUpperCase() + cle.slice(1));
       if (section) section.hidden = cle !== nom;
@@ -6684,12 +6764,22 @@
     window.location.href = "/admin/classeur/google/consentement";
   });
 
-  /** Le retour du consentement arrive dans la requete. On le dit, puis on
-   *  NETTOIE l'URL : un rechargement ne doit pas rejouer le message. */
+  /** Le retour du consentement arrive dans la requête. On ouvre l'écran, puis
+   *  on le dit -- et l'adresse est nettoyée au passage : un rechargement ne
+   *  doit pas rejouer le message. */
   function lireRetourJeton() {
-    var params = new URLSearchParams(window.location.search);
-    var resultat = params.get("jeton");
+    var resultat = REQUETE.get("jeton");
     if (!resultat) return;
+
+    // ⚠️ LA VUE D'ABORD, LE MESSAGE ENSUITE, et c'est un défaut réparé : dans
+    // l'autre ordre, la phrase de retour de Google était dite puis effacée
+    // dans la même foulée par le `$("message").hidden = true` de `montrerVue`.
+    // Le consentement aboutissait sans que rien ne le confirme à l'écran.
+    //
+    // `true` : on ne vient pas de naviguer, on revient de chez Google. Une
+    // entrée d'historique de plus ferait d'un « Retour » un aller-retour vers
+    // une adresse qui repartirait chez Google.
+    montrerVue("classeur", true);
 
     if (resultat === "pose") {
       dire("Compte Google connecté. Teste l'accès en écriture pour vérifier "
@@ -6698,10 +6788,8 @@
       dire("Consentement refusé chez Google. L'ancien jeton, s'il y en avait "
            + "un, est toujours en place.", "attention");
     } else {
-      dire(params.get("d") || "Le consentement Google n'a pas abouti.", "erreur");
+      dire(REQUETE.get("d") || "Le consentement Google n'a pas abouti.", "erreur");
     }
-    history.replaceState(null, "", window.location.pathname);
-    montrerVue("classeur");
   }
 
   $("btnPoserJeton").addEventListener("click", function () {
