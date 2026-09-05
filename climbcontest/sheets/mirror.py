@@ -138,7 +138,7 @@ def synchroniser(taille_lot: int = 50, classeur=None) -> dict:
     """
     resultat = {"envoyees": 0, "restantes": 0, "erreur": None, "ignoree": False}
 
-    # ⚠️ LE GARDE EST ICI, DANS LE METIER, ET NULLE PART AILLEURS (spec 045).
+    # ⚠️ LE GARDE EST ICI, DANS LE METIER, ET NULLE PART AILLEURS (spec 046).
     #
     # Pas au demarrage du fil : `planificateur.demarrer` ne s'execute qu'une
     # fois par processus, et la bascule se fait pendant que l'application

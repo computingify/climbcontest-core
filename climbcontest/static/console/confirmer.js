@@ -1,5 +1,5 @@
 /**
- * Le geste qui confirme une action irrattrapable — specs 044 et 045.
+ * Le geste qui confirme une action irrattrapable — specs 044 et 046.
  *
  * UN geste, DEUX surfaces :
  *

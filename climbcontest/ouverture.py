@@ -128,7 +128,7 @@ class ErreurOuverture(Exception):
 # --- Ce qui a le droit de bouger --------------------------------------------
 
 def ecriture_permise() -> bool:
-    """La saisie n'est ouverte que par le mode sans classeur (spec 045).
+    """La saisie n'est ouverte que par le mode sans classeur (spec 046).
 
     Import tardif : `sans_classeur` lit la base, ce module aussi, et les faire
     se connaître en tête créerait un cycle le jour où l'un des deux grandira.

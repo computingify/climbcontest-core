@@ -1,4 +1,4 @@
-"""L'ecran d'ouverture, dans un vrai navigateur (specs 044 et 045).
+"""L'ecran d'ouverture, dans un vrai navigateur (specs 044 et 046).
 
 Ce fichier existe pour ce qu'aucun test de route ne peut voir : le plan
 REELLEMENT dessine, le tiroir qui s'ouvre sur la zone qu'on a touchee, le geste

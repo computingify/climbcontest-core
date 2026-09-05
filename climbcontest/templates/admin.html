@@ -578,7 +578,7 @@
   .glisse.fini .glisse-bouton { background: var(--ok); cursor: default; }
   .glisse.fini .glisse-mot { left: 0; right: 58px; color: var(--ok); }
 
-  /* La carte du mode sans classeur (spec 045). */
+  /* La carte du mode sans classeur (spec 046). */
   .sansClasseur-constat { display: flex; gap: 10px; padding: 9px 11px;
     border-radius: 11px; font-size: .81rem; margin-bottom: 7px;
     align-items: flex-start; color: var(--encre2); }
@@ -2468,7 +2468,7 @@
 
       <!-- Reservee aux administrateurs, comme « Creer un compte » plus bas :
            les trois routes /admin/maj repondent 403 aux autres. -->
-      <!-- ================= Le mode sans classeur (spec 045) ================
+      <!-- ================= Le mode sans classeur (spec 046) ================
            ⚠️ Reservee aux administrateurs. Le geste qu'elle porte est le SEUL
            de la console dont la consequence vit HORS de la console : apres
            l'avoir fait, on supprime un fichier dans un Drive. -->
@@ -2764,7 +2764,7 @@
     // administrateur, le serveur repond 403 aux autres. Masquer l'entree evite
     // d'offrir un ecran qui ne repondrait que des refus.
     // ⚠️ Le classeur disparait pour TOUS les roles quand il est debranche
-    // (spec 045) -- administrateur compris. C'est la demande, mot pour mot :
+    // (spec 046) -- administrateur compris. C'est la demande, mot pour mot :
     // « je ne veux plus du tout le voir dans les parametres ». Le seul endroit
     // qui en parle encore est la carte des Reglages, parce que c'est par elle
     // qu'on revient en arriere.
@@ -2868,7 +2868,7 @@
     reglages:     { titre: "Réglages",             charge: chargerComptesSiAdmin }
   };
 
-  // --- Le mode sans classeur (spec 045) --------------------------------------
+  // --- Le mode sans classeur (spec 046) --------------------------------------
   //
   // ⚠️ Prefixe `sansClasseur` : deux branches travaillaient dans ce fichier
   // pendant l'ecriture du lot, et git fusionne sans conflit deux fonctions du

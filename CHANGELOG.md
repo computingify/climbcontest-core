@@ -115,7 +115,7 @@ qu'on ne met pas à jour le matin d'une compétition :
 - **Un rôle `ouvreur`**, le premier rôle restreint de la console : il n'ouvre
   que cet écran, et son tiroir n'a qu'une entrée. Il lit le plan de la salle
   mais ne peut pas le redessiner.
-- **Le mode sans classeur** (spec 045). Un réglage global, réservé à
+- **Le mode sans classeur** (spec 046). Un réglage global, réservé à
   l'administrateur, qui débranche Google Sheets : l'écran « Classeur »,
   l'import, le jeton et le fil de synchronisation disparaissent — pour tous les
   rôles. Un contrôle avant bascule vérifie que ce que le classeur détenait est

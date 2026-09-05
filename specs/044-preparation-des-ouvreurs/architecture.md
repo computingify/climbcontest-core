@@ -14,7 +14,7 @@ Rien n'est réinventé de ce qui existe :
 | la géométrie du mur | `suivi.plan_public()` — le même document que la page de résultats |
 | le dessin SVG et les pastilles | `static/resultats/plan.js` — `decrire`, `monter`, `decorer` |
 | les six couleurs et leur ordre | `classement.COULEURS` |
-| le régime de l'écran | le réglage global de la [spec 045](../045-mode-sans-classeur/) |
+| le régime de l'écran | le réglage global de la [spec 046](../046-mode-sans-classeur/) |
 | prévenir les téléphones | `contest.incrementer_tous_les_catalogues()` |
 | le contrôle d'accès | `auth_session.exige_role` |
 
@@ -75,17 +75,17 @@ tous du classeur.
 ### 2.3 Le régime de l'écran
 
 Aucune option propre à ce lot. L'écran lit le réglage **global** de la
-spec 045 :
+spec 046 :
 
 ```python
-from .reglages import mode_sans_classeur     # spec 045
+from .reglages import mode_sans_classeur     # spec 046
 ecriture_permise = mode_sans_classeur()
 ```
 
 ⚠️ **`Bloc.source` reste**, bien que le miroir n'en ait plus besoin. Elle sert
 à deux choses qui, elles, existent : dire **d'où vient une voie** dans l'écran —
 comme la spec 008 montre `Participant.source` en pastilles G / H / M — et
-alimenter le **contrôle avant bascule** de la 045, qui doit pouvoir affirmer
+alimenter le **contrôle avant bascule** de la 046, qui doit pouvoir affirmer
 « les 47 voies du classeur sont bien en base ».
 
 ### 2.4 Le rôle
@@ -185,7 +185,7 @@ divergent, c'est la leçon de `cascade.py` et de son test miroir.
 
 ### 4.1 Ce qui change dans l'import
 
-**Rien.** L'import du classeur n'est pas modifié par ce lot : c'est la spec 045
+**Rien.** L'import du classeur n'est pas modifié par ce lot : c'est la spec 046
 qui l'éteint, en bloc et pour toutes ses plages, quand le mode est allumé. Un
 garde partiel posé ici ferait doublon avec celui-là — et deux gardes qui disent
 la même chose finissent par ne plus la dire pareil.
@@ -243,7 +243,7 @@ d'une ligne** — la page de résultats garde sa jauge, qui a du sens là-bas.
 ### 5.3 Le geste de confirmation : UN composant, deux surfaces
 
 `climbcontest/static/console/confirmer.js` — **nouveau**, et partagé avec la
-spec 045.
+spec 046.
 
 ```js
 export function confirmerParGeste(hote, {libelle, libelleGlisse, surAbout});
@@ -302,7 +302,7 @@ c'est elle que les tests vérifient.
 | `climbcontest/routes/admin.py` | 7 routes, une section |
 | `climbcontest/templates/admin.html` | la vue `vueOuvreurs` et son entrée de tiroir |
 | `climbcontest/static/console/ouverture.js` | **nouveau** — l'écran, en module, testable |
-| `climbcontest/static/console/confirmer.js` | **nouveau** — le geste, partagé avec la 045 |
+| `climbcontest/static/console/confirmer.js` | **nouveau** — le geste, partagé avec la 046 |
 | `tests/test_ouverture.py` | **nouveau** |
 | `tests/test_admin_ouverture.py` | **nouveau** — les routes et les rôles |
 | `docs/specs-index.md`, `CHANGELOG.md` | l'index et la section `[Non publié]` |
@@ -330,7 +330,7 @@ corrige, on ne répare pas en douce.
 
 | Ce que la spec annonçait | Ce qui est vrai |
 | --- | --- |
-| `inventaire()` coûte **3 requêtes** | **5.** Deux de plus, assumées : le compte des réussites (sans lui, l'écran propose de supprimer ce que le serveur refusera) et la relecture du réglage (jamais mise en cache — principe de la 045). Ce que le test vérifie est que ce nombre **ne dépend pas du nombre de voies** |
+| `inventaire()` coûte **3 requêtes** | **5.** Deux de plus, assumées : le compte des réussites (sans lui, l'écran propose de supprimer ce que le serveur refusera) et la relecture du réglage (jamais mise en cache — principe de la 046). Ce que le test vérifie est que ce nombre **ne dépend pas du nombre de voies** |
 | — | **Le rang se calcule AVANT de poser la couleur.** `_prochain_rang` interroge la base, SQLAlchemy vide la session avant de répondre, et la voie y serait déjà passée à sa nouvelle couleur avec son ancien rang : passer « JV1 » en bleu donnait « JB2 » alors qu'aucune bleue n'existait. **Trouvé par un test**, pas à la relecture |
 | — | **Le repli d'accueil de la console ne regardait pas s'il était permis.** Un compte ouvreur atterrissait sur « Participants » — entrée masquée, vue affichée, toutes ses requêtes en 403. Le repli descend désormais sur la première entrée réellement visible |
 | — | **Le plan sortait sans aucun style dans la console.** `resultats/plan.js` monte bien le SVG, mais ses règles CSS vivaient uniquement dans `resultats.html` : pas de trame de profil, pas de halo de lettre, et surtout **pas de curseur** — rien ne disait qu'une zone se touche. Trouvé par le test navigateur ; aucun test de route ne pouvait le voir |

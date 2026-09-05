@@ -1,4 +1,4 @@
-# Spec 045 — Architecture
+# Spec 046 — Architecture
 
 ## 1. Le principe
 

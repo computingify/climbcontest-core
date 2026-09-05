@@ -1,4 +1,4 @@
-# Spec 045 — Le mode sans classeur
+# Spec 046 — Le mode sans classeur
 
 > **Statut : soumise à la porte 2.** Écrite avant le code.
 >
@@ -275,8 +275,8 @@ s'allumer.
 
 ## 6. Ce qui reste à confirmer (porte 2)
 
-1. **L'ordre de merge.** 044 seule ne donne qu'un écran de consultation ; 045
-   seule ne s'allume pas sans la 008. L'ordre naturel est **008 → 044 → 045**,
+1. **L'ordre de merge.** 044 seule ne donne qu'un écran de consultation ; 046
+   seule ne s'allume pas sans la 008. L'ordre naturel est **008 → 044 → 046**,
    et il suppose de faire relire la 008.
 2. **B1 comme refus dur.** Si tu préfères pouvoir allumer le mode et charger les
    participants à la main pour une petite édition, B1 devient un avertissement.

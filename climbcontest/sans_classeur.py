@@ -1,4 +1,4 @@
-"""Le mode sans classeur — spec 045.
+"""Le mode sans classeur — spec 046.
 
 Un réglage **global** qui débranche Google Sheets : l'écran, l'import, le jeton
 et le fil de synchronisation. Il n'y a rien d'autre dans ce module que le

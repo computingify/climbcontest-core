@@ -140,7 +140,7 @@ def _identite(u) -> dict:
         # runbook, et la console etait le seul endroit ou l'on agissait sans
         # jamais voir sur quoi.
         "competition": {"id": active.id, "nom": active.nom} if active else None,
-        # Le classeur est-il debranche (spec 045) ? Il voyage ICI pour la meme
+        # Le classeur est-il debranche (spec 046) ? Il voyage ICI pour la meme
         # raison que `helloasso_branche` ci-dessous : c'est un FAIT qui decide
         # d'une entree de menu, et la route qui le regle est reservee aux
         # administrateurs. Le faire lire par `/admin/mode-sans-classeur`
@@ -178,7 +178,7 @@ _dernier_rapport: dict | None = None
 
 
 def refuse_si_sans_classeur(vue):
-    """Ferme une route qui parle au classeur quand il est debranche (spec 045).
+    """Ferme une route qui parle au classeur quand il est debranche (spec 046).
 
     ⚠️ Pose SOUS `@exige_role`, donc execute APRES lui : une requete sans
     session doit recevoir 401, pas 409. L'ordre des decorateurs est l'ordre
@@ -1019,7 +1019,7 @@ def ouverture_supprimer_circuit(identifiant):
     return jsonify({"success": True, **_etat_ouverture(comp)}), 200
 
 
-# --- Le mode sans classeur (spec 045) ---------------------------------------
+# --- Le mode sans classeur (spec 046) ---------------------------------------
 
 @bp.get("/mode-sans-classeur")
 @exige_role(ADMIN)

@@ -1,4 +1,4 @@
-"""L'ecran d'ouverture et le mode sans classeur, cotes routes (specs 044, 045).
+"""L'ecran d'ouverture et le mode sans classeur, cotes routes (specs 044, 046).
 
 Le coeur de ce fichier est la MATRICE DES ROLES. `ouvreur` est le premier role
 restreint du depot : les deux autres s'empilent, celui-ci n'ouvre qu'un ecran.

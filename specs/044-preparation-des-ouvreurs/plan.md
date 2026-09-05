@@ -7,9 +7,9 @@
 
 ### Étape 0 — la porte 2
 - [x] Les **quatre points de la §6** tranchés les 04 et 05/09 : régime commandé
-      par le réglage global de la **spec 045**, miroir **sans objet**, écriture
+      par le réglage global de la **spec 046**, miroir **sans objet**, écriture
       réservée à `preparation`, plan non redessinable par l'ouvreur
-- [ ] Décider l'**ordre de merge** avec la 045 (ce lot seul ne donne qu'un écran
+- [ ] Décider l'**ordre de merge** avec la 046 (ce lot seul ne donne qu'un écran
       de consultation)
 - [ ] Adrien valide la spec et la maquette dans leur version corrigée
 
@@ -134,7 +134,7 @@ le nommer dans `exige_role`.
 | --- | --- |
 | **Collision silencieuse dans `admin.html`** avec les branches 008 et 043 | préfixes `ouvreurs*`, section insérée dans le bloc des vues, fusion à blanc avant merge |
 | **`uq_bloc_tag` pendant une renumérotation** | écriture des tags en deux passes, testée sur une permutation circulaire |
-| **Un import lancé par réflexe efface le travail des ouvreurs** | impossible : l'import n'existe plus quand la saisie existe (spec 045) |
+| **Un import lancé par réflexe efface le travail des ouvreurs** | impossible : l'import n'existe plus quand la saisie existe (spec 046) |
 | **Le miroir écrit sur les mauvaises lignes du classeur** | **supprimé, pas résolu** : les deux régimes s'excluent (F1) |
 | **Une couleur hors des six arrive du classeur** | affichée, non modifiable sans choisir parmi les six ; test dédié |
 | **Le plan change entre deux séances d'ouverture** | les voies d'une zone disparue remontent dans `hors_plan`, jamais supprimées |

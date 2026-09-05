@@ -736,7 +736,7 @@ window.ouvreursEcran = { charger };
 
 /* ⚠️ Le geste, expose a la console.
  *
- * La carte du mode sans classeur (spec 045) vit dans le script CLASSIQUE
+ * La carte du mode sans classeur (spec 046) vit dans le script CLASSIQUE
  * d'`admin.html`, qui ne peut pas importer un module. Plutot que d'ajouter un
  * second <script type="module"> pour une seule fonction, ce module -- qui
  * l'importe deja -- la pose sur la fenetre. Un seul pont, au meme endroit que

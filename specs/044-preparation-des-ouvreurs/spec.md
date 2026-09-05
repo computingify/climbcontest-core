@@ -50,7 +50,7 @@ détiennent l'information.
 
 ## 2. Ce qu'on fait
 
-### F1 — La saisie s'ouvre avec le mode sans classeur (spec 045)
+### F1 — La saisie s'ouvre avec le mode sans classeur (spec 046)
 
 > **Arbitrage du 05/09**, après un premier tour : le choix n'est pas « d'où
 > viennent les blocs », c'est **si le classeur existe encore**. « Si les blocs
@@ -58,7 +58,7 @@ détiennent l'information.
 > cas on va le supprimer. »
 
 Cet écran a **deux régimes**, et c'est le réglage global de la
-[spec 045](../045-mode-sans-classeur/) qui décide lequel :
+[spec 046](../046-mode-sans-classeur/) qui décide lequel :
 
 | Le mode sans classeur est… | Ce qui fait foi pour les blocs | L'écran d'ouverture |
 | --- | --- | --- |
@@ -79,7 +79,7 @@ voie n'est créée en console, soit il est allumé et il n'y a plus d'onglet
 `Import`. Le problème n'a pas été résolu, **il a été supprimé**.
 
 ⚠️ **Ce lot est donc livrable seul, mais il n'est pleinement utile qu'avec la
-045.** Livré sans elle, il apporte le rôle `ouvreur` et un écran de
+046.** Livré sans elle, il apporte le rôle `ouvreur` et un écran de
 consultation. C'est un ordre de merge à décider, pas une impasse.
 
 ### F2 — Un rôle `ouvreur`, qui ne voit que ça
@@ -420,7 +420,7 @@ Section conservée volontairement, et vide, pour dire **pourquoi** elle l'est.
 Voir F1 : les deux régimes de cet écran s'excluent, et aucun des deux ne produit
 de réussite sans adresse dans le classeur. Toute la mécanique du débranchement —
 le réglage, l'extinction de l'import, du miroir et de la vue « Classeur », et le
-contrôle avant bascule — vit dans la [spec 045](../045-mode-sans-classeur/).
+contrôle avant bascule — vit dans la [spec 046](../046-mode-sans-classeur/).
 
 ---
 
@@ -429,7 +429,7 @@ contrôle avant bascule — vit dans la [spec 045](../045-mode-sans-classeur/).
 | # | Ce qu'on vérifie |
 | --- | --- |
 | A1 | Mode sans classeur **éteint** : l'écran s'ouvre et refuse toute écriture (409) |
-| A2 | Mode **allumé** : l'écriture est permise, et l'import du classeur n'existe plus (spec 045) |
+| A2 | Mode **allumé** : l'écriture est permise, et l'import du classeur n'existe plus (spec 046) |
 | A3 | Un compte `ouvreur` reçoit 403 sur `/admin/participants`, `/admin/classeur`, `/admin/comptes`, `/admin/plan` (POST), et 200 sur `/admin/ouverture` et `/admin/moi` |
 | A4 | Un compte `organisateur` accède à l'écran d'ouverture (il n'est pas refusé faute d'être nommé) |
 | A5 | Une voie s'enregistre sans couleur et sans catégorie ; sa zone la compte comme incomplète |
@@ -476,7 +476,7 @@ contrôle avant bascule — vit dans la [spec 045](../045-mode-sans-classeur/).
 Tranchées par Adrien les **04** et **05/09/2026**.
 
 1. **F1 — l'interrupteur.** ✅ *Remplacé par un réglage **global**, dans la
-   [spec 045](../045-mode-sans-classeur/).* Le choix n'est pas la source des
+   [spec 046](../046-mode-sans-classeur/).* Le choix n'est pas la source des
    blocs, c'est l'existence du classeur : « je ne veux plus du tout le voir dans
    les paramètres et je ne veux plus qu'on lui remonte les infos ».
 2. **F9 — le miroir.** ✅ *Sans objet.* Le filtre voie par voie décidé plus tôt

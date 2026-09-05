@@ -1,10 +1,10 @@
-# Spec 045 — Plan de travail
+# Spec 046 — Plan de travail
 
 ## 1. Les étapes
 
 ### Étape 0 — la porte 2
 - [ ] Adrien valide la spec et la maquette
-- [ ] **L'ordre de merge** est arrêté : 008 → 044 → 045
+- [ ] **L'ordre de merge** est arrêté : 008 → 044 → 046
 - [ ] **B1 en refus dur** est confirmé (ou passe en avertissement)
 
 ### Étape 1 — le réglage
@@ -115,7 +115,7 @@
 | **Trois workers sur quatre continuent d'appeler Google** | le réglage est relu en base à chaque décision, jamais mémorisé |
 | **Le fil déjà lancé ignore la bascule** | garde dans la boucle en plus du garde au démarrage |
 | **On bascule et il manque des données que seul le classeur avait** | le contrôle avant bascule, avec deux refus durs |
-| **On bascule sans pouvoir inscrire personne** | B1, et l'ordre de merge 008 → 044 → 045 |
+| **On bascule sans pouvoir inscrire personne** | B1, et l'ordre de merge 008 → 044 → 046 |
 | **L'enveloppe `try/ImportError` survit au merge de la 008** | une case à cocher de l'étape 5, et un test qui échoue si `inscriptions` existe sans être importé |
 | **Deux implémentations du maintien dans `admin.html`** | l'extraction de `dlgConfirmer` vers le composant partagé est une étape du plan, pas une intention |
 | **L'extraction casse un geste qui marche** | elle se fait en dernier, et `dlgConfirmer` garde ses tests existants — ils doivent passer sans être modifiés |

@@ -51,7 +51,7 @@ def health():
         from ..contest import reussites_en_attente, reussites_inenvoyables
         from ..sans_classeur import actif as sans_classeur_actif
 
-        # ⚠️ LE MODE SE NOMME, ET LE STATUT RESTE « ok » (spec 045).
+        # ⚠️ LE MODE SE NOMME, ET LE STATUT RESTE « ok » (spec 046).
         #
         # Les deux compteurs a `null` signifient, deux lignes plus bas, « base
         # injoignable » -- et cette sonde-la fait repondre 503 degraded, ce qui
