@@ -214,12 +214,41 @@ Une voie porte quatre choses, et **aucune n'est obligatoire pour l'enregistrer**
 > Demandé le 05/09 : « nous avons des prises qui peuvent être bi-couleurs, vois
 > comment tu peux gérer ça. »
 
-Une voie porte **une ou deux** couleurs de prises. On en choisit une seconde en
-touchant un deuxième jeton ; au-delà de deux, les autres deviennent **inertes**.
+Une voie porte **une ou deux** couleurs de prises, et c'est un **interrupteur
+« Prise bicolore »** qui ouvre la seconde.
 
-⚠️ **Inertes, et non « le troisième remplace le premier ».** Un appui qui
-chasse silencieusement l'un des deux choix fait disparaître une information sans
-dire laquelle. Un geste de plus, et on sait ce qu'on retire.
+> Corrigé le 05/09 : « j'ai l'impression que ce n'est pas très ergonomique ce
+> choix de couleur, surtout pour des bicolores ; je propose que tu ajoutes un
+> interrupteur pour activer le choix bicolore. »
+
+La première version faisait de la rangée un **choix multiple plafonné à deux** :
+au deuxième jeton, tous les autres devenaient inertes. Trois défauts, et ils ne
+se voient qu'à l'usage :
+
+1. **rien n'annonçait le plafond avant de le heurter** — on découvrait la règle
+   en voyant la moitié de l'écran s'éteindre ;
+2. **on ne savait pas laquelle des deux on changeait** : les deux jetons allumés
+   étaient interchangeables, il fallait en retirer un pour en poser un autre ;
+3. **rien ne disait qu'une prise bicolore existe.** Il fallait le deviner en
+   touchant un second jeton.
+
+Avec l'interrupteur, la bicolorité est un **état qu'on déclare**, et chaque
+couleur a **son propre sélecteur** — « Première couleur », « Seconde couleur ».
+On sait toujours laquelle on modifie, et le plafond n'a plus à être deviné : il
+est le nombre de sélecteurs.
+
+L'interrupteur reprend `label.bascule` de la [spec 021](../021-console-lisible/) :
+la case native est conservée sous le visuel, elle garde le clavier, le focus et
+le lecteur d'écran.
+
+⚠️ **L'éteindre garde la PREMIÈRE couleur**, et rien d'autre ne se perd en
+silence. ⚠️ **L'allumer n'enregistre rien** tant qu'aucune seconde couleur n'est
+choisie : une prise « bicolore sans seconde couleur » n'existe pas.
+
+⚠️ **Les nuanciers restent dépliés d'un choix à l'autre.** Chaque choix
+déclenche un aller-retour serveur et reconstruit la fiche ; sans cet état, le
+nuancier se refermait entre les deux couleurs — c'est-à-dire précisément quand
+les deux sont rares, le seul cas où l'on en a besoin.
 
 **Les deux couleurs vivent dans la colonne existante**, séparées par `/` —
 « Blanc/Bleu ». Une colonne et non deux, pour une raison mesurée : la colonne H

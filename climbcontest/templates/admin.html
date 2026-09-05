@@ -481,8 +481,13 @@
     font-size: 1.02rem; min-width: 38px; }
   .ouvreurs-quoi { flex: 1; min-width: 0; font-size: .78rem; color: var(--encre2); }
   .ouvreurs-quoi b { color: var(--encre); font-weight: 600; }
-  .ouvreurs-cats { display: flex; gap: 4px; flex-wrap: wrap; margin-top: 3px;
+  .ouvreurs-quoi { display: flex; align-items: center; gap: 8px; }
+  .ouvreurs-cats { display: flex; gap: 4px; flex-wrap: wrap;
     align-items: center; }
+  /* La place de la couleur de prises quand elle manque : un rond vide, pour
+     que les lignes restent alignees et qu'on voie le trou. */
+  .ouvreurs-prise-vide { display: inline-block; width: 14px; height: 14px;
+    flex: none; border-radius: 50%; border: 1px dashed var(--trait); }
   .ouvreurs-cat { font-size: .66rem; padding: 1px 6px; border-radius: 999px;
     background: var(--surface3); color: var(--encre2); font-weight: 600; }
   /* Le contenu REEL du QR, en chasse fixe : c'est ce que le juge scanne, et
@@ -505,13 +510,17 @@
      couleurs de tous les jours. */
   .ouvreurs-nuancier { margin-top: 7px; padding-top: 8px;
     border-top: 1px dashed var(--trait); }
-  .ouvreurs-jeton.inerte { opacity: .38; cursor: not-allowed; }
+  .ouvreurs-bascule { margin: 4px 0 2px; font-size: .84rem; }
+  .ouvreurs-sous-rub { font-size: .72rem; color: var(--encre3); font-weight: 600;
+    margin: 8px 0 5px; }
+  .ouvreurs-rang-prise + .ouvreurs-rang-prise { margin-top: 4px;
+    padding-top: 6px; border-top: 1px dashed var(--trait); }
   .ouvreurs-note-prises { margin: 8px 0 0; font-size: .74rem; color: var(--encre3); }
   /* ⚠️ 14 px et non 9 : a 9, l'oblique d'une prise bicolore ne se voyait pas,
      et la pastille avait l'air unie. C'est le seul endroit de la ligne ou la
      bicolorite se lit. */
   .ouvreurs-rond-prise { display: inline-block; width: 14px; height: 14px;
-    border-radius: 50%; margin: 0 5px 0 1px; vertical-align: -2px;
+    flex: none; border-radius: 50%; vertical-align: -2px;
     border: 1px solid rgba(0,0,0,.22); }
   /* L'apercu, dans la rubrique de la fiche : ce que donne la prise, en UNE
      pastille -- les jetons en dessous ne sont qu'un selecteur. */

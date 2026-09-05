@@ -21,15 +21,38 @@ pytestmark = pytest.mark.skipif(
 ECRAN = (1280, 1500)
 MDP = "un-mot-de-passe-assez-long"
 
-ATTENDUES = (
-    "entreesOuvreur vueOuverte planDessine zonesCliquables "
-    "pastilleJ jaugeJ tiroirFerme tiroirOuvert titreZone voiesListees "
-    "ficheOuverte jetonsCouleur prisesCourantes numeroAvant numeroApres "
-    "pastilleApres lisereJ "
-    "nuancierReplie nuancierOuvert prisesChoisies jetonsInertes "
-    "rondBicolore libelleBicolore "
-    "gesteRendu gesteEstMaintien renumTitre"
-).split()
+ATTENDUES = [
+    "entreesOuvreur",
+    "vueOuverte",
+    "planDessine",
+    "zonesCliquables",
+    "pastilleJ",
+    "jaugeJ",
+    "tiroirFerme",
+    "tiroirOuvert",
+    "titreZone",
+    "voiesListees",
+    "numeroAvant",
+    "ficheOuverte",
+    "jetonsCouleur",
+    "prisesCourantes",
+    "numeroApres",
+    "pastilleApres",
+    "lisereJ",
+    "basculeAvant",
+    "selecteursAvant",
+    "selecteursApres",
+    "sousRubriques",
+    "nuancierResteOuvert",
+    "paireChoisie",
+    "apercuPaire",
+    "rondBicolore",
+    "libelleBicolore",
+    "ligneSansMots",
+    "renumTitre",
+    "gesteRendu",
+    "gesteEstMaintien",
+]
 
 SONDE = r"""
     const doc = () => cadre.contentDocument;
@@ -76,8 +99,7 @@ SONDE = r"""
     note("voiesListees", $$("#ouvreursListe .ouvreurs-voie").length);
 
     // --- 4. La fiche, et le numero qui s'attribue ------------------------
-    const nue = $$("#ouvreursListe .ouvreurs-voie").filter(
-      (n) => n.textContent.indexOf("couleur à choisir") !== -1)[0];
+    const nue = $$("#ouvreursListe .ouvreurs-voie.incomplete")[0];
     note("numeroAvant", nue.querySelector(".ouvreurs-num").textContent);
     nue.click();
     await attendre("fiche ouverte", () => $("#ouvreursListe .ouvreurs-fiche") !== null);
@@ -107,50 +129,76 @@ SONDE = r"""
       (c) => c.getAttribute("data-zone") === "J"
           && c.classList.contains("ouvreurs-a-completer")).length === 1);
 
-    // --- 4 bis. Le nuancier des prises -----------------------------------
-    // Sept couleurs courantes plus le bouton ; le reste est replie.
-    const perso = $$("#ouvreursListe .ouvreurs-jeton").filter(
-      (j) => j.textContent.indexOf("Personnaliser") !== -1)[0];
-    note("nuancierReplie", $("#ouvreursListe .ouvreurs-nuancier").hidden);
-    perso.click();
-    note("nuancierOuvert", $$("#ouvreursListe .ouvreurs-nuancier .ouvreurs-jeton").length);
+    // --- 4 bis. Les prises : l'interrupteur, puis deux selecteurs --------
+    const bloc = () => $("#ouvreursListe .ouvreurs-fiche > div:nth-child(2)");
+    // ⚠️ On RE-INTERROGE le DOM apres chaque envoi : la fiche est reconstruite
+    // a chaque reponse du serveur, et une reference prise avant pointe ensuite
+    // sur un noeud detache dont le clic ne fait rien.
+    // ⚠️ Et on SCOPE au groupe des prises : « Bleu », « Rouge », « Jaune »,
+    // « Noir » et « Vert » existent DEUX FOIS dans la fiche -- en difficulte et
+    // en prises. Non scope, le selecteur prenait le premier du DOM.
+    const rangs = () => [...bloc().querySelectorAll(".ouvreurs-rang-prise")];
+    const dedans = (hote, sel) => [...hote.querySelectorAll(sel)];
+    const jetonRang = (indice, mot) =>
+      dedans(rangs()[indice], ".ouvreurs-jeton")
+        .filter((j) => j.textContent.trim() === mot)[0];
 
-    // --- 4 ter. Une prise BICOLORE ---------------------------------------
-    // On pose une seconde couleur : le jeton s'ajoute au lieu de remplacer, et
-    // les autres deviennent inertes -- deux couleurs, c'est le maximum.
-    // ⚠️ DEUX precautions, et chacune a coute un echec.
-    //
-    // 1. On RE-INTERROGE le DOM apres chaque envoi : la fiche est reconstruite
-    //    a chaque reponse du serveur, et une reference prise avant pointe
-    //    ensuite sur un noeud detache dont le clic ne fait rien.
-    // 2. On SCOPE au groupe des prises. « Bleu », « Rouge », « Jaune », « Noir »
-    //    et « Vert » existent DEUX FOIS dans la fiche -- en couleur de
-    //    difficulte et en couleur de prises. Non scope, le selecteur prenait le
-    //    premier du DOM, c'est-a-dire la difficulte : le test changeait la
-    //    couleur de la voie en croyant poser une prise.
-    const jeton = (mot) => $$("#ouvreursListe .ouvreurs-fiche > div:nth-child(2)"
-                              + " .ouvreurs-jeton").filter(
-      (j) => j.textContent.trim() === mot)[0];
-    jeton("Blanc").click();
-    await attendre("blanc pose", () => $$("#ouvreursListe .ouvreurs-jeton.choisi")
-      .filter((j) => j.textContent.trim() === "Blanc").length === 1);
-    jeton("Bleu").click();
-    await attendre("bleu pose", () => $$("#ouvreursListe .ouvreurs-jeton.inerte").length > 0);
-    note("prisesChoisies",
-      $$("#ouvreursListe .ouvreurs-fiche > div:nth-child(2) .ouvreurs-jeton.choisi")
-        .map((j) => j.textContent.trim()).join("+"));
-    note("jetonsInertes", $$("#ouvreursListe .ouvreurs-jeton.inerte").length > 0);
-    // Le disque de la ligne est coupe en deux : deux teintes franches.
-    $("#ouvreursListe .ouvreurs-fiche button.secondaire").click();
+    note("basculeAvant", bloc().querySelector(".ouvreurs-bascule input").checked);
+    note("selecteursAvant",
+      bloc().querySelectorAll(".ouvreurs-rang-prise").length);
+
+    // Une seule couleur d'abord, dans le premier selecteur.
+    jetonRang(0, "Blanc").click();
+    await attendre("blanc pose", () => {
+      const j = jetonRang(0, "Blanc");
+      return j && j.classList.contains("choisi");
+    });
+
+    // L'interrupteur ouvre le SECOND selecteur.
+    bloc().querySelector(".ouvreurs-bascule input").click();
+    await attendre("second selecteur",
+      () => bloc().querySelectorAll(".ouvreurs-rang-prise").length === 2);
+    note("selecteursApres",
+      bloc().querySelectorAll(".ouvreurs-rang-prise").length);
+    note("sousRubriques", dedans(bloc(), ".ouvreurs-sous-rub")
+      .map((n) => n.textContent.replace(/ /g, "~")).join("+"));
+
+    // DEUX COULEURS PERSONNALISEES : chacune dans son nuancier, et les
+    // nuanciers doivent RESTER ouverts entre les deux choix.
+    dedans(rangs()[1], ".ouvreurs-jeton")
+      .filter((j) => j.textContent.indexOf("Personnaliser") !== -1)[0].click();
+    await attendre("nuancier du second ouvert",
+      () => !rangs()[1].querySelector(".ouvreurs-nuancier").hidden);
+    jetonRang(1, "Marron").click();
+    await attendre("marron pose", () => {
+      const j = jetonRang(1, "Marron");
+      return j && j.classList.contains("choisi");
+    });
+    note("nuancierResteOuvert",
+      !rangs()[1].querySelector(".ouvreurs-nuancier").hidden);
+    note("paireChoisie", dedans(bloc(), ".ouvreurs-jeton.choisi")
+      .map((j) => j.textContent.trim())
+      .filter((t) => t.indexOf("Personnaliser") === -1).join("+"));
+    note("apercuPaire", bloc().querySelector(".ouvreurs-valeur-prise")
+      .textContent.replace(/ /g, "~"));
+
+    // --- 4 ter. Ce que la LIGNE montre, une fois la fiche refermee --------
+    $("#ouvreursListe .ouvreurs-fiche .ouvreurs-actions button.secondaire").click();
     await attendre("retour a la zone",
       () => $("#ouvreursListe .ouvreurs-voie") !== null);
-    const bicolore = $$("#ouvreursListe .ouvreurs-voie").filter(
-      (n) => n.textContent.indexOf("Blanc et Bleu") !== -1)[0];
-    note("rondBicolore", vue().getComputedStyle(
-      bicolore.querySelector(".ouvreurs-rond-prise"))
+    // On remonte de la pastille a SA ligne : filtrer les lignes sur le titre de
+    // leur pastille demanderait un `querySelector` par ligne, et une ligne sans
+    // prise n'en a pas.
+    const rondBi = $$("#ouvreursListe .ouvreurs-rond-prise").filter(
+      (r) => (r.getAttribute("title") || "") === "Prises : Blanc et Marron")[0];
+    const bicolore = rondBi.closest(".ouvreurs-voie");
+    note("rondBicolore", vue().getComputedStyle(rondBi)
       .backgroundImage.indexOf("linear-gradient") === 0);
-    note("libelleBicolore", $$("#ouvreursListe .ouvreurs-voie")
-      .filter((n) => n.textContent.indexOf("Blanc et Bleu") !== -1).length);
+    note("libelleBicolore", rondBi.getAttribute("title").replace(/ /g, "~"));
+    // La ligne ne doit porter AUCUNE couleur en toutes lettres, ni le contenu
+    // du QR : « ca n'apporte rien ici » (05/09).
+    note("ligneSansMots", ["Blanc", "Marron", "Vert", "QR "].filter(
+      (m) => bicolore.textContent.indexOf(m) !== -1).join(",") || "aucun");
 
     // --- 5. Le geste de confirmation -------------------------------------
     $("#ouvreursFermerTiroir").click();
@@ -285,10 +333,6 @@ class TestLaFiche:
     def test_les_six_couleurs_sont_proposees(self, mesures):
         assert int(mesures["jetonsCouleur"]) == 6
 
-    def test_les_prises_courantes_plus_le_bouton(self, mesures):
-        """Sept couleurs de tous les jours, et « Personnaliser… » en huitieme :
-        l'ecran ordinaire ne grandit pas parce qu'un choix rare existe."""
-        assert int(mesures["prisesCourantes"]) == 8
 
     def test_une_voie_nue_n_a_pas_de_numero(self, mesures):
         assert mesures["numeroAvant"] == "—"
@@ -307,37 +351,57 @@ class TestLaFiche:
         assert mesures["lisereJ"] == "true"
 
 
-class TestLeNuancierDesPrises:
-    def test_il_est_replie_au_depart(self, mesures):
-        assert mesures["nuancierReplie"] == "true"
+class TestLInterrupteurBicolore:
+    """⚠️ L'interrupteur REMPLACE un plafond implicite. La premiere version
+    faisait de la rangee un choix multiple plafonne a deux : au deuxieme jeton,
+    tous les autres devenaient inertes. Rien n'annoncait le plafond avant de le
+    heurter, on ne savait pas laquelle des deux on changeait, et rien ne disait
+    qu'une prise bicolore existe."""
 
-    def test_il_ouvre_les_teintes_supplementaires(self, mesures):
-        """Quinze teintes en tout, sept deja visibles : huit de plus.
+    def test_il_est_eteint_et_un_seul_selecteur_s_affiche(self, mesures):
+        assert mesures["basculeAvant"] == "false"
+        assert int(mesures["selecteursAvant"]) == 1
 
-        ⚠️ Des teintes DISTINCTES, pas des nuances -- « proposer 10 nuances de
-        rouge n'est pas necessaire, mais du rouge et du rose oui »."""
-        assert int(mesures["nuancierOuvert"]) == 8
+    def test_l_allumer_ouvre_un_SECOND_selecteur(self, mesures):
+        assert int(mesures["selecteursApres"]) == 2
+
+    def test_chaque_couleur_a_son_selecteur_nomme(self, mesures):
+        """On sait toujours laquelle des deux on modifie."""
+        assert mesures["sousRubriques"] == "Première~couleur+Seconde~couleur"
+
+    def test_deux_couleurs_PERSONNALISEES_marchent(self, mesures):
+        """La question du 05/09 : « est-ce que ca fonctionne le bicolore avec
+        2 couleurs personnalisees ? »"""
+        assert mesures["paireChoisie"] == "Blanc+Marron"
+
+    def test_le_nuancier_reste_ouvert_entre_les_deux_choix(self, mesures):
+        """⚠️ Il se refermait : chaque choix declenche un aller-retour serveur
+        et reconstruit la fiche. Il fallait rouvrir « Personnaliser… » entre les
+        deux -- justement dans le cas ou l'on en a le plus besoin."""
+        assert mesures["nuancierResteOuvert"] == "true"
+
+    def test_l_apercu_nomme_la_paire(self, mesures):
+        assert mesures["apercuPaire"] == "Blanc~et~Marron"
 
 
 class TestUnePriseBicolore:
-    def test_la_seconde_couleur_s_ajoute(self, mesures):
-        """Elle ne remplace pas la premiere : une prise bicolore est UNE prise
-        a deux couleurs."""
-        assert mesures["prisesChoisies"] == "Blanc+Bleu"
-
-    def test_au_dela_de_deux_les_jetons_deviennent_inertes(self, mesures):
-        """⚠️ Inertes, et non « le troisieme chasse le premier » : un appui qui
-        retire silencieusement un choix fait disparaitre une information sans
-        dire laquelle."""
-        assert mesures["jetonsInertes"] == "true"
 
     def test_le_disque_est_coupe_en_deux(self, mesures):
         """Une coupe FRANCHE : deux teintes qui se fondent en font une
         troisieme, et on chercherait sur le mur une couleur qui n'existe pas."""
         assert mesures["rondBicolore"] == "true"
 
-    def test_la_ligne_nomme_les_deux_couleurs(self, mesures):
-        assert mesures["libelleBicolore"] == "1"
+    def test_la_pastille_nomme_les_deux_couleurs_au_survol(self, mesures):
+        """La ligne ne les ECRIT plus, mais l'information ne disparait pas :
+        sans `title` ni `aria-label`, la couleur ne serait plus dite QUE par la
+        couleur -- illisible pour qui ne les distingue pas, muet pour un
+        lecteur d'ecran."""
+        assert mesures["libelleBicolore"] == "Prises~:~Blanc~et~Marron"
+
+    def test_la_ligne_ne_porte_plus_de_couleur_ni_de_qr(self, mesures):
+        """« ca n'apporte rien ici » : la pastille dit deja la couleur, et
+        « V8 » porte l'initiale de sa difficulte."""
+        assert mesures["ligneSansMots"] == "aucun"
 
 
 class TestLeGesteDeConfirmation:

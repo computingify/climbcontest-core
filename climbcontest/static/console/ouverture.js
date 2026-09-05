@@ -101,6 +101,14 @@ function pastilleDePrises(noms, classe) {
 const PROFILS = { dalle: "Dalle", vertical: "Vertical", incline: "Incliné",
                   devers: "Dévers", surplomb: "Surplomb", toit: "Toit" };
 
+/** Quels nuanciers sont dépliés — « rang0 », « rang1 ». **Survit aux redessins.**
+ *
+ * Une prise bicolore dont les deux couleurs sont rares est exactement le cas où
+ * l'on veut les nuanciers ouverts : chaque choix déclenche un aller-retour
+ * serveur et reconstruit la fiche.
+ */
+const nuanciersOuverts = new Set();
+
 let etat = null;          // le dernier inventaire reçu
 let zoneOuverte = null;   // la zone dont le tiroir est ouvert
 let voieOuverte = null;   // la voie dont la fiche est ouverte
@@ -281,31 +289,45 @@ function dessinerTiroir() {
 
 function ligne(voie) {
   const n = el("div", { class: "ouvreurs-voie" + (voie.complete ? "" : " incomplete") });
-  const pastille = el("span", { class: "ouvreurs-couleur" });
+
+  // ⚠️ AUCUNE COULEUR ÉCRITE EN TOUTES LETTRES ICI, et pas de contenu de QR.
+  // Demandé le 05/09 : « ça n'apporte rien ici ». C'est juste — la pastille dit
+  // déjà la couleur, et le nom de la voie porte l'initiale de sa difficulté :
+  // « V8 » EST une verte. Le mot répétait deux fois ce que la ligne montrait.
+  // Les deux se lisent en ouvrant la voie, là où on les modifie.
+  //
+  // ⚠️ Mais les noms restent portés par `title` et `aria-label`. Sans eux, la
+  // ligne ne dirait plus la couleur QUE par la couleur : illisible pour qui ne
+  // les distingue pas, et muet pour un lecteur d'écran.
+  const pastille = el("span", {
+    class: "ouvreurs-couleur",
+    title: voie.couleur || "couleur à choisir",
+    "aria-label": voie.couleur || "couleur à choisir",
+  });
   if (voie.couleur) pastille.style.background = teinteDe(voie.couleur);
   else pastille.classList.add("vide");
 
   const quoi = el("span", { class: "ouvreurs-quoi" });
-  quoi.appendChild(el("b", {}, voie.couleur || "couleur à choisir"));
-  quoi.append(" · ");
   const prises = voie.couleurs_prises || [];
   if (prises.length) {
-    quoi.append("prises ",
-                pastilleDePrises(prises, "ouvreurs-rond-prise"),
-                prises.join(" et "));
+    const p = pastilleDePrises(prises, "ouvreurs-rond-prise");
+    const dit = "Prises : " + prises.join(" et ");
+    p.setAttribute("title", dit);
+    p.setAttribute("aria-label", dit);
+    quoi.appendChild(p);
   } else {
-    quoi.append("prises ?");
+    quoi.appendChild(el("span", { class: "ouvreurs-prise-vide",
+                                  title: "Couleur des prises à choisir",
+                                  "aria-label": "Couleur des prises à choisir" }));
   }
+
   const cats = el("span", { class: "ouvreurs-cats" });
   if (voie.circuits.length) {
     for (const c of voie.circuits) cats.appendChild(el("span", { class: "ouvreurs-cat" }, c));
   } else {
+    // Celle-ci reste : elle ne redit pas une pastille, elle dit ce qui manque.
     cats.appendChild(el("span", { class: "ouvreurs-cat" }, "aucune catégorie"));
   }
-  // Le contenu RÉEL du QR, en chasse fixe : c'est ce que le juge scanne, et
-  // c'est là qu'une faute de zone se voit.
-  cats.appendChild(el("span", { class: "ouvreurs-qr" },
-                      voie.nom ? "QR " + voie.tag : "sans n°"));
   quoi.appendChild(cats);
 
   n.append(pastille, el("span", { class: "ouvreurs-num" }, voie.nom || "—"), quoi,
@@ -314,7 +336,11 @@ function ligne(voie) {
   if (etat.ecriture) {
     n.tabIndex = 0;
     n.setAttribute("role", "button");
-    n.addEventListener("click", () => { voieOuverte = voie; dessinerTiroir(); });
+    n.addEventListener("click", () => {
+      voieOuverte = voie;
+      nuanciersOuverts.clear();    // une autre voie, un autre choix
+      dessinerTiroir();
+    });
     n.addEventListener("keydown", (e) => {
       if (e.key === "Enter" || e.key === " ") { e.preventDefault(); n.click(); }
     });
@@ -346,82 +372,158 @@ function jetons(titre, valeurs, choisi, surChoix, teintes) {
   return bloc;
 }
 
-/** Les prises : les sept courantes, et le nuancier derrière un bouton.
+/** Les prises : un interrupteur « bicolore », puis un ou deux sélecteurs.
  *
- * ⚠️ Une valeur DÉJÀ POSÉE est toujours montrée, même hors des courantes et
- * même absente du nuancier. Une couleur venue du classeur — le nuancier ne
- * connaît pas tous les mots qu'on a pu y taper — disparaîtrait sinon de
- * l'écran tout en restant en base : on la lirait sur l'étiquette imprimée sans
- * pouvoir la retrouver dans la console.
+ * ⚠️ **L'INTERRUPTEUR REMPLACE UN PLAFOND IMPLICITE**, demandé le 05/09 : « ce
+ * n'est pas très ergonomique ce choix de couleur, surtout pour des bicolores ;
+ * je propose que tu ajoutes un interrupteur pour activer le choix bicolore. »
+ *
+ * La première version faisait de la rangée un choix multiple plafonné à deux :
+ * au deuxième jeton, tous les autres devenaient inertes. Trois défauts, et ils
+ * se voient à l'usage :
+ *
+ * 1. **rien n'annonçait le plafond avant de le heurter** — on découvrait la
+ *    règle en voyant l'écran s'éteindre ;
+ * 2. **on ne savait pas laquelle des deux on changeait** : les deux jetons
+ *    allumés étaient interchangeables, il fallait en retirer un pour en poser
+ *    un autre ;
+ * 3. **rien ne disait qu'une prise bicolore existe.** Il fallait le deviner en
+ *    touchant un second jeton.
+ *
+ * Avec l'interrupteur, la bicolorité est un ÉTAT qu'on déclare, et chaque
+ * couleur a son propre sélecteur — on sait toujours laquelle on modifie.
  */
 function jetonsPrises(voie) {
   const posees = voie.couleurs_prises || [];
-  const visibles = PRISES_COURANTES.slice();
-  for (const p of posees) if (visibles.indexOf(p) === -1) visibles.push(p);
-  const plein = posees.length >= PRISES_MAXI;
+  const bicolore = posees.length > 1;
 
   const bloc = el("div", {});
   const rub = el("div", { class: "ouvreurs-rub" }, "Couleur des prises");
-  // ⚠️ L'APERÇU DE LA PRISE, en UNE pastille. Les jetons ci-dessous sont un
-  // sélecteur : deux d'entre eux s'allument, et deux jetons allumés racontent
-  // deux prises. Celle-ci dit ce qu'on a réellement posé sur le mur — un objet,
-  // deux couleurs, séparées par un oblique à 45°.
   if (posees.length) {
     rub.appendChild(pastilleDePrises(posees, "ouvreurs-apercu-prise"));
-    // Le NOM ne prend pas les capitales de la rubrique : « BLANC ET FLUO »
-    // crie, et ce n'est pas un titre, c'est une valeur.
     rub.appendChild(el("span", { class: "ouvreurs-valeur-prise" },
                        posees.join(" et ")));
   }
   bloc.appendChild(rub);
-  const rangee = el("div", { class: "ouvreurs-jetons" });
 
+  // L'interrupteur, aux cotes de la console (`label.bascule`, spec 021) : la
+  // case native est conservée sous le visuel, elle garde le clavier, le focus
+  // et le lecteur d'écran.
+  const bascule = el("label", { class: "bascule ouvreurs-bascule" });
+  const case_ = el("input", { type: "checkbox" });
+  case_.checked = bicolore;
+  case_.setAttribute("role", "switch");
+  bascule.append(case_, el("span", { class: "glissiere" }),
+                 el("span", {}, "Prise bicolore"));
+  case_.addEventListener("change", () => {
+    if (case_.checked) return basculerBicolore(voie, true);
+    basculerBicolore(voie, false);
+  });
+  bloc.appendChild(bascule);
+
+  const rang = (indice) => {
+    const groupe = el("div", { class: "ouvreurs-rang-prise" });
+    if (bicolore) {
+      groupe.appendChild(el("div", { class: "ouvreurs-sous-rub" },
+                            indice === 0 ? "Première couleur" : "Seconde couleur"));
+    }
+    groupe.appendChild(selecteurPrise(voie, posees, indice));
+    return groupe;
+  };
+  bloc.appendChild(rang(0));
+  if (bicolore) bloc.appendChild(rang(1));
+
+  if (!posees.length) {
+    bloc.appendChild(el("p", { class: "ouvreurs-note-prises" },
+      "Deux couleurs sur la même prise ? Active l'interrupteur."));
+  }
+  return bloc;
+}
+
+/** Poser ou retirer la seconde couleur.
+ *
+ * ⚠️ Activer l'interrupteur n'envoie RIEN au serveur tant qu'aucune seconde
+ * couleur n'est choisie : une prise « bicolore sans seconde couleur » n'existe
+ * pas. L'état vit alors dans l'écran, le temps du geste.
+ */
+let secondSelecteurOuvert = false;
+
+function basculerBicolore(voie, vers) {
+  const posees = voie.couleurs_prises || [];
+  if (vers) {
+    secondSelecteurOuvert = true;
+    voie.couleurs_prises = posees.length ? posees.concat([posees[0]]) : posees;
+    // Rien à enregistrer : on ouvre juste le second sélecteur. Il se remplira
+    // au premier choix.
+    dessinerTiroir();
+    return;
+  }
+  secondSelecteurOuvert = false;
+  // ⚠️ On garde la PREMIÈRE et on le dit. Retirer la seconde en silence ferait
+  // disparaître un choix sans qu'on sache lequel.
+  envoyer(voie, { couleur_prises: posees.slice(0, 1) });
+}
+
+/** Un sélecteur de couleur : les sept courantes, et le nuancier replié.
+ *
+ * ⚠️ Une couleur DÉJÀ POSÉE est toujours montrée, même hors des courantes et
+ * même absente du nuancier — le classeur a pu y écrire un mot que le nuancier
+ * ne connaît pas. La masquer la laisserait en base et sur l'étiquette
+ * imprimée, sans qu'on puisse la retrouver dans la console.
+ */
+function selecteurPrise(voie, posees, indice) {
+  const posee = posees[indice];
+  const visibles = PRISES_COURANTES.slice();
+  for (const p of posees) if (p && visibles.indexOf(p) === -1) visibles.push(p);
+
+  const rangee = el("div", { class: "ouvreurs-jetons" });
   const poser = (nom) => {
-    const actif = posees.indexOf(nom) !== -1;
-    // ⚠️ Quand deux couleurs sont posées, les autres deviennent INERTES au
-    // lieu d'en remplacer une au hasard. Un troisième appui qui chasse
-    // silencieusement l'une des deux fait disparaître un choix sans dire
-    // lequel ; mieux vaut un geste de plus et savoir ce qu'on retire.
-    const inerte = plein && !actif;
+    const actif = posee === nom;
     const j = el("button", { type: "button",
-                             class: "ouvreurs-jeton" + (actif ? " choisi" : "")
-                                    + (inerte ? " inerte" : ""),
+                             class: "ouvreurs-jeton" + (actif ? " choisi" : ""),
                              "aria-pressed": actif ? "true" : "false" });
-    if (inerte) j.disabled = true;
     const rond = el("i", {});
     rond.style.background = teintePrise(nom) || "var(--surface3)";
     j.appendChild(rond);
     j.append(nom);
     j.addEventListener("click", () => {
-      const suite = actif ? posees.filter((p) => p !== nom)
-                          : posees.concat([nom]);
-      envoyer(voie, { couleur_prises: suite });
+      const suite = posees.slice();
+      // Le sélecteur d'un rang ne touche QUE son rang : c'est tout l'intérêt
+      // de l'interrupteur, on sait laquelle des deux on change.
+      if (actif) suite.splice(indice, 1);
+      else suite[indice] = nom;
+      envoyer(voie, { couleur_prises: suite.filter(Boolean) });
     });
     return j;
   };
   for (const nom of visibles) rangee.appendChild(poser(nom));
 
-  const plus = el("button", { type: "button", class: "ouvreurs-jeton",
-                              "aria-expanded": "false" }, "Personnaliser…");
-  const nuancier = el("div", { class: "ouvreurs-jetons ouvreurs-nuancier",
-                               hidden: "hidden" });
+  const cle = "rang" + indice;
+  const ouvert = nuanciersOuverts.has(cle);
+  const plus = el("button", { type: "button",
+                              class: "ouvreurs-jeton" + (ouvert ? " choisi" : ""),
+                              "aria-expanded": ouvert ? "true" : "false" },
+                  "Personnaliser…");
+  const nuancier = el("div", { class: "ouvreurs-jetons ouvreurs-nuancier" });
+  nuancier.hidden = !ouvert;
   for (const p of PRISES) {
     if (visibles.indexOf(p.nom) !== -1) continue;
     nuancier.appendChild(poser(p.nom));
   }
   plus.addEventListener("click", () => {
-    nuancier.hidden = !nuancier.hidden;
-    plus.setAttribute("aria-expanded", nuancier.hidden ? "false" : "true");
+    // ⚠️ L'ouverture SURVIT au redessin de la fiche. Sans ça, choisir deux
+    // couleurs rares était pénible : le premier choix déclenche un aller-retour
+    // serveur, la fiche se reconstruit, et le nuancier se refermait — juste
+    // avant le second choix, c'est-à-dire au pire moment.
+    if (nuanciersOuverts.has(cle)) nuanciersOuverts.delete(cle);
+    else nuanciersOuverts.add(cle);
+    dessinerTiroir();
   });
   rangee.appendChild(plus);
 
-  bloc.append(rangee, nuancier);
-  // Une prise BICOLORE est une prise à deux couleurs, pas deux prises : on le
-  // dit là où le geste se fait, pas dans une aide qu'on ne lit pas.
-  bloc.appendChild(el("p", { class: "ouvreurs-note-prises" },
-    plein ? "Deux couleurs : c'est le maximum. Retires-en une pour changer."
-          : "Une prise bicolore ? Choisis une seconde couleur."));
-  return bloc;
+  const groupe = el("div", {});
+  groupe.append(rangee, nuancier);
+  return groupe;
 }
 
 function fiche(voie) {
