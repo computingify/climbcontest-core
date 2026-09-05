@@ -19,6 +19,19 @@ qu'on ne met pas à jour le matin d'une compétition :
 
 ## [Non publié]
 
+### Modifié
+
+- **Le dossard ne se change plus depuis la console** (spec 008). Il est imprimé
+  sur le QR code déjà distribué, et le classeur Google porte le sien : deux
+  écritures d'un même numéro finissaient toujours par se contredire. Le crayon
+  affiche donc le dossard sans le laisser saisir, la route de réaffectation est
+  **supprimée**, et la fonction métier qui la servait avec elle — une route
+  neutralisée finit toujours par être rebranchée « puisqu'elle est là ».
+
+  Ce qui disparaît avec : donner le dossard d'un absent à un arrivant de
+  dernière minute. C'était une économie de papier, jamais une nécessité —
+  l'ajout attribue le premier numéro libre, et la console imprime la fiche.
+
 ### Ajouté
 
 - **La page de résultats ne s'indexe plus, et dit ce qu'elle publie**
@@ -50,6 +63,25 @@ qu'on ne met pas à jour le matin d'une compétition :
 
 
 ### Corrigé
+
+- **L'import du classeur pouvait fabriquer un doublon, ou pire.** Il rapprochait
+  une ligne par son **seul dossard**. Deux conséquences, reproduites par un test
+  avant d'être corrigées : un participant dont le numéro avait changé de main
+  n'était plus retrouvé et sa fiche était **recréée** ; et si son ancien numéro
+  était désormais porté par quelqu'un d'autre, l'import **écrasait le nom de ce
+  quelqu'un d'autre**, dont les réussites étaient déjà enregistrées.
+
+  Le dossard reste la première clé — c'est le cas courant. Mais il ne conclut
+  plus seul : l'**identité** le confirme, et prend le relais quand il ne dit
+  rien. C'est la comparaison du rapprochement HelloAsso, pas une seconde écrite
+  à côté. Le classeur ne réécrit plus que les fiches **qu'il possède**, et
+  jamais une qui porte des réussites.
+
+- **Une correction faite au crayon survit à l'import suivant.** Un champ modifié
+  dans la console est marqué, et le classeur ne le réécrit plus — « la console
+  gagne, définitivement ». La protection est **par champ** : corriger le club ne
+  fige pas la catégorie. La liste teinte les cellules protégées, et le rapport
+  d'import compte les corrections conservées plutôt que de les taire.
 
 - **Le harnais des tests navigateur pouvait rendre un verdict qu'il n'avait pas
   produit.** `piloter` attend que le pilote poste son relevé, mais il tenait

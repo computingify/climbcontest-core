@@ -397,48 +397,21 @@ def ajouter_participant_numerote(nom: str, prenom: str | None = None,
         "Reessaie dans un instant.", code=409) from derniere
 
 
-def reaffecter_dossard(participant: Participant, dossard: int) -> None:
-    """Donne un dossard à un participant.
-
-    Règle métier tranchée le 28/08 : **un dossard ne peut être réaffecté que
-    s'il ne porte aucune réussite**. Le cas réel est celui d'un inscrit qui ne
-    vient pas — on récupère son dossard pour un arrivant de dernière minute
-    plutôt que d'en imprimer un nouveau.
-
-    Cette règle est ce qui évite d'avoir un jour à démêler des réussites entre
-    deux personnes : le dossard change de main alors qu'il ne porte rien.
-    """
-    comp = competition_active()
-    ancien = Participant.query.filter_by(
-        competition_id=comp.id, dossard=dossard
-    ).first()
-
-    if ancien and ancien.id != participant.id:
-        if Success.query.filter_by(participant_id=ancien.id).count():
-            raise ErreurMetier(
-                f"Le dossard {dossard} porte deja des reussites "
-                f"({ancien.nom_complet}) : il ne peut pas etre reaffecte. "
-                f"Imprimer un nouveau dossard.",
-                code=409,
-            )
-        ancien.dossard = None
-        db.session.add(ancien)
-
-    participant.dossard = dossard
-    db.session.add(participant)
-
-    # Journalise, meme quand le dossard etait libre : c'est la comparaison entre
-    # cette heure et celle du scan qui permettra de reperer une reussite arrivee
-    # apres coup (voir ReaffectationDossard et reussites_suspectes).
-    db.session.add(ReaffectationDossard(
-        competition_id=comp.id,
-        dossard=dossard,
-        ancien_participant_id=ancien.id if ancien and ancien.id != participant.id else None,
-        nouveau_participant_id=participant.id,
-        effectuee_le=datetime.now(),
-    ))
-    incrementer_catalogue(comp)
-    db.session.commit()
+# ⚠️ `reaffecter_dossard()` a ete SUPPRIMEE le 05/09, avec sa route
+# `POST /admin/participants/<id>/dossard` et le champ dossard du crayon.
+#
+# Elle donnait le dossard d'un absent a un arrivant de derniere minute -- une
+# economie de papier, jamais une necessite : `ajouter_participant_numerote()`
+# attribue un numero libre, et la console imprime la fiche.
+#
+# Elle fabriquait en revanche le doublon que la spec 008 promet d'empecher.
+# L'absent repartait avec `dossard = NULL`, l'import du classeur ne le
+# retrouvait plus par son numero, et **recreait sa fiche**. Adrien a tranche le
+# 05/09 : aucun changement de dossard, nulle part.
+#
+# `ReaffectationDossard` et `reussites_suspectes()` restent : une base de
+# production porte deja des lignes posees avant cette date, et elles doivent
+# continuer a se voir a l'ecran.
 
 
 def incrementer_catalogue(comp: Competition) -> None:

@@ -19,6 +19,23 @@ signalée, jamais devinée.
 **R7 — l'import déclenché par un scan.** Il ne l'est plus : c'est une action
 explicite de la console d'administration.
 
+**Le doublon fabriqué par le dossard — 05/09.** Jusqu'ici, une ligne du classeur
+était rapprochée **par son seul dossard**. Deux conséquences, toutes deux
+prouvées par un test avant d'être corrigées :
+
+- un participant dont le dossard avait changé de main n'était plus retrouvé, et
+  l'import **recréait sa fiche** — deux « Dupont Lea » dans la liste, chacune
+  avec une partie des réussites ;
+- pire, si son ancien numéro était désormais porté par quelqu'un d'autre,
+  l'import **écrasait le nom de ce quelqu'un d'autre** avec celui de la ligne du
+  classeur, alors que des réussites y étaient déjà attachées.
+
+Le dossard reste la **première** clé — c'est le cas courant, et c'est le plus
+rapide. Mais il ne conclut plus seul : l'**identité** (nom + prénom + club) le
+confirme, et prend le relais quand il ne dit rien. La comparaison est celle de
+`helloasso/rapprochement.py`, pas une seconde écrite ici : deux règles de
+rapprochement finiraient par ne plus rapprocher la même chose.
+
 Structure du classeur : docs/technical/classeur-google.md.
 """
 
@@ -29,6 +46,7 @@ from .. import formatage
 from ..contest import club_canonique
 from ..cycle import source_active
 from ..extensions import db
+from ..helloasso import rapprochement
 from ..models import (
     Bloc, BlocCircuit, Circuit, Competition, Participant, SOURCE_CLASSEUR,
     SOURCE_MANUEL,
@@ -83,6 +101,10 @@ class Rapport:
 
     participants_crees: int = 0
     participants_mis_a_jour: int = 0
+    # Les champs que l'import n'a PAS reecrits parce que quelqu'un les avait
+    # corriges dans la console. Compte a part, et affiche : un import qui
+    # conserve en silence ne se distingue pas d'un import qui n'a rien vu.
+    corrections_conservees: int = 0
     blocs_crees: int = 0
     blocs_mis_a_jour: int = 0
     circuits_crees: int = 0
@@ -96,7 +118,8 @@ class Rapport:
     def to_dict(self) -> dict:
         return {
             "participants": {"crees": self.participants_crees,
-                             "mis_a_jour": self.participants_mis_a_jour},
+                             "mis_a_jour": self.participants_mis_a_jour,
+                             "corrections_conservees": self.corrections_conservees},
             "blocs": {"crees": self.blocs_crees, "mis_a_jour": self.blocs_mis_a_jour},
             "circuits_crees": self.circuits_crees,
             "circuits": self.circuits,
@@ -106,7 +129,8 @@ class Rapport:
 
     def resume(self) -> str:
         return (f"{self.participants_crees} participant(s) cree(s), "
-                f"{self.participants_mis_a_jour} mis a jour ; "
+                f"{self.participants_mis_a_jour} mis a jour, "
+                f"{self.corrections_conservees} correction(s) conservee(s) ; "
                 f"{self.blocs_crees} bloc(s) cree(s), {self.blocs_mis_a_jour} mis a jour ; "
                 # Le nombre de circuits LUS, pas seulement les nouveaux : c'est
                 # ce chiffre-la qu'on compare de tete a ce qu'on attend.
@@ -154,6 +178,14 @@ def importer_participants(comp: Competition, classeur, rapport: Rapport,
     if lignes is None:
         lignes = classeur.lire(LISTES_ONGLET, LISTES_PLAGE)
 
+    # Toute la liste, lue UNE fois. Le rapprochement par identite compare
+    # chaque ligne a tout le monde ; une requete par ligne ferait cent
+    # requetes, et surtout ne verrait pas les participants crees par les
+    # lignes precedentes du meme import -- deux lignes jumelles du classeur
+    # produiraient alors deux fiches, ce qu'on est justement en train
+    # d'empecher.
+    existants = Participant.query.filter_by(competition_id=comp.id).all()
+
     for n, ligne in enumerate(lignes, start=2):
         nom_complet = _texte(ligne, I_NOM_COMPLET)
         dossard_brut = _texte(ligne, I_DOSSARD)
@@ -193,34 +225,139 @@ def importer_participants(comp: Competition, classeur, rapport: Rapport,
             rapport.avertissements.append(
                 f"Listes L{n} : « {nom_complet} » sans club (importe quand meme)")
 
-        p = Participant.query.filter_by(competition_id=comp.id, dossard=dossard).first()
-        if p and p.source == SOURCE_MANUEL:
-            # ⚠️ Spec 013. Un participant ajoute A LA MAIN pendant la competition
-            # porte un dossard attribue par le serveur. Si le classeur apporte
-            # plus tard le MEME numero, l'ecraser remplacerait son nom, son club
-            # et sa categorie -- et ses reussites, attachees a la ligne,
-            # changeraient de proprietaire SANS QUE RIEN NE LE DISE.
-            #
-            # On refuse, et on le signale. Le rapport d'import existe pour ca :
-            # l'organisateur tranche, en connaissance de cause.
-            rapport.ignores.append(
-                f"Listes L{n} : le dossard {dossard} est deja porte par "
-                f"« {p.nom_complet} », ajoute a la main. Ligne du classeur "
-                f"ignoree -- verifier lequel des deux garde ce numero.")
+        p = _retrouver(comp, existants, dossard, nom, prenom, club, categorie,
+                       n, nom_complet, rapport)
+        if p is _IGNORER:
             continue
-        if p:
-            avant = (p.nom, p.prenom, p.club, p.categorie)
-            p.nom, p.prenom, p.club, p.categorie = nom, prenom, club, categorie
-            if (p.nom, p.prenom, p.club, p.categorie) != avant:
-                rapport.participants_mis_a_jour += 1
-            db.session.add(p)
-        else:
-            db.session.add(Participant(
+
+        if p is None:
+            p = Participant(
                 competition_id=comp.id, nom=nom, prenom=prenom, club=club,
-                categorie=categorie, dossard=dossard, source=SOURCE_CLASSEUR))
+                categorie=categorie, dossard=dossard, source=SOURCE_CLASSEUR)
+            db.session.add(p)
+            db.session.flush()
+            existants.append(p)
             rapport.participants_crees += 1
+            continue
+
+        # Retrouve. Le classeur complete, il n'ecrase plus ce que la console a
+        # corrige -- decision d'Adrien du 05/09 : « la console gagne,
+        # definitivement ».
+        conserves, avant = [], (p.nom, p.prenom, p.club, p.categorie)
+        for champ, valeur in (("nom", nom), ("prenom", prenom),
+                              ("club", club), ("categorie", categorie)):
+            if p.est_force(champ):
+                if getattr(p, champ) != valeur:
+                    conserves.append(champ)
+                continue
+            setattr(p, champ, valeur)
+
+        if (p.nom, p.prenom, p.club, p.categorie) != avant:
+            rapport.participants_mis_a_jour += 1
+        if conserves:
+            rapport.corrections_conservees += len(conserves)
+            rapport.avertissements.append(
+                f"Listes L{n} : « {p.nom_complet} » — {', '.join(conserves)} "
+                f"corrige(s) dans la console, la ligne du classeur n'ecrase pas.")
+
+        # ⚠️ Le dossard n'est JAMAIS reecrit ici. Il est unique dans la
+        # competition : le reprendre au classeur pendant qu'un autre le porte
+        # ferait echouer tout l'import sur une contrainte, une ligne sur cent.
+        if p.dossard is None and _dossard_libre(existants, dossard):
+            # Il n'a plus de numero et le sien est libre : on le lui rend.
+            # C'est le retour a la normale apres une fusion de doublons.
+            p.dossard = dossard
+            rapport.avertissements.append(
+                f"Listes L{n} : dossard {dossard} rendu a « {p.nom_complet} ».")
+        elif p.dossard != dossard:
+            # Nommer QUI porte le numero : sans ce nom, l'organisateur doit
+            # chercher dans la liste ce que l'import savait deja.
+            porteur = next((x for x in existants
+                            if x.dossard == dossard and x.id != p.id), None)
+            occupe = f", porte par « {porteur.nom_complet} »" if porteur else ""
+            rapport.avertissements.append(
+                f"Listes L{n} : « {p.nom_complet} » porte le dossard "
+                f"{p.dossard if p.dossard is not None else 'aucun'} en console, "
+                f"le classeur dit {dossard}{occupe}. La console fait foi, aucune "
+                f"fiche n'a ete creee — corriger le classeur si l'ecart n'est "
+                f"pas voulu.")
+
+        db.session.add(p)
 
     db.session.commit()
+
+
+#: Ce que `_retrouver` rend quand la ligne ne doit rien produire du tout.
+_IGNORER = object()
+
+
+def _dossard_libre(existants: list, dossard: int) -> bool:
+    return not any(x.dossard == dossard for x in existants)
+
+
+def _retrouver(comp, existants, dossard, nom, prenom, club, categorie,
+               n, nom_complet, rapport):
+    """Qui est cette ligne du classeur ? Deux cles, dans cet ordre.
+
+    Rend le participant, `None` s'il faut le creer, ou `_IGNORER` si la ligne
+    ne doit rien produire -- et dans ce cas le rapport porte deja le pourquoi.
+    """
+    par_dossard = next((x for x in existants if x.dossard == dossard), None)
+    meme = (par_dossard is not None
+            and formatage.identite(par_dossard.nom, par_dossard.prenom)
+            == formatage.identite(nom, prenom))
+
+    if meme:
+        return par_dossard                          # le cas courant, et le plus rapide
+
+    # Le numero ne dit pas la meme personne. On demande a l'identite -- la
+    # MEME fonction que le rapprochement HelloAsso, pour que « le doublon entre
+    # deux origines » ait une seule definition dans tout le projet.
+    verdict = rapprochement.confronter(
+        rapprochement.Personne(None, nom, prenom, club, categorie),
+        [rapprochement.Personne(x.id, x.nom, x.prenom, x.club, x.categorie)
+         for x in existants])
+
+    if verdict.quoi == rapprochement.MEME_PERSONNE:
+        return db.session.get(Participant, verdict.identifiant)
+
+    if par_dossard is None:
+        return None                                 # personne, nulle part : c'est un nouveau
+
+    # Le classeur peut reecrire les fiches QU'IL POSSEDE, et celles-la seules.
+    #
+    # C'est le cas banal du nom mal orthographie corrige dans le classeur :
+    # « Dupond » devient « Dupont » sur la ligne du dossard 5, et l'identite ne
+    # reconnait evidemment plus personne. Le refuser obligerait a trancher a la
+    # main une coquille que le classeur vient justement de corriger.
+    #
+    # Trois conditions, et il les faut toutes : la fiche vient du classeur (une
+    # inscription HelloAsso ou un ajout au guichet ne lui appartiennent pas),
+    # elle ne porte aucune reussite, et aucune inscription en ligne n'y est
+    # rattachee. Sans elles, « corriger un nom » deviendrait « donner les
+    # reussites de quelqu'un a quelqu'un d'autre ».
+    if (par_dossard.source == SOURCE_CLASSEUR
+            and not par_dossard.reussites
+            and not par_dossard.inscriptions):
+        return par_dossard
+
+    # Quelqu'un d'autre porte ce numero, et l'identite ne le reconnait pas.
+    #
+    # ⚠️ C'est ici que se jouait le defaut le plus grave : l'ancienne version
+    # ecrivait le nom de la ligne du classeur SUR CE QUELQU'UN D'AUTRE, dont
+    # les reussites etaient deja enregistrees. Elles changeaient de
+    # proprietaire sans un mot. On ne touche a rien, et on le dit.
+    #
+    # On ne cree pas non plus la fiche manquante : elle partirait sans dossard
+    # -- invisible pour les juges, qui scannent un numero -- et l'organisateur
+    # croirait la ligne importee.
+    a_la_main = " (ajoute a la main)" if par_dossard.source == SOURCE_MANUEL else ""
+    rapport.ignores.append(
+        f"Listes L{n} : le dossard {dossard} est porte par "
+        f"« {par_dossard.nom_complet} »{a_la_main}, pas par « {nom_complet} ». "
+        f"Ligne ignoree, rien n'a ete modifie -- verifier lequel des deux garde "
+        f"ce numero.")
+    return _IGNORER
 
 
 def importer_blocs(comp: Competition, classeur, rapport: Rapport,

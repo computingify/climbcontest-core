@@ -523,6 +523,21 @@
      la pour ca. */
   .mini-champ { padding: 6px 9px; font-size: 0.86rem; border-radius: 7px; min-width: 130px; }
   .mini-champ.num { max-width: 92px; min-width: 72px; font-family: var(--chiffre); }
+  /* Le dossard, dans la ligne ouverte : présent, lisible, et clairement pas
+     saisissable. Il garde la police des chiffres pour rester aligné sur la
+     colonne des lignes voisines. */
+  .fige { font-family: var(--chiffre); color: var(--encre3); cursor: not-allowed; }
+  /* Un champ que la console a corrigé, et que l'import du classeur ne
+     réécrira plus.
+     Une TEINTE de cellule, pas un liseré : le premier essai posait un trait
+     ocre à gauche de la cellule, et un trait vertical entre deux colonnes se
+     lit comme un filet de tableau, pas comme un repère. Une icône, elle,
+     encombrerait des lignes qui en portent déjà une (le crayon, les
+     pastilles de source). */
+  td.protege {
+    background: color-mix(in srgb, var(--accent) 11%, transparent);
+    border-radius: 5px;
+  }
   .apercu { margin: 6px 0 0; font-size: 0.8rem; color: var(--accent-texte); }
   .apercu b { color: var(--encre); }
 
@@ -2839,9 +2854,17 @@
     else { td.className = "num"; td.textContent = p.dossard; }
     tr.appendChild(td);
 
+    // Une teinte sur les champs corrigés dans la console : l'import du
+    // classeur ne les réécrira plus. Sans ce repère, « la console gagne » est
+    // une règle qu'on ne peut pas vérifier depuis l'écran où elle s'applique.
+    var proteges = p.champs_forces || [];
     ["nom", "annee_naissance", "club", "categorie"].forEach(function (champ) {
       var c = document.createElement("td");
       if (champ === "annee_naissance") c.className = "num";
+      if (proteges.indexOf(champ) !== -1) {
+        c.className = (c.className ? c.className + " " : "") + "protege";
+        c.title = "Corrigé ici : l'import du classeur ne l'écrasera pas.";
+      }
       c.textContent = p[champ] || "—";
       // ⚠️ La console montre TOUJOURS le vrai nom, meme anonymise en public
       // (spec 043) : c'est elle qui sert a retrouver la personne au
@@ -2950,12 +2973,18 @@
 
     if (selection.active) tr.appendChild(document.createElement("td"));
 
+    // Le dossard se LIT, il ne se saisit pas (décision du 05/09). Il est
+    // imprimé sur le QR code déjà distribué, et le classeur Google porte le
+    // sien : le changer ici fabriquait un doublon au prochain import. La
+    // cellule reste à sa place — la faire disparaître décalerait toutes les
+    // colonnes de la ligne ouverte par rapport à ses voisines.
     cellule(function () {
-      champs.dossard = document.createElement("input");
-      champs.dossard.className = "mini-champ num";
-      champs.dossard.value = p.dossard === null ? "" : p.dossard;
-      champs.dossard.inputMode = "numeric";
-      return champs.dossard;
+      var fige = document.createElement("span");
+      fige.className = "num fige";
+      fige.textContent = p.dossard === null ? "aucun" : p.dossard;
+      fige.title = "Le dossard ne se change pas : il est imprimé sur le QR "
+                 + "code. Corriger le classeur, puis réimporter.";
+      return fige;
     });
     cellule(function () {
       champs.nom = document.createElement("input");
@@ -3078,9 +3107,6 @@
 
     var cat = champs.categorie.valeur();
     if (cat !== (p.categorie || "")) corps.categorie = cat;
-
-    var dossard = champs.dossard.value.trim();
-    if (dossard && dossard !== String(p.dossard || "")) corps.dossard = dossard;
 
     if (!Object.keys(corps).length) {
       enEdition = null;

@@ -7,7 +7,7 @@ import pytest
 from sqlalchemy.exc import IntegrityError
 
 from climbcontest.contest import (
-    ErreurMetier, enregistrer_reussite, reaffecter_dossard,
+    ErreurMetier, enregistrer_reussite,
 )
 from climbcontest.extensions import db
 from climbcontest.models import Competition, Participant, Success
@@ -112,30 +112,12 @@ class TestIdempotence:
         db.session.rollback()
 
 
-class TestReaffectationDossard:
-    def test_dossard_vierge_reaffectable(self, app, jeu):
-        """Le cas réel : un inscrit ne vient pas, un arrivant prend son dossard."""
-        absent = jeu["participants"][2]
-        libre = jeu["participants"][1]           # dossard 2, aucune réussite
-        reaffecter_dossard(absent, 2)
-        assert absent.dossard == 2
-        assert libre.dossard is None
-
-    def test_dossard_avec_reussite_refuse(self, app, jeu):
-        """Règle tranchée le 28/08 : jamais sur un dossard en cours de
-        participation. C'est ce qui évite d'avoir à démêler des réussites."""
-        porteur, bloc = jeu["participants"][0], jeu["blocs"][0]   # dossard 1
-        enregistrer_reussite(porteur, bloc)
-        absent = jeu["participants"][2]
-        with pytest.raises(ErreurMetier) as e:
-            reaffecter_dossard(absent, 1)
-        assert "reussites" in str(e.value).lower()
-        assert porteur.dossard == 1               # rien n'a bougé
-
-    def test_incremente_le_catalogue(self, app, jeu):
-        avant = jeu["competition"].catalogue_version
-        reaffecter_dossard(jeu["participants"][2], 2)
-        assert jeu["competition"].catalogue_version > avant
+# ⚠️ `TestReaffectationDossard` a ete retiree le 05/09 avec la fonction qu'elle
+# eprouvait : le dossard ne se change plus, nulle part. La regle qu'elle testait
+# -- « jamais un dossard qui porte des reussites » -- n'a plus rien a garder,
+# puisque plus aucun dossard ne change de main. Ce qui reste de ce dossier est
+# dans `tests/test_admin_participants.py::TestLaReaffectationAEteRetiree` et
+# dans `tests/test_crayon_et_classeur.py`.
 
 
 class TestCompetitionActive:

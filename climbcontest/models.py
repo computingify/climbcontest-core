@@ -183,6 +183,21 @@ class Participant(db.Model):
     # explicitement.
     categorie_forcee = Column(Boolean)
 
+    # Les champs que quelqu'un a corriges DANS LA CONSOLE, separes par des
+    # virgules : « nom,club ». Decision d'Adrien du 05/09 -- « la console gagne,
+    # definitivement ».
+    #
+    # Sans cette trace, l'import du classeur refait sa ligne a l'identique au
+    # tour suivant et la correction disparait sans un mot : le club retape
+    # revient a son ancienne orthographe, la categorie remise a la main
+    # redevient fausse. Personne ne le voit, et personne ne peut le voir --
+    # c'est le pire des defauts silencieux.
+    #
+    # C'est la trace d'un GESTE, comme `categorie_forcee` et
+    # `Success.hors_circuit_force`. Une colonne texte plutot que quatre
+    # booleens : les champs editables changeront encore, la forme non.
+    champs_forces = Column(String(120))
+
     cree_le = Column(DateTime, nullable=False, default=func.now())
 
     competition = relationship("Competition", back_populates="participants")
@@ -230,6 +245,32 @@ class Participant(db.Model):
             "categorie": self.categorie,
         }
 
+    # --- Ce que la console a corrige a la main ------------------------------
+    #
+    # `categorie` a sa propre colonne (`categorie_forcee`) depuis le 04/09, et
+    # elle reste : c'est elle que lit « Appliquer le bareme a tous ». Les deux
+    # se consultent par la MEME methode -- deux facons de poser la question
+    # finiraient par ne plus donner la meme reponse.
+
+    #: Les seuls champs qu'un humain peut corriger dans la liste (spec 008).
+    CHAMPS_EDITABLES = ("nom", "prenom", "club", "categorie")
+
+    def est_force(self, champ: str) -> bool:
+        """Ce champ a-t-il ete corrige a la main dans la console ?"""
+        if champ == "categorie":
+            return bool(self.categorie_forcee)
+        return champ in (self.champs_forces or "").split(",")
+
+    def forcer(self, champ: str) -> None:
+        """Note que ce champ vient de la console. Idempotent."""
+        if champ == "categorie":
+            self.categorie_forcee = True
+            return
+        deja = [c for c in (self.champs_forces or "").split(",") if c]
+        if champ not in deja:
+            deja.append(champ)
+        self.champs_forces = ",".join(deja)
+
     @property
     def sources(self) -> list[str]:
         """D'où vient ce participant — parfois de deux endroits (spec 008).
@@ -257,6 +298,7 @@ class Participant(db.Model):
             "present": self.present,
             "annee_naissance": self.annee_naissance,
             "categorie_forcee": bool(self.categorie_forcee),
+            "champs_forces": [c for c in self.CHAMPS_EDITABLES if self.est_force(c)],
             "sources": self.sources,
             # Spec 043. Ici et NON dans `to_dict()` : celle-la alimente le
             # catalogue des vingt-cinq telephones des juges et reste maigre --

@@ -31,7 +31,7 @@ from ..contest import (
     bloc_par_tag, club_canonique, competition_active,
     enregistrer_reussite, homonymes,
     incrementer_catalogue,
-    participant_par_dossard, reaffecter_dossard, reussites_tracees,
+    participant_par_dossard, reussites_tracees,
     supprimer_reussite, verifier_annee,
 )
 from .. import bareme as bareme_module
@@ -470,10 +470,14 @@ def modifier_participant(participant_id):
     doit pas effacer la categorie -- c'est la difference entre un PATCH et un
     PUT, et la console n'envoie que ce qui a bouge.
 
-    ⚠️ Le dossard passe par `reaffecter_dossard()`, pas par une affectation
-    directe. C'est lui qui porte la regle de la spec 002 : un dossard qui
-    porte des reussites ne change pas de main. L'ouvrir ici, meme par
-    inadvertance, rendrait la regle contournable depuis un ecran.
+    ⚠️ **Le dossard ne se change plus**, ni ici ni ailleurs -- decision d'Adrien
+    du 05/09. Il est imprime sur un QR code distribue, et le classeur Google
+    porte le sien : deux ecritures d'un meme numero finissaient toujours par se
+    contredire, et c'est cette contradiction qui fabriquait les doublons.
+    Un corps qui en porte un est refuse, jamais ignore en silence.
+
+    Chaque champ modifie est MARQUE (`Participant.forcer`) : c'est ce qui
+    empeche l'import du classeur de defaire la correction au tour suivant.
     """
     corps = _corps_objet()
     if corps is None:
@@ -489,36 +493,43 @@ def modifier_participant(participant_id):
             return jsonify({"success": False,
                             "message": "Ce participant n'est pas de la competition active"}), 409
 
-        if "dossard" in corps:
-            if corps["dossard"] in (None, ""):
-                return jsonify({"success": False,
-                                "message": "Un dossard vide ne se retire pas ici"}), 400
-            try:
-                nouveau = int(str(corps["dossard"]).strip())
-            except (TypeError, ValueError):
-                return jsonify({"success": False,
-                                "message": f"Dossard invalide : {corps['dossard']!r}"}), 400
-            if nouveau != p.dossard:
-                reaffecter_dossard(p, nouveau)
+        if "dossard" in corps and str(corps["dossard"] or "") != str(p.dossard or ""):
+            return jsonify({
+                "success": False,
+                "message": "Le dossard ne se change pas depuis la console. Il "
+                           "est imprime sur le QR code deja distribue, et le "
+                           "classeur porte le sien : le changer ici fabrique un "
+                           "doublon au prochain import. Corriger le classeur, "
+                           "puis reimporter.",
+            }), 409
 
         if "nom" in corps:
             nom = formatage.nom(corps["nom"])
             if not nom:
                 return jsonify({"success": False,
                                 "message": "Le nom est obligatoire"}), 400
-            p.nom = nom
+            if nom != p.nom:
+                p.nom = nom
+                p.forcer("nom")
         if "prenom" in corps:
-            p.prenom = formatage.nom(corps["prenom"])
+            prenom = formatage.nom(corps["prenom"])
+            if prenom != p.prenom:
+                p.prenom = prenom
+                p.forcer("prenom")
         if "club" in corps:
             # L'orthographe deja en base fait reference : « caf vivarais »
             # corrige a la main ne doit pas fabriquer un second « Caf Vivarais »
             # a cote du « CAF Vivarais » du classeur.
-            p.club = club_canonique(comp, corps["club"])
+            club = club_canonique(comp, corps["club"])
+            if club != p.club:
+                p.club = club
+                p.forcer("club")
         if "annee_naissance" in corps:
             p.annee_naissance = verifier_annee(corps["annee_naissance"])
         if "categorie" in corps:
             # Passe par le bareme : c'est lui qui pose la trace du geste, pour
             # que « Appliquer a tous » ne defasse pas ce choix (decision D10).
+            # `categorie_forcee` est la trace lue par `est_force("categorie")`.
             bareme_module.regler_a_la_main(p, corps["categorie"])
 
         db.session.add(p)
@@ -601,39 +612,6 @@ def categories_appliquer():
         rapport = bareme_module.appliquer(
             comp, par=g.utilisateur.identifiant, forcer=forcer)
     return jsonify({"success": True, **rapport}), 200
-
-
-@bp.post("/participants/<int:participant_id>/dossard")
-@exige_role(ORGANISATEUR)
-def reaffecter_dossard_route(participant_id):
-    """Donne un dossard a quelqu'un, en reprenant celui d'un absent.
-
-    La regle metier est deja ecrite et testee (spec 002) : un dossard portant
-    des reussites ENREGISTREES ne peut pas changer de main. On l'expose, on ne
-    la reecrit pas.
-    """
-    corps = _corps_objet()
-    if corps is None or "dossard" not in corps:
-        return jsonify({"success": False, "message": "Champ « dossard » attendu"}), 400
-
-    p = db.session.get(Participant, participant_id)
-    if p is None:
-        return jsonify({"success": False, "message": "Participant inconnu"}), 404
-
-    try:
-        dossard = int(str(corps["dossard"]).strip())
-    except (TypeError, ValueError):
-        return jsonify({"success": False,
-                        "message": f"Dossard invalide : {corps['dossard']!r}"}), 400
-
-    try:
-        reaffecter_dossard(p, dossard)
-    except ErreurMetier as e:
-        return jsonify({"success": False, "message": e.message}), e.code
-
-    logger.info("dossard %s attribue a %s par %s",
-                dossard, p.nom_complet, g.utilisateur.identifiant)
-    return jsonify({"success": True, "participant": p.to_dict()}), 200
 
 
 @bp.post("/participants/<int:participant_id>/publication")

@@ -4,6 +4,10 @@
 > lots 1 à 7 livrés le jour même. Reste le lot 8 — la recette sur le bac à
 > sable — qui demande une clé d'API et n'est donc pas de moi.**
 >
+> **Le 05/09**, D12 et D13 sont tranchées par Adrien : la console gagne
+> définitivement sur le classeur, et le dossard ne se change plus nulle part.
+> Voir **§5 quater**.
+>
 > **D10 et D11 sont restées sans réponse** : mes propositions ont été appliquées
 > — une catégorie corrigée à la main est protégée, et le vert de la maquette est
 > conservé. Un mot suffit pour changer l'une ou l'autre.
@@ -305,6 +309,92 @@ ce qu'il fait.
 Un relevé qui passerait par un troisième chemin ferait entrer des inscrits dans
 une édition qui a déclaré ne pas s'en servir, et personne ne comprendrait d'où
 ils viennent.
+
+## 5 quater. Le crayon et le classeur — 05/09
+
+> Demande d'Adrien : « je veux un crayon pour modifier ses informations.
+> Attention, peu importe d'où le participant a été importé (Google ou
+> HelloAsso), il faut qu'au prochain update on ne crée pas un doublon. »
+
+Le crayon existait déjà (**F5**, lot 3). Le reste ne tenait pas, et la
+vérification l'a montré avant qu'on écrive une ligne de correctif.
+
+### Ce qui était vrai, et ce qui ne l'était pas
+
+| Origine | Un nouvel update crée-t-il un doublon ? |
+| --- | --- |
+| **HelloAsso** | Non. `UNIQUE(competition_id, article_id)` ferme la porte, et une inscription déjà rattachée est comptée « déjà connue » sans rien réécrire |
+| **Classeur Google** | **Oui.** Il rapprochait par le **seul dossard** |
+
+Le défaut a été **reproduit** sur `feat/008-helloasso-import`, dans les deux
+formes qu'il pouvait prendre :
+
+```
+test_la_correction_du_crayon_est_ecrasee
+  APRES IMPORT : Les Lezards / U11 F      ← la correction a disparu
+
+test_le_dossard_change_au_crayon_fabrique_un_doublon
+  LEAS : [(1, 30, 'Les Lezards'), (3, 1, 'Les Lezards')]
+  AssertionError: 2 fiches pour la meme personne
+```
+
+Et une troisième, plus grave, trouvée en corrigeant : si l'ancien numéro était
+désormais porté par **quelqu'un d'autre**, l'import écrivait le nom de la ligne
+du classeur **sur cette personne-là**, dont les réussites étaient déjà
+enregistrées. Elles changeaient de propriétaire sans un mot. La garde de la
+spec 013 ne couvrait que la saisie manuelle : un inscrit HelloAsso passait
+au travers.
+
+### Les deux décisions
+
+**D12 — la console gagne, définitivement.** Un champ corrigé au crayon est
+marqué (`Participant.champs_forces`, à côté de `categorie_forcee` qui existait
+déjà pour le barème) et l'import ne le réécrit plus. La protection est **par
+champ** : corriger le club ne fige pas la catégorie. Le rapport d'import compte
+les corrections conservées, et la liste teinte les cellules protégées — une
+règle qu'on ne peut pas vérifier depuis l'écran où elle s'applique n'est pas
+une règle, c'est une croyance.
+
+**D13 — aucun changement de dossard, nulle part.** Le champ dossard sort du
+crayon, la route `POST /admin/participants/<id>/dossard` est supprimée, et
+`contest.reaffecter_dossard()` avec elle. Ce qui disparaît : donner le dossard
+d'un absent à un arrivant de dernière minute. La contrepartie a été posée avant
+la décision — il faudra imprimer un dossard neuf — et elle est acceptée :
+`ajouter_participant_numerote()` attribue le premier numéro libre et la console
+imprime la fiche.
+
+> `ReaffectationDossard` et `reussites_suspectes()` **restent** : une base de
+> production porte déjà des lignes posées avant cette date, et une réussite
+> arrivée en retard sur un dossard qui a changé de main doit continuer à se voir.
+
+### L'appariement, après
+
+Le dossard reste la **première** clé — c'est le cas courant et le plus rapide —
+mais il ne conclut plus seul.
+
+| Ce que trouve le dossard | Ce que dit l'identité | Verdict |
+| --- | --- | --- |
+| Personne | Personne | **Créé** |
+| Personne | Cette personne existe | **Rattaché**, jamais dupliqué |
+| La même personne | — | **Mis à jour**, sauf champs corrigés |
+| Quelqu'un d'autre | Cette personne existe ailleurs | **Rattaché** à elle ; l'écart de numéro est signalé, le porteur est nommé |
+| Quelqu'un d'autre, fiche du classeur sans réussite ni inscription | Personne | **Renommé** — c'est la coquille corrigée dans le classeur |
+| Quelqu'un d'autre, tout autre cas | Personne | **Ligne ignorée**, et le rapport dit qui porte ce numéro |
+
+L'identité est celle de `helloasso/rapprochement.confronter()`, **réutilisée** et
+non réécrite : deux règles de rapprochement finiraient par ne plus rapprocher la
+même chose — c'est exactement le raisonnement du §5 bis, appliqué une fois de
+plus.
+
+Le dossard, lui, n'est **jamais** réécrit par l'import. Il est unique dans la
+compétition : le reprendre au classeur pendant qu'un autre le porte ferait
+échouer tout l'import sur une contrainte, pour une ligne sur cent. Seule
+exception, et elle est sûre : rendre son numéro à quelqu'un qui n'en a plus,
+quand personne ne le porte.
+
+Seize tests dans `tests/test_crayon_et_classeur.py`, un par promesse, dont
+quatre qui vérifient que le rapprochement n'est pas bouclé trop serré — le
+classeur doit rester une source, pas devenir un lecteur seul.
 
 ## 6. Les trois sources, montrées
 
